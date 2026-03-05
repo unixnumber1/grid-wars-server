@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { hqUpgradeCost, HQ_MAX_LEVEL } from '../../lib/formulas.js';
 
 export default async function handler(req, res) {
@@ -11,25 +11,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id is required' });
   }
 
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .select('id')
-    .eq('telegram_id', Number(telegram_id))
-    .maybeSingle();
-
-  if (playerError || !player) {
-    return res.status(404).json({ error: 'Player not found' });
-  }
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  if (playerError) return res.status(500).json({ error: playerError });
+  if (!player)     return res.status(404).json({ error: 'Player not found' });
 
   const { data: hq, error: hqError } = await supabase
     .from('headquarters')
-    .select('id, coins, level')
+    .select('*')
     .eq('player_id', player.id)
     .maybeSingle();
 
-  if (hqError || !hq) {
-    return res.status(404).json({ error: 'Headquarters not found' });
+  if (hqError) {
+    console.error('[hq-upgrade] hq fetch error:', hqError);
+    return res.status(500).json({ error: hqError.message });
   }
+  if (!hq) return res.status(404).json({ error: 'Headquarters not found' });
 
   const currentLevel = hq.level ?? 1;
 
@@ -51,7 +47,7 @@ export default async function handler(req, res) {
     .single();
 
   if (updateError) {
-    console.error('HQ upgrade error:', updateError);
+    console.error('[hq-upgrade] update error:', updateError);
     return res.status(500).json({ error: 'Failed to upgrade headquarters' });
   }
 

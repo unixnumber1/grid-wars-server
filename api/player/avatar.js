@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { ALLOWED_AVATARS } from '../../lib/formulas.js';
 
 export default async function handler(req, res) {
@@ -7,6 +7,7 @@ export default async function handler(req, res) {
   }
 
   const { telegram_id, avatar } = req.body;
+  console.log('[avatar] incoming:', { telegram_id, avatar });
 
   if (!telegram_id || !avatar) {
     return res.status(400).json({ error: 'telegram_id and avatar are required' });
@@ -16,16 +17,24 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid avatar' });
   }
 
-  const { data: player, error: updateError } = await supabase
+  // Step 1: find player
+  const { player, error: findError } = await getPlayerByTelegramId(telegram_id);
+  if (findError) return res.status(500).json({ error: findError });
+  if (!player)   return res.status(404).json({ error: 'Player not found' });
+
+  // Step 2: update avatar
+  const { data: updated, error: updateError } = await supabase
     .from('players')
     .update({ avatar })
-    .eq('telegram_id', Number(telegram_id))
+    .eq('id', player.id)               // use uuid PK, not bigint
     .select('id, telegram_id, username, avatar')
-    .maybeSingle();
+    .single();
 
-  if (updateError || !player) {
-    return res.status(404).json({ error: 'Player not found' });
+  if (updateError) {
+    console.error('[avatar] update error:', updateError);
+    return res.status(500).json({ error: updateError.message });
   }
 
-  return res.status(200).json({ player });
+  console.log('[avatar] updated:', updated);
+  return res.status(200).json({ player: updated });
 }

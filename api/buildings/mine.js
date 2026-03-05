@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { getCellId } from '../../lib/grid.js';
 import { haversine } from '../../lib/haversine.js';
 import { hqConfig } from '../../lib/formulas.js';
@@ -24,23 +24,21 @@ export default async function handler(req, res) {
   }
 
   // Resolve player
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .select('id')
-    .eq('telegram_id', Number(telegram_id))
-    .maybeSingle();
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  if (playerError) return res.status(500).json({ error: playerError });
+  if (!player)     return res.status(404).json({ error: 'Player not found' });
 
-  if (playerError || !player) {
-    return res.status(404).json({ error: 'Player not found' });
-  }
-
-  // Require headquarters (fetch level for mine-count cap check)
-  const { data: hq } = await supabase
+  // Require headquarters — use * so missing columns don't break the query
+  const { data: hq, error: hqError } = await supabase
     .from('headquarters')
-    .select('id, lat, lng, level')
+    .select('*')
     .eq('player_id', player.id)
     .maybeSingle();
 
+  if (hqError) {
+    console.error('[mine] hq fetch error:', hqError);
+    return res.status(500).json({ error: hqError.message });
+  }
   if (!hq) {
     return res.status(403).json({ error: 'You must place your headquarters first' });
   }

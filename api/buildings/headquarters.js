@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { getCellId } from '../../lib/grid.js';
 
 export default async function handler(req, res) {
@@ -12,16 +12,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id, lat, lng are required' });
   }
 
-  // Resolve player
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .select('id')
-    .eq('telegram_id', Number(telegram_id))
-    .maybeSingle();
-
-  if (playerError || !player) {
-    return res.status(404).json({ error: 'Player not found' });
-  }
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  if (playerError) return res.status(500).json({ error: playerError });
+  if (!player)     return res.status(404).json({ error: 'Player not found' });
 
   // Check if player already has a HQ
   const { data: existingHq } = await supabase
@@ -60,7 +53,7 @@ export default async function handler(req, res) {
     .single();
 
   if (insertError) {
-    console.error('HQ insert error:', insertError);
+    console.error('[headquarters] insert error:', insertError);
     return res.status(500).json({ error: 'Failed to place headquarters' });
   }
 

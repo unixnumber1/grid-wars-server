@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { mineUpgradeCost, MINE_MAX_LEVEL, hqConfig } from '../../lib/formulas.js';
 
 export default async function handler(req, res) {
@@ -12,25 +12,29 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id and mine_id are required' });
   }
 
-  // Resolve player
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .select('id')
-    .eq('telegram_id', Number(telegram_id))
-    .maybeSingle();
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  if (playerError) return res.status(500).json({ error: playerError });
+  if (!player)     return res.status(404).json({ error: 'Player not found' });
 
-  if (playerError || !player) {
-    return res.status(404).json({ error: 'Player not found' });
-  }
-
-  // Fetch mine and HQ in parallel
-  const [{ data: mine, error: mineError }, { data: hq, error: hqError }] = await Promise.all([
+  // Fetch mine and HQ in parallel — use * on HQ to be resilient to new columns
+  const [
+    { data: mine,  error: mineError },
+    { data: hq,    error: hqError },
+  ] = await Promise.all([
     supabase.from('mines').select('*').eq('id', mine_id).maybeSingle(),
-    supabase.from('headquarters').select('id, coins, level').eq('player_id', player.id).maybeSingle(),
+    supabase.from('headquarters').select('*').eq('player_id', player.id).maybeSingle(),
   ]);
 
-  if (mineError || !mine) return res.status(404).json({ error: 'Mine not found' });
-  if (hqError || !hq)   return res.status(404).json({ error: 'Headquarters not found' });
+  if (mineError) {
+    console.error('[upgrade] mine error:', mineError);
+    return res.status(500).json({ error: mineError.message });
+  }
+  if (hqError) {
+    console.error('[upgrade] hq error:', hqError);
+    return res.status(500).json({ error: hqError.message });
+  }
+  if (!mine) return res.status(404).json({ error: 'Mine not found' });
+  if (!hq)   return res.status(404).json({ error: 'Headquarters not found' });
 
   if (mine.owner_id !== player.id) {
     return res.status(403).json({ error: 'You do not own this mine' });
@@ -40,11 +44,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Mine is already at max level' });
   }
 
-  // Check HQ level cap for mine upgrades
   const cfg = hqConfig(hq.level ?? 1);
   if (mine.level + 1 > cfg.maxMineLevel) {
     return res.status(400).json({
-      error: `HQ level ${hq.level} only allows mines up to level ${cfg.maxMineLevel}. Upgrade your HQ first.`,
+      error: `HQ level ${hq.level ?? 1} only allows mines up to level ${cfg.maxMineLevel}. Upgrade your HQ first.`,
     });
   }
 
@@ -61,7 +64,7 @@ export default async function handler(req, res) {
     ]);
 
   if (hqUpdateError || mineUpdateError) {
-    console.error('Upgrade error:', hqUpdateError, mineUpdateError);
+    console.error('[upgrade] error:', hqUpdateError, mineUpdateError);
     return res.status(500).json({ error: 'Failed to upgrade mine' });
   }
 

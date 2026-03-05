@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 
 const CAPTURE_RADIUS = 50; // meters
@@ -13,7 +13,7 @@ async function sendTelegramNotification(telegramId, text) {
       body: JSON.stringify({ chat_id: telegramId, text }),
     });
   } catch (err) {
-    console.error('Telegram notification error:', err);
+    console.error('[capture] Telegram notification error:', err);
   }
 }
 
@@ -31,34 +31,27 @@ export default async function handler(req, res) {
   const playerLat = parseFloat(lat);
   const playerLng = parseFloat(lng);
 
-  // Resolve attacker
-  const { data: attacker, error: attackerError } = await supabase
-    .from('players')
-    .select('id')
-    .eq('telegram_id', Number(telegram_id))
-    .maybeSingle();
+  const { player: attacker, error: attackerError } = await getPlayerByTelegramId(telegram_id);
+  if (attackerError) return res.status(500).json({ error: attackerError });
+  if (!attacker)     return res.status(404).json({ error: 'Player not found' });
 
-  if (attackerError || !attacker) {
-    return res.status(404).json({ error: 'Player not found' });
-  }
-
-  // Fetch mine
+  // Fetch mine with owner's telegram_id for notification
   const { data: mine, error: mineError } = await supabase
     .from('mines')
     .select('*, players!mines_owner_id_fkey(telegram_id, username)')
     .eq('id', mine_id)
     .maybeSingle();
 
-  if (mineError || !mine) {
-    return res.status(404).json({ error: 'Mine not found' });
+  if (mineError) {
+    console.error('[capture] mine fetch error:', mineError);
+    return res.status(500).json({ error: mineError.message });
   }
+  if (!mine) return res.status(404).json({ error: 'Mine not found' });
 
-  // Can't capture your own mine
   if (mine.owner_id === attacker.id) {
     return res.status(400).json({ error: 'You already own this mine' });
   }
 
-  // Validate capture radius
   const dist = haversine(playerLat, playerLng, mine.lat, mine.lng);
   if (dist > CAPTURE_RADIUS) {
     return res.status(403).json({
@@ -66,23 +59,18 @@ export default async function handler(req, res) {
     });
   }
 
-  // Transfer ownership — accumulated coins are wiped (last_collected reset to now)
   const { data: updatedMine, error: updateError } = await supabase
     .from('mines')
-    .update({
-      owner_id: attacker.id,
-      last_collected: new Date().toISOString(),
-    })
+    .update({ owner_id: attacker.id, last_collected: new Date().toISOString() })
     .eq('id', mine_id)
     .select()
     .single();
 
   if (updateError) {
-    console.error('Capture update error:', updateError);
+    console.error('[capture] update error:', updateError);
     return res.status(500).json({ error: 'Failed to capture mine' });
   }
 
-  // Notify previous owner
   const prevOwnerTelegramId = mine.players?.telegram_id;
   if (prevOwnerTelegramId) {
     const attackerName = req.body.username || 'Someone';
