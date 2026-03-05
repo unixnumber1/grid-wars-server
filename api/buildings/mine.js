@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase.js';
 import { getCellId } from '../../lib/grid.js';
 import { haversine } from '../../lib/haversine.js';
+import { hqConfig } from '../../lib/formulas.js';
 
 const MINE_PLACEMENT_RADIUS = 500; // meters
 
@@ -33,15 +34,28 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Player not found' });
   }
 
-  // Require headquarters
+  // Require headquarters (fetch level for mine-count cap check)
   const { data: hq } = await supabase
     .from('headquarters')
-    .select('id, lat, lng')
+    .select('id, lat, lng, level')
     .eq('player_id', player.id)
     .maybeSingle();
 
   if (!hq) {
     return res.status(403).json({ error: 'You must place your headquarters first' });
+  }
+
+  // Check mine count against HQ level cap
+  const { count: mineCount } = await supabase
+    .from('mines')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', player.id);
+
+  const cfg = hqConfig(hq.level ?? 1);
+  if (mineCount >= cfg.maxMines) {
+    return res.status(403).json({
+      error: `HQ level ${hq.level} allows max ${cfg.maxMines} mines. Upgrade your HQ to build more.`,
+    });
   }
 
   const dist = haversine(playerActualLat, playerActualLng, mineLat, mineLng);

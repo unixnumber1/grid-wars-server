@@ -240,6 +240,137 @@
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Settings button */
+    #btn-settings {
+      position: fixed;
+      top: 10px;
+      right: 52px; /* leave space for zoom controls */
+      z-index: 1100;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Settings drawer */
+    #settings-drawer {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: min(320px, 90vw);
+      background: #111;
+      border-left: 1px solid #222;
+      z-index: 3000;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #settings-drawer.open { transform: translateX(0); }
+
+    #settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
+    }
+
+    #settings-header h3 { font-size: 15px; font-weight: 700; }
+
+    #btn-close-settings {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #settings-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .settings-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    #avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+
+    .avatar-cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: #1a1a1a;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s;
+    }
+
+    .avatar-cell.selected { border-color: #f5c518; }
+    .avatar-cell:active { background: #2a2a2a; }
+
+    /* Mine marker ring for capturable */
+    .marker-capturable::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid #e06060;
+      pointer-events: none;
+    }
+
+    /* HQ marker ring */
+    .marker-hq-own::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid #3d7a3d;
+      pointer-events: none;
+    }
+
+    .marker-hq-other::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid #555;
+      pointer-events: none;
+    }
+
+    .marker-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -261,6 +392,21 @@
   <button class="btn primary" id="btn-place-hq" style="font-size:15px;padding:14px 28px;">
     &#x1F3DB;&#xFE0F; Place HQ Here
   </button>
+</div>
+
+<!-- Settings button (over map) -->
+<button id="btn-settings">&#x2699;&#xFE0F;</button>
+
+<!-- Settings drawer -->
+<div id="settings-drawer">
+  <div id="settings-header">
+    <h3>Settings</h3>
+    <button id="btn-close-settings">&#x2715;</button>
+  </div>
+  <div id="settings-body">
+    <div class="settings-section-title">Avatar</div>
+    <div id="avatar-grid"></div>
+  </div>
 </div>
 
 <!-- Header -->
@@ -311,16 +457,44 @@ let TG_ID   = tg?.initDataUnsafe?.user?.id   || null;
 let TG_NAME = tg?.initDataUnsafe?.user?.username || 'unknown';
 
 // ─────────────────────────────────────────────
-//  Constants (mirrors server-side lib/income.js)
+//  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
-const RATE_PER_LEVEL   = [1, 2, 4, 7, 11, 16, 22, 29, 37, 46];
-const UPGRADE_COST     = [0, 50, 150, 300, 500, 800, 1200, 1800, 2500, 3500];
-const MAX_LEVEL        = 10;
-const HQ_COIN_LIMIT    = 10000;
-const CAPTURE_RADIUS   = 50;   // meters
-const MINE_PLACE_RADIUS = 500; // meters
-const MAP_REFRESH_MS   = 8000;
-const GPS_REFRESH_MS   = 5000;
+const MINE_MAX_LEVEL    = 100;
+const HQ_MAX_LEVEL      = 10;
+const HQ_COIN_LIMIT     = 10000;
+const CAPTURE_RADIUS    = 50;    // meters
+const MINE_PLACE_RADIUS = 500;   // meters
+const MAP_REFRESH_MS    = 8000;
+
+// Formulas (keep in sync with lib/formulas.js)
+function mineRate(level) { return Math.floor(Math.pow(1.15, level - 1)); }
+function mineUpgradeCost(level) { return level <= 1 ? 0 : Math.floor(50 * Math.pow(2.1, level - 1)); }
+
+const HQ_LEVELS = [
+  { level:1,  maxMines:10,  maxMineLevel:10,  upgradeCost:0 },
+  { level:2,  maxMines:20,  maxMineLevel:20,  upgradeCost:5000 },
+  { level:3,  maxMines:30,  maxMineLevel:30,  upgradeCost:15000 },
+  { level:4,  maxMines:40,  maxMineLevel:40,  upgradeCost:35000 },
+  { level:5,  maxMines:50,  maxMineLevel:50,  upgradeCost:70000 },
+  { level:6,  maxMines:60,  maxMineLevel:60,  upgradeCost:120000 },
+  { level:7,  maxMines:70,  maxMineLevel:70,  upgradeCost:200000 },
+  { level:8,  maxMines:80,  maxMineLevel:80,  upgradeCost:350000 },
+  { level:9,  maxMines:90,  maxMineLevel:90,  upgradeCost:600000 },
+  { level:10, maxMines:100, maxMineLevel:100, upgradeCost:1000000 },
+];
+function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
+function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
+
+const MINE_EMOJIS = ['🏠','🏡','🏘️','🏗️','🏢','🏬','🏭','🏰','🌆','🌇'];
+function getMineEmoji(level) { return MINE_EMOJIS[Math.min(Math.floor((level-1)/10),9)]; }
+
+const ALLOWED_AVATARS = [
+  '🐱','🐯','🦁','🐻','🐼','🐨','🐶','🦊','🐺','🦝',
+  '🐭','🐹','🐰','🦔','🐸','🐮','🐷','🐗','🦅','🦆',
+  '🦉','🐧','🐦','🦚','🦜','🐤','🐲','🦋','🐠','🦈',
+  '🐙','🦑','🦎','🐊','🐻‍❄️','🦦','🦥','🦘','🦙','🐑',
+  '🐿️','🦫','🦬','🦣','🦩','🦤',
+];
 
 // ─────────────────────────────────────────────
 //  State
@@ -351,9 +525,8 @@ function getCellId(lat, lng) {
 }
 
 function calcAccumulated(level, lastCollectedISO) {
-  const rate = RATE_PER_LEVEL[level - 1];
   const elapsed = (Date.now() - new Date(lastCollectedISO).getTime()) / 1000;
-  return Math.floor(rate * Math.max(0, elapsed));
+  return Math.floor(mineRate(level) * Math.max(0, elapsed));
 }
 
 function showToast(msg, duration = 2500) {
@@ -397,13 +570,6 @@ document.head.appendChild(style);
 
 L.control.zoom({ position: 'topright' }).addTo(map);
 
-// Player position marker
-const playerIcon = L.divIcon({
-  html: '<div class="marker-emoji" style="font-size:20px">&#x1F535;</div>',
-  className: '',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
 let playerMarker = null;
 
 // Building markers registry
@@ -412,22 +578,39 @@ const buildingMarkers = {}; // id → L.marker
 // ─────────────────────────────────────────────
 //  Emoji icon factories
 // ─────────────────────────────────────────────
-function makeIcon(emoji, size = 28) {
+function makeMarkerIcon(html, size = 36) {
   return L.divIcon({
-    html: `<div class="marker-emoji" style="font-size:${size}px">${emoji}</div>`,
+    html,
     className: '',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
-const ICONS = {
-  hqOwn:    makeIcon('&#x1F7E2;', 26), // green circle + building look
-  hqOther:  makeIcon('&#x26AA;', 26),
-  mineOwn:  makeIcon('&#x1F7E1;', 24),
-  mineCap:  makeIcon('&#x1F534;', 24),
-  mineOther:makeIcon('&#x26AA;', 22),
-};
+function hqIcon(isOwn) {
+  const ring = isOwn ? 'marker-hq-own' : 'marker-hq-other';
+  return makeMarkerIcon(
+    `<div class="marker-wrap ${ring}"><span style="font-size:24px">&#x26A1;</span></div>`, 40
+  );
+}
+
+function mineIcon(level, state) {
+  // state: 'own' | 'capturable' | 'other'
+  const emoji = getMineEmoji(level);
+  const size  = 28 + Math.min(Math.floor(level / 20), 4) * 2; // subtle size growth
+  const ring  = state === 'capturable' ? 'marker-capturable' : '';
+  const opacity = state === 'other' ? 'opacity:0.5;' : '';
+  return makeMarkerIcon(
+    `<div class="marker-wrap ${ring}"><span style="font-size:${size}px;${opacity}">${emoji}</span></div>`, 40
+  );
+}
+
+function playerIcon(avatar) {
+  const em = avatar || '🐺';
+  return makeMarkerIcon(
+    `<div class="marker-wrap"><span style="font-size:30px">${em}</span></div>`, 44
+  );
+}
 
 // ─────────────────────────────────────────────
 //  Rendering buildings on map
@@ -446,9 +629,7 @@ function renderBuildings() {
   // HQs
   for (const hq of headquarters) {
     const isOwn = hq.player_id === playerId;
-    const icon  = isOwn ? ICONS.hqOwn : ICONS.hqOther;
-    const lbl   = isOwn ? '&#x1F3DB;&#xFE0F; Your HQ' : `&#x1F3DB;&#xFE0F; ${hq.players?.username || 'Enemy'}'s HQ`;
-    const marker = L.marker([hq.lat, hq.lng], { icon })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn) })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     buildingMarkers[`hq_${hq.id}`] = marker;
@@ -458,15 +639,11 @@ function renderBuildings() {
   for (const mine of mines) {
     const isOwn = mine.owner_id === playerId;
     let canCapture = false;
-
     if (!isOwn && pos) {
-      const dist = haversine(pos.lat, pos.lng, mine.lat, mine.lng);
-      canCapture = dist <= CAPTURE_RADIUS;
+      canCapture = haversine(pos.lat, pos.lng, mine.lat, mine.lng) <= CAPTURE_RADIUS;
     }
-
-    const icon = isOwn ? ICONS.mineOwn : (canCapture ? ICONS.mineCap : ICONS.mineOther);
-
-    const marker = L.marker([mine.lat, mine.lng], { icon })
+    const iconState = isOwn ? 'own' : (canCapture ? 'capturable' : 'other');
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconState) })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, canCapture));
     buildingMarkers[`mine_${mine.id}`] = marker;
@@ -523,18 +700,31 @@ document.getElementById('popup-overlay').addEventListener('click', e => {
 // ─────────────────────────────────────────────
 function showHqPopup(hq, isOwn) {
   if (isOwn) {
+    const hqLvl   = hq.level ?? 1;
+    const cfg     = hqConfig(hqLvl);
+    const mineCount = state.mines.length;
+    const nextCost  = hqUpgradeCost(hqLvl);
+    const canUpgrade = nextCost !== null && hq.coins >= nextCost;
     openPopup(
-      '&#x1F3DB;&#xFE0F; Your Headquarters',
+      `&#x26A1; Headquarters Level ${hqLvl}`,
       `Cell: ${hq.cell_id}`,
       [
-        ['Coins stored', `${hq.coins} / ${HQ_COIN_LIMIT}`],
+        ['&#x1F4B0; Balance', `${hq.coins.toLocaleString()} / ${HQ_COIN_LIMIT.toLocaleString()}`],
+        ['&#x26CF;&#xFE0F; Mines', `${mineCount} / ${cfg.maxMines}`],
+        ['Max mine level', cfg.maxMineLevel],
+        ['HQ upgrade cost', nextCost !== null ? nextCost.toLocaleString() : 'MAX LEVEL'],
       ],
-      []
+      nextCost !== null ? [{
+        label: `&#x2B06;&#xFE0F; Upgrade HQ (${nextCost.toLocaleString()})`,
+        cls: 'primary',
+        disabled: !canUpgrade,
+        action: () => doUpgradeHq(),
+      }] : []
     );
   } else {
     const owner = hq.players?.username || 'Unknown';
     openPopup(
-      '&#x1F3DB;&#xFE0F; Enemy Headquarters',
+      `&#x26A1; Enemy HQ (Lv ${hq.level ?? 1})`,
       `Owner: ${owner}`,
       [],
       []
@@ -546,58 +736,63 @@ function showHqPopup(hq, isOwn) {
 //  Mine popup
 // ─────────────────────────────────────────────
 function showMinePopup(mine, isOwn, canCapture) {
-  const rate = RATE_PER_LEVEL[mine.level - 1];
+  const rate        = mineRate(mine.level);
   const accumulated = calcAccumulated(mine.level, mine.last_collected);
+  const emoji       = getMineEmoji(mine.level);
 
   if (isOwn) {
-    const nextCost = mine.level < MAX_LEVEL ? UPGRADE_COST[mine.level] : null;
+    const hqLvl   = state.hq?.level ?? 1;
+    const cfg     = hqConfig(hqLvl);
+    const nextCost = mine.level < MINE_MAX_LEVEL ? mineUpgradeCost(mine.level + 1) : null;
     const hqCoins  = state.hq?.coins ?? 0;
-    const canUpgrade = nextCost !== null && hqCoins >= nextCost;
+    const levelCapHit = nextCost !== null && mine.level + 1 > cfg.maxMineLevel;
+    const canUpgrade  = nextCost !== null && !levelCapHit && hqCoins >= nextCost;
+    const upgradeLabel = levelCapHit
+      ? `&#x2B06;&#xFE0F; Upgrade HQ first (cap: Lv${cfg.maxMineLevel})`
+      : nextCost !== null
+        ? `&#x2B06;&#xFE0F; Upgrade (${nextCost.toLocaleString()})`
+        : 'MAX LEVEL';
 
     openPopup(
-      `&#x26CF;&#xFE0F; Your Mine (Lv ${mine.level})`,
+      `${emoji} Your Mine (Lv ${mine.level})`,
       `Cell: ${mine.cell_id}`,
       [
-        ['Rate', `${rate} coins/sec`],
-        ['Accumulated', `${accumulated} coins`],
-        ['Next upgrade cost', nextCost !== null ? `${nextCost} coins` : 'MAX LEVEL'],
-        ['HQ balance', `${hqCoins}`],
+        ['Rate', `${rate.toLocaleString()} coins/sec`],
+        ['Accumulated', `${accumulated.toLocaleString()} coins`],
+        ['Next upgrade cost', nextCost !== null ? `${nextCost.toLocaleString()}` : 'MAX LEVEL'],
+        ['HQ balance', hqCoins.toLocaleString()],
       ],
-      nextCost !== null ? [
-        {
-          label: `&#x2B06;&#xFE0F; Upgrade (${nextCost})`,
-          cls: 'yellow',
-          disabled: !canUpgrade,
-          action: () => doUpgrade(mine.id),
-        },
-      ] : []
+      nextCost !== null ? [{
+        label: upgradeLabel,
+        cls: 'yellow',
+        disabled: !canUpgrade,
+        action: () => doUpgrade(mine.id),
+      }] : []
     );
   } else if (canCapture) {
     const owner = mine.players?.username || 'Unknown';
     openPopup(
-      `&#x26CF;&#xFE0F; Enemy Mine (Lv ${mine.level})`,
-      `Owner: ${owner} • You are close enough!`,
+      `${emoji} Enemy Mine (Lv ${mine.level})`,
+      `Owner: ${owner} • In capture range!`,
       [
-        ['Rate', `${rate} coins/sec`],
+        ['Rate', `${rate.toLocaleString()} coins/sec`],
         ['Level', mine.level],
       ],
-      [
-        {
-          label: '&#x2694;&#xFE0F; Capture',
-          cls: 'danger',
-          action: () => doCapture(mine.id),
-        },
-      ]
+      [{
+        label: '&#x2694;&#xFE0F; Capture',
+        cls: 'danger',
+        action: () => doCapture(mine.id),
+      }]
     );
   } else {
     const owner = mine.players?.username || 'Unknown';
-    const pos = state.playerPos;
+    const pos  = state.playerPos;
     const dist = pos ? Math.round(haversine(pos.lat, pos.lng, mine.lat, mine.lng)) : '?';
     openPopup(
-      `&#x26CF;&#xFE0F; Enemy Mine (Lv ${mine.level})`,
+      `${emoji} Enemy Mine (Lv ${mine.level})`,
       `Owner: ${owner} • ${dist}m away`,
       [
-        ['Rate', `${rate} coins/sec`],
+        ['Rate', `${rate.toLocaleString()} coins/sec`],
         ['To capture', `Get within ${CAPTURE_RADIUS}m`],
       ],
       []
@@ -646,6 +841,21 @@ map.on('click', e => {
 // ─────────────────────────────────────────────
 //  Actions
 // ─────────────────────────────────────────────
+async function doUpgradeHq() {
+  try {
+    const data = await apiFetch('/api/buildings/headquarters-upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID }),
+    });
+    state.hq = data.headquarters;
+    updateCoinDisplay();
+    showToast(`&#x26A1; HQ upgraded to level ${data.headquarters.level}!`);
+    await refreshMap();
+  } catch (err) {
+    showToast(`&#x274C; ${err.message}`);
+  }
+}
+
 async function doUpgrade(mineId) {
   try {
     const data = await apiFetch('/api/buildings/upgrade', {
@@ -831,11 +1041,13 @@ function onPosition(pos) {
   const isFirstFix = state.playerPos === null;
   state.playerPos = { lat, lng };
 
+  const pIcon = playerIcon(state.player?.avatar);
   if (!playerMarker) {
-    playerMarker = L.marker([lat, lng], { icon: playerIcon, zIndexOffset: 1000 }).addTo(map);
+    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 1000 }).addTo(map);
     map.setView([lat, lng], 16);
   } else {
     playerMarker.setLatLng([lat, lng]);
+    playerMarker.setIcon(pIcon);
   }
 
   document.getElementById('header-status').textContent =
@@ -922,8 +1134,53 @@ async function boot() {
   }, onGpsError, { enableHighAccuracy: true, timeout: 15000 });
 }
 
-// Use effectiveTgId inside async calls
-// Patch: centralise resolved ID
+// ─────────────────────────────────────────────
+//  Settings drawer
+// ─────────────────────────────────────────────
+function buildAvatarGrid() {
+  const grid = document.getElementById('avatar-grid');
+  grid.innerHTML = '';
+  const current = state.player?.avatar || '🐺';
+  for (const em of ALLOWED_AVATARS) {
+    const cell = document.createElement('div');
+    cell.className = 'avatar-cell' + (em === current ? ' selected' : '');
+    cell.textContent = em;
+    cell.addEventListener('click', () => selectAvatar(em));
+    grid.appendChild(cell);
+  }
+}
+
+async function selectAvatar(avatar) {
+  if (avatar === state.player?.avatar) return;
+  try {
+    const data = await apiFetch('/api/player/avatar', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, avatar }),
+    });
+    state.player.avatar = data.player.avatar;
+    buildAvatarGrid();
+    // Refresh player marker immediately
+    if (playerMarker && state.playerPos) {
+      playerMarker.setIcon(playerIcon(avatar));
+    }
+    showToast(`Avatar updated: ${avatar}`);
+  } catch (err) {
+    showToast(`&#x274C; ${err.message}`);
+  }
+}
+
+document.getElementById('btn-settings').addEventListener('click', () => {
+  buildAvatarGrid();
+  document.getElementById('settings-drawer').classList.add('open');
+});
+
+document.getElementById('btn-close-settings').addEventListener('click', () => {
+  document.getElementById('settings-drawer').classList.remove('open');
+});
+
+// ─────────────────────────────────────────────
+//  Boot
+// ─────────────────────────────────────────────
 (async () => {
   await boot();
 })();

@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, HQ_COIN_LIMIT } from '../../lib/income.js';
+import { calcAccumulatedCoins, HQ_COIN_LIMIT } from '../../lib/formulas.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
