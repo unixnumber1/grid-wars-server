@@ -54,7 +54,7 @@ export default async function handler(req, res) {
   // H3 range check: mine must be within player's interaction zone (~500m)
   const playerRange = getCellsInRange(playerLat, playerLng);
   if (!playerRange.has(mine.cell_id)) {
-    return res.status(403).json({ error: 'Mine is outside your interaction zone (~500m)' });
+    return res.status(403).json({ error: 'Шахта вне зоны взаимодействия' });
   }
 
   const { data: updatedMine, error: updateError } = await supabase
@@ -78,7 +78,13 @@ export default async function handler(req, res) {
     );
   }
 
-  addXp(attacker.id, XP_REWARDS.CAPTURE_MINE).catch(console.error);
+  let xpResult = null;
+  try {
+    xpResult = await addXp(attacker.id, XP_REWARDS.CAPTURE_MINE);
+    console.log('[capture] XP added:', JSON.stringify(xpResult));
+  } catch (e) {
+    console.error('[capture] XP ERROR:', e.message);
+  }
 
-  return res.status(200).json({ mine: updatedMine });
+  return res.status(200).json({ mine: updatedMine, xp: xpResult });
 }

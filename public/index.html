@@ -40,24 +40,18 @@
       box-shadow: 0 1px 6px rgba(0,0,0,0.5);
     }
 
-    #header h1 {
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      color: #FFD700;
-      white-space: nowrap;
-    }
-
     #header-balance {
       display: flex;
       align-items: center;
-      gap: 5px;
-      font-size: 20px;
-      font-weight: 700;
+      gap: 6px;
+      font-size: 24px;
+      font-weight: 800;
       color: #FFD700;
+      flex: 1;
+      justify-content: center;
     }
 
-    #header-balance .bal-icon { font-size: 16px; }
+    #header-balance .bal-icon { font-size: 20px; }
 
     #btn-settings {
       background: rgba(255,255,255,0.07);
@@ -82,7 +76,7 @@
     /* Bottom panel */
     #bottom-panel {
       background: #1a1a2e;
-      height: 64px;
+      height: 72px;
       padding: 0 14px;
       display: flex;
       align-items: center;
@@ -122,6 +116,57 @@
       font-size: 11px;
       color: #888;
       margin-top: 1px;
+    }
+
+    #player-xp-bar-wrap {
+      margin-top: 4px;
+      width: 120px;
+    }
+
+    #player-xp-bar-bg {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    #player-xp-bar-fill {
+      height: 100%;
+      background: #FFD700;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* XP toast chips */
+    #xp-toasts {
+      position: fixed;
+      bottom: 82px;
+      right: 14px;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 6px;
+      z-index: 3500;
+      pointer-events: none;
+    }
+
+    .xp-toast {
+      background: #1a1a2e;
+      border: 1px solid #FFD700;
+      color: #FFD700;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 20px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .xp-toast.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .btn {
@@ -214,7 +259,10 @@
       opacity: 0;
       transition: opacity 0.2s, transform 0.2s;
       pointer-events: none;
-      white-space: nowrap;
+      max-width: calc(100vw - 32px);
+      white-space: normal;
+      word-break: break-word;
+      text-align: center;
     }
 
     #toast.show {
@@ -428,23 +476,47 @@
     /* Level-up notification */
     #levelup-notify {
       position: fixed;
-      top: -70px;
+      bottom: -260px;
       left: 50%;
       transform: translateX(-50%);
-      background: linear-gradient(135deg, #FFD700, #FFA500);
-      color: #000;
-      font-size: 17px;
-      font-weight: 800;
-      padding: 12px 28px;
-      border-radius: 30px;
-      z-index: 4000;
-      transition: top 0.4s cubic-bezier(0.34,1.56,0.64,1);
-      white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(255,215,0,0.5);
+      background: linear-gradient(135deg, #FFD700, #FF8C00);
+      color: #1a0800;
+      padding: 22px 40px 20px;
+      border-radius: 16px;
+      z-index: 5000;
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 8px 32px rgba(0,0,0,0.4);
       pointer-events: none;
+      text-align: center;
+      min-width: 230px;
+      opacity: 0;
+      transition: bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.45s ease;
     }
-
-    #levelup-notify.show { top: 60px; }
+    #levelup-notify.show {
+      bottom: 90px;
+      opacity: 1;
+    }
+    #levelup-notify.hide {
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #levelup-title {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      margin-bottom: 6px;
+    }
+    #levelup-num {
+      font-size: 44px;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 14px;
+    }
+    #levelup-bar {
+      height: 6px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
+      width: 100%;
+    }
 
     /* Player level badge — clickable */
     #player-level-display { cursor: pointer; }
@@ -459,6 +531,116 @@
       border: 2px solid #4fc3f7;
       pointer-events: none;
     }
+
+    /* Maintenance screen */
+    #maintenance-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0d0d1a;
+      z-index: 99999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      text-align: center;
+      padding: 32px;
+    }
+    #maintenance-screen.open { display: flex; }
+
+    #maintenance-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: bossPulse 2s ease-in-out infinite;
+    }
+
+    #maintenance-avatar-inner {
+      font-size: 80px;
+      line-height: 1;
+    }
+
+    #maintenance-title {
+      font-size: 26px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+
+    #maintenance-sub {
+      font-size: 16px;
+      color: #FFD700;
+      font-weight: 600;
+    }
+
+    #maintenance-hint {
+      font-size: 13px;
+      color: #555;
+      margin-top: -8px;
+    }
+
+    /* Boss pulse animation */
+    @keyframes bossPulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(255,0,0,0.9)); }
+      50%       { transform: scale(1.18); filter: drop-shadow(0 0 22px rgba(255,0,0,1)); }
+    }
+    .bot-boss-pulse { animation: bossPulse 0.85s ease-in-out infinite; }
+
+    /* Screen shake */
+    @keyframes screenShakeAnim {
+      0%   { transform: translate(0,0); }
+      20%  { transform: translate(-5px,3px); }
+      40%  { transform: translate(5px,-3px); }
+      60%  { transform: translate(-4px,4px); }
+      80%  { transform: translate(4px,-2px); }
+      100% { transform: translate(0,0); }
+    }
+    .screen-shake { animation: screenShakeAnim 0.4s ease-out; }
+
+    /* Combat HP bar in popup */
+    .combat-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .combat-fighter {
+      flex: 1;
+      text-align: center;
+    }
+    .combat-emoji { font-size: 38px; line-height: 1; }
+    .combat-name  { font-size: 11px; color: #888; margin: 3px 0; }
+    .combat-vs    { font-size: 18px; color: #666; font-weight: 900; flex-shrink: 0; }
+
+    .hp-bar-container {
+      background: #111;
+      border-radius: 4px;
+      height: 8px;
+      overflow: hidden;
+      margin: 4px 0;
+    }
+    .hp-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .hp-bar-fill.bot    { background: linear-gradient(90deg, #e06060, #ff4444); }
+    .hp-bar-fill.player { background: linear-gradient(90deg, #4caf50, #81c784); }
+    .hp-label { font-size: 10px; color: #666; }
+
+    /* Floating damage text */
+    .float-dmg {
+      position: fixed;
+      font-size: 22px;
+      font-weight: 900;
+      pointer-events: none;
+      z-index: 9999;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+      transition: transform 1.1s ease-out, opacity 1.1s ease-out;
+      opacity: 1;
+      transform: translateY(0);
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -468,6 +650,14 @@
   <h1>GRID WARS</h1>
   <div class="spinner"></div>
   <p id="loading-text">Initializing...</p>
+</div>
+
+<!-- Maintenance screen -->
+<div id="maintenance-screen">
+  <div id="maintenance-avatar"><span id="maintenance-avatar-inner">⚙️</span></div>
+  <div id="maintenance-title">🔧 Технический перерыв</div>
+  <div id="maintenance-sub">Скоро вернёмся!</div>
+  <div id="maintenance-hint">Следи за обновлениями</div>
 </div>
 
 <!-- HQ placement prompt -->
@@ -491,29 +681,42 @@
   <div id="settings-body">
     <div class="settings-section-title">Avatar</div>
     <div id="avatar-grid"></div>
+    <div id="admin-section" style="display:none;margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+      <div class="settings-section-title">Admin</div>
+      <button id="btn-maintenance-toggle" class="btn danger" style="width:100%;padding:12px;font-size:14px;">
+        🔧 Включить тех перерыв
+      </button>
+      <button id="btn-fix-positions" class="btn yellow" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">
+        📐 Выровнять позиции
+      </button>
+    </div>
   </div>
 </div>
 
 <!-- Header -->
 <div id="header">
-  <h1>&#x26A1; GRID WARS</h1>
   <div id="header-balance">
-    <span class="bal-icon">&#x1F4B0;</span>
+    <span class="bal-icon">💰</span>
     <span id="coin-display">—</span>
   </div>
-  <button id="btn-settings">&#x2699;&#xFE0F;</button>
+  <button id="btn-settings">⚙️</button>
 </div>
 
 <!-- Map -->
 <div id="map"></div>
 
 <!-- Bottom panel -->
+<div id="xp-toasts"></div>
+
 <div id="bottom-panel">
   <div id="player-info">
     <div id="player-avatar-wrap"><span id="player-avatar-emoji">&#x1F43A;</span></div>
     <div>
       <div id="player-name-display">—</div>
       <div id="player-level-display">&#x423;&#x440;. 1</div>
+      <div id="player-xp-bar-wrap">
+        <div id="player-xp-bar-bg"><div id="player-xp-bar-fill"></div></div>
+      </div>
     </div>
   </div>
   <div></div>
@@ -531,7 +734,11 @@
 </div>
 
 <!-- Level-up notification -->
-<div id="levelup-notify"></div>
+<div id="levelup-notify">
+  <div id="levelup-title">⭐ НОВЫЙ УРОВЕНЬ! ⭐</div>
+  <div id="levelup-num"></div>
+  <div id="levelup-bar"></div>
+</div>
 
 <!-- Toast -->
 <div id="toast"></div>
@@ -544,43 +751,80 @@ const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
+// Resolved immediately — used for admin check before boot()
+const tgUser           = tg?.initDataUnsafe?.user;
+const currentTelegramId = tgUser?.id || null;
+const ADMIN_ID          = 560013667;
+
 // Use let so boot() can populate the resolved value for all subsequent calls
-let TG_ID   = tg?.initDataUnsafe?.user?.id   || null;
-let TG_NAME = tg?.initDataUnsafe?.user?.username || 'unknown';
+let TG_ID   = tgUser?.id       || null;
+let TG_NAME = tgUser?.username || 'unknown';
 
 // ─────────────────────────────────────────────
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
-const MINE_MAX_LEVEL    = 100;
+const MINE_MAX_LEVEL    = 150;
 const HQ_MAX_LEVEL      = 10;
 const HQ_LIMITS = [10000,25000,50000,100000,200000,400000,700000,1200000,2000000,5000000];
 function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 const MINE_PLACE_RADIUS = 500;   // meters (visual only — actual check is H3 cell range)
-const MAP_REFRESH_MS    = 5000;
 const H3_RES            = 11;    // ~50m hex diameter
 const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
 
 // Formulas (keep in sync with lib/formulas.js)
-function mineRate(level) { return Math.floor(Math.pow(1.15, level - 1)); }
-function mineUpgradeCost(level) { return level <= 1 ? 0 : Math.floor(50 * Math.pow(2.1, level - 1)); }
+const C0=100.0, I0=10.0, r1=1.08, r2=1.10, r3=1.12, a1=1.2, a2=1.05, a3=0.95;
+function mineRate(level) {
+  if (level <= 0) return 0;
+  if (level <= 50) return Math.round(I0 * Math.pow(level, a1));
+  const A = Math.pow(50, a1-a2);
+  if (level <= 100) return Math.round(I0 * A * Math.pow(level, a2));
+  const B = A * Math.pow(100, a2-a3);
+  return Math.round(I0 * B * Math.pow(level, a3));
+}
+function mineUpgradeCost(level) {
+  if (level < 1) return 0;
+  let c = C0;
+  for (let lvl = 2; lvl <= level; lvl++) {
+    if (lvl-1 < 50) c *= r1; else if (lvl-1 < 100) c *= r2; else c *= r3;
+  }
+  return Math.round(c);
+}
 
 const HQ_LEVELS = [
-  { level:1,  maxMines:10,  maxMineLevel:10,  upgradeCost:0 },
-  { level:2,  maxMines:20,  maxMineLevel:20,  upgradeCost:5000 },
-  { level:3,  maxMines:30,  maxMineLevel:30,  upgradeCost:15000 },
-  { level:4,  maxMines:40,  maxMineLevel:40,  upgradeCost:35000 },
-  { level:5,  maxMines:50,  maxMineLevel:50,  upgradeCost:70000 },
-  { level:6,  maxMines:60,  maxMineLevel:60,  upgradeCost:120000 },
-  { level:7,  maxMines:70,  maxMineLevel:70,  upgradeCost:200000 },
-  { level:8,  maxMines:80,  maxMineLevel:80,  upgradeCost:350000 },
-  { level:9,  maxMines:90,  maxMineLevel:90,  upgradeCost:600000 },
-  { level:10, maxMines:100, maxMineLevel:100, upgradeCost:1000000 },
+  { level:1,  maxMines:10,  maxMineLevel:15,  upgradeCost:0 },
+  { level:2,  maxMines:20,  maxMineLevel:30,  upgradeCost:5000 },
+  { level:3,  maxMines:30,  maxMineLevel:45,  upgradeCost:15000 },
+  { level:4,  maxMines:40,  maxMineLevel:60,  upgradeCost:35000 },
+  { level:5,  maxMines:50,  maxMineLevel:75,  upgradeCost:70000 },
+  { level:6,  maxMines:60,  maxMineLevel:90,  upgradeCost:120000 },
+  { level:7,  maxMines:70,  maxMineLevel:105, upgradeCost:200000 },
+  { level:8,  maxMines:80,  maxMineLevel:120, upgradeCost:350000 },
+  { level:9,  maxMines:90,  maxMineLevel:135, upgradeCost:600000 },
+  { level:10, maxMines:100, maxMineLevel:150, upgradeCost:1000000 },
 ];
 function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
 
-const MINE_EMOJIS = ['🏠','🏡','🏘️','🏗️','🏢','🏬','🏭','🏰','🌆','🌇'];
-function getMineEmoji(level) { return MINE_EMOJIS[Math.min(Math.floor((level-1)/10),9)]; }
+function getMineAppearance(level) {
+  if (level <= 0)  return { emoji: '🪨', name: 'Карьер' };
+  if (level < 10)  return { emoji: '⛏️',  name: 'Шахта' };
+  if (level < 20)  return { emoji: '🏚️',  name: 'Лачуга' };
+  if (level < 30)  return { emoji: '🏠',  name: 'Домик' };
+  if (level < 40)  return { emoji: '🏡',  name: 'Усадьба' };
+  if (level < 50)  return { emoji: '🏘️',  name: 'Посёлок' };
+  if (level < 60)  return { emoji: '🏗️',  name: 'Стройка' };
+  if (level < 70)  return { emoji: '🏢',  name: 'Офис' };
+  if (level < 80)  return { emoji: '🏬',  name: 'Торговый центр' };
+  if (level < 90)  return { emoji: '🏭',  name: 'Завод' };
+  if (level < 100) return { emoji: '🏰',  name: 'Замок' };
+  if (level < 110) return { emoji: '🌆',  name: 'Мегаполис' };
+  if (level < 120) return { emoji: '🌇',  name: 'Небоскрёб' };
+  if (level < 130) return { emoji: '🌃',  name: 'Ночной город' };
+  if (level < 140) return { emoji: '🌉',  name: 'Цитадель' };
+  if (level < 150) return { emoji: '🏯',  name: 'Крепость' };
+  return                   { emoji: '👑',  name: 'Трон Богов' };
+}
+function getMineEmoji(level) { return getMineAppearance(level).emoji; }
 
 const ALLOWED_AVATARS = [
   '🐱','🐯','🦁','🐻','🐼','🐨','🐶','🦊','🐺','🦝',
@@ -638,46 +882,62 @@ function calcAccumulated(level, lastCollectedISO) {
 // XP / level helpers (mirrors lib/formulas.js)
 function xpForLevel(level) { return Math.floor(100 * Math.pow(level, 1.9)); }
 
+let _levelUpTimer = null;
 function showLevelUp(level) {
   const el = document.getElementById('levelup-notify');
-  el.textContent = `\u2B06\uFE0F Уровень ${level}!`;
+  document.getElementById('levelup-num').textContent = `Уровень ${level}`;
+  el.classList.remove('hide');
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3000);
+  if (_levelUpTimer) clearTimeout(_levelUpTimer);
+  _levelUpTimer = setTimeout(() => {
+    el.classList.add('hide');
+    setTimeout(() => el.classList.remove('show', 'hide'), 600);
+  }, 4000);
+}
+
+function handleXpResult(xp) {
+  if (!xp) return;
+  if (xp.xpGained > 0) showXpToast(xp.xpGained);
+  if (state.player && xp.newXp != null) {
+    state.player.xp    = xp.newXp;
+    state.player.level = xp.newLevel;
+    updateXpBar();
+  }
+  if (xp.leveledUp) showLevelUp(xp.newLevel);
 }
 
 function showProfilePopup() {
   const p = state.player;
   if (!p) return;
-  const level   = p.level ?? 1;
-  const xp      = p.xp   ?? 0;
-  const xpNext  = p.xpForNextLevel ?? xpForLevel(level);
-  const radius  = p.buildRadius ?? 500;
+  const level  = p.level ?? 1;
+  const xp     = p.xp   ?? 0;
+  const xpNext = xpForLevel(level);
+  const radius = p.buildRadius ?? 500;
 
-  // XP within current level
   let xpAccum = 0;
   for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
   const xpThisLevel = xp - xpAccum;
-  const pct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
 
   document.getElementById('popup-title').innerHTML =
     `${p.avatar || '\uD83D\uDC3A'} ${p.username || TG_NAME}`;
   document.getElementById('popup-subtitle').textContent = `Уровень ${level}`;
 
+  const hp    = p.hp    ?? p.max_hp ?? 100;
+  const maxHp = p.max_hp ?? 100;
+  const hpPct = Math.round(Math.max(0, hp / maxHp) * 100);
+
   const statsEl = document.getElementById('popup-stats');
   statsEl.innerHTML = `
-    <div style="margin:14px 0 8px;">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:5px;">
-        <span>${xpThisLevel.toLocaleString()} XP</span>
-        <span>${xpNext.toLocaleString()} XP</span>
-      </div>
-      <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;">
-        <div style="background:#FFD700;height:100%;width:${pct}%;border-radius:6px;transition:width 0.4s;"></div>
-      </div>
-      <div style="text-align:center;font-size:11px;color:#888;margin-top:4px;">${pct}%</div>
+    <div class="hp-bar-container" style="margin-bottom:8px">
+      <div class="hp-bar-fill player" style="width:${hpPct}%"></div>
     </div>
+    <div class="hp-label" style="margin-bottom:12px;text-align:center">${hp} / ${maxHp} HP</div>
   `;
   for (const [label, val] of [
+    ['\u2B50 XP текущего уровня', `${xpThisLevel.toLocaleString()} / ${xpNext.toLocaleString()}`],
     ['\uD83D\uDCCD Радиус постройки', `${radius}м`],
+    ['⚔️ Атака', p.attack ?? (10 + (level - 1) * 2)],
+    ['💀 Убийств / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
     ['\u2B50 Всего XP', xp.toLocaleString()],
   ]) {
     const row = document.createElement('div');
@@ -700,19 +960,44 @@ function showProfilePopup() {
 
 function calcSellRefund(level) {
   let sum = 0;
-  for (let i = 2; i <= level; i++) {
-    sum += Math.floor(50 * Math.pow(2.1, i - 1));
-  }
+  for (let i = 1; i <= level; i++) sum += mineUpgradeCost(i);
   return Math.floor(sum * 0.3);
+}
+
+function updateXpBar() {
+  const p = state.player;
+  if (!p) return;
+  const level = p.level ?? 1;
+  const xp    = p.xp    ?? 0;
+  let xpAccum = 0;
+  for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
+  const xpThisLevel = xp - xpAccum;
+  const xpNext = xpForLevel(level);
+  const pct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
+  document.getElementById('player-xp-bar-fill').style.width = pct + '%';
+  document.getElementById('player-level-display').textContent = `Ур. ${level}`;
 }
 
 function updatePlayerDisplay() {
   const avatar = state.player?.avatar || '🐺';
   const name   = state.player?.username || TG_NAME || '—';
-  const level  = state.player?.level ?? 1;
   document.getElementById('player-avatar-emoji').textContent = avatar;
   document.getElementById('player-name-display').textContent = name;
-  document.getElementById('player-level-display').textContent = `Ур. ${level}`;
+  updateXpBar();
+}
+
+function showXpToast(amount) {
+  if (!amount || amount <= 0) return;
+  const container = document.getElementById('xp-toasts');
+  const el = document.createElement('div');
+  el.className = 'xp-toast';
+  el.textContent = `⭐ +${amount} XP`;
+  container.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 2000);
 }
 
 function showToast(msg, duration = 2500) {
@@ -742,11 +1027,13 @@ async function apiFetch(path, opts = {}) {
 const map = L.map('map', {
   zoomControl: false,
   attributionControl: false,
+  minZoom: 13,
+  maxZoom: 19,
 }).setView([55.75, 37.61], 16);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
-  className: 'map-tiles',
+  subdomains: 'abcd',
 }).addTo(map);
 
 // Make tiles dark-ish via CSS filter
@@ -757,8 +1044,8 @@ document.head.appendChild(style);
 // zoom controls disabled (zoomControl: false in map init)
 
 let playerMarker = null;
-let playerZoneCircle = null;
 const hexLayer = L.layerGroup().addTo(map);
+const botLayer  = L.layerGroup().addTo(map);
 
 // Building markers registry
 const buildingMarkers = {}; // id → L.marker
@@ -785,8 +1072,8 @@ function hqIcon(isOwn) {
 
 function mineIcon(level, state) {
   // state: 'own' | 'capturable' | 'other'
-  const emoji = getMineEmoji(level);
-  const size  = 28 + Math.min(Math.floor(level / 20), 4) * 2; // subtle size growth
+  const emoji = getMineAppearance(level).emoji;
+  const size  = 28 + Math.min(Math.floor(level / 30), 4) * 2; // subtle size growth
   const ring  = state === 'capturable' ? 'marker-capturable' : '';
   const opacity = state === 'other' ? 'opacity:0.5;' : '';
   return makeMarkerIcon(
@@ -809,79 +1096,83 @@ function otherPlayerIcon(avatar) {
 }
 
 // ─────────────────────────────────────────────
-//  Hex grid + player zone
+//  Hex grid (full visible area)
 // ─────────────────────────────────────────────
-function renderHexGrid(lat, lng) {
-  hexLayer.clearLayers();
-
-  const buildRadius = state.player?.buildRadius ?? 500;
-  const dynDiskK    = Math.ceil(buildRadius / 43);
-
-  // Zone circle (dynamic radius around player)
-  if (!playerZoneCircle) {
-    playerZoneCircle = L.circle([lat, lng], {
-      radius: buildRadius,
-      color: 'rgba(255, 200, 0, 0.3)',
-      weight: 1,
-      fillColor: 'rgba(255, 200, 0, 0.08)',
-      fillOpacity: 1,
-      interactive: false,
-    }).addTo(map);
-  } else {
-    playerZoneCircle.setLatLng([lat, lng]);
-    playerZoneCircle.setRadius(buildRadius);
+function updateHexGrid() {
+  const zoom = map.getZoom();
+  if (zoom < 18) {
+    hexLayer.clearLayers();
+    return;
   }
 
-  // Only draw hexes when zoomed in enough (performance)
-  if (map.getZoom() < 14) return;
+  const bounds  = map.getBounds();
+  const polygon = [
+    [bounds.getNorth(), bounds.getWest()],
+    [bounds.getNorth(), bounds.getEast()],
+    [bounds.getSouth(), bounds.getEast()],
+    [bounds.getSouth(), bounds.getWest()],
+    [bounds.getNorth(), bounds.getWest()],
+  ];
 
-  const cells = h3.gridDisk(h3.latLngToCell(lat, lng, H3_RES), dynDiskK);
+  let cells;
+  try {
+    cells = h3.polygonToCells(polygon, H3_RES);
+  } catch (e) {
+    hexLayer.clearLayers();
+    return;
+  }
+
+  hexLayer.clearLayers();
+
+  const pos = state.playerPos;
+  let playerCellSet = new Set();
+  if (pos) {
+    const buildRadius = state.player?.buildRadius ?? 500;
+    const dynDiskK    = Math.ceil(buildRadius / 43);
+    const playerCell  = h3.latLngToCell(pos.lat, pos.lng, H3_RES);
+    playerCellSet     = new Set(h3.gridDisk(playerCell, dynDiskK));
+  }
 
   for (const cellId of cells) {
-    const boundary = h3.cellToBoundary(cellId);
-    const latLngs = boundary; // already [[lat,lng],...]
+    const boundary    = h3.cellToBoundary(cellId);
+    const building    = getBuildingInCell(cellId);
+    const inPlayerZone = playerCellSet.has(cellId);
 
-    const building = getBuildingInCell(cellId);
-    let fillColor, fillOpacity;
+    let fillColor   = 'transparent';
+    let fillOpacity = 0;
 
+    if (inPlayerZone && !building) {
+      fillColor   = '#ffffff';
+      fillOpacity = 0.03;
+    }
     if (building?.type === 'mine' && building.is_mine) {
-      fillColor = '#FFD700'; fillOpacity = 0.2;
+      fillColor = '#FFD700'; fillOpacity = 0.15;
     } else if (building?.type === 'mine') {
-      fillColor = '#FF4444'; fillOpacity = 0.2;
+      fillColor = '#FF4444'; fillOpacity = 0.15;
     } else if (building?.type === 'hq' && building.is_mine) {
-      fillColor = '#4fc3f7'; fillOpacity = 0.2;
+      fillColor = '#4fc3f7'; fillOpacity = 0.15;
     } else if (building?.type === 'hq') {
       fillColor = '#aaaaaa'; fillOpacity = 0.15;
-    } else {
-      fillColor = '#FFFFFF'; fillOpacity = 0.04;
     }
 
-    const poly = L.polygon(latLngs, {
+    const poly = L.polygon(boundary, {
       color: 'rgba(255,255,255,0.15)',
-      weight: 1,
+      weight: 0.5,
       fillColor,
       fillOpacity,
+      interactive: inPlayerZone,
     });
 
-    poly.on('click', (e) => {
-      L.DomEvent.stopPropagation(e);
-      handleHexClick(cellId);
-    });
+    if (inPlayerZone) {
+      poly.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        handleHexClick(cellId);
+      });
+    }
 
     hexLayer.addLayer(poly);
   }
 }
-
-// Building types available for construction
-const BUILDING_TYPES = [
-  {
-    emoji: '&#x26CF;&#xFE0F;',
-    name: 'Шахта',
-    desc: 'Генерирует монеты пассивно',
-    meta: '1 монета/сек &bull; Бесплатно',
-    build: (cellLat, cellLng) => doBuildMine(cellLat, cellLng),
-  },
-];
 
 function showBuildMenu(cellLat, cellLng) {
   document.getElementById('popup-title').innerHTML = '&#x1F3D7;&#xFE0F; Построить';
@@ -890,22 +1181,39 @@ function showBuildMenu(cellLat, cellLng) {
   const statsEl = document.getElementById('popup-stats');
   statsEl.innerHTML = '';
 
-  for (const b of BUILDING_TYPES) {
-    const card = document.createElement('div');
-    card.className = 'build-card';
-    card.innerHTML = `
-      <div class="build-card-header"><span>${b.emoji}</span><span>${b.name}</span></div>
-      <div class="build-card-desc">${b.desc}</div>
-      <div class="build-card-meta">${b.meta}</div>
+  // HQ card — only if player has no HQ yet
+  if (!state.hq) {
+    const hqCard = document.createElement('div');
+    hqCard.className = 'build-card';
+    hqCard.innerHTML = `
+      <div class="build-card-header"><span>&#x26A1;</span><span>Штаб</span></div>
+      <div class="build-card-desc">Хранит монеты &bull; Только один на игрока</div>
+      <div class="build-card-meta">Бесплатно</div>
     `;
-    const btn = document.createElement('button');
-    btn.className = 'btn yellow';
-    btn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-    btn.innerHTML = '&#x26CF;&#xFE0F; Построить';
-    btn.addEventListener('click', () => { closePopup(); b.build(cellLat, cellLng); });
-    card.appendChild(btn);
-    statsEl.appendChild(card);
+    const hqBtn = document.createElement('button');
+    hqBtn.className = 'btn primary';
+    hqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
+    hqBtn.innerHTML = '&#x26A1; Построить штаб';
+    hqBtn.addEventListener('click', () => { closePopup(); doBuildHq(cellLat, cellLng); });
+    hqCard.appendChild(hqBtn);
+    statsEl.appendChild(hqCard);
   }
+
+  // Mine card — always shown
+  const mineCard = document.createElement('div');
+  mineCard.className = 'build-card';
+  mineCard.innerHTML = `
+    <div class="build-card-header"><span>&#x26CF;&#xFE0F;</span><span>Шахта</span></div>
+    <div class="build-card-desc">Генерирует монеты пассивно</div>
+    <div class="build-card-meta">1 монета/сек &bull; Бесплатно</div>
+  `;
+  const mineBtn = document.createElement('button');
+  mineBtn.className = 'btn yellow';
+  mineBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
+  mineBtn.innerHTML = '&#x26CF;&#xFE0F; Построить шахту';
+  mineBtn.addEventListener('click', () => { closePopup(); doBuildMine(cellLat, cellLng); });
+  mineCard.appendChild(mineBtn);
+  statsEl.appendChild(mineCard);
 
   const actEl = document.getElementById('popup-actions');
   actEl.innerHTML = '';
@@ -926,7 +1234,6 @@ function handleHexClick(cellId) {
   const [cellLat, cellLng] = h3.cellToLatLng(cellId);
 
   if (!building) {
-    if (!state.hq) return showToast('❌ Сначала установи Штаб');
     showBuildMenu(cellLat, cellLng);
   } else if (building.type === 'mine') {
     const isOwn = building.is_mine ?? (building.owner_id === state.player?.id);
@@ -1055,12 +1362,19 @@ function showHqPopup(hq, isOwn) {
         ['Max mine level', cfg.maxMineLevel],
         ['HQ upgrade cost', nextCost !== null ? nextCost.toLocaleString() : 'MAX LEVEL'],
       ],
-      nextCost !== null ? [{
-        label: `&#x2B06;&#xFE0F; Upgrade HQ (${nextCost.toLocaleString()})`,
-        cls: 'primary',
-        disabled: !canUpgrade,
-        action: () => doUpgradeHq(),
-      }] : []
+      [
+        ...(nextCost !== null ? [{
+          label: `&#x2B06;&#xFE0F; Upgrade HQ (${nextCost.toLocaleString()})`,
+          cls: 'primary',
+          disabled: !canUpgrade,
+          action: () => doUpgradeHq(),
+        }] : []),
+        {
+          label: '&#x1F5D1;&#xFE0F; Снести штаб',
+          cls: 'danger',
+          action: () => confirmSellHq(),
+        },
+      ]
     );
   } else {
     const owner = hq.players?.username || 'Unknown';
@@ -1092,9 +1406,10 @@ function showHqPopup(hq, isOwn) {
 //  Mine popup
 // ─────────────────────────────────────────────
 function showMinePopup(mine, isOwn, canCapture) {
+  const appearance  = getMineAppearance(mine.level);
+  const { emoji, name } = appearance;
   const rate        = mineRate(mine.level);
-  const accumulated = calcAccumulated(mine.level, mine.last_collected);
-  const emoji       = getMineEmoji(mine.level);
+  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected) : 0;
 
   if (isOwn) {
     const hqLvl   = state.hq?.level ?? 1;
@@ -1104,20 +1419,25 @@ function showMinePopup(mine, isOwn, canCapture) {
     const levelCapHit = nextCost !== null && mine.level + 1 > cfg.maxMineLevel;
     const canUpgrade  = nextCost !== null && !levelCapHit && hqCoins >= nextCost;
     const upgradeLabel = levelCapHit
-      ? `&#x2B06;&#xFE0F; Upgrade HQ first (cap: Lv${cfg.maxMineLevel})`
+      ? `⬆️ Сначала улучши штаб (макс Ур.${cfg.maxMineLevel})`
       : nextCost !== null
-        ? `&#x2B06;&#xFE0F; Upgrade (${nextCost.toLocaleString()})`
-        : 'MAX LEVEL';
+        ? `⬆️ Улучшить (${nextCost.toLocaleString()})`
+        : 'МАКС УРОВЕНЬ';
 
     const refund   = calcSellRefund(mine.level);
     const sellTotal = refund + accumulated;
+    const levelLabel = mine.level === 0 ? 'Неактивен' : `Ур. ${mine.level}`;
 
     openPopup(
-      `${emoji} Шахта (Ур. ${mine.level})`,
-      `Ваша шахта`,
+      `${emoji} ${name} (${levelLabel})`,
+      `Ваше здание`,
       [
-        ['Доход', `${rate.toLocaleString()} монет/сек`],
-        ['Накоплено', `${accumulated.toLocaleString()} монет`],
+        ...(mine.level === 0
+          ? [['Статус', 'Нужен первый апгрейд']]
+          : [
+              ['Доход', `${rate.toLocaleString()} монет/сек`],
+              ['Накоплено', `${accumulated.toLocaleString()} монет`],
+            ]),
         ['Стоимость апгрейда', nextCost !== null ? `${nextCost.toLocaleString()}` : 'МАКС'],
         ['Баланс штаба', hqCoins.toLocaleString()],
       ],
@@ -1130,7 +1450,7 @@ function showMinePopup(mine, isOwn, canCapture) {
           action: () => doUpgrade(mine.id),
         }] : []),
         {
-          label: `&#x1F4B8; Продать (+${sellTotal.toLocaleString()})`,
+          label: `💸 Продать (+${sellTotal.toLocaleString()})`,
           cls: 'danger',
           action: () => doSellMine(mine.id),
         },
@@ -1139,14 +1459,14 @@ function showMinePopup(mine, isOwn, canCapture) {
   } else if (canCapture) {
     const owner = mine.players?.username || 'Unknown';
     openPopup(
-      `${emoji} Enemy Mine (Lv ${mine.level})`,
-      `Owner: ${owner} • In capture range!`,
+      `${emoji} ${name} (Ур. ${mine.level})`,
+      `Владелец: ${owner} • В зоне захвата!`,
       [
-        ['Rate', `${rate.toLocaleString()} coins/sec`],
-        ['Level', mine.level],
+        ['Доход', `${rate.toLocaleString()} монет/сек`],
+        ['Уровень', mine.level],
       ],
       [{
-        label: '&#x2694;&#xFE0F; Capture',
+        label: '⚔️ Захватить',
         cls: 'danger',
         action: () => doCapture(mine.id),
       }]
@@ -1156,11 +1476,11 @@ function showMinePopup(mine, isOwn, canCapture) {
     const pos  = state.playerPos;
     const dist = pos ? Math.round(haversine(pos.lat, pos.lng, mine.lat, mine.lng)) : '?';
     openPopup(
-      `${emoji} Enemy Mine (Lv ${mine.level})`,
-      `Owner: ${owner} • ${dist}m away`,
+      `${emoji} ${name} (Ур. ${mine.level})`,
+      `Владелец: ${owner} • ${dist}м`,
       [
-        ['Rate', `${rate.toLocaleString()} coins/sec`],
-        ['To capture', 'Move within ~500m zone'],
+        ['Доход', `${rate.toLocaleString()} монет/сек`],
+        ['Захват', 'Подойди ближе (~50м)'],
       ],
       []
     );
@@ -1184,23 +1504,22 @@ map.on('click', e => {
   handleHexClick(cellId);
 });
 
-map.on('zoomend', () => {
-  if (state.playerPos) renderHexGrid(state.playerPos.lat, state.playerPos.lng);
-});
+map.on('moveend zoomend', () => { updateHexGrid(); loadVisibleBuildings(); });
 
 // ─────────────────────────────────────────────
 //  Actions
 // ─────────────────────────────────────────────
 async function doUpgradeHq() {
   try {
-    const data = await apiFetch('/api/buildings/headquarters-upgrade', {
+    const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }),
     });
     state.hq = data.headquarters;
     updateCoinDisplay();
     showToast(`⚡ Штаб улучшен до уровня ${data.headquarters.level}!`);
-    await refreshMap();
+    handleXpResult(data.xp);
+    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -1208,6 +1527,9 @@ async function doUpgradeHq() {
 
 async function doUpgrade(mineId) {
   const pos = state.playerPos;
+  // Capture appearance before upgrade for tier-change detection
+  const mine = state.mapBuildings.mines.find(m => m.id === mineId);
+  const prevName = mine ? getMineAppearance(mine.level).name : null;
   try {
     const data = await apiFetch('/api/buildings/upgrade', {
       method: 'POST',
@@ -1220,8 +1542,14 @@ async function doUpgrade(mineId) {
     });
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
-    showToast(`⬆️ Улучшено до уровня ${data.mine.level}!`);
-    await refreshMap();
+    const newAppearance = getMineAppearance(data.mine.level);
+    if (prevName && newAppearance.name !== prevName) {
+      showToast(`${newAppearance.emoji} Эволюция! ${prevName} → ${newAppearance.name}`);
+    } else {
+      showToast(`⬆️ Улучшено до уровня ${data.mine.level}! (${newAppearance.name})`);
+    }
+    handleXpResult(data.xp);
+    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -1237,7 +1565,7 @@ async function doSellMine(mineId) {
     updateCoinDisplay();
     showToast(`✅ Шахта продана! +${data.total.toLocaleString()} монет`);
     state.mines = state.mines.filter(m => m.id !== mineId);
-    await refreshMap();
+    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -1247,7 +1575,7 @@ async function doCapture(mineId) {
   const pos = state.playerPos;
   if (!pos) return showToast('❌ Нет GPS');
   try {
-    await apiFetch('/api/buildings/capture', {
+    const data = await apiFetch('/api/buildings/capture', {
       method: 'POST',
       body: JSON.stringify({
         telegram_id: TG_ID,
@@ -1258,7 +1586,54 @@ async function doCapture(mineId) {
       }),
     });
     showToast('⚔️ Шахта захвачена!');
+    handleXpResult(data.xp);
     await refreshAll();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function doBuildHq(lat, lng) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ GPS не готов');
+  try {
+    const data = await apiFetch('/api/buildings/headquarters', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, lat, lng }),
+    });
+    state.hq = data.headquarters;
+    updateCoinDisplay();
+    showToast('&#x26A1; Штаб построен!');
+    handleXpResult(data.xp);
+    await loadVisibleBuildings();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function confirmSellHq() {
+  openPopup(
+    '&#x26A0;&#xFE0F; Снести штаб?',
+    'Все монеты в штабе сгорят!',
+    [],
+    [{
+      label: '&#x1F5D1;&#xFE0F; Да, снести',
+      cls: 'danger',
+      action: () => doSellHq(),
+    }]
+  );
+}
+
+async function doSellHq() {
+  try {
+    await apiFetch('/api/buildings/headquarters', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'sell' }),
+    });
+    state.hq = null;
+    updateCoinDisplay();
+    showToast('&#x1F5D1;&#xFE0F; Штаб снесён');
+    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -1288,8 +1663,9 @@ async function doBuildMine(lat, lng) {
       body: JSON.stringify(payload),
     });
     showToast('⛏️ Шахта построена!');
+    handleXpResult(data.xp);
     state.mines.push(data.mine);
-    await refreshMap();
+    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -1306,6 +1682,7 @@ async function doCollect() {
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
     showToast(`💰 Собрано ${data.collected.toLocaleString()} монет!`);
+    handleXpResult(data.xp);
     // Reset local mine last_collected timestamps
     const now = new Date().toISOString();
     for (const mine of state.mines) mine.last_collected = now;
@@ -1334,7 +1711,8 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
     document.getElementById('hq-prompt').classList.remove('open');
     updateCoinDisplay();
     showToast('🏛️ Штаб установлен!');
-    await refreshMap();
+    handleXpResult(data.xp);
+    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -1353,20 +1731,34 @@ function updateCoinDisplay() {
 }
 
 // ─────────────────────────────────────────────
-//  Map + data refresh
+//  Map + data refresh (viewport bbox)
 // ─────────────────────────────────────────────
-async function refreshMap() {
-  const pos = state.playerPos;
-  if (!pos) return;
+let _mapLoadPending = false;
+
+async function loadVisibleBuildings() {
+  if (_mapLoadPending) return;
+  _mapLoadPending = true;
   try {
-    const tid = TG_ID ? `&telegram_id=${TG_ID}` : '';
-    const data = await apiFetch(`/api/map?lat=${pos.lat}&lng=${pos.lng}${tid}`);
-    console.log('[map] online_players received:', JSON.stringify(data.online_players));
+    const bounds = map.getBounds();
+    const pos    = state.playerPos;
+    const params = new URLSearchParams({
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east:  bounds.getEast(),
+      west:  bounds.getWest(),
+    });
+    if (TG_ID)    params.set('telegram_id', TG_ID);
+    if (pos?.lat) params.set('lat', pos.lat);
+    if (pos?.lng) params.set('lng', pos.lng);
+
+    const data = await apiFetch(`/api/map?${params}`);
     state.mapBuildings = data;
     renderBuildings();
-    if (state.playerPos) renderHexGrid(state.playerPos.lat, state.playerPos.lng);
+    updateHexGrid();
   } catch (e) {
-    console.error('Map refresh error:', e);
+    if (!e.message?.includes('Zoom in')) console.error('Map refresh error:', e);
+  } finally {
+    _mapLoadPending = false;
   }
 }
 
@@ -1377,7 +1769,7 @@ async function refreshAll() {
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, username: TG_NAME }),
     });
-    state.player = data.player;
+    state.player = data.player; // includes hp, max_hp, attack, kills, deaths
     state.hq     = data.headquarters;
     state.mines  = data.mines;
     if (prevLevel && data.player.level > prevLevel) {
@@ -1385,9 +1777,9 @@ async function refreshAll() {
     }
     updateCoinDisplay();
     updatePlayerDisplay();
-    await refreshMap();
-  } catch (e) {
-    console.error('Refresh error:', e);
+    await loadVisibleBuildings();
+  } catch (err) {
+    console.error('Refresh error:', err);
   }
 }
 
@@ -1410,8 +1802,7 @@ function onPosition(pos) {
     playerMarker.setIcon(pIcon);
   }
 
-  // Update hex grid and zone circle
-  renderHexGrid(lat, lng);
+  updateHexGrid();
 
   // Enable action buttons on first GPS fix
   if (isFirstFix) {
@@ -1433,6 +1824,431 @@ function onGpsError(err) {
   console.warn('GPS error:', err.message);
   document.getElementById('header-status').textContent = 'GPS unavailable';
 }
+
+// ─────────────────────────────────────────────
+//  Bot system
+// ─────────────────────────────────────────────
+const BOT_NAMES = {
+  spirit: 'Дух', goblin: 'Гоблин', werewolf: 'Оборотень',
+  demon: 'Демон', dragon: 'Дракон', boss: 'БОСС',
+};
+
+// Mirror of lib/bots.js — keep in sync
+const BOT_CLIENT_TYPES = {
+  spirit:   { emoji:'🌫️', category:'neutral', size:'S',  markerSize:32, attackChance:0 },
+  goblin:   { emoji:'👺', category:'undead',  size:'S',  markerSize:32, attackChance:0.3 },
+  werewolf: { emoji:'🐺', category:'undead',  size:'M',  markerSize:38, attackChance:0.5 },
+  demon:    { emoji:'👹', category:'undead',  size:'L',  markerSize:44, attackChance:0.6 },
+  dragon:   { emoji:'🐲', category:'neutral', size:'L',  markerSize:50, attackChance:0.4 },
+  boss:     { emoji:'💀', category:'undead',  size:'XL', markerSize:60, attackChance:0.8 },
+};
+
+const botMarkers = {}; // id → { marker, animTimer }
+let   botData    = {}; // id → bot object
+
+function botIcon(bot) {
+  const cfg  = BOT_CLIENT_TYPES[bot.type] || {};
+  const ms   = cfg.markerSize || 32;
+  const size = cfg.size || 'S';
+
+  let glow;
+  if (size === 'XL') {
+    glow = ''; // handled by CSS animation on wrapper
+  } else if (size === 'L') {
+    glow = 'filter:drop-shadow(0 0 10px rgba(200,50,255,0.9))';
+  } else if (size === 'M') {
+    glow = 'filter:drop-shadow(0 0 7px rgba(255,150,0,0.85))';
+  } else {
+    glow = bot.category === 'undead'
+      ? 'filter:drop-shadow(0 0 5px rgba(255,50,50,0.8))'
+      : 'filter:drop-shadow(0 0 5px rgba(50,255,100,0.8))';
+  }
+
+  const bossClass = bot.type === 'boss' ? ' bot-boss-pulse' : '';
+  return makeMarkerIcon(
+    `<div class="marker-wrap${bossClass}"><span style="font-size:${ms}px;${glow}">${bot.emoji}</span></div>`,
+    ms + 12
+  );
+}
+
+function animateBotMarker(botRef, toLat, toLng) {
+  if (botRef.animTimer) clearInterval(botRef.animTimer);
+  const from  = botRef.marker.getLatLng();
+  const steps = 15;
+  let   step  = 0;
+  botRef.animTimer = setInterval(() => {
+    step++;
+    const t = step / steps;
+    botRef.marker.setLatLng([
+      from.lat + (toLat - from.lat) * t,
+      from.lng + (toLng - from.lng) * t,
+    ]);
+    if (step >= steps) { clearInterval(botRef.animTimer); botRef.animTimer = null; }
+  }, Math.floor(1800 / steps));
+}
+
+function renderBots(bots) {
+  const activeIds = new Set(bots.map(b => b.id));
+
+  // Remove gone bots
+  for (const id of Object.keys(botMarkers)) {
+    if (!activeIds.has(id)) {
+      if (botMarkers[id].animTimer) clearInterval(botMarkers[id].animTimer);
+      botLayer.removeLayer(botMarkers[id].marker);
+      delete botMarkers[id];
+      delete botData[id];
+    }
+  }
+
+  for (const bot of bots) {
+    // Preserve HP if we have a more up-to-date value from combat
+    const existing = botData[bot.id];
+    botData[bot.id] = existing ? { ...bot, hp: existing.hp ?? bot.hp, max_hp: existing.max_hp ?? bot.max_hp } : bot;
+    if (botMarkers[bot.id]) {
+      animateBotMarker(botMarkers[bot.id], bot.lat, bot.lng);
+    } else {
+      const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
+      marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
+      marker.addTo(botLayer);
+      botMarkers[bot.id] = { marker, animTimer: null };
+    }
+  }
+}
+
+function showBotPopup(botId) {
+  const bot = botData[botId];
+  if (!bot) return;
+  const pos         = state.playerPos;
+  const dist        = pos ? haversine(pos.lat, pos.lng, bot.lat, bot.lng) : Infinity;
+  const buildRadius = state.player?.buildRadius ?? 500;
+  const near        = dist <= buildRadius;
+  const name        = BOT_NAMES[bot.type] || bot.type;
+
+  const botHp    = bot.hp    ?? BOT_CLIENT_TYPES[bot.type]?.markerSize ?? 50;
+  const botMaxHp = bot.max_hp ?? botHp;
+  const pHp      = state.player?.hp    ?? 100;
+  const pMaxHp   = state.player?.max_hp ?? 100;
+  const botHpPct = Math.round(Math.max(0, botHp / botMaxHp) * 100);
+  const pHpPct   = Math.round(Math.max(0, pHp  / pMaxHp)   * 100);
+
+  document.getElementById('popup-title').innerHTML = `${bot.emoji} ${name}`;
+  document.getElementById('popup-subtitle').textContent =
+    bot.type === 'boss' ? '⚠️ ГЛОБАЛЬНЫЙ БОСС' :
+    bot.category === 'undead' ? 'Нежить — дренирует шахты' : 'Нейтральное существо';
+
+  const statsEl = document.getElementById('popup-stats');
+  statsEl.innerHTML = `
+    <div class="combat-section">
+      <div class="combat-fighter">
+        <div class="combat-emoji">${bot.emoji}</div>
+        <div class="combat-name">${name}</div>
+        <div class="hp-bar-container"><div class="hp-bar-fill bot" id="bot-hp-bar" style="width:${botHpPct}%"></div></div>
+        <div class="hp-label" id="bot-hp-label">${botHp} / ${botMaxHp} HP</div>
+      </div>
+      <div class="combat-vs">⚔️</div>
+      <div class="combat-fighter">
+        <div class="combat-emoji">${state.player?.avatar || '🐺'}</div>
+        <div class="combat-name">${state.player?.username || 'Вы'}</div>
+        <div class="hp-bar-container"><div class="hp-bar-fill player" id="player-hp-bar" style="width:${pHpPct}%"></div></div>
+        <div class="hp-label" id="player-hp-label">${pHp} / ${pMaxHp} HP</div>
+      </div>
+    </div>
+    ${bot.category === 'undead' ? `<div class="popup-stat"><span>💸 Украдено</span><span class="val">${bot.coins_drained || 0} монет</span></div>` : ''}
+    ${bot.reward_max > 0 ? `<div class="popup-stat"><span>💰 Награда за победу</span><span class="val">${bot.reward_min}–${bot.reward_max} монет</span></div>` : ''}
+  `;
+
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+
+  const atkBtn = document.createElement('button');
+  atkBtn.className = 'btn danger';
+  atkBtn.style.flex = '1 0 100%';
+  atkBtn.innerHTML = near ? '⚔️ Атаковать' : `📍 Подойди ближе (${Math.round(dist)}м)`;
+  atkBtn.disabled = !near;
+  atkBtn.addEventListener('click', () => doAttackBot(botId));
+  actEl.appendChild(atkBtn);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+function showFloatingText(text, latlng, color) {
+  const pt = map.latLngToContainerPoint(latlng);
+  const el = document.createElement('div');
+  el.className = 'float-dmg';
+  el.style.left  = pt.x + 'px';
+  el.style.top   = pt.y + 'px';
+  el.style.color = color || '#ff4444';
+  el.textContent = text;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.transform = 'translateY(-70px)';
+    el.style.opacity   = '0';
+  }));
+  setTimeout(() => el.remove(), 1200);
+}
+
+function screenShake() {
+  const mapEl = document.getElementById('map');
+  mapEl.classList.add('screen-shake');
+  setTimeout(() => mapEl.classList.remove('screen-shake'), 450);
+}
+
+async function doAttackBot(botId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  const bot = botData[botId];
+  if (!bot) { closePopup(); return; }
+
+  const atkBtn = document.querySelector('#popup-actions .btn.danger');
+  if (atkBtn) { atkBtn.disabled = true; atkBtn.textContent = '⏳ Атака...'; }
+
+  try {
+    const data = await apiFetch('/api/bots', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
+    });
+
+    const botLatlng = botMarkers[botId]?.marker?.getLatLng() || { lat: bot.lat, lng: bot.lng };
+
+    // Floating damage on bot
+    const critText = data.isCrit ? ' КРИТ!' : '';
+    showFloatingText(`-${data.damage}${critText}`, botLatlng, data.isCrit ? '#FFD700' : '#ff4444');
+
+    // Update player HP in state
+    if (data.playerHp != null) {
+      if (state.player) { state.player.hp = data.playerHp; state.player.max_hp = data.playerMaxHp; }
+    }
+
+    if (data.botDefeated) {
+      // Boss shake
+      if (bot.type === 'boss') screenShake();
+
+      // Remove bot marker
+      if (botMarkers[botId]) {
+        if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
+        botLayer.removeLayer(botMarkers[botId].marker);
+        delete botMarkers[botId];
+      }
+      delete botData[botId];
+
+      // Rewards
+      let toastMsg = `💀 Побеждён!`;
+      if (data.xp?.xpGained) toastMsg += ` +${data.xp.xpGained} XP`;
+      if (data.reward) {
+        if (state.hq) state.hq.coins = data.hq_coins;
+        updateCoinDisplay();
+        toastMsg += ` +${data.reward} монет`;
+      }
+      handleXpResult(data.xp);
+      closePopup();
+      showToast(toastMsg);
+
+      if (data.playerDied) {
+        if (bot.type === 'boss') screenShake();
+        showToast('☠️ Вы погибли! Возрождение...');
+      }
+    } else {
+      // Bot survived — counterattack feedback
+      if (data.counterDamage > 0) {
+        const pPos = playerMarker?.getLatLng() || botLatlng;
+        showFloatingText(`-${data.counterDamage}`, pPos, '#ff9900');
+        if (data.playerDied) {
+          if (bot.type === 'boss') screenShake();
+          showToast('☠️ Вы погибли! Возрождение...');
+        }
+      }
+
+      // Update popup with new HP values
+      if (data.botHp != null) {
+        botData[botId] = { ...bot, hp: data.botHp, max_hp: data.botMaxHp };
+      }
+      const botHpPct = Math.round(Math.max(0, (data.botHp ?? 0) / (data.botMaxHp ?? 1)) * 100);
+      const pHpPct   = Math.round(Math.max(0, (data.playerHp ?? 100) / (data.playerMaxHp ?? 100)) * 100);
+      const botBar   = document.getElementById('bot-hp-bar');
+      const pBar     = document.getElementById('player-hp-bar');
+      const botLbl   = document.getElementById('bot-hp-label');
+      const pLbl     = document.getElementById('player-hp-label');
+      if (botBar) botBar.style.width = botHpPct + '%';
+      if (pBar)   pBar.style.width   = pHpPct   + '%';
+      if (botLbl) botLbl.textContent = `${data.botHp} / ${data.botMaxHp} HP`;
+      if (pLbl)   pLbl.textContent   = `${data.playerHp} / ${data.playerMaxHp} HP`;
+
+      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+    }
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+  }
+}
+
+async function doRepelBot(botId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  try {
+    const data = await apiFetch('/api/bots', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'repel', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
+    });
+    showToast(`🔥 Прогнан! Успел украсть ${data.coins_drained} монет`);
+    // Remove from local state
+    if (botMarkers[botId]) {
+      if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
+      botLayer.removeLayer(botMarkers[botId].marker);
+      delete botMarkers[botId];
+    }
+    delete botData[botId];
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function doLureBot(botId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  try {
+    const data = await apiFetch('/api/bots', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'lure', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
+    });
+    if (state.hq) state.hq.coins = data.hq_coins;
+    updateCoinDisplay();
+    showToast(`💰 +${data.reward} монет от ${data.emoji}!`);
+    handleXpResult(data.xp);
+    // Remove from local state
+    if (botMarkers[botId]) {
+      if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
+      botLayer.removeLayer(botMarkers[botId].marker);
+      delete botMarkers[botId];
+    }
+    delete botData[botId];
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function tickBotMove() {
+  if (!TG_ID || !state.playerPos) return;
+  const pos = state.playerPos;
+  try {
+    const data = await apiFetch('/api/bots', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'move', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
+    });
+    renderBots(data.bots || []);
+  } catch (e) {
+    console.warn('[bots/move] error:', e.message);
+  }
+}
+
+async function tickBotSpawn() {
+  if (!TG_ID || !state.playerPos) return;
+  const pos = state.playerPos;
+  try {
+    const data = await apiFetch('/api/bots', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
+    });
+    if (data.bots?.length) renderBots([...Object.values(botData), ...data.bots]);
+  } catch (e) {
+    console.warn('[bots/spawn] error:', e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Maintenance mode
+// ─────────────────────────────────────────────
+const ADMIN_TG_ID = 560013667;
+let _maintenanceMode   = false;
+let _gameInitialised   = false;
+let _maintenanceTimer  = null;
+
+function showMaintenanceScreen() {
+  const avatarEl = document.getElementById('maintenance-avatar-inner');
+  avatarEl.textContent = state.player?.avatar || localStorage.getItem('gw_avatar') || '🎮';
+  document.getElementById('maintenance-screen').classList.add('open');
+  document.getElementById('loading').style.display = 'none';
+}
+
+function hideMaintenanceScreen() {
+  document.getElementById('maintenance-screen').classList.remove('open');
+}
+
+async function checkMaintenance() {
+  try {
+    const res  = await fetch('/api/admin/maintenance');
+    const { maintenance } = await res.json();
+
+    // Admin never sees the maintenance screen
+    if (currentTelegramId === ADMIN_ID) return;
+
+    if (maintenance) {
+      showMaintenanceScreen();
+    } else {
+      if (_maintenanceMode) {
+        hideMaintenanceScreen();
+        if (!_gameInitialised) await boot();
+      }
+    }
+    _maintenanceMode = !!maintenance;
+  } catch (e) {
+    // silently ignore network errors
+  }
+}
+
+// Admin maintenance button
+let _adminMaintenanceOn = false;
+
+function updateAdminButton() {
+  const btn = document.getElementById('btn-maintenance-toggle');
+  if (!btn) return;
+  if (_adminMaintenanceOn) {
+    btn.className = 'btn primary';
+    btn.innerHTML = '✅ Завершить тех перерыв';
+  } else {
+    btn.className = 'btn danger';
+    btn.innerHTML = '🔧 Включить тех перерыв';
+  }
+}
+
+document.getElementById('btn-fix-positions').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-fix-positions');
+  btn.disabled = true;
+  btn.textContent = '⏳ Выравниваю...';
+  try {
+    const data = await apiFetch('/api/admin/maintenance', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-positions' }),
+    });
+    showToast(`✅ Исправлено: ${data.fixed_hq} штабов, ${data.fixed_mines} шахт`);
+    await loadVisibleBuildings();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📐 Выровнять позиции';
+  }
+});
+
+document.getElementById('btn-maintenance-toggle').addEventListener('click', async () => {
+  const newState = !_adminMaintenanceOn;
+  try {
+    await apiFetch('/api/admin/maintenance', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, enabled: newState }),
+    });
+    _adminMaintenanceOn = newState;
+    updateAdminButton();
+    showToast(newState ? '🔧 Тех перерыв включён' : '✅ Тех перерыв выключен');
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+});
 
 // ─────────────────────────────────────────────
 //  Boot sequence
@@ -1459,10 +2275,18 @@ async function boot() {
       method: 'POST',
       body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
     });
-    state.player = data.player;
+    state.player = data.player; // includes hp, max_hp, attack, kills, deaths
     state.hq     = data.headquarters;
     state.mines  = data.mines;
     updatePlayerDisplay();
+
+    // Cache avatar for maintenance screen
+    if (data.player?.avatar) localStorage.setItem('gw_avatar', data.player.avatar);
+
+    // Show admin section if this is the admin
+    if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
+      document.getElementById('admin-section').style.display = 'block';
+    }
   } catch (err) {
     setLoadingText(`Error: ${err.message}`);
     return;
@@ -1479,7 +2303,7 @@ async function boot() {
   navigator.geolocation.getCurrentPosition(async (pos) => {
     onPosition(pos);
     setLoadingText('Loading map...');
-    await refreshMap();
+    await loadVisibleBuildings(); // initial bbox load after GPS fix
 
     // Hide loading
     document.getElementById('loading').style.display = 'none';
@@ -1498,11 +2322,26 @@ async function boot() {
       timeout: 10000,
     });
 
-    // Periodic map refresh
-    setInterval(refreshMap, MAP_REFRESH_MS);
+    // Periodic map refresh (every 10s via bbox)
+    setInterval(loadVisibleBuildings, 10000);
 
     // Periodic player/level refresh (detect XP gains, level-ups)
     setInterval(refreshAll, 30000);
+
+    // Bot system
+    tickBotSpawn();
+    setInterval(tickBotMove,  2000);
+    setInterval(tickBotSpawn, 30000);
+
+    _gameInitialised = true;
+
+    // Sync admin maintenance state
+    if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
+      apiFetch('/api/admin/maintenance').then(d => {
+        _adminMaintenanceOn = d.maintenance;
+        updateAdminButton();
+      }).catch(() => {});
+    }
 
   }, onGpsError, { enableHighAccuracy: true, timeout: 15000 });
 }
@@ -1544,6 +2383,10 @@ async function selectAvatar(avatar) {
 
 document.getElementById('btn-settings').addEventListener('click', () => {
   buildAvatarGrid();
+  // Refresh admin button state
+  if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
+    updateAdminButton();
+  }
   document.getElementById('settings-drawer').classList.add('open');
 });
 
@@ -1555,6 +2398,28 @@ document.getElementById('btn-close-settings').addEventListener('click', () => {
 //  Boot
 // ─────────────────────────────────────────────
 (async () => {
+  // Poll every 30s so users see maintenance screen go away automatically
+  _maintenanceTimer = setInterval(checkMaintenance, 30000);
+
+  // Admin skips maintenance check entirely and boots straight into the game
+  if (currentTelegramId === ADMIN_ID) {
+    await boot();
+    return;
+  }
+
+  // For everyone else: check maintenance first
+  try {
+    const res = await fetch('/api/admin/maintenance');
+    const { maintenance } = await res.json();
+    if (maintenance) {
+      _maintenanceMode = true;
+      showMaintenanceScreen();
+      return; // boot() will be called by checkMaintenance when maintenance ends
+    }
+  } catch (e) {
+    // If the check fails, proceed to boot normally
+  }
+
   await boot();
 })();
 </script>

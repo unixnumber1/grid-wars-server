@@ -1,10 +1,10 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, getHQLimit } from '../../lib/formulas.js';
+import { calcAccumulatedCoins, getHQLimit, getMineUpgradeCost } from '../../lib/formulas.js';
 
 function calcSellRefund(level) {
   let sum = 0;
-  for (let i = 2; i <= level; i++) {
-    sum += Math.floor(50 * Math.pow(2.1, i - 1));
+  for (let i = 1; i <= level; i++) {
+    sum += getMineUpgradeCost(i);
   }
   return Math.floor(sum * 0.3);
 }

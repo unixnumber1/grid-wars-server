@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   const cfg = hqConfig(hq.level ?? 1);
   if (mineCount >= cfg.maxMines) {
     return res.status(403).json({
-      error: `HQ level ${hq.level} allows max ${cfg.maxMines} mines. Upgrade your HQ to build more.`,
+      error: `Лимит шахт для HQ ур.${hq.level ?? 1} — ${cfg.maxMines} шт. Улучши штаб!`,
     });
   }
 
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
 
   if (!playerRange.has(targetCell)) {
     return res.status(403).json({
-      error: `Target location is outside your build zone (~${buildRadius}m)`,
+      error: `Цель вне зоны строительства (~${buildRadius}м)`,
     });
   }
 
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
       lat: cellCenterLat,
       lng: cellCenterLng,
       cell_id: targetCell,
-      level: 1,
+      level: 0,
       last_collected: new Date().toISOString(),
     })
     .select()
@@ -102,7 +102,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to place mine' });
   }
 
-  addXp(player.id, XP_REWARDS.BUILD_MINE).catch(console.error);
+  let xpResult = null;
+  try {
+    xpResult = await addXp(player.id, XP_REWARDS.BUILD_MINE);
+    console.log('[mine] XP added:', JSON.stringify(xpResult));
+  } catch (e) {
+    console.error('[mine] XP ERROR:', e.message);
+  }
 
-  return res.status(201).json({ mine });
+  return res.status(201).json({ mine, xp: xpResult });
 }

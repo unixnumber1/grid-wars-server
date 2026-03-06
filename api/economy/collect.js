@@ -76,11 +76,20 @@ export default async function handler(req, res) {
   }
 
   const xpGained = Math.floor(actualCollected / 50);
-  if (xpGained > 0) addXp(player.id, xpGained).catch(console.error);
+  let xpResult = null;
+  if (xpGained > 0) {
+    try {
+      xpResult = await addXp(player.id, xpGained);
+      console.log('[collect] XP added:', JSON.stringify(xpResult));
+    } catch (e) {
+      console.error('[collect] XP ERROR:', e.message);
+    }
+  }
 
   return res.status(200).json({
     collected: actualCollected,
     total_accumulated: totalCoins,
     hq_coins: newBalance,
+    xp: xpResult,
   });
 }

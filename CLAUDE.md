@@ -154,6 +154,72 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS xp    integer DEFAULT 0;
 - mine.js использует `getBuildRadius(player.level)` вместо хардкода 500м
 - grid.js: `radiusToDiskK(meters)` конвертирует метры в H3 disk-K
 
+## Система ботов (актуально)
+
+### Таблица `bots`
+```sql
+CREATE TABLE bots (
+  id uuid PK, type text, category text ('undead'|'neutral'),
+  emoji text, lat float8, lng float8, cell_id text,
+  target_mine_id uuid→mines, spawned_for_player_id uuid→players,
+  coins_drained int, reward_min int, reward_max int,
+  drain_per_sec int, speed text, spawned_at timestamptz, expires_at timestamptz
+);
+```
+
+### Конфиг: `/lib/bots.js` (6 типов с боевой системой)
+| Тип      | Emoji | Категория | HP   | Атака | AttackChance | Размер | markerSize |
+|----------|-------|-----------|------|-------|-------------|--------|-----------|
+| spirit   | 🌫️   | neutral   | 30   | 0     | 0           | S      | 32        |
+| goblin   | 👺   | undead    | 50   | 8     | 0.3         | S      | 32        |
+| werewolf | 🐺   | undead    | 120  | 20    | 0.5         | M      | 38        |
+| demon    | 👹   | undead    | 200  | 35    | 0.6         | L      | 44        |
+| dragon   | 🐲   | neutral   | 400  | 60    | 0.4         | L      | 50        |
+| boss     | 💀   | undead    | 1000 | 100   | 0.8         | XL     | 60        |
+
+Боссы: 1 глобально, 5% шанс за цикл спавна + Telegram-уведомление.
+
+### Конфиг: `/api/bots.js` (action-based router)
+| action  | Метод | Описание |
+|---------|-------|----------|
+| spawn   | POST  | Спаун до 10 ботов, 5% шанс босса |
+| nearby  | GET   | Боты в радиусе |
+| move    | POST  | Хаотичное движение + дренаж через attackChance |
+| attack  | POST  | Игрок атакует бота, крит/контратака/смерть |
+| repel   | POST  | (legacy) прогнать нежить |
+| lure    | POST  | (legacy) приманить нейтрального |
+
+### Боевая механика
+- `getMaxHp(level)` = 100 + (level-1)*10
+- `getPlayerAttack(level)` = 10 + (level-1)*2
+- `calcHpRegen`: +1 HP каждые 10 сек, применяется в init.js и attack handler
+- Крит: 20% шанс, x2 урон; контратака вероятностью attackChance бота
+- Смерть игрока: respawn с полным HP, deaths++
+- XP за победу = max_hp бота / 5; монеты только для нейтральных
+
+### SQL для боевой системы
+```sql
+ALTER TABLE players ADD COLUMN IF NOT EXISTS hp            integer;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS max_hp        integer;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_hp_regen TIMESTAMPTZ DEFAULT now();
+ALTER TABLE players ADD COLUMN IF NOT EXISTS kills         integer NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS deaths        integer NOT NULL DEFAULT 0;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS hp     integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS max_hp integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS attack integer NOT NULL DEFAULT 0;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS size   text    NOT NULL DEFAULT 'S';
+```
+
+### Фронтенд (public/index.html)
+- `BOT_CLIENT_TYPES` — зеркало lib/bots.js для markerSize/size/category
+- `botIcon(bot)` — размер и свечение по size (S=category, M=orange, L=purple, XL=red pulse)
+- CSS `.bot-boss-pulse` — pulsing animation для босса
+- `showBotPopup(botId)` — HP-бары игрока и бота + кнопка атаки
+- `doAttackBot(botId)` — POST attack, floating damage text, живой update HP
+- `showFloatingText(text, latlng, color)` — анимированный текст на карте
+- `screenShake()` — CSS animation shake (при убийстве босса)
+- Профиль: HP-бар, attack, kills/deaths
+
 ## Следующие фичи (в порядке приоритета)
 - [ ] Таблица лидеров
 - [ ] Кланы

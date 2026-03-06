@@ -53,3 +53,77 @@ CREATE INDEX idx_mines_owner_id   ON mines (owner_id);
 ALTER TABLE players      DISABLE ROW LEVEL SECURITY;
 ALTER TABLE headquarters DISABLE ROW LEVEL SECURITY;
 ALTER TABLE mines        DISABLE ROW LEVEL SECURITY;
+
+-- Bots
+CREATE TABLE IF NOT EXISTS bots (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type                  TEXT NOT NULL,
+  category              TEXT NOT NULL,
+  emoji                 TEXT NOT NULL,
+  lat                   FLOAT8 NOT NULL,
+  lng                   FLOAT8 NOT NULL,
+  cell_id               TEXT,
+  target_mine_id        UUID REFERENCES mines(id) ON DELETE SET NULL,
+  spawned_for_player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+  coins_drained         INTEGER DEFAULT 0,
+  reward_min            INTEGER NOT NULL,
+  reward_max            INTEGER NOT NULL,
+  drain_per_sec         INTEGER DEFAULT 0,
+  speed                 TEXT NOT NULL,
+  spawned_at            TIMESTAMPTZ DEFAULT now(),
+  expires_at            TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_bots_player    ON bots (spawned_for_player_id);
+CREATE INDEX IF NOT EXISTS idx_bots_expires   ON bots (expires_at);
+
+ALTER TABLE bots DISABLE ROW LEVEL SECURITY;
+
+-- ─── Migrations (run these if tables already exist) ───────
+-- Economy v2: 100 mine levels (remove old CHECK constraint)
+ALTER TABLE mines DROP CONSTRAINT IF EXISTS mines_level_check;
+
+-- Player level & XP system
+ALTER TABLE players ADD COLUMN IF NOT EXISTS xp    integer NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS level integer NOT NULL DEFAULT 1;
+
+-- Player avatar
+ALTER TABLE players ADD COLUMN IF NOT EXISTS avatar text DEFAULT '🐺';
+
+-- HQ level
+ALTER TABLE headquarters ADD COLUMN IF NOT EXISTS level integer NOT NULL DEFAULT 1;
+
+-- ─── Combat system ─────────────────────────────────────────────────────────
+-- Player combat stats
+ALTER TABLE players ADD COLUMN IF NOT EXISTS hp           integer;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS max_hp       integer;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS last_hp_regen TIMESTAMPTZ DEFAULT now();
+ALTER TABLE players ADD COLUMN IF NOT EXISTS kills        integer NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS deaths       integer NOT NULL DEFAULT 0;
+
+-- Bot combat stats
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS hp     integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS max_hp integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS attack integer NOT NULL DEFAULT 0;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS size   text    NOT NULL DEFAULT 'S';
+
+-- ─── App settings (maintenance mode etc.) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        text PRIMARY KEY,
+  value      text NOT NULL,
+  updated_at timestamptz DEFAULT now()
+);
+
+INSERT INTO app_settings (key, value)
+VALUES ('maintenance_mode', 'false')
+ON CONFLICT (key) DO NOTHING;
+
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
+
+-- ─── Bbox indexes for viewport queries ─────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_mines_lat       ON mines(lat);
+CREATE INDEX IF NOT EXISTS idx_mines_lng       ON mines(lng);
+CREATE INDEX IF NOT EXISTS idx_hq_lat          ON headquarters(lat);
+CREATE INDEX IF NOT EXISTS idx_hq_lng          ON headquarters(lng);
+CREATE INDEX IF NOT EXISTS idx_players_last_lat ON players(last_lat);
+CREATE INDEX IF NOT EXISTS idx_players_last_lng ON players(last_lng);

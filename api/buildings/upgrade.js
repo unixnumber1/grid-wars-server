@@ -56,14 +56,14 @@ export default async function handler(req, res) {
   const cfg = hqConfig(hq.level ?? 1);
   if (mine.level + 1 > cfg.maxMineLevel) {
     return res.status(400).json({
-      error: `HQ level ${hq.level ?? 1} only allows mines up to level ${cfg.maxMineLevel}. Upgrade your HQ first.`,
+      error: `HQ ур.${hq.level ?? 1} позволяет шахты до ур.${cfg.maxMineLevel}. Улучши штаб!`,
     });
   }
 
   const cost = mineUpgradeCost(mine.level + 1);
 
   if (hq.coins < cost) {
-    return res.status(400).json({ error: `Not enough coins (need ${cost}, have ${hq.coins})` });
+    return res.status(400).json({ error: `Не хватает монет (нужно ${cost})` });
   }
 
   const [{ error: hqUpdateError }, { data: updatedMine, error: mineUpdateError }] =
@@ -77,7 +77,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to upgrade mine' });
   }
 
-  addXp(player.id, XP_REWARDS.UPGRADE_MINE(updatedMine.level)).catch(console.error);
+  let xpResult = null;
+  try {
+    xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(updatedMine.level));
+    console.log('[upgrade] XP added:', JSON.stringify(xpResult));
+  } catch (e) {
+    console.error('[upgrade] XP ERROR:', e.message);
+  }
 
-  return res.status(200).json({ mine: updatedMine, hq_coins: hq.coins - cost });
+  return res.status(200).json({ mine: updatedMine, hq_coins: hq.coins - cost, xp: xpResult });
 }
