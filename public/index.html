@@ -29,26 +29,49 @@
     }
 
     #header {
-      background: #111;
-      padding: 8px 16px;
+      background: #1a1a2e;
+      height: 48px;
+      padding: 0 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #222;
       z-index: 1000;
       flex-shrink: 0;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.5);
     }
 
     #header h1 {
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 800;
       letter-spacing: 2px;
-      color: #f5c518;
+      color: #FFD700;
+      white-space: nowrap;
     }
 
-    #header-status {
-      font-size: 11px;
-      color: #666;
+    #header-balance {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #FFD700;
+    }
+
+    #header-balance .bal-icon { font-size: 16px; }
+
+    #btn-settings {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      color: #e0e0e0;
     }
 
     #map {
@@ -58,35 +81,47 @@
 
     /* Bottom panel */
     #bottom-panel {
-      background: #111;
-      border-top: 1px solid #222;
-      padding: 10px 16px;
+      background: #1a1a2e;
+      height: 64px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+      flex-shrink: 0;
+      box-shadow: 0 -1px 6px rgba(0,0,0,0.5);
+    }
+
+    #player-info {
       display: flex;
       align-items: center;
       gap: 10px;
-      z-index: 1000;
+    }
+
+    #player-avatar-wrap {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
       flex-shrink: 0;
     }
 
-    #balance-display {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    #balance-display .icon { font-size: 18px; }
-
-    #balance-display .coins {
-      font-size: 18px;
+    #player-name-display {
+      font-size: 14px;
       font-weight: 700;
-      color: #f5c518;
+      color: #fff;
+      line-height: 1.2;
     }
 
-    #balance-display .label {
-      font-size: 10px;
-      color: #555;
-      line-height: 1;
+    #player-level-display {
+      font-size: 11px;
+      color: #888;
+      margin-top: 1px;
     }
 
     .btn {
@@ -125,9 +160,10 @@
     #popup-overlay.open { display: flex; }
 
     #popup-card {
-      background: #161616;
-      border: 1px solid #2a2a2a;
-      border-radius: 18px 18px 0 0;
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
       width: 100%;
       max-width: 480px;
       padding: 20px;
@@ -155,16 +191,17 @@
 
     .popup-actions {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-top: 16px;
     }
 
-    .popup-actions .btn { flex: 1; text-align: center; padding: 12px; font-size: 14px; }
+    .popup-actions .btn { flex: 1; text-align: center; padding: 10px 12px; font-size: 13px; min-width: 80px; }
 
     /* Toast */
     #toast {
       position: fixed;
-      bottom: 90px;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%) translateY(20px);
       background: #222;
@@ -244,32 +281,13 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Settings button */
-    #btn-settings {
-      position: fixed;
-      top: 10px;
-      right: 52px; /* leave space for zoom controls */
-      z-index: 1100;
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 8px;
-      width: 36px;
-      height: 36px;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
     /* Settings drawer */
     #settings-drawer {
       position: fixed;
       top: 0; right: 0; bottom: 0;
       width: min(320px, 90vw);
-      background: #111;
-      border-left: 1px solid #222;
+      background: #1a1a2e;
+      border-left: 1px solid rgba(255,255,255,0.08);
       z-index: 3000;
       transform: translateX(100%);
       transition: transform 0.25s ease;
@@ -285,7 +303,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 14px 16px;
-      border-bottom: 1px solid #222;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
       flex-shrink: 0;
     }
 
@@ -439,9 +457,6 @@
   </button>
 </div>
 
-<!-- Settings button (over map) -->
-<button id="btn-settings">&#x2699;&#xFE0F;</button>
-
 <!-- Settings drawer -->
 <div id="settings-drawer">
   <div id="settings-header">
@@ -457,7 +472,11 @@
 <!-- Header -->
 <div id="header">
   <h1>&#x26A1; GRID WARS</h1>
-  <span id="header-status">Locating...</span>
+  <div id="header-balance">
+    <span class="bal-icon">&#x1F4B0;</span>
+    <span id="coin-display">—</span>
+  </div>
+  <button id="btn-settings">&#x2699;&#xFE0F;</button>
 </div>
 
 <!-- Map -->
@@ -465,14 +484,15 @@
 
 <!-- Bottom panel -->
 <div id="bottom-panel">
-  <div id="balance-display">
-    <span class="icon">&#x1F4B0;</span>
+  <div id="player-info">
+    <div id="player-avatar-wrap"><span id="player-avatar-emoji">&#x1F43A;</span></div>
     <div>
-      <div class="coins" id="coin-display">0</div>
-      <div class="label">HQ COINS</div>
+      <div id="player-name-display">—</div>
+      <div id="player-level-display">&#x423;&#x440;. 1</div>
     </div>
   </div>
-  <button class="btn primary" id="btn-collect" disabled>&#x1F4B0; Collect</button>
+  <div></div>
+  <button class="btn primary" id="btn-collect" disabled>&#x1F4B0; Собрать</button>
 </div>
 
 <!-- Generic popup -->
@@ -587,6 +607,21 @@ function calcAccumulated(level, lastCollectedISO) {
   return Math.floor(mineRate(level) * Math.max(0, elapsed));
 }
 
+function calcSellRefund(level) {
+  let sum = 0;
+  for (let i = 2; i <= level; i++) {
+    sum += Math.floor(50 * Math.pow(2.1, i - 1));
+  }
+  return Math.floor(sum * 0.3);
+}
+
+function updatePlayerDisplay() {
+  const avatar = state.player?.avatar || '🐺';
+  const name   = state.player?.username || TG_NAME || '—';
+  document.getElementById('player-avatar-emoji').textContent = avatar;
+  document.getElementById('player-name-display').textContent = name;
+}
+
 function showToast(msg, duration = 2500) {
   const el = document.getElementById('toast');
   el.textContent = msg;
@@ -626,7 +661,7 @@ const style = document.createElement('style');
 style.textContent = '.map-tiles { filter: brightness(0.55) saturate(0.7) invert(0.05); }';
 document.head.appendChild(style);
 
-L.control.zoom({ position: 'topright' }).addTo(map);
+// zoom controls disabled (zoomControl: false in map init)
 
 let playerMarker = null;
 let playerZoneCircle = null;
@@ -976,21 +1011,31 @@ function showMinePopup(mine, isOwn, canCapture) {
         ? `&#x2B06;&#xFE0F; Upgrade (${nextCost.toLocaleString()})`
         : 'MAX LEVEL';
 
+    const refund   = calcSellRefund(mine.level);
+    const sellTotal = refund + accumulated;
+
     openPopup(
-      `${emoji} Your Mine (Lv ${mine.level})`,
-      `Cell: ${mine.cell_id}`,
+      `${emoji} Шахта (Ур. ${mine.level})`,
+      `Ваша шахта`,
       [
-        ['Rate', `${rate.toLocaleString()} coins/sec`],
-        ['Accumulated', `${accumulated.toLocaleString()} coins`],
-        ['Next upgrade cost', nextCost !== null ? `${nextCost.toLocaleString()}` : 'MAX LEVEL'],
-        ['HQ balance', hqCoins.toLocaleString()],
+        ['Доход', `${rate.toLocaleString()} монет/сек`],
+        ['Накоплено', `${accumulated.toLocaleString()} монет`],
+        ['Стоимость апгрейда', nextCost !== null ? `${nextCost.toLocaleString()}` : 'МАКС'],
+        ['Баланс штаба', hqCoins.toLocaleString()],
       ],
-      nextCost !== null ? [{
-        label: upgradeLabel,
-        cls: 'yellow',
-        disabled: !canUpgrade,
-        action: () => doUpgrade(mine.id),
-      }] : []
+      [
+        ...(nextCost !== null ? [{
+          label: upgradeLabel,
+          cls: 'yellow',
+          disabled: !canUpgrade,
+          action: () => doUpgrade(mine.id),
+        }] : []),
+        {
+          label: `&#x1F4B8; Продать (+${sellTotal.toLocaleString()})`,
+          cls: 'danger',
+          action: () => doSellMine(mine.id),
+        },
+      ]
     );
   } else if (canCapture) {
     const owner = mine.players?.username || 'Unknown';
@@ -1077,6 +1122,22 @@ async function doUpgrade(mineId) {
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
     showToast(`&#x2B06;&#xFE0F; Upgraded to level ${data.mine.level}!`);
+    await refreshMap();
+  } catch (err) {
+    showToast(`&#x274C; ${err.message}`);
+  }
+}
+
+async function doSellMine(mineId) {
+  try {
+    const data = await apiFetch('/api/buildings/sell', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId }),
+    });
+    if (state.hq) state.hq.coins = data.hq_coins;
+    updateCoinDisplay();
+    showToast(`&#x2705; Шахта продана! +${data.total.toLocaleString()} монет`);
+    state.mines = state.mines.filter(m => m.id !== mineId);
     await refreshMap();
   } catch (err) {
     showToast(`&#x274C; ${err.message}`);
@@ -1183,11 +1244,11 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
 document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 // ─────────────────────────────────────────────
-//  Coin display
+//  Display updates
 // ─────────────────────────────────────────────
 function updateCoinDisplay() {
   document.getElementById('coin-display').textContent =
-    state.hq ? state.hq.coins : '—';
+    state.hq ? state.hq.coins.toLocaleString() : '—';
 }
 
 // ─────────────────────────────────────────────
@@ -1218,6 +1279,7 @@ async function refreshAll() {
     state.hq     = data.headquarters;
     state.mines  = data.mines;
     updateCoinDisplay();
+    updatePlayerDisplay();
     await refreshMap();
   } catch (e) {
     console.error('Refresh error:', e);
@@ -1242,9 +1304,6 @@ function onPosition(pos) {
     playerMarker.setLatLng([lat, lng]);
     playerMarker.setIcon(pIcon);
   }
-
-  document.getElementById('header-status').textContent =
-    `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
   // Update hex grid and zone circle
   renderHexGrid(lat, lng);
@@ -1298,6 +1357,7 @@ async function boot() {
     state.player = data.player;
     state.hq     = data.headquarters;
     state.mines  = data.mines;
+    updatePlayerDisplay();
   } catch (err) {
     setLoadingText(`Error: ${err.message}`);
     return;
@@ -1364,7 +1424,7 @@ async function selectAvatar(avatar) {
     });
     state.player.avatar = data.player.avatar;
     buildAvatarGrid();
-    // Refresh player marker immediately
+    updatePlayerDisplay();
     if (playerMarker && state.playerPos) {
       playerMarker.setIcon(playerIcon(avatar));
     }
