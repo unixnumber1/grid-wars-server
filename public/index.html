@@ -375,6 +375,38 @@
       justify-content: center;
     }
 
+    /* Build menu cards */
+    .build-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      margin-bottom: 8px;
+    }
+
+    .build-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .build-card-desc {
+      font-size: 12px;
+      color: #888;
+      padding-left: 28px;
+      margin-bottom: 2px;
+    }
+
+    .build-card-meta {
+      font-size: 12px;
+      color: #f5c518;
+      padding-left: 28px;
+      margin-bottom: 10px;
+    }
+
     /* Online player marker ring */
     .marker-online::after {
       content: '';
@@ -440,7 +472,6 @@
       <div class="label">HQ COINS</div>
     </div>
   </div>
-  <button class="btn yellow" id="btn-build-mine" disabled>&#x26CF;&#xFE0F; Build Mine</button>
   <button class="btn primary" id="btn-collect" disabled>&#x1F4B0; Collect</button>
 </div>
 
@@ -709,25 +740,62 @@ function renderHexGrid(lat, lng) {
   }
 }
 
+// Building types available for construction
+const BUILDING_TYPES = [
+  {
+    emoji: '&#x26CF;&#xFE0F;',
+    name: 'Шахта',
+    desc: 'Генерирует монеты пассивно',
+    meta: '1 монета/сек &bull; Бесплатно',
+    build: (cellLat, cellLng) => doBuildMine(cellLat, cellLng),
+  },
+];
+
+function showBuildMenu(cellLat, cellLng) {
+  document.getElementById('popup-title').innerHTML = '&#x1F3D7;&#xFE0F; Построить';
+  document.getElementById('popup-subtitle').textContent = 'Выбери тип постройки';
+
+  const statsEl = document.getElementById('popup-stats');
+  statsEl.innerHTML = '';
+
+  for (const b of BUILDING_TYPES) {
+    const card = document.createElement('div');
+    card.className = 'build-card';
+    card.innerHTML = `
+      <div class="build-card-header"><span>${b.emoji}</span><span>${b.name}</span></div>
+      <div class="build-card-desc">${b.desc}</div>
+      <div class="build-card-meta">${b.meta}</div>
+    `;
+    const btn = document.createElement('button');
+    btn.className = 'btn yellow';
+    btn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
+    btn.innerHTML = '&#x26CF;&#xFE0F; Построить';
+    btn.addEventListener('click', () => { closePopup(); b.build(cellLat, cellLng); });
+    card.appendChild(btn);
+    statsEl.appendChild(card);
+  }
+
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%;';
+  closeBtn.textContent = 'Отмена';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
 function handleHexClick(cellId) {
   if (!state.player || !state.playerPos) return;
 
   const building = getBuildingInCell(cellId);
   const [cellLat, cellLng] = h3.cellToLatLng(cellId);
-  const dist = Math.round(haversine(state.playerPos.lat, state.playerPos.lng, cellLat, cellLng));
 
   if (!building) {
     if (!state.hq) return showToast('&#x274C; Place HQ first');
-    openPopup(
-      '&#x26CF;&#xFE0F; Empty Cell',
-      `${dist}m from you`,
-      [['Cell ID', cellId.slice(0, 16) + '...']],
-      [{
-        label: '&#x26CF;&#xFE0F; Build Mine Here',
-        cls: 'yellow',
-        action: () => doBuildMine(cellLat, cellLng),
-      }]
-    );
+    showBuildMenu(cellLat, cellLng);
   } else if (building.type === 'mine') {
     const isOwn = building.is_mine ?? (building.owner_id === state.player?.id);
     const canCapture = building.can_capture ?? !isOwn;
@@ -1112,32 +1180,6 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
   }
 });
 
-// ─────────────────────────────────────────────
-//  Build mine button (at player position)
-// ─────────────────────────────────────────────
-document.getElementById('btn-build-mine').addEventListener('click', () => {
-  const pos = state.playerPos;
-  if (!pos) return showToast('&#x274C; No GPS position');
-  if (!state.hq) return showToast('&#x274C; Place HQ first');
-  const cellId = getCellId(pos.lat, pos.lng);
-  const occupied = [
-    ...state.mapBuildings.mines.map(m => m.cell_id),
-    ...state.mapBuildings.headquarters.map(h => h.cell_id),
-  ].includes(cellId);
-  if (occupied) return showToast('&#x274C; Cell already occupied');
-  const [cellLat, cellLng] = h3.cellToLatLng(cellId);
-  openPopup(
-    '&#x26CF;&#xFE0F; Build Mine',
-    'At your current position',
-    [['Cell', cellId.slice(0, 16) + '...']],
-    [{
-      label: '&#x26CF;&#xFE0F; Confirm Build',
-      cls: 'yellow',
-      action: () => doBuildMine(cellLat, cellLng),
-    }]
-  );
-});
-
 document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 // ─────────────────────────────────────────────
@@ -1209,7 +1251,6 @@ function onPosition(pos) {
 
   // Enable action buttons on first GPS fix
   if (isFirstFix) {
-    document.getElementById('btn-build-mine').disabled = false;
     document.getElementById('btn-collect').disabled = false;
   }
 
