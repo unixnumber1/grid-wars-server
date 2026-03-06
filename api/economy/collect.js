@@ -1,12 +1,13 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, HQ_COIN_LIMIT } from '../../lib/formulas.js';
+import { calcAccumulatedCoins, getHQLimit } from '../../lib/formulas.js';
+import { getCellsInRange } from '../../lib/grid.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { telegram_id } = req.body;
+  const { telegram_id, lat, lng } = req.body;
 
   if (!telegram_id) {
     return res.status(400).json({ error: 'telegram_id is required' });
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
 
   const { data: hq, error: hqError } = await supabase
     .from('headquarters')
-    .select('id, coins')
+    .select('id, coins, level')
     .eq('player_id', player.id)
     .maybeSingle();
 
@@ -28,9 +29,9 @@ export default async function handler(req, res) {
   }
   if (!hq) return res.status(404).json({ error: 'Headquarters not found' });
 
-  const { data: mines, error: minesError } = await supabase
+  const { data: allMines, error: minesError } = await supabase
     .from('mines')
-    .select('id, level, last_collected')
+    .select('id, level, last_collected, cell_id')
     .eq('owner_id', player.id);
 
   if (minesError) {
@@ -38,7 +39,18 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to fetch mines' });
   }
 
-  if (!mines || mines.length === 0) {
+  if (!allMines || allMines.length === 0) {
+    return res.status(200).json({ collected: 0, hq_coins: hq.coins });
+  }
+
+  // If player position provided, only collect mines within interaction zone (~500m)
+  let mines = allMines;
+  if (lat != null && lng != null) {
+    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng));
+    mines = allMines.filter(m => playerRange.has(m.cell_id));
+  }
+
+  if (mines.length === 0) {
     return res.status(200).json({ collected: 0, hq_coins: hq.coins });
   }
 
@@ -48,7 +60,8 @@ export default async function handler(req, res) {
     totalCoins += calcAccumulatedCoins(mine.level, mine.last_collected);
   }
 
-  const newBalance = Math.min(hq.coins + totalCoins, HQ_COIN_LIMIT);
+  const hqLimit = getHQLimit(hq.level ?? 1);
+  const newBalance = Math.min(hq.coins + totalCoins, hqLimit);
   const actualCollected = newBalance - hq.coins;
 
   const [{ error: hqUpdateError }, { error: minesUpdateError }] = await Promise.all([

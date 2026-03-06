@@ -6,6 +6,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "h3-js": "^4.4.0"
   }
 }

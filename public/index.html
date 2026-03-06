@@ -9,6 +9,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- H3 hex grid -->
+  <script src="https://unpkg.com/h3-js/dist/h3-js.umd.js"></script>
+
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -371,6 +374,16 @@
       align-items: center;
       justify-content: center;
     }
+
+    /* Online player marker ring */
+    .marker-online::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid #4fc3f7;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -461,10 +474,12 @@ let TG_NAME = tg?.initDataUnsafe?.user?.username || 'unknown';
 // ─────────────────────────────────────────────
 const MINE_MAX_LEVEL    = 100;
 const HQ_MAX_LEVEL      = 10;
-const HQ_COIN_LIMIT     = 10000;
-const CAPTURE_RADIUS    = 50;    // meters
-const MINE_PLACE_RADIUS = 500;   // meters
-const MAP_REFRESH_MS    = 8000;
+const HQ_LIMITS = [10000,25000,50000,100000,200000,400000,700000,1200000,2000000,5000000];
+function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
+const MINE_PLACE_RADIUS = 500;   // meters (visual only — actual check is H3 cell range)
+const MAP_REFRESH_MS    = 5000;
+const H3_RES            = 11;    // ~50m hex diameter
+const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
 
 // Formulas (keep in sync with lib/formulas.js)
 function mineRate(level) { return Math.floor(Math.pow(1.15, level - 1)); }
@@ -521,7 +536,19 @@ function haversine(lat1, lng1, lat2, lng2) {
 }
 
 function getCellId(lat, lng) {
-  return `${Math.floor(lat * 1000)}_${Math.floor(lng * 1000)}`;
+  return h3.latLngToCell(lat, lng, H3_RES);
+}
+
+function getCellsInRange(lat, lng) {
+  return new Set(h3.gridDisk(h3.latLngToCell(lat, lng, H3_RES), H3_DISK_K));
+}
+
+function getBuildingInCell(cellId) {
+  const mine = state.mapBuildings.mines.find(m => m.cell_id === cellId);
+  if (mine) return { ...mine, type: 'mine' };
+  const hq = state.mapBuildings.headquarters.find(h => h.cell_id === cellId);
+  if (hq) return { ...hq, type: 'hq' };
+  return null;
 }
 
 function calcAccumulated(level, lastCollectedISO) {
@@ -571,9 +598,12 @@ document.head.appendChild(style);
 L.control.zoom({ position: 'topright' }).addTo(map);
 
 let playerMarker = null;
+let playerZoneCircle = null;
+const hexLayer = L.layerGroup().addTo(map);
 
 // Building markers registry
 const buildingMarkers = {}; // id → L.marker
+const onlineMarkers  = {}; // player id → L.marker
 
 // ─────────────────────────────────────────────
 //  Emoji icon factories
@@ -612,12 +642,110 @@ function playerIcon(avatar) {
   );
 }
 
+function otherPlayerIcon(avatar) {
+  const em = avatar || '🐺';
+  return makeMarkerIcon(
+    `<div class="marker-wrap marker-online"><span style="font-size:22px">${em}</span><span style="position:absolute;bottom:0;right:0;width:10px;height:10px;background:#00ff88;border-radius:50%;border:2px solid #000;"></span></div>`, 34
+  );
+}
+
+// ─────────────────────────────────────────────
+//  Hex grid + player zone
+// ─────────────────────────────────────────────
+function renderHexGrid(lat, lng) {
+  hexLayer.clearLayers();
+
+  // Zone circle (500m radius around player)
+  if (!playerZoneCircle) {
+    playerZoneCircle = L.circle([lat, lng], {
+      radius: 500,
+      color: 'rgba(255, 200, 0, 0.3)',
+      weight: 1,
+      fillColor: 'rgba(255, 200, 0, 0.08)',
+      fillOpacity: 1,
+      interactive: false,
+    }).addTo(map);
+  } else {
+    playerZoneCircle.setLatLng([lat, lng]);
+  }
+
+  // Only draw hexes when zoomed in enough (performance)
+  if (map.getZoom() < 14) return;
+
+  const cells = h3.gridDisk(h3.latLngToCell(lat, lng, H3_RES), H3_DISK_K);
+
+  for (const cellId of cells) {
+    const boundary = h3.cellToBoundary(cellId);
+    const latLngs = boundary; // already [[lat,lng],...]
+
+    const building = getBuildingInCell(cellId);
+    let fillColor, fillOpacity;
+
+    if (building?.type === 'mine' && building.is_mine) {
+      fillColor = '#FFD700'; fillOpacity = 0.2;
+    } else if (building?.type === 'mine') {
+      fillColor = '#FF4444'; fillOpacity = 0.2;
+    } else if (building?.type === 'hq' && building.is_mine) {
+      fillColor = '#4fc3f7'; fillOpacity = 0.2;
+    } else if (building?.type === 'hq') {
+      fillColor = '#aaaaaa'; fillOpacity = 0.15;
+    } else {
+      fillColor = '#FFFFFF'; fillOpacity = 0.04;
+    }
+
+    const poly = L.polygon(latLngs, {
+      color: 'rgba(255,255,255,0.15)',
+      weight: 1,
+      fillColor,
+      fillOpacity,
+    });
+
+    poly.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      handleHexClick(cellId);
+    });
+
+    hexLayer.addLayer(poly);
+  }
+}
+
+function handleHexClick(cellId) {
+  if (!state.player || !state.playerPos) return;
+
+  const building = getBuildingInCell(cellId);
+  const [cellLat, cellLng] = h3.cellToLatLng(cellId);
+  const dist = Math.round(haversine(state.playerPos.lat, state.playerPos.lng, cellLat, cellLng));
+
+  if (!building) {
+    if (!state.hq) return showToast('&#x274C; Place HQ first');
+    openPopup(
+      '&#x26CF;&#xFE0F; Empty Cell',
+      `${dist}m from you`,
+      [['Cell ID', cellId.slice(0, 16) + '...']],
+      [{
+        label: '&#x26CF;&#xFE0F; Build Mine Here',
+        cls: 'yellow',
+        action: () => doBuildMine(cellLat, cellLng),
+      }]
+    );
+  } else if (building.type === 'mine') {
+    const isOwn = building.is_mine ?? (building.owner_id === state.player?.id);
+    const canCapture = building.can_capture ?? !isOwn;
+    showMinePopup(building, isOwn, canCapture);
+  } else if (building.type === 'hq') {
+    const isOwn = building.is_mine ?? (building.player_id === state.player?.id);
+    showHqPopup(building, isOwn);
+  }
+}
+
 // ─────────────────────────────────────────────
 //  Rendering buildings on map
 // ─────────────────────────────────────────────
 function clearMarkers() {
   Object.values(buildingMarkers).forEach(m => map.removeLayer(m));
   Object.keys(buildingMarkers).forEach(k => delete buildingMarkers[k]);
+  Object.values(onlineMarkers).forEach(m => map.removeLayer(m));
+  Object.keys(onlineMarkers).forEach(k => delete onlineMarkers[k]);
 }
 
 function renderBuildings() {
@@ -626,27 +754,39 @@ function renderBuildings() {
   const playerId = state.player?.id;
   const pos = state.playerPos;
 
-  // HQs
+  // HQs — zIndexOffset: 0 (buildings lowest)
   for (const hq of headquarters) {
-    const isOwn = hq.player_id === playerId;
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn) })
+    const isOwn = hq.is_mine ?? (hq.player_id === playerId);
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 0 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     buildingMarkers[`hq_${hq.id}`] = marker;
   }
 
-  // Mines
+  // Mines — zIndexOffset: 0
   for (const mine of mines) {
-    const isOwn = mine.owner_id === playerId;
-    let canCapture = false;
-    if (!isOwn && pos) {
-      canCapture = haversine(pos.lat, pos.lng, mine.lat, mine.lng) <= CAPTURE_RADIUS;
-    }
+    const isOwn = mine.is_mine ?? (mine.owner_id === playerId);
+    const canCapture = mine.can_capture ?? (!isOwn && !!pos && getCellsInRange(pos.lat, pos.lng).has(mine.cell_id));
     const iconState = isOwn ? 'own' : (canCapture ? 'capturable' : 'other');
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconState) })
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconState), zIndexOffset: 0 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, canCapture));
     buildingMarkers[`mine_${mine.id}`] = marker;
+  }
+
+  // Online players — zIndexOffset: 1000 (above buildings)
+  for (const p of (state.mapBuildings.online_players || [])) {
+    const minsAgo = Math.floor((Date.now() - new Date(p.last_seen).getTime()) / 60000);
+    const label = minsAgo === 0 ? 'только что' : `${minsAgo} мин назад`;
+    const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar), zIndexOffset: 1000 })
+      .addTo(map)
+      .on('click', () => openPopup(
+        `${p.avatar || '🐺'} ${p.username || 'Unknown'}`,
+        `Онлайн ${label}`,
+        [],
+        []
+      ));
+    onlineMarkers[p.id] = marker;
   }
 }
 
@@ -709,7 +849,7 @@ function showHqPopup(hq, isOwn) {
       `&#x26A1; Headquarters Level ${hqLvl}`,
       `Cell: ${hq.cell_id}`,
       [
-        ['&#x1F4B0; Balance', `${hq.coins.toLocaleString()} / ${HQ_COIN_LIMIT.toLocaleString()}`],
+        ['&#x1F4B0; Balance', `${hq.coins.toLocaleString()} / ${getHQLimit(hqLvl).toLocaleString()}`],
         ['&#x26CF;&#xFE0F; Mines', `${mineCount} / ${cfg.maxMines}`],
         ['Max mine level', cfg.maxMineLevel],
         ['HQ upgrade cost', nextCost !== null ? nextCost.toLocaleString() : 'MAX LEVEL'],
@@ -723,10 +863,25 @@ function showHqPopup(hq, isOwn) {
     );
   } else {
     const owner = hq.players?.username || 'Unknown';
+    let presenceText;
+    if (hq.is_online) {
+      presenceText = '🟢 Онлайн';
+    } else {
+      const lastSeen = hq.players?.last_seen;
+      if (!lastSeen) {
+        presenceText = 'Никогда';
+      } else {
+        const mins = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 60000);
+        if (mins < 1)         presenceText = 'Только что';
+        else if (mins < 60)   presenceText = `${mins} мин назад`;
+        else if (mins < 1440) presenceText = `${Math.floor(mins / 60)} ч назад`;
+        else                  presenceText = `${Math.floor(mins / 1440)} дн назад`;
+      }
+    }
     openPopup(
-      `&#x26A1; Enemy HQ (Lv ${hq.level ?? 1})`,
-      `Owner: ${owner}`,
-      [],
+      `&#x26A1; ${owner}`,
+      `Штаб уровень ${hq.level ?? 1}`,
+      [['&#x1F550; Был', presenceText]],
       []
     );
   }
@@ -793,7 +948,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       `Owner: ${owner} • ${dist}m away`,
       [
         ['Rate', `${rate.toLocaleString()} coins/sec`],
-        ['To capture', `Get within ${CAPTURE_RADIUS}m`],
+        ['To capture', 'Move within ~500m zone'],
       ],
       []
     );
@@ -801,41 +956,24 @@ function showMinePopup(mine, isOwn, canCapture) {
 }
 
 // ─────────────────────────────────────────────
-//  Map click → build mine on empty cell
+//  Map click → outside-zone feedback or hex routing
 // ─────────────────────────────────────────────
 map.on('click', e => {
-  if (!state.player || !state.hq || !state.playerPos) return;
+  if (!state.player || !state.playerPos) return;
   const { lat, lng } = e.latlng;
-
-  // Don't trigger if clicked on marker
   const pos = state.playerPos;
   const dist = haversine(pos.lat, pos.lng, lat, lng);
-  if (dist > MINE_PLACE_RADIUS) return;
-
-  // Check if cell is empty
+  if (dist > MINE_PLACE_RADIUS) {
+    openPopup('&#x1F4CD; Outside Zone', `${Math.round(dist)}m away — move closer`, [], []);
+    return;
+  }
+  // Inside range: route to hex handler
   const cellId = getCellId(lat, lng);
-  const occupied = [
-    ...state.mapBuildings.mines.map(m => m.cell_id),
-    ...state.mapBuildings.headquarters.map(h => h.cell_id),
-  ].includes(cellId);
+  handleHexClick(cellId);
+});
 
-  if (occupied) return;
-
-  openPopup(
-    '&#x26CF;&#xFE0F; Empty Cell',
-    `${Math.round(dist)}m from you`,
-    [
-      ['Cell ID', cellId],
-      ['Distance', `${Math.round(dist)}m`],
-    ],
-    [
-      {
-        label: '&#x26CF;&#xFE0F; Build Mine Here',
-        cls: 'yellow',
-        action: () => doBuildMine(lat, lng),
-      },
-    ]
-  );
+map.on('zoomend', () => {
+  if (state.playerPos) renderHexGrid(state.playerPos.lat, state.playerPos.lng);
 });
 
 // ─────────────────────────────────────────────
@@ -857,10 +995,16 @@ async function doUpgradeHq() {
 }
 
 async function doUpgrade(mineId) {
+  const pos = state.playerPos;
   try {
     const data = await apiFetch('/api/buildings/upgrade', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId }),
+      body: JSON.stringify({
+        telegram_id: TG_ID,
+        mine_id: mineId,
+        lat: pos?.lat,
+        lng: pos?.lng,
+      }),
     });
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
@@ -925,10 +1069,11 @@ async function doBuildMine(lat, lng) {
 
 async function doCollect() {
   document.getElementById('btn-collect').disabled = true;
+  const pos = state.playerPos;
   try {
     const data = await apiFetch('/api/economy/collect', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID }),
+      body: JSON.stringify({ telegram_id: TG_ID, lat: pos?.lat, lng: pos?.lng }),
     });
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
@@ -980,14 +1125,15 @@ document.getElementById('btn-build-mine').addEventListener('click', () => {
     ...state.mapBuildings.headquarters.map(h => h.cell_id),
   ].includes(cellId);
   if (occupied) return showToast('&#x274C; Cell already occupied');
+  const [cellLat, cellLng] = h3.cellToLatLng(cellId);
   openPopup(
     '&#x26CF;&#xFE0F; Build Mine',
     'At your current position',
-    [['Cell', cellId], ['Distance', '0m']],
+    [['Cell', cellId.slice(0, 16) + '...']],
     [{
       label: '&#x26CF;&#xFE0F; Confirm Build',
       cls: 'yellow',
-      action: () => doBuildMine(pos.lat, pos.lng),
+      action: () => doBuildMine(cellLat, cellLng),
     }]
   );
 });
@@ -1009,9 +1155,12 @@ async function refreshMap() {
   const pos = state.playerPos;
   if (!pos) return;
   try {
-    const data = await apiFetch(`/api/map?lat=${pos.lat}&lng=${pos.lng}`);
+    const tid = TG_ID ? `&telegram_id=${TG_ID}` : '';
+    const data = await apiFetch(`/api/map?lat=${pos.lat}&lng=${pos.lng}${tid}`);
+    console.log('[map] online_players received:', JSON.stringify(data.online_players));
     state.mapBuildings = data;
     renderBuildings();
+    if (state.playerPos) renderHexGrid(state.playerPos.lat, state.playerPos.lng);
   } catch (e) {
     console.error('Map refresh error:', e);
   }
@@ -1036,6 +1185,8 @@ async function refreshAll() {
 // ─────────────────────────────────────────────
 //  GPS tracking
 // ─────────────────────────────────────────────
+let _lastLocationReport = 0;
+
 function onPosition(pos) {
   const { latitude: lat, longitude: lng } = pos.coords;
   const isFirstFix = state.playerPos === null;
@@ -1043,8 +1194,8 @@ function onPosition(pos) {
 
   const pIcon = playerIcon(state.player?.avatar);
   if (!playerMarker) {
-    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 1000 }).addTo(map);
-    map.setView([lat, lng], 16);
+    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 2000 }).addTo(map);
+    map.setView([lat, lng], 13);
   } else {
     playerMarker.setLatLng([lat, lng]);
     playerMarker.setIcon(pIcon);
@@ -1053,10 +1204,23 @@ function onPosition(pos) {
   document.getElementById('header-status').textContent =
     `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
+  // Update hex grid and zone circle
+  renderHexGrid(lat, lng);
+
   // Enable action buttons on first GPS fix
   if (isFirstFix) {
     document.getElementById('btn-build-mine').disabled = false;
     document.getElementById('btn-collect').disabled = false;
+  }
+
+  // Report location to server every 5 s (don't flood on every watchPosition tick)
+  const now = Date.now();
+  if (TG_ID && now - _lastLocationReport > 5000) {
+    _lastLocationReport = now;
+    apiFetch('/api/player/location', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, lat, lng }),
+    }).catch(() => {}); // fire-and-forget, silent on error
   }
 }
 

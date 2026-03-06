@@ -109,8 +109,25 @@ ALTER TABLE players      ADD COLUMN IF NOT EXISTS avatar text DEFAULT '🐺';
 ALTER TABLE headquarters ADD COLUMN IF NOT EXISTS level  integer DEFAULT 1;
 ```
 
+## H3 Hex Grid (актуально)
+
+- h3-js добавлен в зависимости
+- Разрешение: 11 (hex ~50m diameter)
+- Радиус взаимодействия: gridDisk(12) ≈ 500m
+- cell_id теперь H3 cell ID (строка вида '8b2830828052dff')
+- getCellsInRange() используется во всех endpoint'ах вместо haversine
+- Фронтенд: H3 CDN, hexLayer (L.layerGroup), playerZoneCircle (L.circle)
+- Гексы рисуются только при zoom ≥ 14
+- Клик на гекс → handleHexClick(cellId)
+- /api/admin/reset.js — временный endpoint для очистки БД (удалить после использования)
+
+## SQL миграция
+```sql
+DELETE FROM mines;
+DELETE FROM headquarters;
+```
+
 ## Следующие фичи (в порядке приоритета)
-- [ ] Захват шахт (уведомления при захвате)
 - [ ] Таблица лидеров
 - [ ] Кланы
 - [ ] Монетизация (Telegram Stars)

@@ -1,7 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { haversine } from '../../lib/haversine.js';
+import { getCellsInRange } from '../../lib/grid.js';
 
-const CAPTURE_RADIUS = 50; // meters
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 async function sendTelegramNotification(telegramId, text) {
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
   if (attackerError) return res.status(500).json({ error: attackerError });
   if (!attacker)     return res.status(404).json({ error: 'Player not found' });
 
-  // Fetch mine with owner's telegram_id for notification
   const { data: mine, error: mineError } = await supabase
     .from('mines')
     .select('*, players!mines_owner_id_fkey(telegram_id, username)')
@@ -52,11 +50,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'You already own this mine' });
   }
 
-  const dist = haversine(playerLat, playerLng, mine.lat, mine.lng);
-  if (dist > CAPTURE_RADIUS) {
-    return res.status(403).json({
-      error: `Too far to capture (${Math.round(dist)}m, must be within ${CAPTURE_RADIUS}m)`,
-    });
+  // H3 range check: mine must be within player's interaction zone (~500m)
+  const playerRange = getCellsInRange(playerLat, playerLng);
+  if (!playerRange.has(mine.cell_id)) {
+    return res.status(403).json({ error: 'Mine is outside your interaction zone (~500m)' });
   }
 
   const { data: updatedMine, error: updateError } = await supabase

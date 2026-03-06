@@ -1,12 +1,13 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { mineUpgradeCost, MINE_MAX_LEVEL, hqConfig } from '../../lib/formulas.js';
+import { getCellsInRange } from '../../lib/grid.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { telegram_id, mine_id } = req.body;
+  const { telegram_id, mine_id, lat, lng } = req.body;
 
   if (!telegram_id || !mine_id) {
     return res.status(400).json({ error: 'telegram_id and mine_id are required' });
@@ -16,7 +17,6 @@ export default async function handler(req, res) {
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
-  // Fetch mine and HQ in parallel — use * on HQ to be resilient to new columns
   const [
     { data: mine,  error: mineError },
     { data: hq,    error: hqError },
@@ -38,6 +38,14 @@ export default async function handler(req, res) {
 
   if (mine.owner_id !== player.id) {
     return res.status(403).json({ error: 'You do not own this mine' });
+  }
+
+  // H3 range check: mine must be within player's interaction zone (~500m)
+  if (lat != null && lng != null) {
+    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng));
+    if (!playerRange.has(mine.cell_id)) {
+      return res.status(403).json({ error: 'Mine is outside your interaction zone (~500m)' });
+    }
   }
 
   if (mine.level >= MINE_MAX_LEVEL) {

@@ -1,9 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { getCellId } from '../../lib/grid.js';
-import { haversine } from '../../lib/haversine.js';
+import { getCell, getCellCenter, getCellsInRange } from '../../lib/grid.js';
 import { hqConfig } from '../../lib/formulas.js';
-
-const MINE_PLACEMENT_RADIUS = 500; // meters
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,8 +9,6 @@ export default async function handler(req, res) {
 
   const { telegram_id } = req.body;
 
-  // Accept player_lat/player_lng + mine_lat/mine_lng (preferred),
-  // or bare lat/lng as fallback for both positions.
   const playerActualLat = parseFloat(req.body.player_lat ?? req.body.lat);
   const playerActualLng = parseFloat(req.body.player_lng ?? req.body.lng);
   const mineLat         = parseFloat(req.body.mine_lat  ?? req.body.lat);
@@ -23,12 +18,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id, player position and mine position are required' });
   }
 
-  // Resolve player
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
-  // Require headquarters — use * so missing columns don't break the query
   const { data: hq, error: hqError } = await supabase
     .from('headquarters')
     .select('*')
@@ -43,7 +36,6 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'You must place your headquarters first' });
   }
 
-  // Check mine count against HQ level cap
   const { count: mineCount } = await supabase
     .from('mines')
     .select('id', { count: 'exact', head: true })
@@ -56,20 +48,21 @@ export default async function handler(req, res) {
     });
   }
 
-  const dist = haversine(playerActualLat, playerActualLng, mineLat, mineLng);
-  if (dist > MINE_PLACEMENT_RADIUS) {
-    return res.status(403).json({
-      error: `Too far from target location (${Math.round(dist)}m, max ${MINE_PLACEMENT_RADIUS}m)`,
-    });
+  // H3 range check: target cell must be within player's interaction zone (~500m)
+  const targetCell = getCell(mineLat, mineLng);
+  const playerRange = getCellsInRange(playerActualLat, playerActualLng);
+  if (!playerRange.has(targetCell)) {
+    return res.status(403).json({ error: 'Target location is outside your interaction zone (~500m)' });
   }
 
-  const cell_id = getCellId(mineLat, mineLng);
+  // Store mine at cell center for visual consistency
+  const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
 
   // Check cell not already occupied
   const { data: existingMine } = await supabase
     .from('mines')
     .select('id')
-    .eq('cell_id', cell_id)
+    .eq('cell_id', targetCell)
     .maybeSingle();
 
   if (existingMine) {
@@ -79,7 +72,7 @@ export default async function handler(req, res) {
   const { data: existingHqOnCell } = await supabase
     .from('headquarters')
     .select('id')
-    .eq('cell_id', cell_id)
+    .eq('cell_id', targetCell)
     .maybeSingle();
 
   if (existingHqOnCell) {
@@ -91,9 +84,9 @@ export default async function handler(req, res) {
     .insert({
       owner_id: player.id,
       original_builder_id: player.id,
-      lat: mineLat,
-      lng: mineLng,
-      cell_id,
+      lat: cellCenterLat,
+      lng: cellCenterLng,
+      cell_id: targetCell,
       level: 1,
       last_collected: new Date().toISOString(),
     })
