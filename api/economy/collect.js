@@ -1,6 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { calcAccumulatedCoins, getHQLimit } from '../../lib/formulas.js';
 import { getCellsInRange } from '../../lib/grid.js';
+import { addXp } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -73,6 +74,9 @@ export default async function handler(req, res) {
     console.error('[collect] update error:', hqUpdateError, minesUpdateError);
     return res.status(500).json({ error: 'Failed to collect coins' });
   }
+
+  const xpGained = Math.floor(actualCollected / 50);
+  if (xpGained > 0) addXp(player.id, xpGained).catch(console.error);
 
   return res.status(200).json({
     collected: actualCollected,

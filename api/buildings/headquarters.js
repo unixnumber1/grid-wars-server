@@ -1,5 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { getCellId } from '../../lib/grid.js';
+import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -56,6 +57,8 @@ export default async function handler(req, res) {
     console.error('[headquarters] insert error:', insertError);
     return res.status(500).json({ error: 'Failed to place headquarters' });
   }
+
+  addXp(player.id, XP_REWARDS.BUILD_HQ).catch(console.error);
 
   return res.status(201).json({ headquarters: hq });
 }

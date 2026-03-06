@@ -127,6 +127,33 @@ DELETE FROM mines;
 DELETE FROM headquarters;
 ```
 
+## Система уровней игрока
+
+### Таблица players
+```sql
+ALTER TABLE players ADD COLUMN IF NOT EXISTS level integer DEFAULT 1;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS xp    integer DEFAULT 0;
+```
+
+### Формулы (lib/formulas.js)
+- `xpForLevel(level)` = `floor(100 * level^1.9)` — XP для перехода с level на level+1
+- `calculateLevel(totalXp)` — вычисляет текущий уровень по суммарному XP
+- `getBuildRadius(level)` — 500→550→600→700→800→1000→1500м по уровням (5/10/20/30/50/100)
+
+### XP rewards (lib/xp.js → XP_REWARDS)
+| Действие | XP |
+|---|---|
+| BUILD_MINE | 20 |
+| BUILD_HQ | 50 |
+| COLLECT_PER_50_COINS | 1 per 50 монет |
+| UPGRADE_MINE(newLevel) | 10 * newLevel |
+| UPGRADE_HQ | 500 |
+| CAPTURE_MINE | 100 |
+
+### Динамический радиус постройки
+- mine.js использует `getBuildRadius(player.level)` вместо хардкода 500м
+- grid.js: `radiusToDiskK(meters)` конвертирует метры в H3 disk-K
+
 ## Следующие фичи (в порядке приоритета)
 - [ ] Таблица лидеров
 - [ ] Кланы

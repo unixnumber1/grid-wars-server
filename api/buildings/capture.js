@@ -1,5 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { getCellsInRange } from '../../lib/grid.js';
+import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -76,6 +77,8 @@ export default async function handler(req, res) {
       `\u2694\ufe0f Your mine (level ${mine.level}) was captured by ${attackerName}!`
     );
   }
+
+  addXp(attacker.id, XP_REWARDS.CAPTURE_MINE).catch(console.error);
 
   return res.status(200).json({ mine: updatedMine });
 }

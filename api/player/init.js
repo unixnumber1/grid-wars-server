@@ -1,4 +1,5 @@
 import { supabase, parseTgId } from '../../lib/supabase.js';
+import { xpForLevel, getBuildRadius } from '../../lib/formulas.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -37,8 +38,17 @@ export default async function handler(req, res) {
     supabase.from('mines').select('*').eq('owner_id', player.id),
   ]);
 
+  const level = player.level ?? 1;
+  const xp    = player.xp    ?? 0;
+
   return res.status(200).json({
-    player,
+    player: {
+      ...player,
+      level,
+      xp,
+      xpForNextLevel: xpForLevel(level),
+      buildRadius:    getBuildRadius(level),
+    },
     headquarters: headquarters || null,
     mines: mines || [],
   });

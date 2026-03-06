@@ -425,6 +425,31 @@
       margin-bottom: 10px;
     }
 
+    /* Level-up notification */
+    #levelup-notify {
+      position: fixed;
+      top: -70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      color: #000;
+      font-size: 17px;
+      font-weight: 800;
+      padding: 12px 28px;
+      border-radius: 30px;
+      z-index: 4000;
+      transition: top 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(255,215,0,0.5);
+      pointer-events: none;
+    }
+
+    #levelup-notify.show { top: 60px; }
+
+    /* Player level badge — clickable */
+    #player-level-display { cursor: pointer; }
+    #player-level-display:active { opacity: 0.7; }
+
     /* Online player marker ring */
     .marker-online::after {
       content: '';
@@ -504,6 +529,9 @@
     <div class="popup-actions" id="popup-actions"></div>
   </div>
 </div>
+
+<!-- Level-up notification -->
+<div id="levelup-notify"></div>
 
 <!-- Toast -->
 <div id="toast"></div>
@@ -607,6 +635,69 @@ function calcAccumulated(level, lastCollectedISO) {
   return Math.floor(mineRate(level) * Math.max(0, elapsed));
 }
 
+// XP / level helpers (mirrors lib/formulas.js)
+function xpForLevel(level) { return Math.floor(100 * Math.pow(level, 1.9)); }
+
+function showLevelUp(level) {
+  const el = document.getElementById('levelup-notify');
+  el.textContent = `\u2B06\uFE0F Уровень ${level}!`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showProfilePopup() {
+  const p = state.player;
+  if (!p) return;
+  const level   = p.level ?? 1;
+  const xp      = p.xp   ?? 0;
+  const xpNext  = p.xpForNextLevel ?? xpForLevel(level);
+  const radius  = p.buildRadius ?? 500;
+
+  // XP within current level
+  let xpAccum = 0;
+  for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
+  const xpThisLevel = xp - xpAccum;
+  const pct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
+
+  document.getElementById('popup-title').innerHTML =
+    `${p.avatar || '\uD83D\uDC3A'} ${p.username || TG_NAME}`;
+  document.getElementById('popup-subtitle').textContent = `Уровень ${level}`;
+
+  const statsEl = document.getElementById('popup-stats');
+  statsEl.innerHTML = `
+    <div style="margin:14px 0 8px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:5px;">
+        <span>${xpThisLevel.toLocaleString()} XP</span>
+        <span>${xpNext.toLocaleString()} XP</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;">
+        <div style="background:#FFD700;height:100%;width:${pct}%;border-radius:6px;transition:width 0.4s;"></div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:#888;margin-top:4px;">${pct}%</div>
+    </div>
+  `;
+  for (const [label, val] of [
+    ['\uD83D\uDCCD Радиус постройки', `${radius}м`],
+    ['\u2B50 Всего XP', xp.toLocaleString()],
+  ]) {
+    const row = document.createElement('div');
+    row.className = 'popup-stat';
+    row.innerHTML = `<span>${label}</span><span class="val">${val}</span>`;
+    statsEl.appendChild(row);
+  }
+
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%;';
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
 function calcSellRefund(level) {
   let sum = 0;
   for (let i = 2; i <= level; i++) {
@@ -618,8 +709,10 @@ function calcSellRefund(level) {
 function updatePlayerDisplay() {
   const avatar = state.player?.avatar || '🐺';
   const name   = state.player?.username || TG_NAME || '—';
+  const level  = state.player?.level ?? 1;
   document.getElementById('player-avatar-emoji').textContent = avatar;
   document.getElementById('player-name-display').textContent = name;
+  document.getElementById('player-level-display').textContent = `Ур. ${level}`;
 }
 
 function showToast(msg, duration = 2500) {
@@ -721,10 +814,13 @@ function otherPlayerIcon(avatar) {
 function renderHexGrid(lat, lng) {
   hexLayer.clearLayers();
 
-  // Zone circle (500m radius around player)
+  const buildRadius = state.player?.buildRadius ?? 500;
+  const dynDiskK    = Math.ceil(buildRadius / 43);
+
+  // Zone circle (dynamic radius around player)
   if (!playerZoneCircle) {
     playerZoneCircle = L.circle([lat, lng], {
-      radius: 500,
+      radius: buildRadius,
       color: 'rgba(255, 200, 0, 0.3)',
       weight: 1,
       fillColor: 'rgba(255, 200, 0, 0.08)',
@@ -733,12 +829,13 @@ function renderHexGrid(lat, lng) {
     }).addTo(map);
   } else {
     playerZoneCircle.setLatLng([lat, lng]);
+    playerZoneCircle.setRadius(buildRadius);
   }
 
   // Only draw hexes when zoomed in enough (performance)
   if (map.getZoom() < 14) return;
 
-  const cells = h3.gridDisk(h3.latLngToCell(lat, lng, H3_RES), H3_DISK_K);
+  const cells = h3.gridDisk(h3.latLngToCell(lat, lng, H3_RES), dynDiskK);
 
   for (const cellId of cells) {
     const boundary = h3.cellToBoundary(cellId);
@@ -1243,6 +1340,8 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
 
 document.getElementById('btn-collect').addEventListener('click', doCollect);
 
+document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
+
 // ─────────────────────────────────────────────
 //  Display updates
 // ─────────────────────────────────────────────
@@ -1270,6 +1369,7 @@ async function refreshMap() {
 }
 
 async function refreshAll() {
+  const prevLevel = state.player?.level;
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
@@ -1278,6 +1378,9 @@ async function refreshAll() {
     state.player = data.player;
     state.hq     = data.headquarters;
     state.mines  = data.mines;
+    if (prevLevel && data.player.level > prevLevel) {
+      showLevelUp(data.player.level);
+    }
     updateCoinDisplay();
     updatePlayerDisplay();
     await refreshMap();
@@ -1395,6 +1498,9 @@ async function boot() {
 
     // Periodic map refresh
     setInterval(refreshMap, MAP_REFRESH_MS);
+
+    // Periodic player/level refresh (detect XP gains, level-ups)
+    setInterval(refreshAll, 30000);
 
   }, onGpsError, { enableHighAccuracy: true, timeout: 15000 });
 }

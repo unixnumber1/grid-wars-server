@@ -1,6 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { mineUpgradeCost, MINE_MAX_LEVEL, hqConfig } from '../../lib/formulas.js';
 import { getCellsInRange } from '../../lib/grid.js';
+import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -75,6 +76,8 @@ export default async function handler(req, res) {
     console.error('[upgrade] error:', hqUpdateError, mineUpdateError);
     return res.status(500).json({ error: 'Failed to upgrade mine' });
   }
+
+  addXp(player.id, XP_REWARDS.UPGRADE_MINE(updatedMine.level)).catch(console.error);
 
   return res.status(200).json({ mine: updatedMine, hq_coins: hq.coins - cost });
 }

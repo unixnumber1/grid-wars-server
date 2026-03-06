@@ -1,6 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { getCell, getCellCenter, getCellsInRange } from '../../lib/grid.js';
-import { hqConfig } from '../../lib/formulas.js';
+import { getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
+import { hqConfig, getBuildRadius } from '../../lib/formulas.js';
+import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -48,17 +49,20 @@ export default async function handler(req, res) {
     });
   }
 
-  // H3 range check: target cell must be within player's interaction zone (~500m)
-  const targetCell = getCell(mineLat, mineLng);
-  const playerRange = getCellsInRange(playerActualLat, playerActualLng);
+  // Dynamic build radius based on player level
+  const buildRadius = getBuildRadius(player.level ?? 1);
+  const diskK       = radiusToDiskK(buildRadius);
+  const targetCell  = getCell(mineLat, mineLng);
+  const playerRange = getCellsInRange(playerActualLat, playerActualLng, diskK);
+
   if (!playerRange.has(targetCell)) {
-    return res.status(403).json({ error: 'Target location is outside your interaction zone (~500m)' });
+    return res.status(403).json({
+      error: `Target location is outside your build zone (~${buildRadius}m)`,
+    });
   }
 
-  // Store mine at cell center for visual consistency
   const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
 
-  // Check cell not already occupied
   const { data: existingMine } = await supabase
     .from('mines')
     .select('id')
@@ -97,6 +101,8 @@ export default async function handler(req, res) {
     console.error('Mine insert error:', insertError);
     return res.status(500).json({ error: 'Failed to place mine' });
   }
+
+  addXp(player.id, XP_REWARDS.BUILD_MINE).catch(console.error);
 
   return res.status(201).json({ mine });
 }

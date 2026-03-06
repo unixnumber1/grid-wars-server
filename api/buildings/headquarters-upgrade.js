@@ -1,5 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { hqUpgradeCost, HQ_MAX_LEVEL } from '../../lib/formulas.js';
+import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -50,6 +51,8 @@ export default async function handler(req, res) {
     console.error('[hq-upgrade] update error:', updateError);
     return res.status(500).json({ error: 'Failed to upgrade headquarters' });
   }
+
+  addXp(player.id, XP_REWARDS.UPGRADE_HQ).catch(console.error);
 
   return res.status(200).json({ headquarters: updatedHq });
 }
