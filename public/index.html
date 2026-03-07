@@ -2475,7 +2475,7 @@ const BOT_CLIENT_TYPES = {
   boss:     { emoji:'💀', category:'undead',  size:'XL', markerSize:60, attackChance:0.8 },
 };
 
-const botMarkers    = {}; // id → { marker, animTimer }
+const botMarkers    = {}; // id → { marker }
 let   botData       = {}; // id → bot object
 const drainIntervals = {}; // botId → interval
 
@@ -2566,20 +2566,38 @@ function botIcon(bot) {
   );
 }
 
-function animateBotMarker(botRef, toLat, toLng) {
-  if (botRef.animTimer) clearInterval(botRef.animTimer);
-  const from  = botRef.marker.getLatLng();
-  const steps = 15;
-  let   step  = 0;
-  botRef.animTimer = setInterval(() => {
-    step++;
-    const t = step / steps;
-    botRef.marker.setLatLng([
-      from.lat + (toLat - from.lat) * t,
-      from.lng + (toLng - from.lng) * t,
+// Degrees per millisecond for each speed tier
+// Server moves bots N metres per 10 s tick → N / (10000 ms * 111000 m/deg)
+const BOT_SPEED_DEG_PER_MS = {
+  slow:      15 / (10000 * 111000),
+  medium:    30 / (10000 * 111000),
+  fast:      55 / (10000 * 111000),
+  very_fast: 90 / (10000 * 111000),
+};
+let _botAnimId   = null;
+let _botAnimLast = null;
+
+function _tickBotAnim(now) {
+  const dt = _botAnimLast ? Math.min(now - _botAnimLast, 200) : 16;
+  _botAnimLast = now;
+  for (const [id, ref] of Object.entries(botMarkers)) {
+    const bot = botData[id];
+    if (!bot || !ref.marker) continue;
+    if (bot.status === 'attacking') continue; // server snaps attacking bots to mine
+    const speed  = BOT_SPEED_DEG_PER_MS[bot.speed] ?? BOT_SPEED_DEG_PER_MS.medium;
+    const dir    = bot.direction ?? 0;
+    const pos    = ref.marker.getLatLng();
+    const cosLat = Math.cos(pos.lat * Math.PI / 180) || 1;
+    ref.marker.setLatLng([
+      pos.lat + Math.cos(dir) * speed * dt,
+      pos.lng + Math.sin(dir) * speed * dt / cosLat,
     ]);
-    if (step >= steps) { clearInterval(botRef.animTimer); botRef.animTimer = null; }
-  }, Math.floor(1800 / steps));
+  }
+  _botAnimId = requestAnimationFrame(_tickBotAnim);
+}
+
+function startBotAnimation() {
+  if (!_botAnimId) _botAnimId = requestAnimationFrame(_tickBotAnim);
 }
 
 function renderBots(bots) {
@@ -2588,7 +2606,6 @@ function renderBots(bots) {
   // Remove gone bots
   for (const id of Object.keys(botMarkers)) {
     if (!activeIds.has(id)) {
-      if (botMarkers[id].animTimer) clearInterval(botMarkers[id].animTimer);
       botLayer.removeLayer(botMarkers[id].marker);
       delete botMarkers[id];
       delete botData[id];
@@ -2602,14 +2619,18 @@ function renderBots(bots) {
     botData[bot.id] = existing ? { ...bot, hp: existing.hp ?? bot.hp, max_hp: existing.max_hp ?? bot.max_hp } : bot;
 
     if (botMarkers[bot.id]) {
-      animateBotMarker(botMarkers[bot.id], bot.lat, bot.lng);
+      const ref = botMarkers[bot.id];
+      // Snap to server position only if bot jumped far (respawn/warp) or is attacking
+      const pos  = ref.marker.getLatLng();
+      const far  = Math.abs(pos.lat - bot.lat) > 0.002 || Math.abs(pos.lng - bot.lng) > 0.002;
+      if (far || bot.status === 'attacking') ref.marker.setLatLng([bot.lat, bot.lng]);
       // Refresh icon in case status changed (attacking animation)
-      botMarkers[bot.id].marker.setIcon(botIcon(bot));
+      ref.marker.setIcon(botIcon(bot));
     } else {
       const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
       marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
       marker.addTo(botLayer);
-      botMarkers[bot.id] = { marker, animTimer: null };
+      botMarkers[bot.id] = { marker };
     }
 
     // Drain animation + text for attacking bots
@@ -2787,7 +2808,6 @@ async function doAttackBot(botId) {
 
       // Remove bot marker
       if (botMarkers[botId]) {
-        if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
         botLayer.removeLayer(botMarkers[botId].marker);
         delete botMarkers[botId];
       }
@@ -3128,6 +3148,7 @@ async function boot() {
     tickBotSpawn();
     setInterval(tickBotMove,  10000);
     setInterval(tickBotSpawn, 60000);
+    startBotAnimation();
 
     // Poll for completed mine upgrades every 10s
     setInterval(pollCompleteUpgrades, 10000);
