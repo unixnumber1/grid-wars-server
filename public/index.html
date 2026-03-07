@@ -23,69 +23,94 @@
       color: #e0e0e0;
       font-family: 'Segoe UI', system-ui, sans-serif;
       height: 100dvh;
-      display: flex;
-      flex-direction: column;
       overflow: hidden;
     }
 
-    #header {
-      background: #1a1a2e;
-      height: 48px;
-      padding: 0 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    /* Floating currency island */
+    #hud-currency {
+      position: fixed;
+      top: calc(8px + env(safe-area-inset-top));
+      left: 8px;
       z-index: 1000;
-      flex-shrink: 0;
-      box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 8px 14px;
+      min-width: 130px;
     }
-
-    #header-balance {
+    #hud-coins-row {
       display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 24px;
+      align-items: baseline;
+      gap: 5px;
+    }
+    #hud-coins-icon { font-size: 18px; line-height: 1; }
+    #coin-display {
+      font-size: 18px;
       font-weight: 800;
-      color: #FFD700;
-      flex: 1;
-      justify-content: center;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+    #income-display {
+      font-size: 11px;
+      color: #00ff88;
+      margin-top: 1px;
+      min-height: 14px;
+    }
+    #hud-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.1);
+      margin: 5px 0;
+    }
+    #diamond-balance {
+      display: none;
+      align-items: center;
+      gap: 5px;
+    }
+    #diamond-balance-icon { font-size: 15px; line-height: 1; }
+    #diamond-display {
+      font-size: 15px;
+      font-weight: 700;
+      color: #00cfff;
     }
 
-    #header-balance .bal-icon { font-size: 20px; }
-
-    #btn-pin {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 8px;
+    /* Floating buttons island */
+    #hud-buttons {
+      position: fixed;
+      top: calc(8px + env(safe-area-inset-top));
+      right: 8px;
+      z-index: 1000;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 6px 8px;
+      display: flex;
+      gap: 4px;
+    }
+    #hud-buttons button {
       width: 36px;
       height: 36px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid transparent;
       font-size: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s;
       -webkit-tap-highlight-color: transparent;
+      transition: background 0.2s, border-color 0.2s;
     }
-
-    #btn-settings {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      width: 34px;
-      height: 34px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      color: #e0e0e0;
-    }
+    #btn-pin { transition: all 0.2s; }
 
     #map {
-      flex: 1;
+      position: fixed;
+      inset: 0;
       width: 100%;
+      height: 100%;
     }
 
     /* Bottom panel */
@@ -541,20 +566,6 @@
     .lb-xp { color: #FFD700; font-weight: 700; font-size: 12px; white-space: nowrap; }
 
     /* Leaderboard button in header */
-    #btn-leaderboard {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      width: 34px;
-      height: 34px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      color: #e0e0e0;
-    }
 
     /* Mine marker ring for capturable */
     .marker-capturable::after {
@@ -999,14 +1010,22 @@
   <div id="leaderboard-current"></div>
 </div>
 
-<!-- Header -->
-<div id="header">
-  <div id="header-balance">
-    <span class="bal-icon">💰</span>
+<!-- Currency island -->
+<div id="hud-currency">
+  <div id="hud-coins-row">
+    <span id="hud-coins-icon">💰</span>
     <span id="coin-display">—</span>
-    <span id="income-display" style="font-size:11px;color:#00ff88;margin-left:6px;"></span>
-    <span id="diamond-balance" style="margin-left:10px;color:#FFD700;font-weight:700;display:none;">💎 <span id="diamond-display">0</span></span>
   </div>
+  <div id="income-display"></div>
+  <div id="hud-divider" style="display:none;"></div>
+  <div id="diamond-balance">
+    <span id="diamond-balance-icon">💎</span>
+    <span id="diamond-display">0</span>
+  </div>
+</div>
+
+<!-- Buttons island -->
+<div id="hud-buttons">
   <button id="btn-pin" title="Закрепить на штабе">📍</button>
   <button id="btn-leaderboard" title="Таблица лидеров">🏆</button>
   <button id="btn-settings">⚙️</button>
@@ -1419,11 +1438,11 @@ function updatePinButton(active) {
   if (active) {
     btn.textContent = '📌';
     btn.style.background = 'rgba(255,215,0,0.2)';
-    btn.style.border = '1px solid #FFD700';
+    btn.style.borderColor = '#FFD700';
   } else {
     btn.textContent = '📍';
-    btn.style.background = 'transparent';
-    btn.style.border = '1px solid rgba(255,255,255,0.2)';
+    btn.style.background = 'rgba(255,255,255,0.05)';
+    btn.style.borderColor = 'transparent';
   }
 }
 
@@ -2668,9 +2687,12 @@ function updateDiamondDisplay() {
   const diamonds = state.player?.diamonds ?? 0;
   const el = document.getElementById('diamond-balance');
   if (el) {
-    el.style.display = diamonds > 0 ? 'inline' : 'none';
+    el.style.display = diamonds > 0 ? 'flex' : 'none';
     document.getElementById('diamond-display').textContent = diamonds;
   }
+  // Also hide/show divider
+  const divider = document.getElementById('hud-divider');
+  if (divider) divider.style.display = diamonds > 0 ? 'block' : 'none';
 }
 
 function animateDrain(mineLatLng, botLatLng) {
