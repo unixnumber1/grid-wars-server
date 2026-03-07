@@ -115,15 +115,20 @@
 
     /* Bottom panel */
     #bottom-panel {
-      background: #1a1a2e;
-      height: 72px;
-      padding: 0 14px;
+      position: fixed;
+      bottom: calc(10px + env(safe-area-inset-bottom));
+      left: 8px;
+      right: 8px;
+      z-index: 1000;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      z-index: 1000;
-      flex-shrink: 0;
-      box-shadow: 0 -1px 6px rgba(0,0,0,0.5);
     }
 
     #player-info {
