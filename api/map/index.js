@@ -120,7 +120,7 @@ export default async function handler(req, res) {
 
     supabase
       .from('vases')
-      .select('id, lat, lng, expires_at, diamonds_reward')
+      .select('id, lat, lng, expires_at')
       .gt('expires_at', nowISO)
       .is('broken_by', null)
       .gte('lat', s).lte('lat', n)

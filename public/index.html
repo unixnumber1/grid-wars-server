@@ -2579,7 +2579,7 @@ function showVasePopup(vaseId) {
   const statsEl = document.getElementById('popup-stats');
   statsEl.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:13px;margin-bottom:8px;">
-      <span style="color:#aaa;">💎 Награда</span><span style="text-align:right;">${vase.diamonds_reward} алмазов</span>
+      <span style="color:#aaa;">💎 Награда</span><span style="text-align:right;color:#FFD700;letter-spacing:2px;">???</span>
       <span style="color:#aaa;" id="vase-popup-timer" data-vase-id="${vaseId}">${_formatVaseTimer(vase.expires_at)}</span><span></span>
     </div>`;
 
