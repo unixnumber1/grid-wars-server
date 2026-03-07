@@ -2929,7 +2929,7 @@ async function tickBotMove() {
         east:  e + lngPad, west:  w - lngPad,
       }),
     });
-    renderBots(data.bots || []);
+    if (!data.skipped && data.bots) renderBots(data.bots);
   } catch (e) {
     console.warn('[bots/move] error:', e.message);
   }
