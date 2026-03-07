@@ -117,7 +117,7 @@ export default async function handler(req, res) {
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
 
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed');
-  if (playerError) return res.status(500).json({ error: playerError });
+  if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
   if (action === 'upgrade') return handleUpgrade(player, res);

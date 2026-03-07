@@ -3,9 +3,7 @@ import { calcAccumulatedCoins, getHQLimit, getMineUpgradeCost } from '../../lib/
 
 function calcSellRefund(level) {
   let sum = 0;
-  for (let i = 1; i <= level; i++) {
-    sum += getMineUpgradeCost(i);
-  }
+  for (let i = 0; i < level; i++) sum += getMineUpgradeCost(i);
   return Math.floor(sum * 0.3);
 }
 

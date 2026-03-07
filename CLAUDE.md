@@ -71,27 +71,47 @@ SUPABASE_KEY=
 BOT_TOKEN=
 ```
 
-## Экономика v2 (актуальная)
+## Экономика v3 (актуальная)
 
-### Шахты — 100 уровней
-- Доход: `Math.floor(Math.pow(1.15, level - 1))` монет/сек
-- Стоимость апгрейда: `Math.floor(50 * Math.pow(2.1, level - 1))`
+### Шахты — 150 уровней
+- Стартовый уровень: **0** (неактивен, доход = 0)
+- Активация (0→1): **100 монет**
+- Стоимость апгрейда FROM уровня L: `getMineUpgradeCost(L)`:
+  - L=0 → 100, иначе `Math.round(100 * 1.09^L)`
+- Доход на уровне L: `getMineIncome(L)` = `Math.round(10 * L^1.2)` монет/сек
+- Контрольные точки: Ур.10→236, Ур.50→7490, Ур.100→588k, Ур.150→46.3m
 - Все формулы в `/lib/formulas.js`
 
+### Внешний вид построек (getMineAppearance)
+| Уровни  | Emoji | Название             |
+|---------|-------|----------------------|
+| 0-9     | 🪨   | Каменный алтарь      |
+| 10-19   | 🔮   | Магический колодец   |
+| 20-29   | 🌿   | Друидическая роща    |
+| 30-39   | 🔥   | Огненный маяк        |
+| 40-49   | ⚗️   | Алхимическая башня   |
+| 50-59   | 🌀   | Портал разлома       |
+| 60-69   | 🏯   | Тёмная цитадель      |
+| 70-79   | 💎   | Кристальный шпиль    |
+| 80-89   | 🌙   | Лунный обелиск       |
+| 90-99   | ⭐   | Звёздный Nexus       |
+| 100-109 | 🌌   | Астральный разлом    |
+| 110-119 | 👁️   | Глаз Вечности        |
+| 120-129 | 🐉   | Драконье гнездо      |
+| 130-139 | ☄️   | Метеоритный кратер   |
+| 140-149 | 🌋   | Вулканический трон   |
+| 150     | 👑   | Трон Богов           |
+
 ### Штаб — 10 уровней
-- Определяет: макс кол-во шахт и макс уровень шахты
-- Апгрейд: `POST /api/buildings/headquarters-upgrade`
+- maxMineLevel: [15, 30, 45, 60, 75, 90, 105, 120, 135, 150]
+- maxMines: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+- Апгрейд: `POST /api/buildings/headquarters` с `action: 'upgrade'`
 - Поле `level` (integer, default 1) в таблице `headquarters`
 
 ### Аватарки
 - 46 эмодзи на выбор, хранятся в `players.avatar`
 - Смена: `POST /api/player/avatar`
 - Визуал на карте: эмодзи аватарки вместо синей точки
-
-### Скины шахт
-- Эмодзи меняется каждые 10 уровней (🏠→🏡→…→🌇)
-- Захватываемые шахты: красная обводка
-- Чужие вне радиуса: opacity 0.5
 
 ## Текущий статус
 - ✅ Базовый геймплей работает
@@ -156,18 +176,27 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS xp    integer DEFAULT 0;
 
 ## Система ботов (актуально)
 
+### Концепция зон спауна
+- Каждый онлайн-игрок имеет зону 2км, в которой всегда 10 ботов
+- Бот спаунится в кольце 500м–2000м от игрока
+- Боты глобальные — видны всем, кто смотрит в эту область
+- expires_at = 5 мин. Фронт вызывает spawn каждые 15с → автопополнение
+- Перемещение глобальное: один вызов move (каждые 3с) двигает всех ботов
+
 ### Таблица `bots`
 ```sql
 CREATE TABLE bots (
   id uuid PK, type text, category text ('undead'|'neutral'),
   emoji text, lat float8, lng float8, cell_id text,
+  direction float8,                          -- текущее направление движения (радианы)
   target_mine_id uuid→mines, spawned_for_player_id uuid→players,
   coins_drained int, reward_min int, reward_max int,
-  drain_per_sec int, speed text, spawned_at timestamptz, expires_at timestamptz
+  drain_per_sec int, speed text, spawned_at timestamptz, expires_at timestamptz,
+  hp int, max_hp int, attack int, size text
 );
 ```
 
-### Конфиг: `/lib/bots.js` (6 типов с боевой системой)
+### Конфиг: `/lib/bots.js` (5 типов)
 | Тип      | Emoji | Категория | HP   | Атака | AttackChance | Размер | markerSize |
 |----------|-------|-----------|------|-------|-------------|--------|-----------|
 | spirit   | 🌫️   | neutral   | 30   | 0     | 0           | S      | 32        |
@@ -175,49 +204,72 @@ CREATE TABLE bots (
 | werewolf | 🐺   | undead    | 120  | 20    | 0.5         | M      | 38        |
 | demon    | 👹   | undead    | 200  | 35    | 0.6         | L      | 44        |
 | dragon   | 🐲   | neutral   | 400  | 60    | 0.4         | L      | 50        |
-| boss     | 💀   | undead    | 1000 | 100   | 0.8         | XL     | 60        |
-
-Боссы: 1 глобально, 5% шанс за цикл спавна + Telegram-уведомление.
 
 ### Конфиг: `/api/bots.js` (action-based router)
 | action  | Метод | Описание |
 |---------|-------|----------|
-| spawn   | POST  | Спаун до 10 ботов, 5% шанс босса |
-| nearby  | GET   | Боты в радиусе |
-| move    | POST  | Хаотичное движение + дренаж через attackChance |
+| spawn   | POST  | Поддерживает 10 ботов в зоне 2км игрока |
+| move    | POST  | Direction-based движение ВСЕХ ботов, очистка expired |
 | attack  | POST  | Игрок атакует бота, крит/контратака/смерть |
-| repel   | POST  | (legacy) прогнать нежить |
-| lure    | POST  | (legacy) приманить нейтрального |
+| repel   | POST  | Прогнать нежить |
+| lure    | POST  | Приманить нейтрального |
+
+### Движение ботов
+- Скорость в метрах за тик: slow=15, medium=30, fast=55, very_fast=90
+- 5% шанс небольшого поворота (±0.15 рад), иначе продолжает текущий курс
+- `direction` хранится в БД (float8, радианы)
+- Граница 3км от `spawn_lat/spawn_lng` — бот разворачивается к точке спауна
+
+### Статусы злых (undead) ботов
+- `roaming` → 3% per tick: выбирает случайную шахту → `attacking`
+- `attacking` → идёт к шахте; при dist<0.0005° начинает drain; при `drained_amount ≥ drain_limit` → `leaving`
+- `leaving` → 9% per tick (≈11 сек): возвращается в `roaming`
+
+### drain_limit по типам
+spirit:50, goblin:150, werewolf:400, demon:1000, dragon:3000, boss:10000
+
+### Анимации атаки (frontend)
+- `.bot-attacking` — пульсирующий scale 1→1.3 (0.5s) на атакующем боте
+- `.mine-under-attack` — красное мигание drop-shadow (0.5s) на атакуемой шахте
+- `animateDrain(mineLL, botLL)` — летящие 💰 от шахты к боту каждые 1.5с
+- `showDrainText(latLng, amount)` — `-N 💸` плавает вверх над шахтой
+- `drainIntervals` — map botId → intervalId для управления анимациями
+- В попапе своей атакованной шахты: subtitle = "⚠️ Атакована! …", stat "Высосано: N монет"
+
+### Отображение
+- `/api/map` возвращает `bots` по bbox вместе с buildings
+- `tickBotMove` (3с) также возвращает боты в viewport для плавной анимации
+- `renderBots` вызывается из обоих источников без конфликтов
 
 ### Боевая механика
 - `getMaxHp(level)` = 100 + (level-1)*10
 - `getPlayerAttack(level)` = 10 + (level-1)*2
-- `calcHpRegen`: +1 HP каждые 10 сек, применяется в init.js и attack handler
+- `calcHpRegen`: +1 HP в секунду
 - Крит: 20% шанс, x2 урон; контратака вероятностью attackChance бота
-- Смерть игрока: respawn с полным HP, deaths++
-- XP за победу = max_hp бота / 5; монеты только для нейтральных
+- Смерть игрока: respawn_until = now+10s, 30% HP
+- XP за победу = max_hp / 5 × (undead×20, neutral×100)
 
-### SQL для боевой системы
+### SQL миграции
 ```sql
 ALTER TABLE players ADD COLUMN IF NOT EXISTS hp            integer;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS max_hp        integer;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS last_hp_regen TIMESTAMPTZ DEFAULT now();
 ALTER TABLE players ADD COLUMN IF NOT EXISTS kills         integer NOT NULL DEFAULT 0;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS deaths        integer NOT NULL DEFAULT 0;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS hp     integer;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS max_hp integer;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS attack integer NOT NULL DEFAULT 0;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS size   text    NOT NULL DEFAULT 'S';
+ALTER TABLE players ADD COLUMN IF NOT EXISTS respawn_until TIMESTAMPTZ;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS hp        integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS max_hp    integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS attack    integer NOT NULL DEFAULT 0;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS size      text    NOT NULL DEFAULT 'S';
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS direction float8;
 ```
 
 ### Фронтенд (public/index.html)
 - `BOT_CLIENT_TYPES` — зеркало lib/bots.js для markerSize/size/category
-- `botIcon(bot)` — размер и свечение по size (S=category, M=orange, L=purple, XL=red pulse)
-- CSS `.bot-boss-pulse` — pulsing animation для босса
+- `botIcon(bot)` — размер и свечение по size
 - `showBotPopup(botId)` — HP-бары игрока и бота + кнопка атаки
 - `doAttackBot(botId)` — POST attack, floating damage text, живой update HP
-- `showFloatingText(text, latlng, color)` — анимированный текст на карте
-- `screenShake()` — CSS animation shake (при убийстве босса)
+- `tickBotSpawn` каждые 15с, `tickBotMove` каждые 3с
 - Профиль: HP-бар, attack, kills/deaths
 
 ## Следующие фичи (в порядке приоритета)

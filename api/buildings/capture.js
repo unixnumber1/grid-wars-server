@@ -1,5 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { getCellsInRange } from '../../lib/grid.js';
+import { getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
+import { getBuildRadius } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
   const playerLat = parseFloat(lat);
   const playerLng = parseFloat(lng);
 
-  const { player: attacker, error: attackerError } = await getPlayerByTelegramId(telegram_id);
+  const { player: attacker, error: attackerError } = await getPlayerByTelegramId(telegram_id, 'id, level');
   if (attackerError) return res.status(500).json({ error: attackerError });
   if (!attacker)     return res.status(404).json({ error: 'Player not found' });
 
@@ -51,10 +52,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'You already own this mine' });
   }
 
-  // H3 range check: mine must be within player's interaction zone (~500m)
-  const playerRange = getCellsInRange(playerLat, playerLng);
+  // H3 range check: mine must be within player's interaction zone (dynamic by level)
+  const buildRadius = getBuildRadius(attacker.level ?? 1);
+  const diskK       = radiusToDiskK(buildRadius);
+  console.log('[radius check] playerLevel:', attacker.level, 'buildRadius:', buildRadius, 'diskK:', diskK);
+  const playerRange = getCellsInRange(playerLat, playerLng, diskK);
   if (!playerRange.has(mine.cell_id)) {
-    return res.status(403).json({ error: 'Шахта вне зоны взаимодействия' });
+    return res.status(403).json({ error: `Шахта вне зоны взаимодействия (~${buildRadius}м)` });
   }
 
   const { data: updatedMine, error: updateError } = await supabase

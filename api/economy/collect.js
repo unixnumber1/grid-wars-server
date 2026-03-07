@@ -1,5 +1,5 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, getHQLimit } from '../../lib/formulas.js';
+import { calcAccumulatedCoins, getHQLimit, getMineIncome } from '../../lib/formulas.js';
 import { getCellsInRange } from '../../lib/grid.js';
 import { addXp } from '../../lib/xp.js';
 
@@ -86,10 +86,13 @@ export default async function handler(req, res) {
     }
   }
 
+  const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+
   return res.status(200).json({
     collected: actualCollected,
     total_accumulated: totalCoins,
     hq_coins: newBalance,
     xp: xpResult,
+    totalIncome,
   });
 }

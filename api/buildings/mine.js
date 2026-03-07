@@ -19,7 +19,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id, player position and mine position are required' });
   }
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level');
+  console.log('[mine] player:', player?.id, 'level:', player?.level, 'err:', playerError);
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
@@ -43,6 +44,7 @@ export default async function handler(req, res) {
     .eq('owner_id', player.id);
 
   const cfg = hqConfig(hq.level ?? 1);
+  console.log('[mine] mines count:', mineCount, 'max:', cfg.maxMines, 'hq level:', hq.level);
   if (mineCount >= cfg.maxMines) {
     return res.status(403).json({
       error: `Лимит шахт для HQ ур.${hq.level ?? 1} — ${cfg.maxMines} шт. Улучши штаб!`,
@@ -52,8 +54,11 @@ export default async function handler(req, res) {
   // Dynamic build radius based on player level
   const buildRadius = getBuildRadius(player.level ?? 1);
   const diskK       = radiusToDiskK(buildRadius);
+  console.log('[radius check] playerLevel:', player.level, 'buildRadius:', buildRadius, 'diskK:', diskK);
   const targetCell  = getCell(mineLat, mineLng);
   const playerRange = getCellsInRange(playerActualLat, playerActualLng, diskK);
+
+  console.log('[mine] cell check: target:', targetCell, 'inRange:', playerRange.has(targetCell), 'radius:', buildRadius);
 
   if (!playerRange.has(targetCell)) {
     return res.status(403).json({
@@ -69,16 +74,17 @@ export default async function handler(req, res) {
     .eq('cell_id', targetCell)
     .maybeSingle();
 
-  if (existingMine) {
-    return res.status(409).json({ error: 'A mine already exists on this cell' });
-  }
-
   const { data: existingHqOnCell } = await supabase
     .from('headquarters')
     .select('id')
     .eq('cell_id', targetCell)
     .maybeSingle();
 
+  console.log('[mine] cell check: existingMine:', existingMine?.id, 'existingHq:', existingHqOnCell?.id);
+
+  if (existingMine) {
+    return res.status(409).json({ error: 'A mine already exists on this cell' });
+  }
   if (existingHqOnCell) {
     return res.status(409).json({ error: 'Cell is occupied by a headquarters' });
   }
@@ -98,8 +104,9 @@ export default async function handler(req, res) {
     .single();
 
   if (insertError) {
-    console.error('Mine insert error:', insertError);
-    return res.status(500).json({ error: 'Failed to place mine' });
+    console.error('[mine] insert error:', insertError);
+    // Surface real DB error so it's visible in client and Vercel logs
+    return res.status(500).json({ error: insertError.message });
   }
 
   let xpResult = null;

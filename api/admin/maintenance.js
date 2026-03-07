@@ -43,6 +43,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ fixed_hq: hqs?.length ?? 0, fixed_mines: mines?.length ?? 0 });
     }
 
+    // ── fix-usernames: backfill owner_username on all headquarters ──
+    if (action === 'fix-usernames') {
+      const { data: allHQ } = await supabase.from('headquarters').select('id, player_id');
+      for (const hq of (allHQ || [])) {
+        const { data: player } = await supabase.from('players').select('username').eq('id', hq.player_id).single();
+        await supabase.from('headquarters').update({ owner_username: player?.username ?? null }).eq('id', hq.id);
+      }
+      return res.status(200).json({ fixed: allHQ?.length ?? 0 });
+    }
+
     // ── maintenance toggle ──
     const value = enabled ? 'true' : 'false';
     const { error } = await supabase

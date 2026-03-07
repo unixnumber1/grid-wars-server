@@ -131,6 +131,30 @@ ON CONFLICT (key) DO NOTHING;
 
 ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
 
+-- ─── Vases ──────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS vases (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lat              FLOAT8 NOT NULL,
+  lng              FLOAT8 NOT NULL,
+  spawned_at       TIMESTAMPTZ DEFAULT now(),
+  expires_at       TIMESTAMPTZ NOT NULL,
+  broken_by        UUID REFERENCES players(id) ON DELETE SET NULL,
+  broken_at        TIMESTAMPTZ,
+  diamonds_reward  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_vases_lat     ON vases(lat);
+CREATE INDEX IF NOT EXISTS idx_vases_lng     ON vases(lng);
+CREATE INDEX IF NOT EXISTS idx_vases_expires ON vases(expires_at);
+
+ALTER TABLE vases DISABLE ROW LEVEL SECURITY;
+
+ALTER TABLE players ADD COLUMN IF NOT EXISTS diamonds INTEGER DEFAULT 0;
+
+INSERT INTO app_settings (key, value)
+VALUES ('last_vases_spawn', '0')
+ON CONFLICT (key) DO NOTHING;
+
 -- ─── Bbox indexes for viewport queries ─────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_mines_lat       ON mines(lat);
 CREATE INDEX IF NOT EXISTS idx_mines_lng       ON mines(lng);

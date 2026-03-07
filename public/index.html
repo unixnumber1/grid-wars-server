@@ -837,6 +837,24 @@
       100% { opacity: 0; transform: translateY(-40px); }
     }
 
+    /* Vase pulse */
+    @keyframes vasePulse {
+      0%   { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
+      50%  { filter: drop-shadow(0 0 16px rgba(255,215,0,1.0)); }
+      100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
+    }
+    .vase-marker { animation: vasePulse 2s ease-in-out infinite; cursor: pointer; }
+
+    /* Vase shatter */
+    @keyframes shatter {
+      0%   { transform: scale(1)   rotate(0deg);   opacity: 1; }
+      25%  { transform: scale(1.3) rotate(-10deg); opacity: 1; }
+      50%  { transform: scale(0.8) rotate(10deg);  opacity: 0.7; }
+      75%  { transform: scale(1.1) rotate(-5deg);  opacity: 0.4; }
+      100% { transform: scale(0)   rotate(0deg);   opacity: 0; }
+    }
+    .vase-shattering { animation: shatter 0.35s ease-in forwards; }
+
     /* Screen shake */
     @keyframes screenShakeAnim {
       0%   { transform: translate(0,0); }
@@ -953,6 +971,9 @@
       <button id="btn-fix-usernames" class="btn yellow" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">
         👤 Обновить владельцев
       </button>
+      <button id="btn-spawn-vases" class="btn" style="width:100%;padding:12px;font-size:14px;margin-top:8px;background:#8B5CF6;">
+        🏺 Заспаунить вазы
+      </button>
     </div>
   </div>
 </div>
@@ -984,6 +1005,7 @@
     <span class="bal-icon">💰</span>
     <span id="coin-display">—</span>
     <span id="income-display" style="font-size:11px;color:#00ff88;margin-left:6px;"></span>
+    <span id="diamond-balance" style="margin-left:10px;color:#FFD700;font-weight:700;display:none;">💎 <span id="diamond-display">0</span></span>
   </div>
   <button id="btn-pin" title="Закрепить на штабе">📍</button>
   <button id="btn-leaderboard" title="Таблица лидеров">🏆</button>
@@ -1431,9 +1453,9 @@ function togglePin() {
     map.setView([hqLat, hqLng], map.getZoom());
     updatePinButton(true);
     loadVisibleBuildings();
-    if (TG_ID) apiFetch('/api/player/location', {
+    if (TG_ID) apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
+      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
     }).catch(() => {});
     showToast('📌 Телепорт на штаб');
   } else {
@@ -1452,8 +1474,9 @@ function togglePin() {
   }
 }
 
-const hexLayer = L.layerGroup().addTo(map);
+const hexLayer  = L.layerGroup().addTo(map);
 const botLayer  = L.layerGroup().addTo(map);
+const vaseLayer = L.layerGroup().addTo(map);
 
 // Building markers registry
 const buildingMarkers = {}; // id → L.marker
@@ -2361,7 +2384,8 @@ async function loadVisibleBuildings() {
     const data = await apiFetch(`/api/map?${params}`);
     state.mapBuildings = data;
     renderBuildings();
-    if (data.bots?.length) renderBots(data.bots);
+    if (data.bots?.length)  renderBots(data.bots);
+    if (data.vases)         renderVases(data.vases);
     updateHexGrid();
   } catch (e) {
     if (!e.message?.includes('Zoom in')) console.error('Map refresh error:', e);
@@ -2445,9 +2469,9 @@ function onPosition(pos) {
     _lastLocationReport = now;
     const reportLat = pinMode ? hqLat : lat;
     const reportLng = pinMode ? hqLng : lng;
-    apiFetch('/api/player/location', {
+    apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, lat: reportLat, lng: reportLng }),
+      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: reportLat, lng: reportLng }),
     }).catch(() => {});
   }
 }
@@ -2478,6 +2502,176 @@ const BOT_CLIENT_TYPES = {
 const botMarkers    = {}; // id → { marker }
 let   botData       = {}; // id → bot object
 const drainIntervals = {}; // botId → interval
+
+// ─────────────────────────────────────────────
+//  Vase layer
+// ─────────────────────────────────────────────
+const vaseMarkers = {}; // id → Leaflet marker
+let   vaseData    = {}; // id → vase object
+let   _knownVaseIds = new Set();
+
+function _formatVaseTimer(expiresAt) {
+  const ms   = new Date(expiresAt) - Date.now();
+  if (ms <= 0) return '⏳ истекла';
+  const h    = Math.floor(ms / 3600000);
+  const m    = Math.floor((ms % 3600000) / 60000);
+  const s    = Math.floor((ms % 60000) / 1000);
+  return `⏳ ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function _vaseIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div class="marker-wrap vase-marker" style="font-size:36px;line-height:1;">🏺</div>`,
+    iconSize:   [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+function renderVases(vases) {
+  const activeIds = new Set(vases.map(v => v.id));
+
+  // Remove gone vases
+  for (const id of Object.keys(vaseMarkers)) {
+    if (!activeIds.has(id)) {
+      vaseLayer.removeLayer(vaseMarkers[id]);
+      delete vaseMarkers[id];
+      delete vaseData[id];
+    }
+  }
+
+  // Add new / update
+  for (const vase of vases) {
+    // Toast for newly visible vases
+    if (!_knownVaseIds.has(vase.id)) {
+      _knownVaseIds.add(vase.id);
+      showToast('🏺 Древняя ваза появилась неподалёку!');
+    }
+    vaseData[vase.id] = vase;
+    if (!vaseMarkers[vase.id]) {
+      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 2000 });
+      marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showVasePopup(vase.id); });
+      marker.addTo(vaseLayer);
+      vaseMarkers[vase.id] = marker;
+    }
+  }
+}
+
+// Update countdown timers every second
+setInterval(() => {
+  const el = document.getElementById('vase-popup-timer');
+  if (!el) return;
+  const vaseId = el.dataset.vaseId;
+  if (vaseId && vaseData[vaseId]) el.textContent = _formatVaseTimer(vaseData[vaseId].expires_at);
+}, 1000);
+
+function showVasePopup(vaseId) {
+  const vase = vaseData[vaseId];
+  if (!vase) return;
+  const pos  = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, vase.lat, vase.lng) : Infinity;
+  const near = dist <= 100;
+
+  document.getElementById('popup-title').innerHTML = '🏺 Древняя ваза';
+  document.getElementById('popup-subtitle').textContent = near
+    ? 'Внутри что-то ценное!' : `📍 До вазы: ${Math.round(dist)}м`;
+
+  const statsEl = document.getElementById('popup-stats');
+  statsEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:13px;margin-bottom:8px;">
+      <span style="color:#aaa;">💎 Награда</span><span style="text-align:right;">${vase.diamonds_reward} алмазов</span>
+      <span style="color:#aaa;" id="vase-popup-timer" data-vase-id="${vaseId}">${_formatVaseTimer(vase.expires_at)}</span><span></span>
+    </div>`;
+
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+  if (near) {
+    const breakBtn = document.createElement('button');
+    breakBtn.className = 'btn danger';
+    breakBtn.style.cssText = 'width:100%;margin-bottom:8px;';
+    breakBtn.textContent = '💥 Разбить!';
+    breakBtn.addEventListener('click', () => doBreakVase(vaseId));
+    actEl.appendChild(breakBtn);
+  }
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%;';
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+async function doBreakVase(vaseId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  const marker = vaseMarkers[vaseId];
+
+  // Shatter animation
+  if (marker?._icon) {
+    marker._icon.querySelector('.vase-marker')?.classList.add('vase-shattering');
+  }
+
+  try {
+    const data = await apiFetch('/api/vases', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'break', telegram_id: TG_ID, vase_id: vaseId, lat: pos.lat, lng: pos.lng }),
+    });
+
+    // Flying diamonds animation
+    _flyingDiamonds(marker);
+
+    closePopup();
+    // Remove marker
+    if (vaseMarkers[vaseId]) {
+      vaseLayer.removeLayer(vaseMarkers[vaseId]);
+      delete vaseMarkers[vaseId];
+    }
+    delete vaseData[vaseId];
+    _knownVaseIds.delete(vaseId);
+
+    // Update diamonds display
+    if (state.player) state.player.diamonds = data.totalDiamonds;
+    updateDiamondDisplay();
+    showToast(`💥 +${data.diamonds} 💎 Алмазов!`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function _flyingDiamonds(marker) {
+  if (!marker) return;
+  const latlng  = marker.getLatLng();
+  const mapPt   = map.latLngToContainerPoint(latlng);
+  const mapRect = document.getElementById('map').getBoundingClientRect();
+  const cx = mapRect.left + mapPt.x;
+  const cy = mapRect.top  + mapPt.y;
+
+  [0, 72, 144, 216, 288].forEach(angle => {
+    const gem = document.createElement('div');
+    gem.textContent = '💎';
+    gem.style.cssText = `position:fixed;font-size:22px;left:${cx}px;top:${cy}px;pointer-events:none;z-index:9999;transition:all 0.6s ease-out;`;
+    document.body.appendChild(gem);
+    requestAnimationFrame(() => {
+      const rad = angle * Math.PI / 180;
+      gem.style.left    = (cx + Math.cos(rad) * 65) + 'px';
+      gem.style.top     = (cy + Math.sin(rad) * 65) + 'px';
+      gem.style.opacity = '0';
+      gem.style.fontSize = '10px';
+    });
+    setTimeout(() => gem.remove(), 700);
+  });
+}
+
+function updateDiamondDisplay() {
+  const diamonds = state.player?.diamonds ?? 0;
+  const el = document.getElementById('diamond-balance');
+  if (el) {
+    el.style.display = diamonds > 0 ? 'inline' : 'none';
+    document.getElementById('diamond-display').textContent = diamonds;
+  }
+}
 
 function animateDrain(mineLatLng, botLatLng) {
   const minePos = map.latLngToContainerPoint(mineLatLng);
@@ -3049,6 +3243,24 @@ document.getElementById('btn-fix-usernames').addEventListener('click', async () 
   }
 });
 
+document.getElementById('btn-spawn-vases').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-spawn-vases');
+  btn.disabled = true; btn.textContent = '⏳ Спауню...';
+  try {
+    const data = await apiFetch('/api/vases', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID }),
+    });
+    showToast(`✅ Заспаунено ${data.spawned} ваз`);
+    _lastMapCenter = null;
+    await loadVisibleBuildings();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = '🏺 Заспаунить вазы';
+  }
+});
+
 document.getElementById('btn-maintenance-toggle').addEventListener('click', async () => {
   const newState = !_adminMaintenanceOn;
   try {
@@ -3098,6 +3310,7 @@ async function boot() {
 
     // Cache avatar for maintenance screen
     if (data.player?.avatar) localStorage.setItem('gw_avatar', data.player.avatar);
+    updateDiamondDisplay();
 
     // Show admin section if this is the admin
     if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
@@ -3185,9 +3398,9 @@ function buildAvatarGrid() {
 async function selectAvatar(avatar) {
   if (avatar === state.player?.avatar) return;
   try {
-    const data = await apiFetch('/api/player/avatar', {
+    const data = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, avatar }),
+      body: JSON.stringify({ action: 'avatar', telegram_id: TG_ID, avatar }),
     });
     state.player.avatar = data.player.avatar;
     buildAvatarGrid();
