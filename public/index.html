@@ -1899,7 +1899,7 @@ async function doUpgrade(mineId, targetLevel) {
 async function pollCompleteUpgrades() {
   if (!TG_ID) return;
   try {
-    const data = await apiFetch(`/api/buildings/complete-upgrades?telegram_id=${TG_ID}`);
+    const data = await apiFetch(`/api/buildings/upgrade?telegram_id=${TG_ID}`);
     if (!data.completed || data.completed.length === 0) return;
     for (const mine of data.completed) {
       const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
