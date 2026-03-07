@@ -21,19 +21,26 @@ async function handlePlace(player, body, res) {
 
   const [centerLat, centerLng] = getCellCenter(cell_id);
 
+  const bonusClaimed = player.starting_bonus_claimed === true;
+  const startingCoins = bonusClaimed ? 0 : 10000;
+
   const { data: hq, error: insertError } = await supabase
     .from('headquarters')
-    .insert({ player_id: player.id, lat: centerLat, lng: centerLng, cell_id, coins: 0 })
+    .insert({ player_id: player.id, owner_username: player.username, lat: centerLat, lng: centerLng, cell_id, coins: startingCoins })
     .select().single();
   if (insertError) {
     console.error('[headquarters] insert error:', insertError);
     return res.status(500).json({ error: 'Failed to place headquarters' });
   }
 
+  if (!bonusClaimed) {
+    await supabase.from('players').update({ starting_bonus_claimed: true }).eq('id', player.id);
+  }
+
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
 
-  return res.status(201).json({ headquarters: hq, xp: xpResult });
+  return res.status(201).json({ headquarters: hq, xp: xpResult, startingBonus: !bonusClaimed });
 }
 
 // ── UPGRADE HQ ─────────────────────────────────────────────────────────────
@@ -80,7 +87,7 @@ export default async function handler(req, res) {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
