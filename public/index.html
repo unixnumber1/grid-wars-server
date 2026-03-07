@@ -446,6 +446,116 @@
     .avatar-cell.selected { border-color: #f5c518; }
     .avatar-cell:active { background: #2a2a2a; }
 
+    /* Settings tabs */
+    #settings-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .settings-tab {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #888;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+    }
+    .settings-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+    .settings-tab-content { display: none; }
+    .settings-tab-content.active { display: block; }
+
+    /* Avatar bottom sheet */
+    #avatar-sheet-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 4000;
+      align-items: flex-end;
+    }
+    #avatar-sheet-overlay.open { display: flex; }
+    #avatar-sheet {
+      background: #1a1a2e;
+      width: 100%;
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      max-height: 70vh;
+      overflow-y: auto;
+      animation: slideUp 0.25s ease-out;
+    }
+
+    /* Leaderboard modal */
+    #leaderboard-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0d0d0d;
+      z-index: 5000;
+      flex-direction: column;
+    }
+    #leaderboard-overlay.open { display: flex; }
+    #leaderboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+      background: #1a1a2e;
+    }
+    #leaderboard-header h3 { font-size: 16px; font-weight: 800; }
+    #btn-close-leaderboard {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #leaderboard-list { flex: 1; overflow-y: auto; }
+    #leaderboard-current { border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 13px;
+    }
+    .lb-row.rank-1 { background: rgba(255,215,0,0.15); }
+    .lb-row.rank-2 { background: rgba(192,192,192,0.1); }
+    .lb-row.rank-3 { background: rgba(205,127,50,0.1); }
+    .lb-row.current-player { background: rgba(100,150,255,0.15); }
+    .lb-rank { min-width: 36px; font-weight: 700; font-size: 12px; }
+    .lb-rank.gold { color: #FFD700; }
+    .lb-avatar { font-size: 20px; }
+    .lb-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-level { font-size: 11px; color: #888; white-space: nowrap; }
+    .lb-xp { color: #FFD700; font-weight: 700; font-size: 12px; white-space: nowrap; }
+
+    /* Leaderboard button in header */
+    #btn-leaderboard {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      color: #e0e0e0;
+    }
+
     /* Mine marker ring for capturable */
     .marker-capturable::after {
       content: '';
@@ -480,6 +590,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    /* Selected building highlight */
+    .marker-selected .marker-wrap {
+      outline: 2px solid rgba(255,215,0,0.85);
+      border-radius: 50%;
+      background: rgba(255,215,0,0.12);
     }
 
     /* Build menu cards */
@@ -698,6 +815,28 @@
     }
     .bot-boss-pulse { animation: bossPulse 0.85s ease-in-out infinite; }
 
+    /* Attacking bot pulse */
+    @keyframes attackPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    .bot-attacking { animation: attackPulse 0.5s infinite; }
+
+    /* Mine under attack flash */
+    @keyframes mineFlash {
+      0%   { filter: drop-shadow(0 0 8px rgba(255,0,0,0.9)); }
+      50%  { filter: drop-shadow(0 0 3px rgba(255,0,0,0.3)); }
+      100% { filter: drop-shadow(0 0 8px rgba(255,0,0,0.9)); }
+    }
+    .mine-under-attack { animation: mineFlash 0.5s infinite; }
+
+    /* Drain text float */
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-40px); }
+    }
+
     /* Screen shake */
     @keyframes screenShakeAnim {
       0%   { transform: translate(0,0); }
@@ -792,12 +931,17 @@
 <!-- Settings drawer -->
 <div id="settings-drawer">
   <div id="settings-header">
-    <h3>Settings</h3>
+    <h3>&#x2699;&#xFE0F; Настройки</h3>
     <button id="btn-close-settings">&#x2715;</button>
   </div>
+  <div id="settings-tabs">
+    <button class="settings-tab active" data-tab="profile">&#x1F464; Профиль</button>
+  </div>
   <div id="settings-body">
-    <div class="settings-section-title">Avatar</div>
-    <div id="avatar-grid"></div>
+    <div id="settings-tab-profile" class="settings-tab-content active">
+      <div class="settings-section-title">Аватарка</div>
+      <button id="btn-change-avatar" class="btn" style="width:100%;padding:12px;font-size:14px;text-align:center;">&#x1F3A8; Сменить аватарку</button>
+    </div>
     <div id="admin-section" style="display:none;margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
       <div class="settings-section-title">Admin</div>
       <button id="btn-maintenance-toggle" class="btn danger" style="width:100%;padding:12px;font-size:14px;">
@@ -813,6 +957,27 @@
   </div>
 </div>
 
+<!-- Avatar bottom sheet -->
+<div id="avatar-sheet-overlay">
+  <div id="avatar-sheet" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:700;font-size:15px;">&#x1F3A8; Выбери аватарку</div>
+      <button id="btn-close-avatar-sheet" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">&#x2715;</button>
+    </div>
+    <div id="avatar-grid"></div>
+  </div>
+</div>
+
+<!-- Leaderboard modal -->
+<div id="leaderboard-overlay">
+  <div id="leaderboard-header">
+    <h3>&#x1F3C6; Топ игроков</h3>
+    <button id="btn-close-leaderboard">&#x2715;</button>
+  </div>
+  <div id="leaderboard-list"></div>
+  <div id="leaderboard-current"></div>
+</div>
+
 <!-- Header -->
 <div id="header">
   <div id="header-balance">
@@ -821,6 +986,7 @@
     <span id="income-display" style="font-size:11px;color:#00ff88;margin-left:6px;"></span>
   </div>
   <button id="btn-pin" title="Закрепить на штабе">📍</button>
+  <button id="btn-leaderboard" title="Таблица лидеров">🏆</button>
   <button id="btn-settings">⚙️</button>
 </div>
 
@@ -872,6 +1038,7 @@
 // ─────────────────────────────────────────────
 const tg = window.Telegram?.WebApp;
 tg?.ready();
+tg?.disableVerticalSwipes();
 tg?.expand();
 
 // Resolved immediately — used for admin check before boot()
@@ -999,9 +1166,16 @@ function getBuildingInCell(cellId) {
   return null;
 }
 
+function getMineCapacity(level) {
+  if (level === 0) return 0;
+  return Math.floor(mineRate(level) * 3600);
+}
+
 function calcAccumulated(level, lastCollectedISO) {
+  if (level === 0) return 0;
   const elapsed = (Date.now() - new Date(lastCollectedISO).getTime()) / 1000;
-  return Math.floor(mineRate(level) * Math.max(0, elapsed));
+  const raw = Math.floor(mineRate(level) * Math.max(0, elapsed));
+  return Math.min(raw, getMineCapacity(level));
 }
 
 // XP / level helpers (mirrors lib/formulas.js)
@@ -1183,7 +1357,7 @@ async function apiFetch(path, opts = {}) {
     ...opts,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'API error');
+  if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : (data.error?.message || 'API error'));
   return data;
 }
 
@@ -1515,6 +1689,14 @@ function renderBuildings() {
     buildingMarkers[`mine_${mine.id}`] = marker;
   }
 
+  // Re-apply selected highlight after markers are rebuilt
+  if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
+    buildingMarkers[_selectedMarkerKey]._icon.classList.add('marker-selected');
+  }
+
+  // Re-apply attack status to mine markers
+  updateMineAttackStatus();
+
   // Online players — zIndexOffset: 1000 (above buildings)
   for (const p of (state.mapBuildings.online_players || [])) {
     const minsAgo = Math.floor((Date.now() - new Date(p.last_seen).getTime()) / 60000);
@@ -1523,7 +1705,7 @@ function renderBuildings() {
       .addTo(map)
       .on('click', () => openPopup(
         `${p.avatar || '🐺'} ${p.username || 'Unknown'}`,
-        `Онлайн ${label}`,
+        `Ур. ${p.level ?? 1}`,
         [],
         []
       ));
@@ -1630,12 +1812,29 @@ function _startUpgradeCountdown(finishAtStr) {
   }, 500);
 }
 
+// Tracks which building is currently shown in the popup (key = 'mine_ID' | 'hq_ID')
+let _currentPopupEntityId = null;
+let _selectedMarkerKey = null;
+
+function _selectMarker(key) {
+  // Clear previous
+  if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
+    buildingMarkers[_selectedMarkerKey]._icon.classList.remove('marker-selected');
+  }
+  _selectedMarkerKey = key;
+  if (key && buildingMarkers[key]?._icon) {
+    buildingMarkers[key]._icon.classList.add('marker-selected');
+  }
+}
+
 function closePopup() {
   document.getElementById('popup-overlay').classList.remove('open');
   if (_upgradeCountdownTimer) {
     clearInterval(_upgradeCountdownTimer);
     _upgradeCountdownTimer = null;
   }
+  _currentPopupEntityId = null;
+  _selectMarker(null);
 }
 
 document.getElementById('popup-overlay').addEventListener('click', e => {
@@ -1646,6 +1845,8 @@ document.getElementById('popup-overlay').addEventListener('click', e => {
 //  HQ popup
 // ─────────────────────────────────────────────
 function showHqPopup(hq, isOwn) {
+  _currentPopupEntityId = `hq_${hq.id}`;
+  _selectMarker(`hq_${hq.id}`);
   if (isOwn) {
     const hqLvl   = hq.level ?? 1;
     const cfg     = hqConfig(hqLvl);
@@ -1684,24 +1885,23 @@ function showHqPopup(hq, isOwn) {
   } else {
     const owner = hq.players?.username || 'Unknown';
     let presenceText;
-    if (hq.is_online) {
+    const lastSeen = hq.players?.last_seen;
+    const isOnline = lastSeen && (Date.now() - new Date(lastSeen).getTime()) < 3 * 60 * 1000;
+    if (isOnline) {
       presenceText = '🟢 Онлайн';
+    } else if (!lastSeen) {
+      presenceText = '🕐 Не был в сети';
     } else {
-      const lastSeen = hq.players?.last_seen;
-      if (!lastSeen) {
-        presenceText = 'Никогда';
-      } else {
-        const mins = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 60000);
-        if (mins < 1)         presenceText = 'Только что';
-        else if (mins < 60)   presenceText = `${mins} мин назад`;
-        else if (mins < 1440) presenceText = `${Math.floor(mins / 60)} ч назад`;
-        else                  presenceText = `${Math.floor(mins / 1440)} дн назад`;
-      }
+      const mins = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 60000);
+      if (mins < 1)         presenceText = '🕐 Был только что';
+      else if (mins < 60)   presenceText = `🕐 Был ${mins} мин назад`;
+      else if (mins < 1440) presenceText = `🕐 Был ${Math.floor(mins / 60)} ч назад`;
+      else                  presenceText = `🕐 Был ${Math.floor(mins / 1440)} дн назад`;
     }
     openPopup(
       `&#x26A1; ${owner}`,
-      `Штаб уровень ${hq.level ?? 1}`,
-      [['&#x1F550; Был', presenceText]],
+      presenceText,
+      [['Штаб', `Ур. ${hq.level ?? 1}`]],
       []
     );
   }
@@ -1711,10 +1911,19 @@ function showHqPopup(hq, isOwn) {
 //  Mine popup
 // ─────────────────────────────────────────────
 function showMinePopup(mine, isOwn, canCapture) {
+  _currentPopupEntityId = `mine_${mine.id}`;
+  _selectMarker(`mine_${mine.id}`);
   const appearance  = getMineAppearance(mine.level);
   const { emoji, name } = appearance;
   const rate        = mineRate(mine.level);
+  const capacity    = getMineCapacity(mine.level);
   const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected) : 0;
+  const isFull      = mine.level > 0 && accumulated >= capacity;
+
+  // Check if any bot is currently attacking this mine
+  const attacker = Object.values(botData).find(
+    b => b.status === 'attacking' && b.target_mine_id === mine.id
+  );
 
   if (isOwn) {
     const hqLvl   = state.hq?.level ?? 1;
@@ -1753,15 +1962,16 @@ function showMinePopup(mine, isOwn, canCapture) {
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      `Ваше здание`,
+      attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : `Ваше здание`,
       [
+        ...(attacker ? [['Высосано', `${attacker.drained_amount || 0} монет`]] : []),
         ...(isUpgrading
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
           : mine.level === 0
             ? [['Статус', 'Нужен первый апгрейд']]
             : [
                 ['Доход', `${rate.toLocaleString(undefined, {maximumFractionDigits: 2})} монет/сек`],
-                ['Накоплено', `${accumulated.toLocaleString()} монет`],
+                ['Накоплено', `${accumulated.toLocaleString()} / ${capacity.toLocaleString()}${isFull ? ' 🔴' : ''}`],
               ]),
         ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? `${nextCost.toLocaleString()}` : 'МАКС']] : []),
         ['Баланс штаба', hqCoins.toLocaleString()],
@@ -1804,7 +2014,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       `Владелец: ${owner} • В зоне захвата!`,
       [
         ['Доход', `${rate.toLocaleString()} монет/сек`],
-        ['Уровень', mine.level],
+        ['Ёмкость', `${capacity.toLocaleString()} монет (1ч)`],
       ],
       [{
         label: '⚔️ Захватить',
@@ -1885,9 +2095,9 @@ async function doUpgrade(mineId, targetLevel) {
     if (data.upgrading) {
       showToast(`⏳ Улучшение запущено → Ур.${data.pendingLevel} (${data.secondsLeft} сек)`);
       await loadVisibleBuildings();
-      // Re-open popup with timer if same mine popup is still open
+      // Re-open popup with timer only if user is still viewing this same mine
       const mine = state.mapBuildings.mines.find(m => m.id === mineId);
-      if (mine && document.getElementById('popup-overlay').classList.contains('open')) {
+      if (mine && _currentPopupEntityId === `mine_${mineId}`) {
         showMinePopup(mine, true, false);
       }
     }
@@ -1913,11 +2123,12 @@ async function pollCompleteUpgrades() {
       handleXpResult(mine.xp);
     }
     await loadVisibleBuildings();
-    // Update popup if open for one of the completed mines
-    const overlay = document.getElementById('popup-overlay');
-    if (overlay.classList.contains('open') && data.completed.length > 0) {
-      const mine = state.mapBuildings?.mines?.find(m => data.completed.some(c => c.id === m.id));
-      if (mine) showMinePopup(mine, true, false);
+    // Update popup only if user is currently viewing one of the completed mines
+    if (data.completed.length > 0) {
+      const completedMine = state.mapBuildings?.mines?.find(m =>
+        data.completed.some(c => c.id === m.id) && _currentPopupEntityId === `mine_${m.id}`
+      );
+      if (completedMine) showMinePopup(completedMine, true, false);
     }
   } catch (e) { /* silently ignore */ }
 }
@@ -2114,18 +2325,32 @@ function updateCoinDisplay() {
 //  Map + data refresh (viewport bbox)
 // ─────────────────────────────────────────────
 let _mapLoadPending = false;
+let _lastMapCenter  = null;
 
 async function loadVisibleBuildings() {
   if (_mapLoadPending) return;
+
+  const bounds = map.getBounds();
+  const center = bounds.getCenter();
+  if (_lastMapCenter) {
+    const latDiff = Math.abs(center.lat - _lastMapCenter.lat);
+    const lngDiff = Math.abs(center.lng - _lastMapCenter.lng);
+    if (latDiff < 0.001 && lngDiff < 0.001) return;
+  }
+  _lastMapCenter = center;
+
   _mapLoadPending = true;
   try {
-    const bounds = map.getBounds();
-    const pos    = state.playerPos;
+    const pos     = state.playerPos;
+    const n = bounds.getNorth(), s = bounds.getSouth();
+    const e = bounds.getEast(),  w = bounds.getWest();
+    const latPad = (n - s) * 0.2;
+    const lngPad = (e - w) * 0.2;
     const params = new URLSearchParams({
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east:  bounds.getEast(),
-      west:  bounds.getWest(),
+      north: n + latPad,
+      south: s - latPad,
+      east:  e + lngPad,
+      west:  w - lngPad,
     });
     if (TG_ID)    params.set('telegram_id', TG_ID);
     if (pos?.lat) params.set('lat', pos.lat);
@@ -2134,6 +2359,7 @@ async function loadVisibleBuildings() {
     const data = await apiFetch(`/api/map?${params}`);
     state.mapBuildings = data;
     renderBuildings();
+    if (data.bots?.length) renderBots(data.bots);
     updateHexGrid();
   } catch (e) {
     if (!e.message?.includes('Zoom in')) console.error('Map refresh error:', e);
@@ -2213,7 +2439,7 @@ function onPosition(pos) {
 
   // Location report: HQ coords in PIN mode, real GPS otherwise
   const now = Date.now();
-  if (TG_ID && now - _lastLocationReport > 5000) {
+  if (TG_ID && now - _lastLocationReport > 15000) {
     _lastLocationReport = now;
     const reportLat = pinMode ? hqLat : lat;
     const reportLng = pinMode ? hqLng : lng;
@@ -2247,8 +2473,70 @@ const BOT_CLIENT_TYPES = {
   boss:     { emoji:'💀', category:'undead',  size:'XL', markerSize:60, attackChance:0.8 },
 };
 
-const botMarkers = {}; // id → { marker, animTimer }
-let   botData    = {}; // id → bot object
+const botMarkers    = {}; // id → { marker, animTimer }
+let   botData       = {}; // id → bot object
+const drainIntervals = {}; // botId → interval
+
+function animateDrain(mineLatLng, botLatLng) {
+  const minePos = map.latLngToContainerPoint(mineLatLng);
+  const botPos  = map.latLngToContainerPoint(botLatLng);
+  const coin = document.createElement('div');
+  coin.textContent = '💰';
+  coin.style.cssText = `position:fixed;font-size:16px;left:${minePos.x}px;top:${minePos.y}px;pointer-events:none;z-index:9999;transition:none;`;
+  document.body.appendChild(coin);
+  requestAnimationFrame(() => {
+    coin.style.transition = 'all 0.8s ease-in';
+    coin.style.left       = botPos.x + 'px';
+    coin.style.top        = botPos.y + 'px';
+    coin.style.opacity    = '0';
+    coin.style.fontSize   = '10px';
+  });
+  setTimeout(() => coin.remove(), 900);
+}
+
+function startDrainAnimation(botId, mineId) {
+  if (drainIntervals[botId]) return;
+  drainIntervals[botId] = setInterval(() => {
+    const mineMarker = buildingMarkers[`mine_${mineId}`];
+    const botRef     = botMarkers[botId];
+    if (mineMarker && botRef) {
+      const mineLL = mineMarker.getLatLng();
+      const botLL  = botRef.marker.getLatLng();
+      animateDrain(mineLL, botLL);
+      setTimeout(() => animateDrain(mineLL, botLL), 300);
+      setTimeout(() => animateDrain(mineLL, botLL), 600);
+    }
+  }, 1500);
+}
+
+function stopDrainAnimation(botId) {
+  if (drainIntervals[botId]) { clearInterval(drainIntervals[botId]); delete drainIntervals[botId]; }
+}
+
+function showDrainText(latLng, amount) {
+  const pos = map.latLngToContainerPoint(latLng);
+  const el  = document.createElement('div');
+  el.textContent = `-${amount} 💸`;
+  el.style.cssText = `position:fixed;left:${pos.x}px;top:${pos.y}px;color:#ff4444;font-size:14px;font-weight:bold;pointer-events:none;z-index:9999;animation:floatUp 1.5s ease-out forwards;`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+function updateMineAttackStatus() {
+  // Clear all attack classes
+  for (const [key, marker] of Object.entries(buildingMarkers)) {
+    if (key.startsWith('mine_') && marker._icon) {
+      marker._icon.classList.remove('mine-under-attack');
+    }
+  }
+  // Mark attacked mines
+  for (const bot of Object.values(botData)) {
+    if (bot.status === 'attacking' && bot.target_mine_id) {
+      const m = buildingMarkers[`mine_${bot.target_mine_id}`];
+      if (m?._icon) m._icon.classList.add('mine-under-attack');
+    }
+  }
+}
 
 function botIcon(bot) {
   const cfg  = BOT_CLIENT_TYPES[bot.type] || {};
@@ -2268,9 +2556,10 @@ function botIcon(bot) {
       : 'filter:drop-shadow(0 0 5px rgba(50,255,100,0.8))';
   }
 
-  const bossClass = bot.type === 'boss' ? ' bot-boss-pulse' : '';
+  const bossClass     = bot.type === 'boss' ? ' bot-boss-pulse' : '';
+  const attackingClass = bot.status === 'attacking' ? ' bot-attacking' : '';
   return makeMarkerIcon(
-    `<div class="marker-wrap${bossClass}"><span style="font-size:${ms}px;${glow}">${bot.emoji}</span></div>`,
+    `<div class="marker-wrap${bossClass}${attackingClass}"><span style="font-size:${ms}px;${glow}">${bot.emoji}</span></div>`,
     ms + 12
   );
 }
@@ -2301,22 +2590,40 @@ function renderBots(bots) {
       botLayer.removeLayer(botMarkers[id].marker);
       delete botMarkers[id];
       delete botData[id];
+      stopDrainAnimation(id);
     }
   }
 
   for (const bot of bots) {
-    // Preserve HP if we have a more up-to-date value from combat
+    // Preserve HP from latest combat data
     const existing = botData[bot.id];
     botData[bot.id] = existing ? { ...bot, hp: existing.hp ?? bot.hp, max_hp: existing.max_hp ?? bot.max_hp } : bot;
+
     if (botMarkers[bot.id]) {
       animateBotMarker(botMarkers[bot.id], bot.lat, bot.lng);
+      // Refresh icon in case status changed (attacking animation)
+      botMarkers[bot.id].marker.setIcon(botIcon(bot));
     } else {
       const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
       marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
       marker.addTo(botLayer);
       botMarkers[bot.id] = { marker, animTimer: null };
     }
+
+    // Drain animation + text for attacking bots
+    if (bot.status === 'attacking' && bot.target_mine_id) {
+      startDrainAnimation(bot.id, bot.target_mine_id);
+      // Show drain damage text above the mine
+      const mineMarker = buildingMarkers[`mine_${bot.target_mine_id}`];
+      if (mineMarker) {
+        showDrainText(mineMarker.getLatLng(), (bot.drain_per_sec || 0) * 3);
+      }
+    } else {
+      stopDrainAnimation(bot.id);
+    }
   }
+
+  updateMineAttackStatus();
 }
 
 function showBotPopup(botId) {
@@ -2367,8 +2674,19 @@ function showBotPopup(botId) {
   const atkBtn = document.createElement('button');
   atkBtn.className = 'btn danger';
   atkBtn.style.flex = '1 0 100%';
-  atkBtn.innerHTML = near ? '⚔️ Атаковать' : `📍 Подойди ближе (${Math.round(dist)}м)`;
-  atkBtn.disabled = !near;
+  const respawnActive = _respawnUntil && Date.now() < _respawnUntil;
+  const respawnSecs   = respawnActive ? Math.ceil((_respawnUntil - Date.now()) / 1000) : 0;
+  if (!near) {
+    atkBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
+    atkBtn.disabled = true;
+  } else if (respawnActive) {
+    atkBtn.innerHTML = `💀 Возрождение через ${respawnSecs} сек`;
+    atkBtn.disabled = true;
+    atkBtn.dataset.respawn = '1';
+  } else {
+    atkBtn.innerHTML = '⚔️ Атаковать';
+    atkBtn.disabled = false;
+  }
   atkBtn.addEventListener('click', () => doAttackBot(botId));
   actEl.appendChild(atkBtn);
 
@@ -2403,11 +2721,43 @@ function screenShake() {
   setTimeout(() => mapEl.classList.remove('screen-shake'), 450);
 }
 
+// ── Respawn system ───────────────────────────────────────────────────────
+let _respawnUntil = null; // timestamp ms
+let _respawnTimer = null;
+
+function startRespawnCountdown(untilISO) {
+  _respawnUntil = new Date(untilISO).getTime();
+  if (_respawnTimer) clearInterval(_respawnTimer);
+
+  function tick() {
+    const secsLeft = Math.ceil((_respawnUntil - Date.now()) / 1000);
+    const atkBtn   = document.querySelector('#popup-actions .btn.danger[data-respawn]');
+    if (secsLeft <= 0) {
+      clearInterval(_respawnTimer);
+      _respawnTimer = null;
+      _respawnUntil = null;
+      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; delete atkBtn.dataset.respawn; }
+      return;
+    }
+    if (atkBtn) atkBtn.innerHTML = `💀 Возрождение через ${secsLeft} сек`;
+  }
+
+  tick();
+  _respawnTimer = setInterval(tick, 1000);
+}
+
 async function doAttackBot(botId) {
   const pos = state.playerPos;
   if (!pos) return showToast('❌ Нет GPS');
   const bot = botData[botId];
   if (!bot) { closePopup(); return; }
+
+  // Respawn check
+  if (_respawnUntil && Date.now() < _respawnUntil) {
+    const secsLeft = Math.ceil((_respawnUntil - Date.now()) / 1000);
+    showToast(`💀 Возрождение через ${secsLeft} сек`);
+    return;
+  }
 
   const atkBtn = document.querySelector('#popup-actions .btn.danger');
   if (atkBtn) { atkBtn.disabled = true; atkBtn.textContent = '⏳ Атака...'; }
@@ -2457,6 +2807,7 @@ async function doAttackBot(botId) {
       if (data.playerDied) {
         if (bot.type === 'boss') screenShake();
         showToast('☠️ Вы погибли! Возрождение...');
+        if (data.respawnUntil) startRespawnCountdown(data.respawnUntil);
       }
     } else {
       // Bot survived — counterattack feedback
@@ -2466,6 +2817,7 @@ async function doAttackBot(botId) {
         if (data.playerDied) {
           if (bot.type === 'boss') screenShake();
           showToast('☠️ Вы погибли! Возрождение...');
+          if (data.respawnUntil) startRespawnCountdown(data.respawnUntil);
         }
       }
 
@@ -2540,11 +2892,20 @@ async function doLureBot(botId) {
 
 async function tickBotMove() {
   if (!TG_ID || !state.playerPos) return;
-  const pos = state.playerPos;
+  const pos    = state.playerPos;
+  const bounds = map.getBounds();
+  const n = bounds.getNorth(), s = bounds.getSouth();
+  const e = bounds.getEast(),  w = bounds.getWest();
+  const latPad = (n - s) * 0.2;
+  const lngPad = (e - w) * 0.2;
   try {
     const data = await apiFetch('/api/bots', {
       method: 'POST',
-      body: JSON.stringify({ action: 'move', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({
+        action: 'move', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng,
+        north: n + latPad, south: s - latPad,
+        east:  e + lngPad, west:  w - lngPad,
+      }),
     });
     renderBots(data.bots || []);
   } catch (e) {
@@ -2555,11 +2916,13 @@ async function tickBotMove() {
 async function tickBotSpawn() {
   if (!TG_ID || !state.playerPos) return;
   const pos = state.playerPos;
+  console.log('[frontend] calling spawn... pos:', pos.lat.toFixed(4), pos.lng.toFixed(4));
   try {
     const data = await apiFetch('/api/bots', {
       method: 'POST',
       body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
     });
+    console.log('[frontend] spawn result: spawned', data.spawned, 'bots');
     if (data.bots?.length) renderBots([...Object.values(botData), ...data.bots]);
   } catch (e) {
     console.warn('[bots/spawn] error:', e.message);
@@ -2753,19 +3116,19 @@ async function boot() {
       timeout: 10000,
     });
 
-    // Periodic map refresh (every 10s via bbox)
-    setInterval(loadVisibleBuildings, 10000);
+    // Periodic map refresh (every 20s via bbox)
+    setInterval(loadVisibleBuildings, 20000);
 
     // Periodic player/level refresh (detect XP gains, level-ups)
     setInterval(refreshAll, 30000);
 
-    // Bot system
+    // Bot system: move every 10s (global), spawn every 60s (per-player zone)
     tickBotSpawn();
-    setInterval(tickBotMove,  2000);
-    setInterval(tickBotSpawn, 30000);
+    setInterval(tickBotMove,  10000);
+    setInterval(tickBotSpawn, 60000);
 
-    // Poll for completed mine upgrades every 2s
-    setInterval(pollCompleteUpgrades, 2000);
+    // Poll for completed mine upgrades every 10s
+    setInterval(pollCompleteUpgrades, 10000);
 
     _gameInitialised = true;
 
@@ -2809,6 +3172,7 @@ async function selectAvatar(avatar) {
     if (playerMarker && state.playerPos) {
       playerMarker.setIcon(playerIcon(avatar));
     }
+    closeAvatarSheet();
     showToast(`Аватар обновлён: ${avatar}`);
   } catch (err) {
     showToast(`❌ ${err.message}`);
@@ -2818,8 +3182,6 @@ async function selectAvatar(avatar) {
 document.getElementById('btn-pin').addEventListener('click', togglePin);
 
 document.getElementById('btn-settings').addEventListener('click', () => {
-  buildAvatarGrid();
-  // Refresh admin button state
   if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
     updateAdminButton();
   }
@@ -2829,6 +3191,104 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 document.getElementById('btn-close-settings').addEventListener('click', () => {
   document.getElementById('settings-drawer').classList.remove('open');
 });
+
+// Settings tabs
+document.querySelectorAll('.settings-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const tabId = tab.dataset.tab;
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('settings-tab-' + tabId).classList.add('active');
+  });
+});
+
+// ─────────────────────────────────────────────
+//  Avatar bottom sheet
+// ─────────────────────────────────────────────
+document.getElementById('btn-change-avatar').addEventListener('click', openAvatarSheet);
+document.getElementById('btn-close-avatar-sheet').addEventListener('click', closeAvatarSheet);
+document.getElementById('avatar-sheet-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeAvatarSheet();
+});
+
+function openAvatarSheet() {
+  buildAvatarGrid();
+  document.getElementById('avatar-sheet-overlay').classList.add('open');
+}
+
+function closeAvatarSheet() {
+  document.getElementById('avatar-sheet-overlay').classList.remove('open');
+}
+
+// ─────────────────────────────────────────────
+//  Leaderboard
+// ─────────────────────────────────────────────
+document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboard);
+document.getElementById('btn-close-leaderboard').addEventListener('click', closeLeaderboard);
+
+function openLeaderboard() {
+  document.getElementById('leaderboard-overlay').classList.add('open');
+  loadLeaderboard();
+}
+
+function closeLeaderboard() {
+  document.getElementById('leaderboard-overlay').classList.remove('open');
+}
+
+async function loadLeaderboard() {
+  const list = document.getElementById('leaderboard-list');
+  const currentDiv = document.getElementById('leaderboard-current');
+  list.innerHTML = '<div style="padding:32px;text-align:center;color:#666;">Загрузка...</div>';
+  currentDiv.innerHTML = '';
+  try {
+    const url = TG_ID ? `/api/map?view=leaderboard&telegram_id=${TG_ID}` : '/api/map?view=leaderboard';
+    const data = await apiFetch(url);
+    renderLeaderboard(data);
+  } catch (err) {
+    list.innerHTML = `<div style="padding:32px;text-align:center;color:#e06060;">Ошибка загрузки</div>`;
+  }
+}
+
+function renderLeaderboard(data) {
+  const list = document.getElementById('leaderboard-list');
+  const currentDiv = document.getElementById('leaderboard-current');
+  list.innerHTML = '';
+  currentDiv.innerHTML = '';
+
+  for (const p of data.top) {
+    const row = document.createElement('div');
+    let cls = 'lb-row';
+    if (p.rank === 1) cls += ' rank-1';
+    else if (p.rank === 2) cls += ' rank-2';
+    else if (p.rank === 3) cls += ' rank-3';
+    if (String(p.telegram_id) === String(TG_ID)) cls += ' current-player';
+    row.className = cls;
+    const rankCls = p.rank <= 3 ? 'lb-rank gold' : 'lb-rank';
+    row.innerHTML = `
+      <span class="${rankCls}">#${p.rank}</span>
+      <span class="lb-avatar">${p.avatar || '🐺'}</span>
+      <span class="lb-name">${p.username || 'Игрок'}</span>
+      <span class="lb-level">Ур.${p.level || 1}</span>
+      <span class="lb-xp">⭐ ${(p.xp || 0).toLocaleString()} XP</span>
+    `;
+    list.appendChild(row);
+  }
+
+  if (data.current) {
+    const p = data.current;
+    currentDiv.innerHTML = `
+      <div style="padding:6px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Ваша позиция</div>
+      <div class="lb-row current-player">
+        <span class="lb-rank">#${p.rank}</span>
+        <span class="lb-avatar">${p.avatar || '🐺'}</span>
+        <span class="lb-name">${p.username || 'Игрок'}</span>
+        <span class="lb-level">Ур.${p.level || 1}</span>
+        <span class="lb-xp">⭐ ${(p.xp || 0).toLocaleString()} XP</span>
+      </div>
+    `;
+  }
+}
 
 // ─────────────────────────────────────────────
 //  Boot

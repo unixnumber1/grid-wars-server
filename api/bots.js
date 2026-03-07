@@ -46,6 +46,12 @@ async function handleSpawn(player, body) {
 
   console.log('[spawn] total bots in DB near player:', botsInZone.length);
 
+  // Global cap: don't spawn if DB already has too many bots
+  const { count: globalCount } = await supabase
+    .from('bots').select('*', { count: 'exact', head: true })
+    .gt('expires_at', now);
+  if ((globalCount || 0) > 30) return { skipped: true, reason: 'too many bots', spawned: 0 };
+
   const needed = Math.max(0, BOTS_PER_ZONE - botsInZone.length);
   if (needed === 0) return { spawned: 0, bots: [] };
 
@@ -100,8 +106,17 @@ async function handleSpawn(player, body) {
 
 // ── MOVE ───────────────────────────────────────────────────────────────────
 // Moves ALL bots globally. Undead have roaming/attacking/leaving state machine.
-// Called every 3s from each client — one call moves every bot in DB.
+// Called every 10s from each client — global lock ensures max 1 move per 8s.
 async function handleMove(player, body) {
+  // Global lock: skip if another client already ran move in last 8s
+  const { data: moveSetting } = await supabase
+    .from('app_settings').select('value').eq('key', 'last_bots_move').single();
+  const lastMove = parseInt(moveSetting?.value || '0');
+  const nowMs    = Date.now();
+  if (nowMs - lastMove < 8000) return { skipped: true, bots: [] };
+  await supabase.from('app_settings')
+    .update({ value: nowMs.toString() }).eq('key', 'last_bots_move');
+
   const now = new Date().toISOString();
 
   const { data: bots, error } = await supabase

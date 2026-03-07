@@ -98,14 +98,21 @@ ALTER TABLE headquarters ADD COLUMN IF NOT EXISTS level integer NOT NULL DEFAULT
 ALTER TABLE players ADD COLUMN IF NOT EXISTS hp           integer;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS max_hp       integer;
 ALTER TABLE players ADD COLUMN IF NOT EXISTS last_hp_regen TIMESTAMPTZ DEFAULT now();
-ALTER TABLE players ADD COLUMN IF NOT EXISTS kills        integer NOT NULL DEFAULT 0;
-ALTER TABLE players ADD COLUMN IF NOT EXISTS deaths       integer NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS kills         integer NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS deaths        integer NOT NULL DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS respawn_until TIMESTAMPTZ;
 
 -- Bot combat stats
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS hp     integer;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS max_hp integer;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS attack integer NOT NULL DEFAULT 0;
-ALTER TABLE bots ADD COLUMN IF NOT EXISTS size   text    NOT NULL DEFAULT 'S';
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS hp             integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS max_hp         integer;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS attack         integer NOT NULL DEFAULT 0;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS size           text    NOT NULL DEFAULT 'S';
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS direction      float8;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS spawn_lat      float8;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS spawn_lng      float8;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS status         text    DEFAULT 'roaming';
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS drained_amount integer DEFAULT 0;
+ALTER TABLE bots ADD COLUMN IF NOT EXISTS drain_limit    integer DEFAULT 0;
 
 -- ─── App settings (maintenance mode etc.) ──────────────────────────────────
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -116,6 +123,10 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 INSERT INTO app_settings (key, value)
 VALUES ('maintenance_mode', 'false')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO app_settings (key, value)
+VALUES ('last_bots_move', '0')
 ON CONFLICT (key) DO NOTHING;
 
 ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
