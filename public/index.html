@@ -53,6 +53,21 @@
 
     #header-balance .bal-icon { font-size: 20px; }
 
+    #btn-pin {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     #btn-settings {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(255,255,255,0.1);
@@ -236,38 +251,64 @@
 
     .popup-actions {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 8px;
       margin-top: 16px;
     }
 
-    .popup-actions .btn { flex: 1; text-align: center; padding: 10px 12px; font-size: 13px; min-width: 80px; }
-
-    /* Toast */
-    #toast {
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: #222;
-      border: 1px solid #333;
-      color: #e0e0e0;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 13px;
-      z-index: 3000;
-      opacity: 0;
-      transition: opacity 0.2s, transform 0.2s;
-      pointer-events: none;
-      max-width: calc(100vw - 32px);
-      white-space: normal;
-      word-break: break-word;
+    .popup-actions > .btn {
+      width: 100%;
       text-align: center;
+      padding: 12px 16px;
+      font-size: 14px;
     }
 
-    #toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
+    .popup-btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .popup-btn-row .btn {
+      flex: 1;
+      text-align: center;
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    /* Toast container */
+    #toast-container {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: calc(100% - 32px);
+      max-width: 320px;
+      pointer-events: none;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .toast-item {
+      background: rgba(20, 20, 40, 0.95);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      padding: 10px 16px;
+      backdrop-filter: blur(10px);
+      font-size: 13px;
+      color: #e0e0e0;
+      text-align: center;
+      word-break: break-word;
+      width: 100%;
+      animation: slideDown 0.2s ease-out;
+      transition: opacity 0.3s ease;
     }
 
     /* Leaflet marker overrides */
@@ -473,64 +514,74 @@
       margin-bottom: 10px;
     }
 
-    /* Level-up notification */
-    #levelup-notify {
+    /* Level-up overlay */
+    #levelup-overlay {
+      display: none;
       position: fixed;
-      bottom: -260px;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 5999;
+    }
+    #levelup-overlay.show { display: block; }
+
+    /* Level-up notification */
+    @keyframes levelUpAppear {
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+      60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    #levelup-notify {
+      display: none;
+      position: fixed;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #FFD700, #FF8C00);
-      color: #1a0800;
-      padding: 22px 40px 20px;
+      transform: translate(-50%, -50%) scale(1);
+      width: 300px;
+      height: 160px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 2px solid #FFD700;
       border-radius: 16px;
-      z-index: 5000;
-      box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 8px 32px rgba(0,0,0,0.4);
+      box-shadow: 0 0 40px rgba(255,215,0,0.4), 0 0 80px rgba(255,215,0,0.15);
+      z-index: 6000;
       pointer-events: none;
       text-align: center;
-      min-width: 230px;
-      opacity: 0;
-      transition: bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.45s ease;
+      padding: 18px 20px;
+      box-sizing: border-box;
     }
     #levelup-notify.show {
-      bottom: 90px;
-      opacity: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: levelUpAppear 0.4s ease-out;
     }
     #levelup-notify.hide {
       opacity: 0;
       transition: opacity 0.5s ease;
     }
     #levelup-title {
-      font-size: 14px;
-      font-weight: 900;
-      letter-spacing: 1.5px;
-      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #FFD700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
     }
     #levelup-num {
-      font-size: 44px;
+      font-size: 64px;
       font-weight: 900;
+      color: #fff;
       line-height: 1;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
     }
-    #levelup-bar {
-      height: 6px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 3px;
-      width: 100%;
+    #levelup-stats {
+      font-size: 12px;
+      color: #aaa;
     }
 
     /* Player level badge — clickable */
     #player-level-display { cursor: pointer; }
     #player-level-display:active { opacity: 0.7; }
-
-    /* Online player marker ring */
-    .marker-online::after {
-      content: '';
-      position: absolute;
-      inset: -4px;
-      border-radius: 50%;
-      border: 2px solid #4fc3f7;
-      pointer-events: none;
-    }
 
     /* Maintenance screen */
     #maintenance-screen {
@@ -577,6 +628,67 @@
       font-size: 13px;
       color: #555;
       margin-top: -8px;
+    }
+
+    /* Maintenance animation scene */
+    #maintenance-scene {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      overflow: hidden;
+      height: 80px;
+      pointer-events: none;
+    }
+
+    #maintenance-ground {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      font-size: 14px;
+      white-space: nowrap;
+      color: #333;
+      line-height: 1;
+    }
+
+    #maintenance-tram {
+      position: absolute;
+      bottom: 16px;
+      font-size: 48px;
+      line-height: 1;
+      display: inline-block;
+      animation: maintenanceTram 4s linear infinite;
+    }
+
+    #maintenance-runner {
+      position: absolute;
+      bottom: 16px;
+      font-size: 36px;
+      line-height: 1;
+      display: inline-block;
+      animation: maintenanceTram 4s linear infinite;
+      animation-delay: 0.8s;
+    }
+
+    @keyframes maintenanceTram {
+      0%   { transform: translateX(100vw); }
+      100% { transform: translateX(-200px); }
+    }
+
+    /* Upgrade progress bar */
+    .upgrade-progress-wrap {
+      margin: 6px 0 2px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 6px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .upgrade-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #FFD700, #ff9900);
+      border-radius: 6px;
+      transition: width 1s linear;
     }
 
     /* Boss pulse animation */
@@ -658,6 +770,11 @@
   <div id="maintenance-title">🔧 Технический перерыв</div>
   <div id="maintenance-sub">Скоро вернёмся!</div>
   <div id="maintenance-hint">Следи за обновлениями</div>
+  <div id="maintenance-scene">
+    <span id="maintenance-tram">🚃</span>
+    <span id="maintenance-runner">🏃</span>
+    <div id="maintenance-ground">・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・</div>
+  </div>
 </div>
 
 <!-- HQ placement prompt -->
@@ -689,6 +806,9 @@
       <button id="btn-fix-positions" class="btn yellow" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">
         📐 Выровнять позиции
       </button>
+      <button id="btn-fix-usernames" class="btn yellow" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">
+        👤 Обновить владельцев
+      </button>
     </div>
   </div>
 </div>
@@ -698,7 +818,9 @@
   <div id="header-balance">
     <span class="bal-icon">💰</span>
     <span id="coin-display">—</span>
+    <span id="income-display" style="font-size:11px;color:#00ff88;margin-left:6px;"></span>
   </div>
+  <button id="btn-pin" title="Закрепить на штабе">📍</button>
   <button id="btn-settings">⚙️</button>
 </div>
 
@@ -733,15 +855,16 @@
   </div>
 </div>
 
-<!-- Level-up notification -->
+<!-- Level-up overlay + notification -->
+<div id="levelup-overlay"></div>
 <div id="levelup-notify">
-  <div id="levelup-title">⭐ НОВЫЙ УРОВЕНЬ! ⭐</div>
+  <div id="levelup-title">✦ НОВЫЙ УРОВЕНЬ ✦</div>
   <div id="levelup-num"></div>
-  <div id="levelup-bar"></div>
+  <div id="levelup-stats"></div>
 </div>
 
-<!-- Toast -->
-<div id="toast"></div>
+<!-- Toast container -->
+<div id="toast-container"></div>
 
 <script>
 // ─────────────────────────────────────────────
@@ -772,22 +895,15 @@ const H3_RES            = 11;    // ~50m hex diameter
 const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
 
 // Formulas (keep in sync with lib/formulas.js)
-const C0=100.0, I0=10.0, r1=1.08, r2=1.10, r3=1.12, a1=1.2, a2=1.05, a3=0.95;
 function mineRate(level) {
-  if (level <= 0) return 0;
-  if (level <= 50) return Math.round(I0 * Math.pow(level, a1));
-  const A = Math.pow(50, a1-a2);
-  if (level <= 100) return Math.round(I0 * A * Math.pow(level, a2));
-  const B = A * Math.pow(100, a2-a3);
-  return Math.round(I0 * B * Math.pow(level, a3));
+  if (level === 0) return 0;
+  // Divided by 100 for balance
+  return Math.round(10 * Math.pow(level, 1.2)) / 100;
 }
+// Cost to upgrade FROM `level` to level+1
 function mineUpgradeCost(level) {
-  if (level < 1) return 0;
-  let c = C0;
-  for (let lvl = 2; lvl <= level; lvl++) {
-    if (lvl-1 < 50) c *= r1; else if (lvl-1 < 100) c *= r2; else c *= r3;
-  }
-  return Math.round(c);
+  if (level === 0) return 100; // активация
+  return Math.round(100 * Math.pow(1.09, level));
 }
 
 const HQ_LEVELS = [
@@ -806,25 +922,33 @@ function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
 
 function getMineAppearance(level) {
-  if (level <= 0)  return { emoji: '🪨', name: 'Карьер' };
-  if (level < 10)  return { emoji: '⛏️',  name: 'Шахта' };
-  if (level < 20)  return { emoji: '🏚️',  name: 'Лачуга' };
-  if (level < 30)  return { emoji: '🏠',  name: 'Домик' };
-  if (level < 40)  return { emoji: '🏡',  name: 'Усадьба' };
-  if (level < 50)  return { emoji: '🏘️',  name: 'Посёлок' };
-  if (level < 60)  return { emoji: '🏗️',  name: 'Стройка' };
-  if (level < 70)  return { emoji: '🏢',  name: 'Офис' };
-  if (level < 80)  return { emoji: '🏬',  name: 'Торговый центр' };
-  if (level < 90)  return { emoji: '🏭',  name: 'Завод' };
-  if (level < 100) return { emoji: '🏰',  name: 'Замок' };
-  if (level < 110) return { emoji: '🌆',  name: 'Мегаполис' };
-  if (level < 120) return { emoji: '🌇',  name: 'Небоскрёб' };
-  if (level < 130) return { emoji: '🌃',  name: 'Ночной город' };
-  if (level < 140) return { emoji: '🌉',  name: 'Цитадель' };
-  if (level < 150) return { emoji: '🏯',  name: 'Крепость' };
-  return                   { emoji: '👑',  name: 'Трон Богов' };
+  if (level < 10)  return { emoji: '🪨', name: 'Каменный алтарь' };
+  if (level < 20)  return { emoji: '🔮', name: 'Магический колодец' };
+  if (level < 30)  return { emoji: '🌿', name: 'Друидическая роща' };
+  if (level < 40)  return { emoji: '🔥', name: 'Огненный маяк' };
+  if (level < 50)  return { emoji: '⚗️', name: 'Алхимическая башня' };
+  if (level < 60)  return { emoji: '🌀', name: 'Портал разлома' };
+  if (level < 70)  return { emoji: '🏯', name: 'Тёмная цитадель' };
+  if (level < 80)  return { emoji: '💎', name: 'Кристальный шпиль' };
+  if (level < 90)  return { emoji: '🌙', name: 'Лунный обелиск' };
+  if (level < 100) return { emoji: '⭐', name: 'Звёздный Nexus' };
+  if (level < 110) return { emoji: '🌌', name: 'Астральный разлом' };
+  if (level < 120) return { emoji: '👁️', name: 'Глаз Вечности' };
+  if (level < 130) return { emoji: '🐉', name: 'Драконье гнездо' };
+  if (level < 140) return { emoji: '☄️', name: 'Метеоритный кратер' };
+  if (level < 150) return { emoji: '🌋', name: 'Вулканический трон' };
+  return                   { emoji: '👑', name: 'Трон Богов' };
 }
 function getMineEmoji(level) { return getMineAppearance(level).emoji; }
+
+function getMineUpgradeCostBulk(currentLevel, count) {
+  let total = 0;
+  for (let i = 0; i < count; i++) total += mineUpgradeCost(currentLevel + i);
+  return total;
+}
+function getNextRoundLevel(currentLevel) {
+  return Math.ceil((currentLevel + 1) / 10) * 10;
+}
 
 const ALLOWED_AVATARS = [
   '🐱','🐯','🦁','🐻','🐼','🐨','🐶','🦊','🐺','🦝',
@@ -843,6 +967,7 @@ let state = {
   mines: [],           // player's own mines (from /api/player/init)
   mapBuildings: { headquarters: [], mines: [] },
   playerPos: null,     // { lat, lng }
+  totalIncome: 0,      // sum of getMineIncome across all owned mines
 };
 
 // ─────────────────────────────────────────────
@@ -882,20 +1007,53 @@ function calcAccumulated(level, lastCollectedISO) {
 // XP / level helpers (mirrors lib/formulas.js)
 function xpForLevel(level) { return Math.floor(100 * Math.pow(level, 1.9)); }
 
+// Inline mirrors of lib/formulas.js (frontend has no imports)
+function _calcMaxHp(level)      { return 100 + (level - 1) * 10; }
+function _calcAttack(level)     { return 10  + (level - 1) * 2;  }
+function _calcBuildRadius(lvl)  {
+  if (lvl >= 100) return 1500;
+  if (lvl >= 50)  return 1000;
+  if (lvl >= 30)  return 800;
+  if (lvl >= 20)  return 700;
+  if (lvl >= 10)  return 600;
+  if (lvl >= 5)   return 550;
+  return 500;
+}
+
 let _levelUpTimer = null;
 function showLevelUp(level) {
-  const el = document.getElementById('levelup-notify');
-  document.getElementById('levelup-num').textContent = `Уровень ${level}`;
-  el.classList.remove('hide');
+  console.log('[levelup] showLevelUp called, level:', level);
+  const el      = document.getElementById('levelup-notify');
+  const overlay = document.getElementById('levelup-overlay');
+  if (!el || !overlay) { console.warn('[levelup] elements not found'); return; }
+
+  document.getElementById('levelup-num').textContent = level;
+  const attack = _calcAttack(level);
+  const hp     = _calcMaxHp(level);
+  const radius = _calcBuildRadius(level);
+  document.getElementById('levelup-stats').textContent = `⚔️ ${attack}  ❤️ ${hp}  📍 ${radius}м`;
+
+  // Force animation replay: reset display and reflow
+  el.classList.remove('show', 'hide');
+  el.style.display = 'none';
+  void el.offsetWidth; // reflow
+  el.style.display = '';
   el.classList.add('show');
+  overlay.classList.add('show');
+
   if (_levelUpTimer) clearTimeout(_levelUpTimer);
   _levelUpTimer = setTimeout(() => {
     el.classList.add('hide');
+    overlay.classList.remove('show');
     setTimeout(() => el.classList.remove('show', 'hide'), 600);
-  }, 4000);
+  }, 3500);
 }
 
+// Тест из консоли браузера: window.testLevelUp(5)
+window.testLevelUp = (level = 5) => showLevelUp(level);
+
 function handleXpResult(xp) {
+  console.log('[levelup] handleXpResult:', JSON.stringify(xp));
   if (!xp) return;
   if (xp.xpGained > 0) showXpToast(xp.xpGained);
   if (state.player && xp.newXp != null) {
@@ -903,7 +1061,10 @@ function handleXpResult(xp) {
     state.player.level = xp.newLevel;
     updateXpBar();
   }
-  if (xp.leveledUp) showLevelUp(xp.newLevel);
+  if (xp.leveledUp) {
+    console.log('[levelup] triggering showLevelUp for level', xp.newLevel);
+    showLevelUp(xp.newLevel);
+  }
 }
 
 function showProfilePopup() {
@@ -960,7 +1121,7 @@ function showProfilePopup() {
 
 function calcSellRefund(level) {
   let sum = 0;
-  for (let i = 1; i <= level; i++) sum += mineUpgradeCost(i);
+  for (let i = 0; i < level; i++) sum += mineUpgradeCost(i);
   return Math.floor(sum * 0.3);
 }
 
@@ -1001,10 +1162,15 @@ function showXpToast(amount) {
 }
 
 function showToast(msg, duration = 2500) {
-  const el = document.getElementById('toast');
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast-item';
   el.innerHTML = msg;
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), duration);
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 350);
+  }, duration);
 }
 
 function setLoadingText(t) {
@@ -1044,6 +1210,74 @@ document.head.appendChild(style);
 // zoom controls disabled (zoomControl: false in map init)
 
 let playerMarker = null;
+let playerZoneCircle = null;
+
+// ── Pin mode ────────────────────────────────────
+let pinMode = false;
+let hqLat = null;
+let hqLng = null;
+let realPlayerPos = null; // true GPS coords while PIN is active
+
+function updatePinButton(active) {
+  const btn = document.getElementById('btn-pin');
+  if (active) {
+    btn.textContent = '📌';
+    btn.style.background = 'rgba(255,215,0,0.2)';
+    btn.style.border = '1px solid #FFD700';
+  } else {
+    btn.textContent = '📍';
+    btn.style.background = 'transparent';
+    btn.style.border = '1px solid rgba(255,255,255,0.2)';
+  }
+}
+
+// Apply a position to the player marker, zone circle, and state.playerPos
+function _applyPlayerPosition(lat, lng) {
+  const playerBuildRadius = state.player?.buildRadius ?? 250;
+  state.playerPos = { lat, lng };
+  if (playerMarker) {
+    playerMarker.setLatLng([lat, lng]);
+  }
+  if (playerZoneCircle) {
+    playerZoneCircle.setLatLng([lat, lng]);
+    playerZoneCircle.setRadius(playerBuildRadius);
+  }
+  updateHexGrid();
+}
+
+function togglePin() {
+  if (!hqLat || !hqLng) {
+    showToast('❌ Сначала поставь штаб');
+    return;
+  }
+  pinMode = !pinMode;
+  if (pinMode) {
+    realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
+    _applyPlayerPosition(hqLat, hqLng);
+    map.setView([hqLat, hqLng], map.getZoom());
+    updatePinButton(true);
+    loadVisibleBuildings();
+    if (TG_ID) apiFetch('/api/player/location', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
+    }).catch(() => {});
+    showToast('📌 Телепорт на штаб');
+  } else {
+    const restoreTo = realPlayerPos || state.playerPos;
+    if (restoreTo) {
+      _applyPlayerPosition(restoreTo.lat, restoreTo.lng);
+      map.setView([restoreTo.lat, restoreTo.lng], map.getZoom());
+      if (TG_ID) apiFetch('/api/player/location', {
+        method: 'POST',
+        body: JSON.stringify({ telegram_id: TG_ID, lat: restoreTo.lat, lng: restoreTo.lng }),
+      }).catch(() => {});
+    }
+    updatePinButton(false);
+    loadVisibleBuildings();
+    showToast('📍 Возврат к реальной позиции');
+  }
+}
+
 const hexLayer = L.layerGroup().addTo(map);
 const botLayer  = L.layerGroup().addTo(map);
 
@@ -1091,7 +1325,7 @@ function playerIcon(avatar) {
 function otherPlayerIcon(avatar) {
   const em = avatar || '🐺';
   return makeMarkerIcon(
-    `<div class="marker-wrap marker-online"><span style="font-size:22px">${em}</span><span style="position:absolute;bottom:0;right:0;width:10px;height:10px;background:#00ff88;border-radius:50%;border:2px solid #000;"></span></div>`, 34
+    `<div class="marker-wrap"><span style="font-size:34px">${em}</span></div>`, 34
   );
 }
 
@@ -1300,6 +1534,18 @@ function renderBuildings() {
 // ─────────────────────────────────────────────
 //  Popup helpers
 // ─────────────────────────────────────────────
+function _makePopupBtn(btn) {
+  const b = document.createElement('button');
+  b.className = `btn ${btn.cls || ''}`;
+  b.innerHTML = btn.label;
+  if (btn.disabled) b.disabled = true;
+  b.addEventListener('click', () => {
+    if (!btn.noClose) closePopup();
+    if (btn.action) btn.action();
+  });
+  return b;
+}
+
 function openPopup(title, subtitle, stats, actions) {
   document.getElementById('popup-title').innerHTML = title;
   document.getElementById('popup-subtitle').textContent = subtitle;
@@ -1315,28 +1561,81 @@ function openPopup(title, subtitle, stats, actions) {
 
   const actEl = document.getElementById('popup-actions');
   actEl.innerHTML = '';
-  for (const btn of actions) {
-    const b = document.createElement('button');
-    b.className = `btn ${btn.cls || ''}`;
-    b.innerHTML = btn.label;
-    if (btn.disabled) b.disabled = true;
-    if (btn.fullWidth) b.style.flex = '1 0 100%';
-    b.addEventListener('click', () => { closePopup(); btn.action(); });
-    actEl.appendChild(b);
+  let hasClose = false;
+
+  for (const item of actions) {
+    if (Array.isArray(item)) {
+      // Row of buttons side-by-side
+      const row = document.createElement('div');
+      row.className = 'popup-btn-row';
+      for (const btn of item) {
+        if (btn.isClose) hasClose = true;
+        row.appendChild(_makePopupBtn(btn));
+      }
+      actEl.appendChild(row);
+    } else {
+      const b = _makePopupBtn(item);
+      if (item.isClose) hasClose = true;
+      actEl.appendChild(b);
+    }
   }
 
-  // Close button
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
+  if (!hasClose) {
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn';
+    closeBtn.textContent = 'Закрыть';
+    closeBtn.addEventListener('click', closePopup);
+    actEl.appendChild(closeBtn);
+  }
 
   document.getElementById('popup-overlay').classList.add('open');
 }
 
+let _upgradeCountdownTimer = null;
+
+function _startUpgradeCountdown(finishAtStr) {
+  const finishAt = new Date(finishAtStr);
+  const totalSec = Math.max(1, Math.round((finishAt - Date.now()) / 1000));
+
+  // Inject progress bar into popup-stats
+  const statsEl = document.getElementById('popup-stats');
+  const wrap = document.createElement('div');
+  wrap.className = 'upgrade-progress-wrap';
+  wrap.id = 'upgrade-progress-wrap';
+  const bar = document.createElement('div');
+  bar.className = 'upgrade-progress-bar';
+  bar.id = 'upgrade-progress-bar';
+  bar.style.width = '100%';
+  wrap.appendChild(bar);
+  statsEl.appendChild(wrap);
+
+  const countRow = document.createElement('div');
+  countRow.className = 'popup-stat';
+  countRow.id = 'upgrade-countdown-row';
+  countRow.innerHTML = `<span>Осталось</span><span class="val" id="upgrade-countdown-val">${totalSec} сек</span>`;
+  statsEl.appendChild(countRow);
+
+  if (_upgradeCountdownTimer) clearInterval(_upgradeCountdownTimer);
+  _upgradeCountdownTimer = setInterval(() => {
+    const secsLeft = Math.max(0, Math.ceil((finishAt - Date.now()) / 1000));
+    const pct = (secsLeft / totalSec) * 100;
+    const barEl = document.getElementById('upgrade-progress-bar');
+    const valEl = document.getElementById('upgrade-countdown-val');
+    if (barEl) barEl.style.width = `${pct}%`;
+    if (valEl) valEl.textContent = `${secsLeft} сек`;
+    if (secsLeft <= 0) {
+      clearInterval(_upgradeCountdownTimer);
+      _upgradeCountdownTimer = null;
+    }
+  }, 500);
+}
+
 function closePopup() {
   document.getElementById('popup-overlay').classList.remove('open');
+  if (_upgradeCountdownTimer) {
+    clearInterval(_upgradeCountdownTimer);
+    _upgradeCountdownTimer = null;
+  }
 }
 
 document.getElementById('popup-overlay').addEventListener('click', e => {
@@ -1364,16 +1663,22 @@ function showHqPopup(hq, isOwn) {
       ],
       [
         ...(nextCost !== null ? [{
-          label: `&#x2B06;&#xFE0F; Upgrade HQ (${nextCost.toLocaleString()})`,
-          cls: 'primary',
+          label: `⬆️ Улучшить штаб (${nextCost.toLocaleString()})`,
+          cls: 'yellow',
           disabled: !canUpgrade,
           action: () => doUpgradeHq(),
         }] : []),
-        {
-          label: '&#x1F5D1;&#xFE0F; Снести штаб',
-          cls: 'danger',
-          action: () => confirmSellHq(),
-        },
+        [
+          {
+            label: '🗑️ Снести',
+            cls: 'danger',
+            action: () => confirmSellHq(),
+          },
+          {
+            label: 'Закрыть',
+            isClose: true,
+          },
+        ],
       ]
     );
   } else {
@@ -1414,31 +1719,51 @@ function showMinePopup(mine, isOwn, canCapture) {
   if (isOwn) {
     const hqLvl   = state.hq?.level ?? 1;
     const cfg     = hqConfig(hqLvl);
-    const nextCost = mine.level < MINE_MAX_LEVEL ? mineUpgradeCost(mine.level + 1) : null;
     const hqCoins  = state.hq?.coins ?? 0;
-    const levelCapHit = nextCost !== null && mine.level + 1 > cfg.maxMineLevel;
-    const canUpgrade  = nextCost !== null && !levelCapHit && hqCoins >= nextCost;
-    const upgradeLabel = levelCapHit
-      ? `⬆️ Сначала улучши штаб (макс Ур.${cfg.maxMineLevel})`
-      : nextCost !== null
-        ? `⬆️ Улучшить (${nextCost.toLocaleString()})`
-        : 'МАКС УРОВЕНЬ';
-
     const refund   = calcSellRefund(mine.level);
     const sellTotal = refund + accumulated;
     const levelLabel = mine.level === 0 ? 'Неактивен' : `Ур. ${mine.level}`;
+
+    // Check if upgrade is in progress
+    const isUpgrading = mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date();
+    const pendingLevel = mine.pending_level;
+
+    const nextCost = mine.level < MINE_MAX_LEVEL ? mineUpgradeCost(mine.level) : null;
+    const levelCapHit = nextCost !== null && mine.level + 1 > cfg.maxMineLevel;
+    const canUpgrade  = !isUpgrading && nextCost !== null && !levelCapHit && hqCoins >= nextCost;
+    const upgradeLabel = isUpgrading
+      ? '⏳ Идёт улучшение...'
+      : levelCapHit
+        ? `⬆️ Сначала улучши штаб (макс Ур.${cfg.maxMineLevel})`
+        : nextCost !== null
+          ? mine.level === 0
+            ? `⚡ Активировать (${nextCost.toLocaleString()} монет)`
+            : `⬆️ Улучшить (${nextCost.toLocaleString()})`
+          : 'МАКС УРОВЕНЬ';
+
+    // Bulk upgrade button: to next round level
+    const maxAllowed = Math.min(MINE_MAX_LEVEL, cfg.maxMineLevel);
+    const targetBulkLevel = Math.min(getNextRoundLevel(mine.level), maxAllowed);
+    const bulkLevelsCount = targetBulkLevel - mine.level;
+    const bulkCost = bulkLevelsCount > 0 ? getMineUpgradeCostBulk(mine.level, bulkLevelsCount) : 0;
+    const canBulk = !isUpgrading && bulkLevelsCount > 0 && mine.level > 0 && hqCoins >= bulkCost && targetBulkLevel <= maxAllowed;
+    const bulkLabel = (bulkLevelsCount > 0 && mine.level > 0 && targetBulkLevel <= maxAllowed)
+      ? `⚡ до ур.${targetBulkLevel} (${bulkCost.toLocaleString()})`
+      : null;
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
       `Ваше здание`,
       [
-        ...(mine.level === 0
-          ? [['Статус', 'Нужен первый апгрейд']]
-          : [
-              ['Доход', `${rate.toLocaleString()} монет/сек`],
-              ['Накоплено', `${accumulated.toLocaleString()} монет`],
-            ]),
-        ['Стоимость апгрейда', nextCost !== null ? `${nextCost.toLocaleString()}` : 'МАКС'],
+        ...(isUpgrading
+          ? [['Улучшается до', `Ур. ${pendingLevel}`]]
+          : mine.level === 0
+            ? [['Статус', 'Нужен первый апгрейд']]
+            : [
+                ['Доход', `${rate.toLocaleString(undefined, {maximumFractionDigits: 2})} монет/сек`],
+                ['Накоплено', `${accumulated.toLocaleString()} монет`],
+              ]),
+        ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? `${nextCost.toLocaleString()}` : 'МАКС']] : []),
         ['Баланс штаба', hqCoins.toLocaleString()],
       ],
       [
@@ -1446,16 +1771,32 @@ function showMinePopup(mine, isOwn, canCapture) {
           label: upgradeLabel,
           cls: 'yellow',
           disabled: !canUpgrade,
-          fullWidth: true,
-          action: () => doUpgrade(mine.id),
+          action: () => doUpgrade(mine.id, mine.level + 1),
         }] : []),
-        {
-          label: `💸 Продать (+${sellTotal.toLocaleString()})`,
-          cls: 'danger',
-          action: () => doSellMine(mine.id),
-        },
+        ...(bulkLabel ? [{
+          label: bulkLabel,
+          cls: 'yellow',
+          disabled: !canBulk,
+          action: () => doUpgrade(mine.id, targetBulkLevel),
+        }] : []),
+        [
+          {
+            label: `🔥 Продать (+${sellTotal.toLocaleString()})`,
+            cls: 'primary',
+            action: () => doSellMine(mine.id),
+          },
+          {
+            label: 'Закрыть',
+            isClose: true,
+          },
+        ],
       ]
     );
+
+    // Upgrading countdown UI
+    if (isUpgrading) {
+      _startUpgradeCountdown(mine.upgrade_finish_at);
+    }
   } else if (canCapture) {
     const owner = mine.players?.username || 'Unknown';
     openPopup(
@@ -1518,6 +1859,7 @@ async function doUpgradeHq() {
     state.hq = data.headquarters;
     updateCoinDisplay();
     showToast(`⚡ Штаб улучшен до уровня ${data.headquarters.level}!`);
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     await loadVisibleBuildings();
   } catch (err) {
@@ -1525,11 +1867,8 @@ async function doUpgradeHq() {
   }
 }
 
-async function doUpgrade(mineId) {
+async function doUpgrade(mineId, targetLevel) {
   const pos = state.playerPos;
-  // Capture appearance before upgrade for tier-change detection
-  const mine = state.mapBuildings.mines.find(m => m.id === mineId);
-  const prevName = mine ? getMineAppearance(mine.level).name : null;
   try {
     const data = await apiFetch('/api/buildings/upgrade', {
       method: 'POST',
@@ -1538,21 +1877,49 @@ async function doUpgrade(mineId) {
         mine_id: mineId,
         lat: pos?.lat,
         lng: pos?.lng,
+        targetLevel,
       }),
     });
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
-    const newAppearance = getMineAppearance(data.mine.level);
-    if (prevName && newAppearance.name !== prevName) {
-      showToast(`${newAppearance.emoji} Эволюция! ${prevName} → ${newAppearance.name}`);
-    } else {
-      showToast(`⬆️ Улучшено до уровня ${data.mine.level}! (${newAppearance.name})`);
+    if (data.upgrading) {
+      showToast(`⏳ Улучшение запущено → Ур.${data.pendingLevel} (${data.secondsLeft} сек)`);
+      await loadVisibleBuildings();
+      // Re-open popup with timer if same mine popup is still open
+      const mine = state.mapBuildings.mines.find(m => m.id === mineId);
+      if (mine && document.getElementById('popup-overlay').classList.contains('open')) {
+        showMinePopup(mine, true, false);
+      }
     }
-    handleXpResult(data.xp);
-    await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
+}
+
+async function pollCompleteUpgrades() {
+  if (!TG_ID) return;
+  try {
+    const data = await apiFetch(`/api/buildings/complete-upgrades?telegram_id=${TG_ID}`);
+    if (!data.completed || data.completed.length === 0) return;
+    for (const mine of data.completed) {
+      const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
+      const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
+      const newApp = getMineAppearance(mine.level);
+      if (prevName && newApp.name !== prevName) {
+        showToast(`✅ Ур.${mine.level}! ✨ Эволюция → ${newApp.emoji} ${newApp.name}`);
+      } else {
+        showToast(`✅ Постройка улучшена до уровня ${mine.level}!`);
+      }
+      handleXpResult(mine.xp);
+    }
+    await loadVisibleBuildings();
+    // Update popup if open for one of the completed mines
+    const overlay = document.getElementById('popup-overlay');
+    if (overlay.classList.contains('open') && data.completed.length > 0) {
+      const mine = state.mapBuildings?.mines?.find(m => data.completed.some(c => c.id === m.id));
+      if (mine) showMinePopup(mine, true, false);
+    }
+  } catch (e) { /* silently ignore */ }
 }
 
 async function doSellMine(mineId) {
@@ -1586,6 +1953,7 @@ async function doCapture(mineId) {
       }),
     });
     showToast('⚔️ Шахта захвачена!');
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     await refreshAll();
   } catch (err) {
@@ -1602,8 +1970,10 @@ async function doBuildHq(lat, lng) {
       body: JSON.stringify({ telegram_id: TG_ID, lat, lng }),
     });
     state.hq = data.headquarters;
+    if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
     updateCoinDisplay();
     showToast('&#x26A1; Штаб построен!');
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     await loadVisibleBuildings();
   } catch (err) {
@@ -1663,6 +2033,7 @@ async function doBuildMine(lat, lng) {
       body: JSON.stringify(payload),
     });
     showToast('⛏️ Шахта построена!');
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     state.mines.push(data.mine);
     await loadVisibleBuildings();
@@ -1680,8 +2051,10 @@ async function doCollect() {
       body: JSON.stringify({ telegram_id: TG_ID, lat: pos?.lat, lng: pos?.lng }),
     });
     if (state.hq) state.hq.coins = data.hq_coins;
+    if (data.totalIncome != null) state.totalIncome = data.totalIncome;
     updateCoinDisplay();
     showToast(`💰 Собрано ${data.collected.toLocaleString()} монет!`);
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     // Reset local mine last_collected timestamps
     const now = new Date().toISOString();
@@ -1708,9 +2081,11 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
       body: JSON.stringify({ telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
     });
     state.hq = data.headquarters;
+    if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
     document.getElementById('hq-prompt').classList.remove('open');
     updateCoinDisplay();
     showToast('🏛️ Штаб установлен!');
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     await loadVisibleBuildings();
   } catch (err) {
@@ -1728,6 +2103,11 @@ document.getElementById('player-level-display').addEventListener('click', showPr
 function updateCoinDisplay() {
   document.getElementById('coin-display').textContent =
     state.hq ? state.hq.coins.toLocaleString() : '—';
+  const inc = state.totalIncome;
+  const incEl = document.getElementById('income-display');
+  if (incEl) {
+    incEl.textContent = inc > 0 ? `⚡+${inc.toLocaleString(undefined, {maximumFractionDigits: 2})}/сек` : '';
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -1769,9 +2149,14 @@ async function refreshAll() {
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, username: TG_NAME }),
     });
-    state.player = data.player; // includes hp, max_hp, attack, kills, deaths
-    state.hq     = data.headquarters;
-    state.mines  = data.mines;
+    state.player      = data.player; // includes hp, max_hp, attack, kills, deaths
+    state.hq          = data.headquarters;
+    state.mines       = data.mines;
+    state.totalIncome = data.totalIncome ?? 0;
+    if (data.headquarters) {
+      hqLat = data.headquarters.lat;
+      hqLng = data.headquarters.lng;
+    }
     if (prevLevel && data.player.level > prevLevel) {
       showLevelUp(data.player.level);
     }
@@ -1791,32 +2176,51 @@ let _lastLocationReport = 0;
 function onPosition(pos) {
   const { latitude: lat, longitude: lng } = pos.coords;
   const isFirstFix = state.playerPos === null;
-  state.playerPos = { lat, lng };
+
+  // Always save real GPS coords
+  realPlayerPos = { lat, lng };
 
   const pIcon = playerIcon(state.player?.avatar);
   if (!playerMarker) {
+    // First GPS fix — create marker at real position even if PIN will override it
     playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 2000 }).addTo(map);
-    map.setView([lat, lng], 13);
+    const playerBuildRadius = state.player?.buildRadius ?? 250;
+    playerZoneCircle = L.circle([lat, lng], {
+      radius: playerBuildRadius,
+      color: 'rgba(255, 215, 0, 0.6)',
+      weight: 1.5,
+      fill: false,
+      dashArray: '6, 4',
+    }).addTo(map);
+    if (!pinMode) {
+      state.playerPos = { lat, lng };
+      map.setView([lat, lng], 13);
+    }
   } else {
-    playerMarker.setLatLng([lat, lng]);
     playerMarker.setIcon(pIcon);
   }
 
-  updateHexGrid();
+  if (!pinMode) {
+    // Normal mode — apply real GPS to marker/zone/state
+    _applyPlayerPosition(lat, lng);
+  }
+  // PIN mode — keep marker/zone/state at HQ, ignore GPS movement
 
   // Enable action buttons on first GPS fix
   if (isFirstFix) {
     document.getElementById('btn-collect').disabled = false;
   }
 
-  // Report location to server every 5 s (don't flood on every watchPosition tick)
+  // Location report: HQ coords in PIN mode, real GPS otherwise
   const now = Date.now();
   if (TG_ID && now - _lastLocationReport > 5000) {
     _lastLocationReport = now;
+    const reportLat = pinMode ? hqLat : lat;
+    const reportLng = pinMode ? hqLng : lng;
     apiFetch('/api/player/location', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, lat, lng }),
-    }).catch(() => {}); // fire-and-forget, silent on error
+      body: JSON.stringify({ telegram_id: TG_ID, lat: reportLat, lng: reportLng }),
+    }).catch(() => {});
   }
 }
 
@@ -2045,7 +2449,8 @@ async function doAttackBot(botId) {
         updateCoinDisplay();
         toastMsg += ` +${data.reward} монет`;
       }
-      handleXpResult(data.xp);
+      console.log('[levelup] response xp:', JSON.stringify(data.xp));
+    handleXpResult(data.xp);
       closePopup();
       showToast(toastMsg);
 
@@ -2119,6 +2524,7 @@ async function doLureBot(botId) {
     if (state.hq) state.hq.coins = data.hq_coins;
     updateCoinDisplay();
     showToast(`💰 +${data.reward} монет от ${data.emoji}!`);
+    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     // Remove from local state
     if (botMarkers[botId]) {
@@ -2170,7 +2576,9 @@ let _maintenanceTimer  = null;
 
 function showMaintenanceScreen() {
   const avatarEl = document.getElementById('maintenance-avatar-inner');
-  avatarEl.textContent = state.player?.avatar || localStorage.getItem('gw_avatar') || '🎮';
+  const playerAvatar = state.player?.avatar || localStorage.getItem('gw_avatar') || '🎮';
+  avatarEl.textContent = playerAvatar;
+  document.getElementById('maintenance-runner').textContent = playerAvatar || '🏃';
   document.getElementById('maintenance-screen').classList.add('open');
   document.getElementById('loading').style.display = 'none';
 }
@@ -2180,12 +2588,15 @@ function hideMaintenanceScreen() {
 }
 
 async function checkMaintenance() {
-  try {
-    const res  = await fetch('/api/admin/maintenance');
-    const { maintenance } = await res.json();
+  // Админ — сразу в игру, без запросов
+  if (currentTelegramId === ADMIN_ID) {
+    if (!_gameInitialised) await boot();
+    return;
+  }
 
-    // Admin never sees the maintenance screen
-    if (currentTelegramId === ADMIN_ID) return;
+  try {
+    const res = await fetch('/api/admin/maintenance');
+    const { maintenance } = await res.json();
 
     if (maintenance) {
       showMaintenanceScreen();
@@ -2235,6 +2646,24 @@ document.getElementById('btn-fix-positions').addEventListener('click', async () 
   }
 });
 
+document.getElementById('btn-fix-usernames').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-fix-usernames');
+  btn.disabled = true;
+  btn.textContent = '⏳ Обновляю...';
+  try {
+    const data = await apiFetch('/api/admin/maintenance', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-usernames' }),
+    });
+    showToast(`✅ Готово: обновлено ${data.fixed} штабов`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '👤 Обновить владельцев';
+  }
+});
+
 document.getElementById('btn-maintenance-toggle').addEventListener('click', async () => {
   const newState = !_adminMaintenanceOn;
   try {
@@ -2275,9 +2704,11 @@ async function boot() {
       method: 'POST',
       body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
     });
-    state.player = data.player; // includes hp, max_hp, attack, kills, deaths
-    state.hq     = data.headquarters;
-    state.mines  = data.mines;
+    state.player      = data.player; // includes hp, max_hp, attack, kills, deaths
+    state.hq          = data.headquarters;
+    state.mines       = data.mines;
+    state.totalIncome = data.totalIncome ?? 0;
+    if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
     updatePlayerDisplay();
 
     // Cache avatar for maintenance screen
@@ -2333,6 +2764,9 @@ async function boot() {
     setInterval(tickBotMove,  2000);
     setInterval(tickBotSpawn, 30000);
 
+    // Poll for completed mine upgrades every 2s
+    setInterval(pollCompleteUpgrades, 2000);
+
     _gameInitialised = true;
 
     // Sync admin maintenance state
@@ -2380,6 +2814,8 @@ async function selectAvatar(avatar) {
     showToast(`❌ ${err.message}`);
   }
 }
+
+document.getElementById('btn-pin').addEventListener('click', togglePin);
 
 document.getElementById('btn-settings').addEventListener('click', () => {
   buildAvatarGrid();

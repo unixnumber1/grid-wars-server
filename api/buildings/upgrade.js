@@ -1,20 +1,19 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { mineUpgradeCost, MINE_MAX_LEVEL, hqConfig } from '../../lib/formulas.js';
-import { getCellsInRange } from '../../lib/grid.js';
-import { addXp, XP_REWARDS } from '../../lib/xp.js';
+import { mineUpgradeCost, MINE_MAX_LEVEL, hqConfig, getBuildRadius } from '../../lib/formulas.js';
+import { getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { telegram_id, mine_id, lat, lng } = req.body;
+  const { telegram_id, mine_id, lat, lng, targetLevel: targetLevelParam } = req.body;
 
   if (!telegram_id || !mine_id) {
     return res.status(400).json({ error: 'telegram_id and mine_id are required' });
   }
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
@@ -26,26 +25,28 @@ export default async function handler(req, res) {
     supabase.from('headquarters').select('*').eq('player_id', player.id).maybeSingle(),
   ]);
 
-  if (mineError) {
-    console.error('[upgrade] mine error:', mineError);
-    return res.status(500).json({ error: mineError.message });
-  }
-  if (hqError) {
-    console.error('[upgrade] hq error:', hqError);
-    return res.status(500).json({ error: hqError.message });
-  }
-  if (!mine) return res.status(404).json({ error: 'Mine not found' });
-  if (!hq)   return res.status(404).json({ error: 'Headquarters not found' });
+  if (mineError) return res.status(500).json({ error: mineError.message });
+  if (hqError)   return res.status(500).json({ error: hqError.message });
+  if (!mine)     return res.status(404).json({ error: 'Mine not found' });
+  if (!hq)       return res.status(404).json({ error: 'Headquarters not found' });
 
   if (mine.owner_id !== player.id) {
     return res.status(403).json({ error: 'You do not own this mine' });
   }
 
-  // H3 range check: mine must be within player's interaction zone (~500m)
+  // Block if upgrade already in progress
+  if (mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date()) {
+    const secondsLeft = Math.ceil((new Date(mine.upgrade_finish_at) - new Date()) / 1000);
+    return res.status(400).json({ error: `Апгрейд ещё идёт (${secondsLeft} сек)` });
+  }
+
+  // H3 range check
   if (lat != null && lng != null) {
-    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng));
+    const buildRadius = getBuildRadius(player.level ?? 1);
+    const diskK       = radiusToDiskK(buildRadius);
+    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng), diskK);
     if (!playerRange.has(mine.cell_id)) {
-      return res.status(403).json({ error: 'Mine is outside your interaction zone (~500m)' });
+      return res.status(403).json({ error: `Шахта вне зоны взаимодействия (~${buildRadius}м)` });
     }
   }
 
@@ -60,30 +61,42 @@ export default async function handler(req, res) {
     });
   }
 
-  const cost = mineUpgradeCost(mine.level + 1);
+  const maxAllowed = Math.min(MINE_MAX_LEVEL, cfg.maxMineLevel);
+  const targetLevel = Math.min(parseInt(targetLevelParam) || mine.level + 1, maxAllowed);
+
+  if (targetLevel <= mine.level) {
+    return res.status(400).json({ error: 'targetLevel должен быть выше текущего уровня' });
+  }
+
+  // Compute total cost
+  let cost = 0;
+  for (let l = mine.level; l < targetLevel; l++) cost += mineUpgradeCost(l);
 
   if (hq.coins < cost) {
     return res.status(400).json({ error: `Не хватает монет (нужно ${cost})` });
   }
 
-  const [{ error: hqUpdateError }, { data: updatedMine, error: mineUpdateError }] =
-    await Promise.all([
-      supabase.from('headquarters').update({ coins: hq.coins - cost }).eq('id', hq.id),
-      supabase.from('mines').update({ level: mine.level + 1 }).eq('id', mine_id).select().single(),
-    ]);
+  const levelsCount = targetLevel - mine.level;
+  const finishAt = new Date(Date.now() + levelsCount * 1000);
+
+  const [{ error: hqUpdateError }, { error: mineUpdateError }] = await Promise.all([
+    supabase.from('headquarters').update({ coins: hq.coins - cost }).eq('id', hq.id),
+    supabase.from('mines').update({
+      pending_level: targetLevel,
+      upgrade_finish_at: finishAt.toISOString(),
+    }).eq('id', mine_id),
+  ]);
 
   if (hqUpdateError || mineUpdateError) {
     console.error('[upgrade] error:', hqUpdateError, mineUpdateError);
-    return res.status(500).json({ error: 'Failed to upgrade mine' });
+    return res.status(500).json({ error: 'Failed to start upgrade' });
   }
 
-  let xpResult = null;
-  try {
-    xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(updatedMine.level));
-    console.log('[upgrade] XP added:', JSON.stringify(xpResult));
-  } catch (e) {
-    console.error('[upgrade] XP ERROR:', e.message);
-  }
-
-  return res.status(200).json({ mine: updatedMine, hq_coins: hq.coins - cost, xp: xpResult });
+  return res.status(200).json({
+    upgrading: true,
+    finishAt: finishAt.toISOString(),
+    secondsLeft: levelsCount,
+    hq_coins: hq.coins - cost,
+    pendingLevel: targetLevel,
+  });
 }
