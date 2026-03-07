@@ -117,7 +117,7 @@ export default async function handler(req, res) {
   }
 
   const levelsCount = targetLevel - mine.level;
-  const finishAt = new Date(Date.now() + levelsCount * 1000);
+  const finishAt = new Date(Date.now() + levelsCount * 2000);
 
   const [{ error: hqUpdateError }, { error: mineUpdateError }] = await Promise.all([
     supabase.from('headquarters').update({ coins: hq.coins - cost }).eq('id', hq.id),
@@ -135,7 +135,7 @@ export default async function handler(req, res) {
   return res.status(200).json({
     upgrading: true,
     finishAt: finishAt.toISOString(),
-    secondsLeft: levelsCount,
+    secondsLeft: levelsCount * 2,
     hq_coins: hq.coins - cost,
     pendingLevel: targetLevel,
   });
