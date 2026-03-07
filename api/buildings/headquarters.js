@@ -1,7 +1,8 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { getCellId, getCellCenter } from '../../lib/grid.js';
+import { getCellId } from '../../lib/grid.js';
 import { hqUpgradeCost, HQ_MAX_LEVEL } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
+import { gridDisk, cellToLatLng } from 'h3-js';
 
 // ── PLACE HQ ───────────────────────────────────────────────────────────────
 async function handlePlace(player, body, res) {
@@ -14,12 +15,40 @@ async function handlePlace(player, body, res) {
     .from('headquarters').select('id').eq('player_id', player.id).maybeSingle();
   if (existingHq) return res.status(409).json({ error: 'Headquarters already placed' });
 
-  const cell_id = getCellId(parseFloat(lat), parseFloat(lng));
-  const { data: cellConflict } = await supabase
-    .from('headquarters').select('id').eq('cell_id', cell_id).maybeSingle();
-  if (cellConflict) return res.status(409).json({ error: 'Cell already occupied by another headquarters' });
+  const targetCell = getCellId(parseFloat(lat), parseFloat(lng));
 
-  const [centerLat, centerLng] = getCellCenter(cell_id);
+  // Find a free cell — start with targetCell, expand rings 1-5 if occupied
+  let finalCell = null;
+
+  const isCellFree = async (cell) => {
+    const [hqRow, mineRow] = await Promise.all([
+      supabase.from('headquarters').select('id').eq('cell_id', cell).maybeSingle(),
+      supabase.from('mines').select('id').eq('cell_id', cell).maybeSingle(),
+    ]);
+    return !hqRow.data && !mineRow.data;
+  };
+
+  if (await isCellFree(targetCell)) {
+    finalCell = targetCell;
+  } else {
+    for (let ring = 1; ring <= 5; ring++) {
+      const candidates = gridDisk(targetCell, ring).filter(c => c !== targetCell);
+      for (const candidate of candidates) {
+        if (await isCellFree(candidate)) {
+          finalCell = candidate;
+          break;
+        }
+      }
+      if (finalCell) break;
+    }
+  }
+
+  if (!finalCell) {
+    return res.status(400).json({ error: 'Нет свободных клеток рядом' });
+  }
+
+  const [centerLat, centerLng] = cellToLatLng(finalCell);
+  const cell_id = finalCell;
 
   const bonusClaimed = player.starting_bonus_claimed === true;
   const startingCoins = bonusClaimed ? 0 : 10000;
