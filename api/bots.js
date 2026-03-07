@@ -182,11 +182,13 @@ async function handleMove(player, body) {
         newDir     = Math.atan2(dLng, dLat);
 
         if (dist < 0.0005) {
-          // At mine — drain
-          const drainAmt = (bot.drain_per_sec || cfg.drain_per_sec || 0) * 3;
-          newDrained += drainAmt;
-          if (drainAmt > 0) {
-            minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
+          // At mine — drain with 20% chance per tick
+          if (Math.random() < 0.2) {
+            const drainAmt = (bot.drain_per_sec || cfg.drain_per_sec || 0) * 3;
+            newDrained += drainAmt;
+            if (drainAmt > 0) {
+              minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
+            }
           }
           // Small jitter in place
           newLat = bot.lat + (Math.random() - 0.5) * stepLat * 0.3;

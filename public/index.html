@@ -2094,6 +2094,7 @@ async function doUpgrade(mineId, targetLevel) {
     updateCoinDisplay();
     if (data.upgrading) {
       showToast(`⏳ Улучшение запущено → Ур.${data.pendingLevel} (${data.secondsLeft} сек)`);
+      _lastMapCenter = null;
       await loadVisibleBuildings();
       // Re-open popup with timer only if user is still viewing this same mine
       const mine = state.mapBuildings.mines.find(m => m.id === mineId);
@@ -2122,6 +2123,7 @@ async function pollCompleteUpgrades() {
       }
       handleXpResult(mine.xp);
     }
+    _lastMapCenter = null;
     await loadVisibleBuildings();
     // Update popup only if user is currently viewing one of the completed mines
     if (data.completed.length > 0) {
