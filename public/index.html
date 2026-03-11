@@ -1707,9 +1707,9 @@ function closeItemDetail() {
 async function doEquipItem(itemId) {
   closeItemDetail();
   try {
-    const data = await apiFetch('/api/items/equip', {
+    const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, item_id: itemId }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'equip', item_id: itemId }),
     });
     // Update state
     const item = state.inventory.find(i => i.id === itemId);
@@ -1734,9 +1734,9 @@ async function doEquipItem(itemId) {
 async function doUnequipItem(itemId) {
   closeItemDetail();
   try {
-    const data = await apiFetch('/api/items/unequip', {
+    const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, item_id: itemId }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'unequip', item_id: itemId }),
     });
     const item = state.inventory.find(i => i.id === itemId);
     if (item) item.equipped = false;
