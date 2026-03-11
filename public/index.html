@@ -2848,7 +2848,7 @@ document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
 document.getElementById('player-avatar-wrap').addEventListener('click', showProfilePopup);
-// profile-modal-close is rendered after </script>, bind after full parse
+// profile-modal-close is rendered after the closing script tag, bind after full parse
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('profile-modal-close')?.addEventListener('click', () => {
     document.getElementById('profile-modal').classList.remove('open');
