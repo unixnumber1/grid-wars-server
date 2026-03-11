@@ -926,6 +926,217 @@
       transform: translateY(0);
       white-space: nowrap;
     }
+
+    /* ── Profile Modal (fullscreen) ── */
+    #profile-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0d0d1a;
+      z-index: 3000;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    #profile-modal.open { display: flex; }
+
+    #profile-modal-header {
+      padding: 16px 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #profile-modal-avatar { font-size: 48px; line-height: 1; }
+    #profile-modal-name { font-size: 18px; font-weight: 700; }
+    #profile-modal-level { font-size: 13px; color: #aaa; }
+    #profile-modal-xp-wrap {
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin-top: 6px;
+    }
+    #profile-modal-xp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FFD700, #ff9900);
+      border-radius: 3px;
+      transition: width 0.4s;
+    }
+    #profile-modal-close {
+      margin-left: auto;
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: #aaa;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .profile-section {
+      margin: 16px 16px 0;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .profile-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .profile-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      padding: 5px 0;
+    }
+    .profile-stat-row .bonus { color: #888; font-size: 11px; margin-left: 4px; }
+
+    /* Equipment slots */
+    .equip-slots { display: flex; gap: 12px; }
+    .equip-slot {
+      flex: 1;
+      height: 100px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      border: 2px dashed rgba(255,255,255,0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .equip-slot:active { opacity: 0.7; }
+    .equip-slot .slot-emoji { font-size: 28px; line-height: 1; }
+    .equip-slot .slot-name  { font-size: 11px; color: #ccc; margin-top: 4px; text-align: center; padding: 0 4px; }
+    .equip-slot .slot-stat  { font-size: 10px; color: #aaa; margin-top: 2px; }
+    .equip-slot .slot-empty { font-size: 12px; color: #555; }
+    .equip-slot .slot-label { font-size: 10px; color: #555; margin-top: 4px; }
+
+    /* Inventory grid */
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .inv-cell {
+      width: 100%;
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: opacity 0.2s;
+      font-size: 26px;
+    }
+    .inv-cell:active { opacity: 0.7; }
+    .inv-cell.equipped::after {
+      content: '✓';
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font-size: 10px;
+      color: #00ff88;
+      font-weight: 900;
+    }
+
+    /* Rarity border colors */
+    .rarity-common    { border-color: #888888 !important; }
+    .rarity-rare      { border-color: #00c853 !important; }
+    .rarity-uncommon  { border-color: #2979ff !important; }
+    .rarity-epic      { border-color: #f50057 !important; }
+    .rarity-mythic    { border-color: #d50000 !important; }
+    .rarity-legendary { border-color: #FFD700 !important; animation: legendaryBorder 2s linear infinite; }
+
+    @keyframes legendaryBorder {
+      0%   { border-color: #FFD700; box-shadow: 0 0 6px #FFD70066; }
+      50%  { border-color: #FF8C00; box-shadow: 0 0 12px #FF8C0099; }
+      100% { border-color: #FFD700; box-shadow: 0 0 6px #FFD70066; }
+    }
+
+    @keyframes legendaryShimmer {
+      0%   { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+    .legendary-text {
+      background: linear-gradient(90deg, #FFD700, #FF8C00, #FFD700);
+      background-size: 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: legendaryShimmer 2s linear infinite;
+    }
+
+    /* Item detail bottom sheet inside profile modal */
+    #item-detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 4000;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #item-detail-overlay.open { display: flex; }
+    #item-detail-card {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px 16px 0 0;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+      animation: slideUp 0.2s ease-out;
+    }
+    #item-detail-card h3 { font-size: 18px; margin-bottom: 4px; }
+    #item-detail-card .item-stat { font-size: 15px; margin: 12px 0; color: #f5c518; }
+    #item-detail-card .item-btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    #item-detail-card .item-btn-row .btn { flex: 1; padding: 12px; font-size: 14px; }
+
+    /* Vase drop popup */
+    #vase-drop-popup {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    #vase-drop-popup.show { display: flex; }
+    #vase-drop-card {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 24px 28px;
+      text-align: center;
+      min-width: 220px;
+      animation: popIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    #vase-drop-card.legendary-bg {
+      border-color: #FFD700;
+      box-shadow: 0 0 30px #FFD70066;
+    }
+    @keyframes popIn {
+      0%   { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+    .vase-drop-title    { font-size: 14px; color: #aaa; margin-bottom: 8px; }
+    .vase-drop-emoji    { font-size: 52px; line-height: 1; margin: 8px 0; }
+    .vase-drop-name     { font-size: 16px; font-weight: 700; margin-top: 6px; }
+    .vase-drop-rarity   { font-size: 12px; margin: 4px 0; }
+    .vase-drop-stat     { font-size: 13px; color: #f5c518; margin-top: 4px; }
+    .vase-drop-diamonds { font-size: 14px; color: #00cfff; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -1181,6 +1392,7 @@ let state = {
   mapBuildings: { headquarters: [], mines: [] },
   playerPos: null,     // { lat, lng }
   totalIncome: 0,      // sum of getMineIncome across all owned mines
+  inventory: [],       // player's items from /api/player/init
 };
 
 // ─────────────────────────────────────────────
@@ -1287,9 +1499,37 @@ function handleXpResult(xp) {
   }
 }
 
+// ── Rarity helpers (client-side mirror of lib/items.js) ───────────────────────
+const RARITY_COLORS_CLIENT = {
+  common:    '#888888',
+  rare:      '#00c853',
+  uncommon:  '#2979ff',
+  epic:      '#f50057',
+  mythic:    '#d50000',
+  legendary: '#FFD700',
+};
+const RARITY_NAMES_CLIENT = {
+  common:    'Обычный',
+  rare:      'Редкий',
+  uncommon:  'Необычный',
+  epic:      'Эпический',
+  mythic:    'Мифический',
+  legendary: 'Легендарный',
+};
+
+function rarityClass(rarity) { return `rarity-${rarity}`; }
+
+function rarityLabel(rarity) {
+  const name  = RARITY_NAMES_CLIENT[rarity] || rarity;
+  const color = RARITY_COLORS_CLIENT[rarity] || '#888';
+  if (rarity === 'legendary') return `<span class="legendary-text">${name}</span>`;
+  return `<span style="color:${color}">${name}</span>`;
+}
+
 function showProfilePopup() {
   const p = state.player;
   if (!p) return;
+
   const level  = p.level ?? 1;
   const xp     = p.xp   ?? 0;
   const xpNext = xpForLevel(level);
@@ -1298,45 +1538,260 @@ function showProfilePopup() {
   let xpAccum = 0;
   for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
   const xpThisLevel = xp - xpAccum;
+  const xpPct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
 
-  document.getElementById('popup-title').innerHTML =
-    `${p.avatar || '\uD83D\uDC3A'} ${p.username || TG_NAME}`;
-  document.getElementById('popup-subtitle').textContent = `Уровень ${level}`;
+  // Header
+  document.getElementById('profile-modal-avatar').textContent = p.avatar || '🐺';
+  document.getElementById('profile-modal-name').textContent   = p.username || TG_NAME || '—';
+  document.getElementById('profile-modal-level').textContent  = `Уровень ${level}`;
+  document.getElementById('profile-modal-xp-fill').style.width = xpPct + '%';
 
-  const hp    = p.hp    ?? p.max_hp ?? 100;
-  const maxHp = p.max_hp ?? 100;
-  const hpPct = Math.round(Math.max(0, hp / maxHp) * 100);
+  // Stats
+  const hp     = p.hp     ?? p.max_hp ?? 100;
+  const maxHp  = p.max_hp ?? 100;
+  const hpPct  = Math.round(Math.max(0, hp / maxHp) * 100);
+  const baseAtk = p.attack ?? (10 + (level - 1) * 2);
+  const bonusAtk = p.bonus_attack ?? 0;
+  const bonusHp  = p.bonus_hp    ?? 0;
 
-  const statsEl = document.getElementById('popup-stats');
+  const statsEl = document.getElementById('profile-stat-rows');
   statsEl.innerHTML = `
-    <div class="hp-bar-container" style="margin-bottom:8px">
-      <div class="hp-bar-fill player" style="width:${hpPct}%"></div>
+    <div style="margin-bottom:8px;">
+      <div class="hp-bar-container"><div class="hp-bar-fill player" style="width:${hpPct}%"></div></div>
+      <div class="hp-label" style="text-align:center;margin-top:3px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` <span style="color:#888;font-size:10px;">(+${bonusHp} от щита)</span>` : ''}</div>
     </div>
-    <div class="hp-label" style="margin-bottom:12px;text-align:center">${hp} / ${maxHp} HP</div>
   `;
-  for (const [label, val] of [
-    ['\u2B50 XP текущего уровня', `${xpThisLevel.toLocaleString()} / ${xpNext.toLocaleString()}`],
-    ['\uD83D\uDCCD Радиус постройки', `${radius}м`],
-    ['⚔️ Атака', p.attack ?? (10 + (level - 1) * 2)],
-    ['💀 Убийств / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
-    ['\u2B50 Всего XP', xp.toLocaleString()],
-  ]) {
+
+  const rows = [
+    ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
+    ['📍 Радиус', `${radius}м`],
+    ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
+    ['⭐ XP уровня', `${xpThisLevel.toLocaleString()} / ${xpNext.toLocaleString()}`],
+    ['💎 Алмазы', (p.diamonds ?? 0).toLocaleString()],
+  ];
+  for (const [label, val] of rows) {
     const row = document.createElement('div');
-    row.className = 'popup-stat';
-    row.innerHTML = `<span>${label}</span><span class="val">${val}</span>`;
+    row.className = 'profile-stat-row';
+    row.innerHTML = `<span>${label}</span><span>${val}</span>`;
     statsEl.appendChild(row);
   }
 
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
+  // Equipment slots
+  _renderEquipSlots();
 
-  document.getElementById('popup-overlay').classList.add('open');
+  // Inventory
+  _renderInventoryGrid();
+
+  document.getElementById('profile-modal').classList.add('open');
+}
+
+function _renderEquipSlots() {
+  const inv = state.inventory || [];
+  const sword  = inv.find(i => i.type === 'sword'  && i.equipped);
+  const shield = inv.find(i => i.type === 'shield' && i.equipped);
+
+  const swordSlot  = document.getElementById('equip-slot-sword');
+  const shieldSlot = document.getElementById('equip-slot-shield');
+
+  if (sword) {
+    swordSlot.className = `equip-slot ${rarityClass(sword.rarity)}`;
+    swordSlot.innerHTML = `
+      <span class="slot-emoji">${sword.emoji}</span>
+      <span class="slot-name">${sword.name}</span>
+      <span class="slot-stat">+${sword.stat_value} атк</span>
+      <span class="slot-rarity">${rarityLabel(sword.rarity)}</span>
+    `;
+  } else {
+    swordSlot.className = 'equip-slot';
+    swordSlot.innerHTML = `<span class="slot-empty" style="font-size:28px">🗡️</span><span class="slot-label">Меч</span>`;
+  }
+
+  if (shield) {
+    shieldSlot.className = `equip-slot ${rarityClass(shield.rarity)}`;
+    shieldSlot.innerHTML = `
+      <span class="slot-emoji">${shield.emoji}</span>
+      <span class="slot-name">${shield.name}</span>
+      <span class="slot-stat">+${shield.stat_value} HP</span>
+      <span class="slot-rarity">${rarityLabel(shield.rarity)}</span>
+    `;
+  } else {
+    shieldSlot.className = 'equip-slot';
+    shieldSlot.innerHTML = `<span class="slot-empty" style="font-size:28px">🛡️</span><span class="slot-label">Щит</span>`;
+  }
+}
+
+function _renderInventoryGrid() {
+  const inv = state.inventory || [];
+  const titleEl = document.getElementById('inventory-title');
+  titleEl.textContent = `Инвентарь (${inv.length} предметов)`;
+
+  const grid = document.getElementById('inventory-grid');
+  grid.innerHTML = '';
+
+  for (const item of inv) {
+    const cell = document.createElement('div');
+    cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
+    cell.innerHTML = `<span>${item.emoji}</span>`;
+    cell.onclick = () => showItemDetail(item.id);
+    grid.appendChild(cell);
+  }
+
+  // Empty cells to fill grid to at least 4
+  const empties = Math.max(0, 4 - inv.length);
+  for (let i = 0; i < empties; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'inv-cell';
+    cell.style.cursor = 'default';
+    cell.style.borderColor = 'rgba(255,255,255,0.08)';
+    grid.appendChild(cell);
+  }
+}
+
+// Opens inventory for a specific slot type (from tapping empty/equipped slot)
+function openEquipSlot(type) {
+  const items = (state.inventory || []).filter(i => i.type === type);
+  if (!items.length) {
+    showToast(`❌ Нет предметов типа ${type === 'sword' ? 'меч' : 'щит'}`);
+    return;
+  }
+  // Show the first matching item (simplest approach: show detail of equipped or first)
+  const equipped = items.find(i => i.equipped) || items[0];
+  showItemDetail(equipped.id);
+}
+
+// ── Item detail sheet ─────────────────────────────────────────────────────────
+let _currentItemId = null;
+
+function showItemDetail(itemId) {
+  const item = (state.inventory || []).find(i => i.id === itemId);
+  if (!item) return;
+  _currentItemId = itemId;
+
+  document.getElementById('item-detail-emoji').textContent  = item.emoji;
+  document.getElementById('item-detail-name').textContent   = item.name;
+  document.getElementById('item-detail-rarity').innerHTML   = rarityLabel(item.rarity);
+  document.getElementById('item-detail-stat').textContent   =
+    item.type === 'sword' ? `⚔️ +${item.stat_value} к атаке` : `🛡️ +${item.stat_value} к HP`;
+
+  const btns = document.getElementById('item-detail-btns');
+  btns.innerHTML = '';
+
+  if (item.equipped) {
+    const unBtn = document.createElement('button');
+    unBtn.className = 'btn';
+    unBtn.textContent = 'Снять';
+    unBtn.onclick = () => doUnequipItem(itemId);
+    btns.appendChild(unBtn);
+  } else {
+    const eqBtn = document.createElement('button');
+    eqBtn.className = 'btn primary';
+    eqBtn.textContent = 'Надеть';
+    eqBtn.onclick = () => doEquipItem(itemId);
+    btns.appendChild(eqBtn);
+  }
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn';
+  cancelBtn.textContent = 'Закрыть';
+  cancelBtn.onclick = closeItemDetail;
+  btns.appendChild(cancelBtn);
+
+  document.getElementById('item-detail-overlay').classList.add('open');
+}
+
+function closeItemDetail() {
+  document.getElementById('item-detail-overlay').classList.remove('open');
+  _currentItemId = null;
+}
+
+async function doEquipItem(itemId) {
+  closeItemDetail();
+  try {
+    const data = await apiFetch('/api/items/equip', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, item_id: itemId }),
+    });
+    // Update state
+    const item = state.inventory.find(i => i.id === itemId);
+    if (item) {
+      state.inventory.forEach(i => { if (i.type === item.type) i.equipped = false; });
+      item.equipped = true;
+    }
+    if (state.player) {
+      state.player.bonus_attack = data.bonus_attack;
+      state.player.bonus_hp     = data.bonus_hp;
+      state.player.max_hp       = data.max_hp;
+    }
+    _renderEquipSlots();
+    _renderInventoryGrid();
+    _refreshProfileStats();
+    showToast('✅ Экипировано!');
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function doUnequipItem(itemId) {
+  closeItemDetail();
+  try {
+    const data = await apiFetch('/api/items/unequip', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, item_id: itemId }),
+    });
+    const item = state.inventory.find(i => i.id === itemId);
+    if (item) item.equipped = false;
+    if (state.player) {
+      state.player.bonus_attack = data.bonus_attack;
+      state.player.bonus_hp     = data.bonus_hp;
+      state.player.max_hp       = data.max_hp;
+    }
+    _renderEquipSlots();
+    _renderInventoryGrid();
+    _refreshProfileStats();
+    showToast('✅ Снято!');
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function _refreshProfileStats() {
+  // Re-render the stats section without closing the modal
+  const p = state.player;
+  if (!p) return;
+  const level    = p.level ?? 1;
+  const hp       = p.hp     ?? p.max_hp ?? 100;
+  const maxHp    = p.max_hp ?? 100;
+  const hpPct    = Math.round(Math.max(0, hp / maxHp) * 100);
+  const baseAtk  = p.attack ?? (10 + (level - 1) * 2);
+  const bonusAtk = p.bonus_attack ?? 0;
+  const bonusHp  = p.bonus_hp    ?? 0;
+  const radius   = p.buildRadius ?? 500;
+  const xp       = p.xp ?? 0;
+  let xpAccum = 0;
+  for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
+  const xpThisLevel = xp - xpAccum;
+  const xpNext = xpForLevel(level);
+
+  const statsEl = document.getElementById('profile-stat-rows');
+  statsEl.innerHTML = `
+    <div style="margin-bottom:8px;">
+      <div class="hp-bar-container"><div class="hp-bar-fill player" style="width:${hpPct}%"></div></div>
+      <div class="hp-label" style="text-align:center;margin-top:3px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` <span style="color:#888;font-size:10px;">(+${bonusHp} от щита)</span>` : ''}</div>
+    </div>
+  `;
+  const rows = [
+    ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
+    ['📍 Радиус', `${radius}м`],
+    ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
+    ['⭐ XP уровня', `${xpThisLevel.toLocaleString()} / ${xpNext.toLocaleString()}`],
+    ['💎 Алмазы', (p.diamonds ?? 0).toLocaleString()],
+  ];
+  for (const [label, val] of rows) {
+    const row = document.createElement('div');
+    row.className = 'profile-stat-row';
+    row.innerHTML = `<span>${label}</span><span>${val}</span>`;
+    statsEl.appendChild(row);
+  }
 }
 
 function calcSellRefund(level) {
@@ -2356,6 +2811,10 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
 document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
+document.getElementById('player-avatar-wrap').addEventListener('click', showProfilePopup);
+document.getElementById('profile-modal-close').addEventListener('click', () => {
+  document.getElementById('profile-modal').classList.remove('open');
+});
 
 // ─────────────────────────────────────────────
 //  Display updates
@@ -2429,6 +2888,7 @@ async function refreshAll() {
     state.hq          = data.headquarters;
     state.mines       = data.mines;
     state.totalIncome = data.totalIncome ?? 0;
+    state.inventory   = data.inventory   ?? [];
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -2552,7 +3012,9 @@ function _vaseIcon() {
   });
 }
 
-function renderVases(vases) {
+function renderVases(vasesRaw) {
+  const now    = new Date();
+  const vases  = (vasesRaw || []).filter(v => new Date(v.expires_at) > now);
   const activeIds = new Set(vases.map(v => v.id));
 
   // Remove gone vases
@@ -2588,6 +3050,19 @@ setInterval(() => {
   const vaseId = el.dataset.vaseId;
   if (vaseId && vaseData[vaseId]) el.textContent = _formatVaseTimer(vaseData[vaseId].expires_at);
 }, 1000);
+
+// Remove expired vase markers every minute
+setInterval(() => {
+  const now = new Date();
+  Object.entries(vaseMarkers).forEach(([id, marker]) => {
+    const vase = vaseData[id];
+    if (vase && new Date(vase.expires_at) < now) {
+      vaseLayer.removeLayer(marker);
+      delete vaseMarkers[id];
+      delete vaseData[id];
+    }
+  });
+}, 60000);
 
 function showVasePopup(vaseId) {
   const vase = vaseData[vaseId];
@@ -2658,7 +3133,14 @@ async function doBreakVase(vaseId) {
     // Update diamonds display
     if (state.player) state.player.diamonds = data.totalDiamonds;
     updateDiamondDisplay();
-    showToast(`💥 +${data.diamonds} 💎 Алмазов!`);
+
+    // Add item to inventory
+    if (data.item) {
+      state.inventory.unshift(data.item);
+      _showVaseDropPopup(data.item, data.diamonds);
+    } else {
+      showToast(`💥 +${data.diamonds} 💎 Алмазов!`);
+    }
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -2686,6 +3168,27 @@ function _flyingDiamonds(marker) {
     });
     setTimeout(() => gem.remove(), 700);
   });
+}
+
+function _showVaseDropPopup(item, diamonds) {
+  const popup = document.getElementById('vase-drop-popup');
+  const card  = document.getElementById('vase-drop-card');
+
+  document.getElementById('vase-drop-emoji').textContent    = item.emoji;
+  document.getElementById('vase-drop-name').textContent     = item.name;
+  document.getElementById('vase-drop-rarity').innerHTML     = rarityLabel(item.rarity);
+  document.getElementById('vase-drop-stat').textContent     =
+    item.type === 'sword' ? `⚔️ +${item.stat_value} к атаке` : `🛡️ +${item.stat_value} к HP`;
+  document.getElementById('vase-drop-diamonds').textContent = `+ ${diamonds} 💎 алмазов`;
+
+  if (item.rarity === 'legendary') {
+    card.classList.add('legendary-bg');
+  } else {
+    card.classList.remove('legendary-bg');
+  }
+
+  popup.classList.add('show');
+  setTimeout(() => popup.classList.remove('show'), 3500);
 }
 
 function updateDiamondDisplay() {
@@ -3332,6 +3835,7 @@ async function boot() {
     state.hq          = data.headquarters;
     state.mines       = data.mines;
     state.totalIncome = data.totalIncome ?? 0;
+    state.inventory   = data.inventory   ?? [];
     if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
     updatePlayerDisplay();
 
@@ -3582,5 +4086,69 @@ function renderLeaderboard(data) {
   await boot();
 })();
 </script>
+
+<!-- Profile modal (fullscreen) -->
+<div id="profile-modal">
+  <div id="profile-modal-header">
+    <div id="profile-modal-avatar">🐺</div>
+    <div style="flex:1;min-width:0;">
+      <div id="profile-modal-name">—</div>
+      <div id="profile-modal-level">Уровень 1</div>
+      <div id="profile-modal-xp-wrap"><div id="profile-modal-xp-fill" style="width:0%"></div></div>
+    </div>
+    <button id="profile-modal-close">✕</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="profile-section" id="profile-stats-section">
+    <div class="profile-section-title">Характеристики</div>
+    <div id="profile-stat-rows"></div>
+  </div>
+
+  <!-- Equipment -->
+  <div class="profile-section">
+    <div class="profile-section-title">Экипировка</div>
+    <div class="equip-slots">
+      <div class="equip-slot" id="equip-slot-sword" onclick="openEquipSlot('sword')">
+        <span class="slot-empty">🗡️</span>
+        <span class="slot-label">Меч</span>
+      </div>
+      <div class="equip-slot" id="equip-slot-shield" onclick="openEquipSlot('shield')">
+        <span class="slot-empty">🛡️</span>
+        <span class="slot-label">Щит</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inventory -->
+  <div class="profile-section" style="margin-bottom:16px;">
+    <div class="profile-section-title" id="inventory-title">Инвентарь (0 предметов)</div>
+    <div class="inventory-grid" id="inventory-grid"></div>
+  </div>
+</div>
+
+<!-- Item detail sheet -->
+<div id="item-detail-overlay" onclick="if(event.target===this)closeItemDetail()">
+  <div id="item-detail-card">
+    <div id="item-detail-emoji" style="font-size:48px;text-align:center;margin-bottom:8px;"></div>
+    <h3 id="item-detail-name" style="text-align:center;"></h3>
+    <div id="item-detail-rarity" style="text-align:center;font-size:12px;margin:4px 0;"></div>
+    <div class="item-stat" id="item-detail-stat" style="text-align:center;"></div>
+    <div class="item-btn-row" id="item-detail-btns"></div>
+  </div>
+</div>
+
+<!-- Vase drop popup -->
+<div id="vase-drop-popup">
+  <div id="vase-drop-card">
+    <div class="vase-drop-title">🏺 Ваза разбита!</div>
+    <div class="vase-drop-emoji" id="vase-drop-emoji">🗡️</div>
+    <div class="vase-drop-name" id="vase-drop-name">—</div>
+    <div class="vase-drop-rarity" id="vase-drop-rarity">—</div>
+    <div class="vase-drop-stat" id="vase-drop-stat">—</div>
+    <div class="vase-drop-diamonds" id="vase-drop-diamonds">—</div>
+  </div>
+</div>
+
 </body>
 </html>

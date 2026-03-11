@@ -1,19 +1,37 @@
 import { supabase, getPlayerByTelegramId } from '../lib/supabase.js';
 import { haversine } from '../lib/haversine.js';
 import { spawnVasesForClusters } from '../lib/vases.js';
+import { rollItem } from '../lib/items.js';
 
 const ADMIN_TG_ID = 560013667;
 
-// ── SPAWN (admin only) ──────────────────────────────────────────────────────
+// ── SPAWN (admin only) — one vase per HQ ────────────────────────────────────
 async function handleSpawn(req, res) {
   const { telegram_id } = req.body;
   if (parseInt(telegram_id, 10) !== ADMIN_TG_ID)
     return res.status(403).json({ error: 'Forbidden' });
 
-  const spawned = await spawnVasesForClusters(supabase);
+  const { data: allHQ } = await supabase.from('headquarters').select('lat, lng');
+  if (!allHQ?.length) return res.json({ spawned: 0 });
+
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const newVases  = allHQ.map(hq => {
+    const angle    = Math.random() * Math.PI * 2;
+    const distM    = 30 + Math.random() * 20; // 30-50m
+    const lat      = hq.lat + (distM / 111000) * Math.cos(angle);
+    const lng      = hq.lng + (distM / (111000 * Math.cos(hq.lat * Math.PI / 180))) * Math.sin(angle);
+    return {
+      lat,
+      lng,
+      expires_at:       expiresAt,
+      diamonds_reward:  Math.floor(Math.random() * 5) + 1,
+    };
+  });
+
+  await supabase.from('vases').insert(newVases);
   await supabase.from('app_settings')
     .upsert({ key: 'last_vases_spawn', value: Date.now().toString() }, { onConflict: 'key' });
-  return res.json({ spawned });
+  return res.json({ spawned: newVases.length });
 }
 
 // ── BREAK (player) ──────────────────────────────────────────────────────────
@@ -48,6 +66,22 @@ async function handleBreak(req, res) {
       .eq('id', vase_id),
   ]);
 
+  // Roll and insert item
+  const rolled = rollItem();
+  const { data: newItem } = await supabase
+    .from('items')
+    .insert({
+      type:        rolled.type,
+      rarity:      rolled.rarity,
+      name:        rolled.name,
+      emoji:       rolled.emoji,
+      stat_value:  rolled.stat,
+      owner_id:    player.id,
+      equipped:    false,
+    })
+    .select()
+    .single();
+
   // Notify online players (fire-and-forget)
   const onlineThreshold = new Date(Date.now() - 3 * 60 * 1000).toISOString();
   const { data: online } = await supabase
@@ -64,7 +98,18 @@ async function handleBreak(req, res) {
     }).catch(() => {});
   }
 
-  return res.json({ diamonds: vase.diamonds_reward, totalDiamonds: newDiamonds });
+  return res.json({
+    diamonds:      vase.diamonds_reward,
+    totalDiamonds: newDiamonds,
+    item: newItem ? {
+      id:         newItem.id,
+      type:       rolled.type,
+      rarity:     rolled.rarity,
+      name:       rolled.name,
+      emoji:      rolled.emoji,
+      stat_value: rolled.stat,
+    } : null,
+  });
 }
 
 // ── CRON (Vercel cron, GET /api/vases) ─────────────────────────────────────

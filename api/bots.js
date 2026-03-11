@@ -306,12 +306,12 @@ async function handleAttack(player, body) {
   if (dist > radius) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${radius}м)` };
 
   const { data: pFull, error: pErr } = await supabase
-    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level').eq('id', player.id).single();
+    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp').eq('id', player.id).single();
   if (pErr) return { status: 500, error: pErr.message };
 
   const lvl       = pFull.level ?? 1;
-  const maxHp     = getMaxHp(lvl);
-  const playerAtk = getPlayerAttack(lvl);
+  const maxHp     = getMaxHp(lvl) + (pFull.bonus_hp ?? 0);
+  const playerAtk = getPlayerAttack(lvl) + (pFull.bonus_attack ?? 0);
   let   playerHp  = calcHpRegen(pFull.hp ?? maxHp, maxHp, pFull.last_hp_regen);
   if (playerHp > maxHp) playerHp = maxHp;
 

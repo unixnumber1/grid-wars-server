@@ -80,10 +80,11 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to init player' });
   }
 
-  // Fetch headquarters and mines in parallel
-  const [{ data: headquarters }, { data: mines }] = await Promise.all([
+  // Fetch headquarters, mines, and inventory in parallel
+  const [{ data: headquarters }, { data: mines }, { data: inventory }] = await Promise.all([
     supabase.from('headquarters').select('*').eq('player_id', player.id).maybeSingle(),
     supabase.from('mines').select('*').eq('owner_id', player.id),
+    supabase.from('items').select('*').eq('owner_id', player.id).order('obtained_at', { ascending: false }),
   ]);
 
   const level  = player.level ?? 1;
@@ -116,12 +117,15 @@ export default async function handler(req, res) {
       hp:             currentHp,
       max_hp:         maxHp,
       attack,
-      kills:          player.kills    ?? 0,
-      deaths:         player.deaths   ?? 0,
-      diamonds:       player.diamonds ?? 0,
+      kills:          player.kills        ?? 0,
+      deaths:         player.deaths       ?? 0,
+      diamonds:       player.diamonds     ?? 0,
+      bonus_attack:   player.bonus_attack ?? 0,
+      bonus_hp:       player.bonus_hp     ?? 0,
     },
     headquarters: headquarters || null,
-    mines: mines || [],
+    mines:        mines        || [],
     totalIncome,
+    inventory:    inventory    || [],
   });
 }
