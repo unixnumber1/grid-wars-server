@@ -4091,9 +4091,9 @@ function renderLeaderboard(data) {
     return;
   }
 
-  // For everyone else: check maintenance first
+  // For everyone else: check maintenance first (3s timeout — never block boot)
   try {
-    const res = await fetch('/api/admin/maintenance');
+    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;
@@ -4101,7 +4101,7 @@ function renderLeaderboard(data) {
       return; // boot() will be called by checkMaintenance when maintenance ends
     }
   } catch (e) {
-    // If the check fails, proceed to boot normally
+    // If the check fails or times out, proceed to boot normally
   }
 
   await boot();
