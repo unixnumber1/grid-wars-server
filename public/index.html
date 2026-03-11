@@ -2834,18 +2834,23 @@ function updateCoinDisplay() {
 // ─────────────────────────────────────────────
 let _mapLoadPending = false;
 let _lastMapCenter  = null;
+let _lastMapFetchTime = 0;
 
 async function loadVisibleBuildings() {
   if (_mapLoadPending) return;
+
+  const now = Date.now();
+  if (now - _lastMapFetchTime < 15000) return;
 
   const bounds = map.getBounds();
   const center = bounds.getCenter();
   if (_lastMapCenter) {
     const latDiff = Math.abs(center.lat - _lastMapCenter.lat);
     const lngDiff = Math.abs(center.lng - _lastMapCenter.lng);
-    if (latDiff < 0.001 && lngDiff < 0.001) return;
+    if (latDiff < 0.002 && lngDiff < 0.002) return;
   }
   _lastMapCenter = center;
+  _lastMapFetchTime = now;
 
   _mapLoadPending = true;
   try {

@@ -61,8 +61,8 @@ export default async function handler(req, res) {
   }
 
   // Reject if bbox is too large (prevents loading thousands of objects)
-  if ((n - s) > 0.5 || (e - w) > 0.5) {
-    return res.status(400).json({ error: 'Zoom in to see buildings' });
+  if ((n - s) > 0.1 || (e - w) > 0.1) {
+    return res.json({ mines: [], headquarters: [], bots: [], vases: [], online_players: [] });
   }
 
   // Resolve current player UUID for is_mine / can_capture
@@ -93,38 +93,43 @@ export default async function handler(req, res) {
   ] = await Promise.all([
     supabase
       .from('headquarters')
-      .select('*, players(username, avatar, last_seen, level)')
+      .select('id,lat,lng,level,player_id,coins,players(username,avatar,last_seen,level)')
       .gte('lat', s).lte('lat', n)
-      .gte('lng', w).lte('lng', e),
+      .gte('lng', w).lte('lng', e)
+      .limit(50),
 
     supabase
       .from('mines')
-      .select('*, players!mines_owner_id_fkey(username, avatar, level)')
+      .select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,players!mines_owner_id_fkey(username,avatar,level)')
       .gte('lat', s).lte('lat', n)
-      .gte('lng', w).lte('lng', e),
+      .gte('lng', w).lte('lng', e)
+      .limit(50),
 
     supabase
       .from('players')
-      .select('id, username, avatar, last_lat, last_lng, last_seen, level')
+      .select('id,username,avatar,last_lat,last_lng,last_seen,level')
       .gte('last_lat', s).lte('last_lat', n)
       .gte('last_lng', w).lte('last_lng', e)
       .gte('last_seen', onlineThreshold)
-      .not('last_lat', 'is', null),
+      .not('last_lat', 'is', null)
+      .limit(20),
 
     supabase
       .from('bots')
-      .select('id, type, emoji, category, lat, lng, coins_drained, drain_per_sec, reward_min, reward_max, speed, hp, max_hp, attack, size')
+      .select('id,type,emoji,category,lat,lng,coins_drained,drain_per_sec,reward_min,reward_max,speed,hp,max_hp,attack,size')
       .gt('expires_at', nowISO)
       .gte('lat', s).lte('lat', n)
-      .gte('lng', w).lte('lng', e),
+      .gte('lng', w).lte('lng', e)
+      .limit(30),
 
     supabase
       .from('vases')
-      .select('id, lat, lng, expires_at')
+      .select('id,lat,lng,expires_at')
       .gt('expires_at', nowISO)
       .is('broken_by', null)
       .gte('lat', s).lte('lat', n)
-      .gte('lng', w).lte('lng', e),
+      .gte('lng', w).lte('lng', e)
+      .limit(20),
   ]);
 
   if (hqErr)    console.error('[map] hq error:', hqErr);
@@ -155,5 +160,9 @@ export default async function handler(req, res) {
   const bots  = allBots  || [];
   const vases = allVases || [];
 
-  return res.status(200).json({ headquarters, mines, online_players, bots, vases });
+  const responseData = { headquarters, mines, online_players, bots, vases };
+  console.log('[map] response size:', JSON.stringify(responseData).length, 'bytes, items:',
+    { hq: headquarters.length, mines: mines.length, bots: bots.length, vases: vases.length, online: online_players.length });
+
+  return res.status(200).json(responseData);
 }
