@@ -43,6 +43,8 @@ async function handleLocation(req, res) {
 
 // ── INIT ────────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  console.log('[init] start', { action: req.body?.action, tg: req.body?.telegram_id });
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
@@ -64,12 +66,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: e.message });
   }
 
+  console.log('[init] step 1 - maintenance check');
   // Maintenance mode check — admin always bypasses
   if (tgId !== ADMIN_TG_ID) {
     const { data: setting } = await supabase
       .from('app_settings').select('value').eq('key', 'maintenance_mode').single();
     if (setting?.value === 'true') return res.status(503).json({ maintenance: true });
   }
+  console.log('[init] step 1 done');
 
   // Helper: reject if DB takes more than 5s
   const withTimeout = (promise) => Promise.race([
@@ -77,6 +81,7 @@ export default async function handler(req, res) {
     new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000)),
   ]);
 
+  console.log('[init] step 2 - upsert player');
   let player;
   try {
     const { data, error: playerError } = await withTimeout(
@@ -92,14 +97,15 @@ export default async function handler(req, res) {
     if (playerError) throw new Error(playerError.message);
     player = data;
   } catch (err) {
-    console.error('[init] player upsert error:', err.message);
+    console.error('[init] step 2 error:', err.message);
     return res.status(503).json({
       error: 'DB unavailable',
       message: 'Сервер временно недоступен, попробуй через минуту',
     });
   }
+  console.log('[init] step 2 done, player id:', player.id);
 
-  // Fetch headquarters, mines, and inventory in parallel
+  console.log('[init] step 3 - fetch hq + mines + inventory');
   let headquarters, mines, inventory;
   try {
     const [hqRes, minesRes, itemsRes] = await withTimeout(Promise.all([
@@ -111,19 +117,20 @@ export default async function handler(req, res) {
     mines        = minesRes.data;
     inventory    = itemsRes.data;
   } catch (err) {
-    console.error('[init] secondary fetch error:', err.message);
+    console.error('[init] step 3 error:', err.message);
     return res.status(503).json({
       error: 'DB unavailable',
       message: 'Сервер временно недоступен, попробуй через минуту',
     });
   }
+  console.log('[init] step 3 done, mines:', mines?.length, 'inventory:', inventory?.length);
 
   const level  = player.level ?? 1;
   const xp     = player.xp    ?? 0;
   const maxHp  = getMaxHp(level);
   const attack = getPlayerAttack(level);
 
-  // Apply HP regen; initialise hp for new players
+  console.log('[init] step 4 - hp regen update');
   let currentHp    = player.hp ?? maxHp;
   let regenApplied = false;
   if (currentHp < maxHp) {
@@ -135,9 +142,11 @@ export default async function handler(req, res) {
       hp: currentHp, max_hp: maxHp, last_hp_regen: new Date().toISOString(),
     }).eq('id', player.id);
   }
+  console.log('[init] step 4 done');
 
   const totalIncome = (mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
 
+  console.log('[init] sending response');
   return res.status(200).json({
     player: {
       ...player,
