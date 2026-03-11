@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- H3 hex grid -->
-  <script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+  <script src="https://unpkg.com/h3-js/dist/h3-js.umd.js"></script>
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -1291,26 +1291,6 @@
 
 <script>
 // ─────────────────────────────────────────────
-//  Global error trap — catches silent crashes
-// ─────────────────────────────────────────────
-window.onerror = (msg, src, line) => {
-  console.error('[GLOBAL ERROR]', msg, src + ':' + line);
-};
-window.onunhandledrejection = (e) => {
-  console.error('[UNHANDLED PROMISE]', e.reason);
-};
-
-// ─────────────────────────────────────────────
-//  H3 library check
-// ─────────────────────────────────────────────
-if (typeof h3 === 'undefined') {
-  console.error('[app] H3 library failed to load!');
-  document.getElementById('loading-text').textContent = 'Ошибка загрузки библиотеки. Обнови страницу.';
-} else {
-  console.log('[app] H3 loaded ok, version check:', typeof h3.latLngToCell);
-}
-
-// ─────────────────────────────────────────────
 //  Telegram WebApp bootstrap
 // ─────────────────────────────────────────────
 const tg = window.Telegram?.WebApp;
@@ -1414,11 +1394,6 @@ let state = {
   totalIncome: 0,      // sum of getMineIncome across all owned mines
   inventory: [],       // player's items from /api/player/init
 };
-
-// Map fetch state — declared here to avoid TDZ when loadVisibleBuildings is hoisted
-let _mapLoadPending  = false;
-let _lastMapCenter   = null;
-let _lastMapFetchTime = 0;
 
 // ─────────────────────────────────────────────
 //  Utility helpers
@@ -2848,11 +2823,8 @@ document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
 document.getElementById('player-avatar-wrap').addEventListener('click', showProfilePopup);
-// profile-modal-close is rendered after the closing script tag, bind after full parse
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('profile-modal-close')?.addEventListener('click', () => {
-    document.getElementById('profile-modal').classList.remove('open');
-  });
+document.getElementById('profile-modal-close').addEventListener('click', () => {
+  document.getElementById('profile-modal').classList.remove('open');
 });
 
 // ─────────────────────────────────────────────
@@ -2871,6 +2843,10 @@ function updateCoinDisplay() {
 // ─────────────────────────────────────────────
 //  Map + data refresh (viewport bbox)
 // ─────────────────────────────────────────────
+let _mapLoadPending = false;
+let _lastMapCenter  = null;
+let _lastMapFetchTime = 0;
+
 async function loadVisibleBuildings() {
   if (_mapLoadPending) return;
 
@@ -3744,7 +3720,7 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch('/api/admin/maintenance');
     const { maintenance } = await res.json();
 
     if (maintenance) {
@@ -3850,11 +3826,6 @@ document.getElementById('btn-maintenance-toggle').addEventListener('click', asyn
 //  Boot sequence
 // ─────────────────────────────────────────────
 async function boot() {
-  if (typeof h3 === 'undefined') {
-    showError('Ошибка загрузки библиотеки. Обнови страницу.');
-    return;
-  }
-
   setLoadingText('Checking identity...');
 
   if (!TG_ID) {
@@ -4120,9 +4091,9 @@ function renderLeaderboard(data) {
     return;
   }
 
-  // For everyone else: check maintenance first (3s timeout — never block boot)
+  // For everyone else: check maintenance first
   try {
-    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch('/api/admin/maintenance');
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;

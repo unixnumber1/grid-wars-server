@@ -108,14 +108,6 @@ async function handleSpawn(player, body) {
 // Moves ALL bots globally. Undead have roaming/attacking/leaving state machine.
 // Called every 10s from each client — global lock ensures max 1 move per 8s.
 async function handleMove(player, body) {
-  // Skip if no online players (saves DB egress)
-  const onlineThreshold = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from('players')
-    .select('id', { count: 'exact', head: true })
-    .gte('last_seen', onlineThreshold);
-  if (!count || count === 0) return { skipped: true, reason: 'no online players', bots: [] };
-
   // Global lock: skip if another client already ran move in last 8s
   const { data: moveSetting } = await supabase
     .from('app_settings').select('value').eq('key', 'last_bots_move').single();
