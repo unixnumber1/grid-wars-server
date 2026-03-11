@@ -1291,6 +1291,16 @@
 
 <script>
 // ─────────────────────────────────────────────
+//  Global error trap — catches silent crashes
+// ─────────────────────────────────────────────
+window.onerror = (msg, src, line) => {
+  console.error('[GLOBAL ERROR]', msg, src + ':' + line);
+};
+window.onunhandledrejection = (e) => {
+  console.error('[UNHANDLED PROMISE]', e.reason);
+};
+
+// ─────────────────────────────────────────────
 //  H3 library check
 // ─────────────────────────────────────────────
 if (typeof h3 === 'undefined') {
@@ -3734,7 +3744,7 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch('/api/admin/maintenance');
+    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
 
     if (maintenance) {
@@ -4110,9 +4120,9 @@ function renderLeaderboard(data) {
     return;
   }
 
-  // For everyone else: check maintenance first
+  // For everyone else: check maintenance first (3s timeout — never block boot)
   try {
-    const res = await fetch('/api/admin/maintenance');
+    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;
