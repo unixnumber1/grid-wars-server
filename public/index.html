@@ -1395,6 +1395,11 @@ let state = {
   inventory: [],       // player's items from /api/player/init
 };
 
+// Map fetch state — declared here to avoid TDZ when loadVisibleBuildings is hoisted
+let _mapLoadPending  = false;
+let _lastMapCenter   = null;
+let _lastMapFetchTime = 0;
+
 // ─────────────────────────────────────────────
 //  Utility helpers
 // ─────────────────────────────────────────────
@@ -2823,8 +2828,11 @@ document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
 document.getElementById('player-avatar-wrap').addEventListener('click', showProfilePopup);
-document.getElementById('profile-modal-close').addEventListener('click', () => {
-  document.getElementById('profile-modal').classList.remove('open');
+// profile-modal-close is rendered after </script>, bind after full parse
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('profile-modal-close')?.addEventListener('click', () => {
+    document.getElementById('profile-modal').classList.remove('open');
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -2843,10 +2851,6 @@ function updateCoinDisplay() {
 // ─────────────────────────────────────────────
 //  Map + data refresh (viewport bbox)
 // ─────────────────────────────────────────────
-let _mapLoadPending = false;
-let _lastMapCenter  = null;
-let _lastMapFetchTime = 0;
-
 async function loadVisibleBuildings() {
   if (_mapLoadPending) return;
 
