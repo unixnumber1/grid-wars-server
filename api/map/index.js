@@ -48,6 +48,15 @@ export default async function handler(req, res) {
   const { north, south, east, west, telegram_id, lat, lng, view } = req.query;
 
   if (view === 'leaderboard') return handleLeaderboard(req, res);
+  if (view === 'health') {
+    try {
+      const { error } = await supabase.from('app_settings').select('key').limit(1);
+      if (error) throw error;
+      return res.json({ status: 'ok', db: 'connected' });
+    } catch (err) {
+      return res.status(503).json({ status: 'error', db: err.message });
+    }
+  }
 
   if (north == null || south == null || east == null || west == null) {
     return res.status(400).json({ error: 'north, south, east, west are required' });

@@ -45,6 +45,11 @@ async function handleLocation(req, res) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    console.error('[init] Missing env vars!');
+    return res.status(500).json({ error: 'Server misconfigured' });
+  }
+
   const { action } = req.body || {};
   if (action === 'avatar')   return handleAvatar(req, res);
   if (action === 'location') return handleLocation(req, res);
@@ -66,27 +71,52 @@ export default async function handler(req, res) {
     if (setting?.value === 'true') return res.status(503).json({ maintenance: true });
   }
 
-  // Upsert player
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .upsert(
-      { telegram_id: tgId, username: username || null },
-      { onConflict: 'telegram_id', ignoreDuplicates: false }
-    )
-    .select('id,telegram_id,username,avatar,level,xp,hp,max_hp,attack,bonus_attack,bonus_hp,kills,deaths,diamonds,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen')
-    .single();
+  // Helper: reject if DB takes more than 5s
+  const withTimeout = (promise) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000)),
+  ]);
 
-  if (playerError) {
-    console.error('[init] player upsert error:', playerError);
-    return res.status(500).json({ error: 'Failed to init player' });
+  let player;
+  try {
+    const { data, error: playerError } = await withTimeout(
+      supabase
+        .from('players')
+        .upsert(
+          { telegram_id: tgId, username: username || null },
+          { onConflict: 'telegram_id', ignoreDuplicates: false }
+        )
+        .select('id,telegram_id,username,avatar,level,xp,hp,max_hp,attack,bonus_attack,bonus_hp,kills,deaths,diamonds,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen')
+        .single()
+    );
+    if (playerError) throw new Error(playerError.message);
+    player = data;
+  } catch (err) {
+    console.error('[init] player upsert error:', err.message);
+    return res.status(503).json({
+      error: 'DB unavailable',
+      message: 'Сервер временно недоступен, попробуй через минуту',
+    });
   }
 
   // Fetch headquarters, mines, and inventory in parallel
-  const [{ data: headquarters }, { data: mines }, { data: inventory }] = await Promise.all([
-    supabase.from('headquarters').select('id,lat,lng,level,player_id,coins').eq('player_id', player.id).maybeSingle(),
-    supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected').eq('owner_id', player.id),
-    supabase.from('items').select('id,type,rarity,name,emoji,stat_value,equipped,obtained_at').eq('owner_id', player.id).order('obtained_at', { ascending: false }),
-  ]);
+  let headquarters, mines, inventory;
+  try {
+    const [hqRes, minesRes, itemsRes] = await withTimeout(Promise.all([
+      supabase.from('headquarters').select('id,lat,lng,level,player_id,coins').eq('player_id', player.id).maybeSingle(),
+      supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected').eq('owner_id', player.id),
+      supabase.from('items').select('id,type,rarity,name,emoji,stat_value,equipped,obtained_at').eq('owner_id', player.id).order('obtained_at', { ascending: false }),
+    ]));
+    headquarters = hqRes.data;
+    mines        = minesRes.data;
+    inventory    = itemsRes.data;
+  } catch (err) {
+    console.error('[init] secondary fetch error:', err.message);
+    return res.status(503).json({
+      error: 'DB unavailable',
+      message: 'Сервер временно недоступен, попробуй через минуту',
+    });
+  }
 
   const level  = player.level ?? 1;
   const xp     = player.xp    ?? 0;
