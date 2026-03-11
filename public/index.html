@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- H3 hex grid -->
-  <script src="https://unpkg.com/h3-js/dist/h3-js.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -1290,6 +1290,16 @@
 <div id="toast-container"></div>
 
 <script>
+// ─────────────────────────────────────────────
+//  H3 library check
+// ─────────────────────────────────────────────
+if (typeof h3 === 'undefined') {
+  console.error('[app] H3 library failed to load!');
+  document.getElementById('loading-text').textContent = 'Ошибка загрузки библиотеки. Обнови страницу.';
+} else {
+  console.log('[app] H3 loaded ok, version check:', typeof h3.latLngToCell);
+}
+
 // ─────────────────────────────────────────────
 //  Telegram WebApp bootstrap
 // ─────────────────────────────────────────────
@@ -3830,6 +3840,11 @@ document.getElementById('btn-maintenance-toggle').addEventListener('click', asyn
 //  Boot sequence
 // ─────────────────────────────────────────────
 async function boot() {
+  if (typeof h3 === 'undefined') {
+    showError('Ошибка загрузки библиотеки. Обнови страницу.');
+    return;
+  }
+
   setLoadingText('Checking identity...');
 
   if (!TG_ID) {
