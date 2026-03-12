@@ -4311,9 +4311,9 @@ document.getElementById('btn-fix-hq').addEventListener('click', async () => {
   const btn = document.getElementById('btn-fix-hq');
   btn.disabled = true; btn.textContent = '⏳ Чищу...';
   try {
-    const data = await apiFetch('/api/admin/fix-hq', {
+    const data = await apiFetch('/api/admin/maintenance', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-hq' }),
     });
     showToast(`✅ ${data.message}`);
     _lastMapCenter = null;
