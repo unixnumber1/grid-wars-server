@@ -1,6 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, getHQLimit, getMineIncome } from '../../lib/formulas.js';
-import { getCellsInRange } from '../../lib/grid.js';
+import { calcAccumulatedCoins, getMineIncome } from '../../lib/formulas.js';
+import { getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
+import { SMALL_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
@@ -14,21 +15,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id is required' });
   }
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, coins');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
-
-  const { data: hq, error: hqError } = await supabase
-    .from('headquarters')
-    .select('id, coins, level')
-    .eq('player_id', player.id)
-    .maybeSingle();
-
-  if (hqError) {
-    console.error('[collect] hq error:', hqError);
-    return res.status(500).json({ error: hqError.message });
-  }
-  if (!hq) return res.status(404).json({ error: 'Headquarters not found' });
 
   const { data: allMines, error: minesError } = await supabase
     .from('mines')
@@ -41,41 +30,42 @@ export default async function handler(req, res) {
   }
 
   if (!allMines || allMines.length === 0) {
-    return res.status(200).json({ collected: 0, hq_coins: hq.coins });
+    return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   }
 
-  // If player position provided, only collect mines within interaction zone (~500m)
+  // Only collect mines within build zone (~200m)
   let mines = allMines;
   if (lat != null && lng != null) {
-    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng));
+    const diskK = radiusToDiskK(SMALL_RADIUS);
+    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng), diskK);
     mines = allMines.filter(m => playerRange.has(m.cell_id));
   }
 
   if (mines.length === 0) {
-    return res.status(200).json({ collected: 0, hq_coins: hq.coins });
+    return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   }
 
   const now = new Date().toISOString();
+
   let totalCoins = 0;
   for (const mine of mines) {
     totalCoins += calcAccumulatedCoins(mine.level, mine.last_collected);
   }
 
-  const hqLimit = getHQLimit(hq.level ?? 1);
-  const newBalance = Math.min(hq.coins + totalCoins, hqLimit);
-  const actualCollected = newBalance - hq.coins;
+  const currentCoins = player.coins ?? 0;
+  const newCoins = currentCoins + Math.round(totalCoins);
 
-  const [{ error: hqUpdateError }, { error: minesUpdateError }] = await Promise.all([
-    supabase.from('headquarters').update({ coins: newBalance }).eq('id', hq.id),
+  const [{ error: playerUpdateError }, { error: minesUpdateError }] = await Promise.all([
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id),
     supabase.from('mines').update({ last_collected: now }).in('id', mines.map((m) => m.id)),
   ]);
 
-  if (hqUpdateError || minesUpdateError) {
-    console.error('[collect] update error:', hqUpdateError, minesUpdateError);
+  if (playerUpdateError || minesUpdateError) {
+    console.error('[collect] update error:', playerUpdateError, minesUpdateError);
     return res.status(500).json({ error: 'Failed to collect coins' });
   }
 
-  const xpGained = Math.floor(actualCollected / 50);
+  const xpGained = Math.floor(totalCoins / 50);
   let xpResult = null;
   if (xpGained > 0) {
     try {
@@ -89,10 +79,10 @@ export default async function handler(req, res) {
   const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
 
   return res.status(200).json({
-    collected: actualCollected,
-    total_accumulated: totalCoins,
-    hq_coins: newBalance,
-    xp: xpResult,
+    collected:         Math.round(totalCoins),
+    total_accumulated: Math.round(totalCoins),
+    player_coins:      newCoins,
+    xp:                xpResult,
     totalIncome,
   });
 }

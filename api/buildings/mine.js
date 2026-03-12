@@ -1,6 +1,6 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { hqConfig, getBuildRadius } from '../../lib/formulas.js';
+import { SMALL_RADIUS } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
   const { data: hq, error: hqError } = await supabase
     .from('headquarters')
-    .select('*')
+    .select('id')
     .eq('player_id', player.id)
     .maybeSingle();
 
@@ -38,31 +38,13 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'You must place your headquarters first' });
   }
 
-  const { count: mineCount } = await supabase
-    .from('mines')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', player.id);
-
-  const cfg = hqConfig(hq.level ?? 1);
-  console.log('[mine] mines count:', mineCount, 'max:', cfg.maxMines, 'hq level:', hq.level);
-  if (mineCount >= cfg.maxMines) {
-    return res.status(403).json({
-      error: `Лимит шахт для HQ ур.${hq.level ?? 1} — ${cfg.maxMines} шт. Улучши штаб!`,
-    });
-  }
-
-  // Dynamic build radius based on player level
-  const buildRadius = getBuildRadius(player.level ?? 1);
-  const diskK       = radiusToDiskK(buildRadius);
-  console.log('[radius check] playerLevel:', player.level, 'buildRadius:', buildRadius, 'diskK:', diskK);
+  const diskK       = radiusToDiskK(SMALL_RADIUS);
   const targetCell  = getCell(mineLat, mineLng);
   const playerRange = getCellsInRange(playerActualLat, playerActualLng, diskK);
 
-  console.log('[mine] cell check: target:', targetCell, 'inRange:', playerRange.has(targetCell), 'radius:', buildRadius);
-
   if (!playerRange.has(targetCell)) {
     return res.status(403).json({
-      error: `Цель вне зоны строительства (~${buildRadius}м)`,
+      error: `Цель вне зоны строительства (~${SMALL_RADIUS}м)`,
     });
   }
 
@@ -100,7 +82,7 @@ export default async function handler(req, res) {
       level: 0,
       last_collected: new Date().toISOString(),
     })
-    .select()
+    .select('id,owner_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level')
     .single();
 
   if (insertError) {

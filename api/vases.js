@@ -40,20 +40,21 @@ async function handleBreak(req, res) {
   if (!telegram_id || !vase_id || lat == null || lng == null)
     return res.status(400).json({ error: 'telegram_id, vase_id, lat, lng required' });
 
-  const { player, error } = await getPlayerByTelegramId(telegram_id);
+  const { player, error } = await getPlayerByTelegramId(telegram_id, 'id,username,diamonds');
   if (error)   return res.status(500).json({ error });
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
   const { data: vase } = await supabase
-    .from('vases').select('*').eq('id', vase_id).maybeSingle();
+    .from('vases').select('id,lat,lng,diamonds_reward,broken_by,expires_at').eq('id', vase_id).maybeSingle();
   if (!vase)            return res.status(404).json({ error: 'Vase not found' });
   if (vase.broken_by)   return res.status(400).json({ error: 'Already broken' });
   if (new Date(vase.expires_at) < new Date())
     return res.status(400).json({ error: 'Vase expired' });
 
+  const LARGE_RADIUS = 500;
   const dist = haversine(parseFloat(lat), parseFloat(lng), vase.lat, vase.lng);
-  if (dist > 100)
-    return res.status(400).json({ error: `Подойди ближе (${Math.round(dist)}м > 100м)` });
+  if (dist > LARGE_RADIUS)
+    return res.status(400).json({ error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` });
 
   // Award diamonds
   const newDiamonds = (player.diamonds || 0) + vase.diamonds_reward;

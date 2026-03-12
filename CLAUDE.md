@@ -103,15 +103,38 @@ BOT_TOKEN=
 | 150     | 👑   | Трон Богов           |
 
 ### Штаб — 10 уровней
-- maxMineLevel: [15, 30, 45, 60, 75, 90, 105, 120, 135, 150]
-- maxMines: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 - Апгрейд: `POST /api/buildings/headquarters` с `action: 'upgrade'`
 - Поле `level` (integer, default 1) в таблице `headquarters`
+- maxMineLevel и maxMines лимиты **удалены** — шахт можно строить неограниченно
 
 ### Аватарки
 - 46 эмодзи на выбор, хранятся в `players.avatar`
 - Смена: `POST /api/player/avatar`
 - Визуал на карте: эмодзи аватарки вместо синей точки
+
+## Стартовый бонус новым игрокам
+При постройке первого штаба (`starting_bonus_claimed = false`):
+- **100 000 монет** + **100 алмазов**
+- Логика в `api/buildings/headquarters.js` (поле `starting_bonus_claimed` в `players`)
+
+## Две зоны взаимодействия (SMALL_RADIUS / LARGE_RADIUS)
+
+Радиус **не зависит** от уровня игрока. Константы в `lib/formulas.js`.
+
+| Зона | Радиус | Цвет на карте | Действия |
+|------|--------|---------------|----------|
+| Малый круг (build) | 200м | 🔵 синий пунктир, 5% заливка | строить/улучшать шахты, собирать монеты |
+| Большой круг (combat) | 500м | 🔴 красный пунктир, без заливки | атаковать ботов, разбивать вазы |
+
+### Бэкенд
+- `mine.js`, `upgrade.js`, `collect.js` — проверка дистанции ≤ 200м (SMALL_RADIUS, H3 diskK)
+- `bots.js` (attack/repel/lure) — проверка дистанции ≤ 500м (LARGE_RADIUS, haversine)
+- `vases.js` (break) — проверка дистанции ≤ 500м
+
+### Фронтенд
+- `playerZoneCircle` — L.circle 200м, `rgba(100,200,255,0.6)`, dashArray
+- `playerCombatCircle` — L.circle 500м, `rgba(255,80,80,0.4)`, dashArray
+- Оба обновляются в `_applyPlayerPosition()` при движении игрока
 
 ## Текущий статус
 - ✅ Базовый геймплей работает
@@ -122,11 +145,17 @@ BOT_TOKEN=
 - ✅ Аватарки игроков (46 вариантов)
 - ✅ Скины домиков по уровням
 - ✅ Меню настроек (drawer)
+- ✅ Монеты хранятся в players.coins (BIGINT, не в headquarters.coins)
+- ✅ Механика захвата шахт удалена
+- ✅ Лимит количества шахт по уровню штаба удалён
+- ✅ Маркер персонажа: pointer-events:none, z-index 400 (штаб 500, шахты 450)
+- ✅ Две зоны: build 200м (синий) + combat 500м (красный)
 
 ## SQL для новых полей
 ```sql
 ALTER TABLE players      ADD COLUMN IF NOT EXISTS avatar text DEFAULT '🐺';
 ALTER TABLE headquarters ADD COLUMN IF NOT EXISTS level  integer DEFAULT 1;
+ALTER TABLE players      ADD COLUMN IF NOT EXISTS coins  BIGINT NOT NULL DEFAULT 0;
 ```
 
 ## H3 Hex Grid (актуально)
@@ -158,7 +187,7 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS xp    integer DEFAULT 0;
 ### Формулы (lib/formulas.js)
 - `xpForLevel(level)` = `floor(100 * level^1.9)` — XP для перехода с level на level+1
 - `calculateLevel(totalXp)` — вычисляет текущий уровень по суммарному XP
-- `getBuildRadius(level)` — 500→550→600→700→800→1000→1500м по уровням (5/10/20/30/50/100)
+- `SMALL_RADIUS` = 200м (build zone), `LARGE_RADIUS` = 500м (combat zone)
 
 ### XP rewards (lib/xp.js → XP_REWARDS)
 | Действие | XP |
@@ -168,10 +197,10 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS xp    integer DEFAULT 0;
 | COLLECT_PER_50_COINS | 1 per 50 монет |
 | UPGRADE_MINE(newLevel) | 10 * newLevel |
 | UPGRADE_HQ | 500 |
-| CAPTURE_MINE | 100 |
 
-### Динамический радиус постройки
-- mine.js использует `getBuildRadius(player.level)` вместо хардкода 500м
+### Радиус взаимодействия (фиксированный)
+- SMALL_RADIUS=200м: mine.js, upgrade.js, collect.js
+- LARGE_RADIUS=500м: bots.js (attack/repel/lure), vases.js (break)
 - grid.js: `radiusToDiskK(meters)` конвертирует метры в H3 disk-K
 
 ## Система ботов (актуально)

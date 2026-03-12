@@ -1,5 +1,5 @@
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
-import { xpForLevel, getBuildRadius, getMaxHp, getPlayerAttack, calcHpRegen, getMineIncome, ALLOWED_AVATARS } from '../../lib/formulas.js';
+import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, getMaxHp, getPlayerAttack, calcHpRegen, getMineIncome, ALLOWED_AVATARS } from '../../lib/formulas.js';
 
 // ── AVATAR ──────────────────────────────────────────────────────────────────
 async function handleAvatar(req, res) {
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
           { telegram_id: tgId, username: username || null },
           { onConflict: 'telegram_id', ignoreDuplicates: false }
         )
-        .select('id,telegram_id,username,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,kills,deaths,diamonds,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen')
+        .select('id,telegram_id,username,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen')
         .single()
     );
     if (playerError) throw new Error(playerError.message);
@@ -153,7 +153,8 @@ export default async function handler(req, res) {
       level,
       xp,
       xpForNextLevel: xpForLevel(level),
-      buildRadius:    getBuildRadius(level),
+      smallRadius:    SMALL_RADIUS,
+      largeRadius:    LARGE_RADIUS,
       hp:             currentHp,
       max_hp:         maxHp,
       attack,
@@ -162,6 +163,7 @@ export default async function handler(req, res) {
       diamonds:       player.diamonds     ?? 0,
       bonus_attack:   player.bonus_attack ?? 0,
       bonus_hp:       player.bonus_hp     ?? 0,
+      coins:          player.coins        ?? 0,
     },
     headquarters: headquarters || null,
     mines:        mines        || [],

@@ -2,7 +2,7 @@ import { supabase, getPlayerByTelegramId } from '../lib/supabase.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../lib/bots.js';
 import { haversine } from '../lib/haversine.js';
 import { addXp } from '../lib/xp.js';
-import { getHQLimit, getBuildRadius, getMaxHp, getPlayerAttack, calcHpRegen } from '../lib/formulas.js';
+import { LARGE_RADIUS, getMaxHp, getPlayerAttack, calcHpRegen } from '../lib/formulas.js';
 
 const BOTS_PER_ZONE = 10;          // target bot count within 2km of each player
 const BOT_TTL_MS    = 5 * 60 * 1000; // bots expire after 5 minutes
@@ -301,12 +301,11 @@ async function handleAttack(player, body) {
   if (botErr) return { status: 500, error: botErr.message };
   if (!bot)   return { status: 404, error: 'Bot not found' };
 
-  const radius = getBuildRadius(player.level ?? 1);
-  const dist   = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > radius) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${radius}м)` };
+  const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
+  if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
 
   const { data: pFull, error: pErr } = await supabase
-    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp').eq('id', player.id).single();
+    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, coins').eq('id', player.id).single();
   if (pErr) return { status: 500, error: pErr.message };
 
   const lvl       = pFull.level ?? 1;
@@ -335,13 +334,9 @@ async function handleAttack(player, body) {
     if (botCfg?.category === 'neutral' && botCfg.reward_max > 0) {
       const reward = getRandomReward(botCfg);
       result.reward = reward;
-      const { data: hq } = await supabase
-        .from('headquarters').select('id, coins, level').eq('player_id', player.id).maybeSingle();
-      if (hq) {
-        const newCoins = Math.min(hq.coins + reward, getHQLimit(hq.level ?? 1));
-        await supabase.from('headquarters').update({ coins: newCoins }).eq('id', hq.id);
-        result.hq_coins = newCoins;
-      }
+      const newCoins = (pFull.coins ?? 0) + reward;
+      await supabase.from('players').update({ coins: newCoins }).eq('id', player.id);
+      result.player_coins = newCoins;
     }
 
     await supabase.from('players').update({
@@ -402,9 +397,8 @@ async function handleRepel(player, body) {
   if (!bot)  return { status: 404, error: 'Bot not found' };
   if (bot.category !== 'undead') return { status: 400, error: 'Can only repel undead' };
 
-  const radius = getBuildRadius(player.level ?? 1);
-  const dist   = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > radius) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${radius}м)` };
+  const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
+  if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
 
   const { error: delErr } = await supabase.from('bots').delete().eq('id', bot_id);
   if (delErr) return { status: 500, error: delErr.message };
@@ -424,28 +418,23 @@ async function handleLure(player, body) {
   if (!bot)  return { status: 404, error: 'Bot not found' };
   if (bot.category !== 'neutral') return { status: 400, error: 'Can only lure neutral bots' };
 
-  const radius = getBuildRadius(player.level ?? 1);
-  const dist   = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > radius) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${radius}м)` };
+  const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
+  if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
 
   const cfg    = BOT_TYPES[bot.type] || { reward_min: bot.reward_min, reward_max: bot.reward_max };
   const reward = getRandomReward(cfg);
 
-  const { data: hq, error: hqErr } = await supabase
-    .from('headquarters').select('id, coins, level').eq('player_id', player.id).maybeSingle();
-  if (hqErr || !hq) return { status: 404, error: 'HQ not found' };
-
-  const newCoins = Math.min(hq.coins + reward, getHQLimit(hq.level ?? 1));
-  const [{ error: hqUpdErr }, { error: delErr }] = await Promise.all([
-    supabase.from('headquarters').update({ coins: newCoins }).eq('id', hq.id),
+  const newCoins = (player.coins ?? 0) + reward;
+  const [{ error: playerUpdErr }, { error: delErr }] = await Promise.all([
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id),
     supabase.from('bots').delete().eq('id', bot_id),
   ]);
-  if (hqUpdErr) return { status: 500, error: hqUpdErr.message };
+  if (playerUpdErr) return { status: 500, error: playerUpdErr.message };
 
   const xpAmount = Math.floor(reward / 10);
   const xpResult = xpAmount > 0 ? await addXp(player.id, xpAmount).catch(() => null) : null;
 
-  return { reward, emoji: bot.emoji, hq_coins: newCoins, xp: xpResult };
+  return { reward, emoji: bot.emoji, player_coins: newCoins, xp: xpResult };
 }
 
 // ── ROUTER ─────────────────────────────────────────────────────────────────
@@ -457,7 +446,7 @@ export default async function handler(req, res) {
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
   // Include respawn_until so handleAttack can check it without extra query
-  const { player, error } = await getPlayerByTelegramId(telegram_id, 'id, level, respawn_until');
+  const { player, error } = await getPlayerByTelegramId(telegram_id, 'id, level, respawn_until, coins');
   if (error) return res.status(500).json({ error });
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
