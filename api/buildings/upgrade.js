@@ -1,6 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { mineUpgradeCost, MINE_MAX_LEVEL, SMALL_RADIUS } from '../../lib/formulas.js';
 import { getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
+import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
@@ -53,12 +54,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id and mine_id are required' });
   }
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level, coins');
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level, coins, last_lat, last_lng');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
   const { data: mine, error: mineError } = await supabase
-    .from('mines').select('id,owner_id,level,cell_id,pending_level,upgrade_finish_at').eq('id', mine_id).maybeSingle();
+    .from('mines').select('id,owner_id,level,cell_id,lat,lng,pending_level,upgrade_finish_at').eq('id', mine_id).maybeSingle();
 
   if (mineError) return res.status(500).json({ error: mineError.message });
   if (!mine)     return res.status(404).json({ error: 'Mine not found' });
@@ -73,13 +74,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Апгрейд ещё идёт (${secondsLeft} сек)` });
   }
 
-  // H3 range check
-  if (lat != null && lng != null) {
-    const diskK       = radiusToDiskK(SMALL_RADIUS);
-    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng), diskK);
-    if (!playerRange.has(mine.cell_id)) {
-      return res.status(403).json({ error: `Шахта вне зоны взаимодействия (~${SMALL_RADIUS}м)` });
-    }
+  // Strict haversine distance check — coordinates required
+  if (lat == null || lng == null) {
+    return res.status(400).json({ error: 'Координаты игрока не переданы' });
+  }
+  const pLat = parseFloat(lat);
+  const pLng = parseFloat(lng);
+  if (isNaN(pLat) || isNaN(pLng)) {
+    return res.status(400).json({ error: 'Некорректные координаты' });
+  }
+  const distance = haversine(pLat, pLng, mine.lat, mine.lng);
+  if (distance > SMALL_RADIUS) {
+    return res.status(400).json({ error: `Слишком далеко! Подойди ближе (200м)`, distance: Math.round(distance) });
   }
 
   if (mine.level >= MINE_MAX_LEVEL) {

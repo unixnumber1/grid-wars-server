@@ -305,7 +305,7 @@ async function handleAttack(player, body) {
   if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
 
   const { data: pFull, error: pErr } = await supabase
-    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, coins').eq('id', player.id).single();
+    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, equipped_sword, coins').eq('id', player.id).single();
   if (pErr) return { status: 500, error: pErr.message };
 
   const lvl       = pFull.level ?? 1;
@@ -314,8 +314,14 @@ async function handleAttack(player, body) {
   let   playerHp  = calcHpRegen(pFull.hp ?? maxHp, maxHp, pFull.last_hp_regen);
   if (playerHp > maxHp) playerHp = maxHp;
 
-  // Player attacks bot
-  const isCrit     = Math.random() < 0.2;
+  // Player attacks bot — crit chance from equipped weapon
+  let weaponCrit = 0;
+  if (pFull.equipped_sword) {
+    const { data: wpn } = await supabase.from('items').select('type, crit_chance').eq('id', pFull.equipped_sword).maybeSingle();
+    if (wpn?.type === 'sword') weaponCrit = wpn.crit_chance ?? 0;
+  }
+  const critChance = 0.2 + weaponCrit / 100;
+  const isCrit     = Math.random() < critChance;
   let   damage     = Math.floor(playerAtk * (0.8 + Math.random() * 0.4));
   if (isCrit) damage = Math.floor(damage * 2);
 

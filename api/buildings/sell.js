@@ -1,5 +1,5 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, getHQLimit, getMineUpgradeCost } from '../../lib/formulas.js';
+import { calcAccumulatedCoins, getMineUpgradeCost } from '../../lib/formulas.js';
 
 function calcSellRefund(level) {
   let sum = 0;
@@ -17,49 +17,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id and mine_id are required' });
   }
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, coins');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 
-  const [
-    { data: mine,  error: mineError },
-    { data: hq,    error: hqError },
-  ] = await Promise.all([
-    supabase.from('mines').select('*').eq('id', mine_id).maybeSingle(),
-    supabase.from('headquarters').select('id, coins, level').eq('player_id', player.id).maybeSingle(),
-  ]);
+  const { data: mine, error: mineError } = await supabase
+    .from('mines').select('id,owner_id,level,last_collected,lat,lng').eq('id', mine_id).maybeSingle();
 
   if (mineError) {
     console.error('[sell] mine error:', mineError);
     return res.status(500).json({ error: mineError.message });
   }
-  if (hqError) {
-    console.error('[sell] hq error:', hqError);
-    return res.status(500).json({ error: hqError.message });
-  }
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
-  if (!hq)   return res.status(404).json({ error: 'Headquarters not found' });
 
   if (mine.owner_id !== player.id) {
     return res.status(403).json({ error: 'You do not own this mine' });
   }
 
-  const collected = calcAccumulatedCoins(mine.level, mine.last_collected);
-  const refund    = calcSellRefund(mine.level);
-  const total     = collected + refund;
+  const collected   = calcAccumulatedCoins(mine.level, mine.last_collected);
+  const refund      = calcSellRefund(mine.level);
+  const total       = collected + refund;
+  const newCoins    = (player.coins ?? 0) + Math.round(total);
 
-  const hqLimit    = getHQLimit(hq.level ?? 1);
-  const newBalance = Math.min(hq.coins + total, hqLimit);
-
-  const [{ error: hqUpdateError }, { error: deleteError }] = await Promise.all([
-    supabase.from('headquarters').update({ coins: newBalance }).eq('id', hq.id),
+  const [{ error: playerUpdateError }, { error: deleteError }] = await Promise.all([
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id),
     supabase.from('mines').delete().eq('id', mine_id),
   ]);
 
-  if (hqUpdateError || deleteError) {
-    console.error('[sell] error:', hqUpdateError, deleteError);
+  if (playerUpdateError || deleteError) {
+    console.error('[sell] error:', playerUpdateError, deleteError);
     return res.status(500).json({ error: 'Failed to sell mine' });
   }
 
-  return res.status(200).json({ collected, refund, total, hq_coins: newBalance });
+  return res.status(200).json({
+    collected:    Math.round(collected),
+    refund:       Math.round(refund),
+    total:        Math.round(total),
+    player_coins: newCoins,
+  });
 }

@@ -1,7 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { calcAccumulatedCoins, getMineIncome } from '../../lib/formulas.js';
-import { getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { SMALL_RADIUS } from '../../lib/formulas.js';
+import { calcAccumulatedCoins, getMineIncome, SMALL_RADIUS } from '../../lib/formulas.js';
+import { getCellCenter, getCell } from '../../lib/grid.js';
+import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
   const { data: allMines, error: minesError } = await supabase
     .from('mines')
-    .select('id, level, last_collected, cell_id')
+    .select('id, level, last_collected, cell_id, lat, lng')
     .eq('owner_id', player.id);
 
   if (minesError) {
@@ -33,13 +33,16 @@ export default async function handler(req, res) {
     return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   }
 
-  // Only collect mines within build zone (~200m)
-  let mines = allMines;
-  if (lat != null && lng != null) {
-    const diskK = radiusToDiskK(SMALL_RADIUS);
-    const playerRange = getCellsInRange(parseFloat(lat), parseFloat(lng), diskK);
-    mines = allMines.filter(m => playerRange.has(m.cell_id));
+  // Coordinates required — strict haversine zone check
+  if (lat == null || lng == null) {
+    return res.status(400).json({ error: 'Координаты игрока не переданы' });
   }
+  const pLat = parseFloat(lat), pLng = parseFloat(lng);
+  const mines = allMines.filter(m => {
+    const mLat = m.lat != null ? m.lat : getCellCenter(m.cell_id)[0];
+    const mLng = m.lng != null ? m.lng : getCellCenter(m.cell_id)[1];
+    return haversine(pLat, pLng, mLat, mLng) <= SMALL_RADIUS;
+  });
 
   if (mines.length === 0) {
     return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
@@ -65,7 +68,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to collect coins' });
   }
 
-  const xpGained = Math.floor(totalCoins / 50);
+  // 0.1% of collected coins, minimum 1
+  const collectedAmount = Math.round(totalCoins);
+  const xpGained = collectedAmount > 0 ? Math.max(1, Math.floor(collectedAmount * 0.001)) : 0;
   let xpResult = null;
   if (xpGained > 0) {
     try {

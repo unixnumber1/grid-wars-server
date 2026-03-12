@@ -1,6 +1,7 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
+import { getCell, getCellCenter } from '../../lib/grid.js';
 import { SMALL_RADIUS } from '../../lib/formulas.js';
+import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 
 export default async function handler(req, res) {
@@ -38,17 +39,17 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'You must place your headquarters first' });
   }
 
-  const diskK       = radiusToDiskK(SMALL_RADIUS);
   const targetCell  = getCell(mineLat, mineLng);
-  const playerRange = getCellsInRange(playerActualLat, playerActualLng, diskK);
+  const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
 
-  if (!playerRange.has(targetCell)) {
-    return res.status(403).json({
-      error: `Цель вне зоны строительства (~${SMALL_RADIUS}м)`,
+  // Strict haversine distance check to cell center
+  const distance = haversine(playerActualLat, playerActualLng, cellCenterLat, cellCenterLng);
+  if (distance > SMALL_RADIUS) {
+    return res.status(400).json({
+      error: `Слишком далеко (${Math.round(distance)}м > ${SMALL_RADIUS}м)`,
+      distance: Math.round(distance),
     });
   }
-
-  const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
 
   const { data: existingMine } = await supabase
     .from('mines')

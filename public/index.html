@@ -96,9 +96,9 @@
     #hud-currency-buttons button:active {
       background: rgba(255,255,255,0.18);
     }
-    #hud-currency-buttons .hud-btn-placeholder {
-      border-style: dashed;
-      opacity: 0.5;
+    #btn-market-hud {
+      background: rgba(255,215,0,0.1);
+      border-color: rgba(255,215,0,0.3);
     }
 
     /* Floating buttons island */
@@ -566,7 +566,7 @@
       background: #1a1a2e;
     }
     #leaderboard-header h3 { font-size: 16px; font-weight: 800; }
-    #btn-close-leaderboard {
+    #btn-close-leaderboard, #btn-refresh-leaderboard {
       background: none;
       border: none;
       color: #888;
@@ -575,6 +575,8 @@
       padding: 4px 8px;
       -webkit-tap-highlight-color: transparent;
     }
+    #btn-refresh-leaderboard { font-size: 16px; }
+    #btn-refresh-leaderboard:active { opacity: 0.5; }
     #leaderboard-list { flex: 1; overflow-y: auto; }
     #leaderboard-current { border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
     .lb-row {
@@ -1176,8 +1178,33 @@
     }
     #item-detail-card h3 { font-size: 18px; margin-bottom: 4px; }
     #item-detail-card .item-stat { font-size: 15px; margin: 12px 0; color: #f5c518; }
-    #item-detail-card .item-btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    #item-detail-card .item-btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
     #item-detail-card .item-btn-row .btn { flex: 1; padding: 12px; font-size: 14px; }
+    .btn-sell-item {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-sell-item:active { opacity: 0.6; }
+
+    /* Sell confirm */
+    #sell-confirm-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 5000;
+      align-items: center; justify-content: center;
+    }
+    #sell-confirm-overlay.open { display: flex; }
+    #sell-confirm-card {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 20px; min-width: 250px; max-width: 320px;
+      animation: popIn 0.2s ease-out;
+    }
 
     /* Vase drop popup */
     #vase-drop-popup {
@@ -1307,6 +1334,206 @@
     .box-result-stat { font-size: 15px; color: #f5c518; }
     .box-result-hint { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 24px; }
 
+    /* ── Market modal (fullscreen) ────────────────────────────── */
+    #market-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 3500;
+      background: #0d0d1a;
+      flex-direction: column;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #market-modal.open { display: flex; }
+    #market-header {
+      position: sticky; top: 0; z-index: 1;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    #market-header-top { display: flex; justify-content: space-between; align-items: center; }
+    #market-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
+    #market-header-balances { display: flex; gap: 14px; margin-top: 6px; font-size: 14px; }
+    #market-close {
+      background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(255,255,255,0.08);
+    }
+    #market-tabs {
+      display: flex; gap: 0; margin: 12px 16px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .market-tab {
+      flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600;
+      background: none; border: none; color: #888; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .market-tab.active { color: #fff; border-bottom-color: #FFD700; }
+    #market-sort-row {
+      display: flex; gap: 6px; padding: 10px 16px;
+    }
+    .market-sort-btn {
+      flex: 1; padding: 6px 4px; font-size: 12px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: #aaa; cursor: pointer; text-align: center;
+    }
+    .market-sort-btn.active { background: rgba(255,215,0,0.15); border-color: #FFD700; color: #FFD700; }
+    #market-body { padding: 0 16px 100px; flex: 1; }
+    #market-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .market-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      position: relative;
+    }
+    .market-card-emoji { font-size: 56px; line-height: 1; margin: 8px 0; }
+    .market-card-name { font-size: 13px; font-weight: 700; }
+    .market-card-rarity { font-size: 11px; }
+    .market-card-stat { font-size: 11px; color: #f5c518; }
+    .market-card-price { font-size: 18px; font-weight: 800; color: #00cfff; margin: 6px 0 2px; }
+    .market-card-seller { font-size: 10px; color: #888; }
+    .market-card .btn { width: 100%; margin-top: 6px; padding: 8px; font-size: 13px; border-radius: 10px; }
+    .market-card-lock {
+      position: absolute; top: 8px; right: 8px; font-size: 14px;
+    }
+    .market-card-status {
+      font-size: 12px; font-weight: 600; margin: 4px 0;
+    }
+    .market-card-time { font-size: 11px; color: #888; }
+    #market-empty {
+      text-align: center; color: #666; padding: 40px 0; font-size: 14px;
+    }
+    #market-load-more {
+      display: none; width: 100%; margin-top: 12px; padding: 10px;
+      font-size: 13px; border-radius: 10px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: #aaa; cursor: pointer;
+    }
+    #market-fab {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 3501; padding: 12px 28px; border-radius: 30px;
+      background: linear-gradient(135deg, #FFD700, #FF8C00); color: #000;
+      font-size: 15px; font-weight: 800; border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255,215,0,0.4);
+      display: none;
+    }
+
+    /* Market buy/private modals */
+    #market-buy-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 5000;
+      align-items: center; justify-content: center;
+    }
+    #market-buy-overlay.open { display: flex; }
+    #market-buy-card {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 20px; width: calc(100% - 48px); max-width: 340px;
+      animation: popIn 0.2s ease-out;
+    }
+    #market-buy-card h3 { font-size: 16px; margin: 0 0 12px; }
+
+    #market-private-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 5000;
+      align-items: center; justify-content: center;
+    }
+    #market-private-overlay.open { display: flex; }
+    #market-private-card {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 20px; width: calc(100% - 48px); max-width: 320px;
+      animation: popIn 0.2s ease-out;
+    }
+    #market-private-input {
+      width: 100%; padding: 12px; font-size: 18px; text-align: center;
+      letter-spacing: 6px; text-transform: uppercase;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #fff; margin: 12px 0;
+    }
+
+    /* Market list-item flow */
+    #market-list-overlay {
+      display: none; position: fixed; inset: 0;
+      z-index: 3600; background: #0d0d1a;
+      flex-direction: column; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #market-list-overlay.open { display: flex; }
+    #market-list-header {
+      position: sticky; top: 0; z-index: 1;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #market-list-header h2 { font-size: 16px; font-weight: 800; margin: 0; }
+    #market-list-body { padding: 16px; flex: 1; }
+    #market-list-inv-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    }
+    .market-inv-cell {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .market-inv-cell.disabled { opacity: 0.3; cursor: not-allowed; }
+    #market-list-step2 { display: none; }
+    #market-list-preview-emoji { font-size: 80px; text-align: center; line-height: 1; margin: 12px 0; }
+    #market-list-price-input {
+      width: 100%; padding: 12px; font-size: 16px; text-align: center;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #fff; margin: 8px 0;
+    }
+    .market-list-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; font-size: 14px;
+    }
+    .market-list-toggle {
+      width: 44px; height: 24px; border-radius: 12px;
+      background: rgba(255,255,255,0.15); border: none; cursor: pointer;
+      position: relative; transition: background 0.2s;
+    }
+    .market-list-toggle.on { background: #FFD700; }
+    .market-list-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; transition: transform 0.2s;
+    }
+    .market-list-toggle.on::after { transform: translateX(20px); }
+    #market-list-code-row { display: none; margin: 8px 0; text-align: center; }
+    #market-list-code {
+      font-size: 22px; font-weight: 800; letter-spacing: 4px;
+      color: #FFD700; user-select: all;
+    }
+
+    /* Courier markers */
+    .courier-marker {
+      position: relative; display: flex; align-items: center; justify-content: center;
+    }
+    .courier-hp-bar {
+      position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+      width: 28px; height: 3px; background: #333; border-radius: 2px; overflow: hidden;
+    }
+    .courier-hp-fill {
+      height: 100%; background: #00cc44; transition: width 0.3s;
+    }
+
+    /* Drop pulse */
+    @keyframes dropPulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%     { opacity: 0.6; transform: scale(1.2); }
+    }
+    .drop-marker { animation: dropPulse 1.5s ease-in-out infinite; }
+
     /* Box odds popup */
     #box-odds-popup {
       display: none;
@@ -1340,9 +1567,122 @@
       background: rgba(255,255,255,0.08); border: none; color: #fff;
       border-radius: 10px; font-size: 13px; cursor: pointer;
     }
+    /* Username setup screen */
+    #username-setup-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background: radial-gradient(ellipse at top, rgba(30,0,60,0.98), rgba(0,0,0,0.99));
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    #username-setup-screen.open { display: flex; }
+    #username-setup-screen h1 { font-size: 28px; margin: 0 0 4px; color: #FFD700; }
+    #username-setup-screen .subtitle { color: #aaa; font-size: 14px; margin-bottom: 24px; }
+    #setup-avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      max-width: 300px;
+      margin-bottom: 16px;
+    }
+    #setup-avatar-grid .avatar-cell { font-size: 24px; }
+    #setup-avatar-preview {
+      width: 80px; height: 80px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px; border-radius: 16px;
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(255,255,255,0.15);
+      margin-bottom: 20px;
+    }
+    #setup-username-input {
+      width: 100%; max-width: 300px; padding: 12px 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #fff; font-size: 15px;
+      box-sizing: border-box; outline: none;
+      text-align: center;
+    }
+    #setup-username-input:focus { border-color: #FFD700; }
+    #setup-username-hint { color: #666; font-size: 11px; margin-top: 6px; margin-bottom: 4px; }
+    #setup-username-error { color: #e06060; font-size: 12px; min-height: 18px; margin-top: 4px; }
+    #btn-setup-start {
+      margin-top: 16px; padding: 14px 48px; font-size: 16px; font-weight: 700;
+      border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #FFD700, #FFA000); color: #000;
+      transition: opacity 0.2s;
+    }
+    #btn-setup-start:disabled { opacity: 0.35; cursor: default; }
+
+    /* Change username modal */
+    #change-username-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 6000;
+      align-items: center; justify-content: center;
+    }
+    #change-username-overlay.open { display: flex; }
+    #change-username-card {
+      background: #1a1a2e; border-radius: 16px; padding: 24px;
+      width: min(340px, 90vw); text-align: center;
+    }
+    #change-username-card h3 { margin: 0 0 12px; font-size: 16px; }
+    #change-username-current { color: #888; font-size: 13px; margin-bottom: 12px; }
+    #change-username-input {
+      width: 100%; padding: 10px 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; color: #fff; font-size: 14px;
+      box-sizing: border-box; outline: none;
+    }
+    #change-username-input:focus { border-color: #FFD700; }
+    #change-username-cost { color: #aaa; font-size: 12px; margin-top: 8px; }
+    #change-username-error { color: #e06060; font-size: 12px; min-height: 16px; margin-top: 4px; }
+    #change-username-buttons { display: flex; gap: 8px; margin-top: 14px; }
+    #change-username-buttons button { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+    #btn-change-username-cancel { background: rgba(255,255,255,0.08); color: #aaa; }
+    #btn-change-username-confirm { background: linear-gradient(135deg, #FFD700, #FFA000); color: #000; }
+    #btn-change-username-confirm:disabled { opacity: 0.35; cursor: default; }
   </style>
 </head>
 <body>
+
+<!-- Username setup screen (first login) -->
+<div id="username-setup-screen">
+  <h1>&#x2694;&#xFE0F; GRID WARS</h1>
+  <div class="subtitle">&#x0414;&#x043E;&#x0431;&#x0440;&#x043E; &#x043F;&#x043E;&#x0436;&#x0430;&#x043B;&#x043E;&#x0432;&#x0430;&#x0442;&#x044C;!</div>
+
+  <div style="color:#ccc;font-size:13px;margin-bottom:10px;">&#x0412;&#x044B;&#x0431;&#x0435;&#x0440;&#x0438; &#x0430;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;:</div>
+  <div id="setup-avatar-grid"></div>
+
+  <div style="color:#ccc;font-size:13px;margin-bottom:8px;">&#x0412;&#x044B;&#x0431;&#x0440;&#x0430;&#x043D;&#x043D;&#x044B;&#x0439; &#x0430;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;:</div>
+  <div id="setup-avatar-preview">&#x1F43A;</div>
+
+  <div style="color:#ccc;font-size:13px;margin-bottom:8px;">&#x041F;&#x0440;&#x0438;&#x0434;&#x0443;&#x043C;&#x0430;&#x0439; &#x043D;&#x0438;&#x043A;:</div>
+  <input id="setup-username-input" type="text" placeholder="&#x0412;&#x0432;&#x0435;&#x0434;&#x0438; &#x043D;&#x0438;&#x043A;..." maxlength="16" autocomplete="off">
+  <div id="setup-username-hint">3-16 &#x0441;&#x0438;&#x043C;&#x0432;&#x043E;&#x043B;&#x043E;&#x0432;, &#x0431;&#x0443;&#x043A;&#x0432;&#x044B;/&#x0446;&#x0438;&#x0444;&#x0440;&#x044B;/_</div>
+  <div id="setup-username-error"></div>
+
+  <button id="btn-setup-start" disabled>&#x2705; &#x041D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;</button>
+</div>
+
+<!-- Change username modal -->
+<div id="change-username-overlay">
+  <div id="change-username-card" onclick="event.stopPropagation()">
+    <h3>&#x270F;&#xFE0F; &#x0421;&#x043C;&#x0435;&#x043D;&#x0438;&#x0442;&#x044C; &#x043D;&#x0438;&#x043A;</h3>
+    <div id="change-username-current"></div>
+    <input id="change-username-input" type="text" placeholder="&#x041D;&#x043E;&#x0432;&#x044B;&#x0439; &#x043D;&#x0438;&#x043A;..." maxlength="16" autocomplete="off">
+    <div id="change-username-cost"></div>
+    <div id="change-username-error"></div>
+    <div id="change-username-buttons">
+      <button id="btn-change-username-cancel">&#x041E;&#x0442;&#x043C;&#x0435;&#x043D;&#x0430;</button>
+      <button id="btn-change-username-confirm" disabled>&#x0421;&#x043C;&#x0435;&#x043D;&#x0438;&#x0442;&#x044C;</button>
+    </div>
+  </div>
+</div>
 
 <!-- Loading screen -->
 <div id="loading">
@@ -1403,6 +1743,8 @@
     <div id="settings-tab-profile" class="settings-tab-content active">
       <div class="settings-section-title">Аватарка</div>
       <button id="btn-change-avatar" class="btn" style="width:100%;padding:12px;font-size:14px;text-align:center;">&#x1F3A8; Сменить аватарку</button>
+      <div class="settings-section-title" style="margin-top:16px;">Ник</div>
+      <button id="btn-change-username" class="btn" style="width:100%;padding:12px;font-size:14px;text-align:center;">&#x270F;&#xFE0F; Сменить ник</button>
     </div>
     <div id="admin-section" style="display:none;margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
       <div class="settings-section-title">Admin</div>
@@ -1470,7 +1812,10 @@
 <div id="leaderboard-overlay">
   <div id="leaderboard-header">
     <h3>&#x1F3C6; Топ игроков</h3>
-    <button id="btn-close-leaderboard">&#x2715;</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="btn-refresh-leaderboard" title="Обновить">&#x1F504;</button>
+      <button id="btn-close-leaderboard">&#x2715;</button>
+    </div>
   </div>
   <div id="leaderboard-list"></div>
   <div id="leaderboard-current"></div>
@@ -1490,7 +1835,7 @@
   </div>
   <div id="hud-currency-buttons">
     <button id="btn-shop-hud" title="Магазин">🛒 Магазин</button>
-    <button class="hud-btn-placeholder" disabled>🔜</button>
+    <button id="btn-market-hud" title="Рынок">🎪 Рынок</button>
   </div>
 </div>
 
@@ -1660,7 +2005,7 @@ function getMineUpgradeCost(level) {
     return e4 * 20 * Math.pow(1.11, l - 201);
   }
   let cost = base(level);
-  if (level >= 10 && level % 10 === 0) cost *= 4;
+  if (level >= 9 && level % 10 === 9) cost *= 4;
   return Math.min(Math.round(cost), 9_000_000_000_000_000_000);
 }
 function getMineIncome(level) {
@@ -1756,7 +2101,14 @@ const ALLOWED_AVATARS = [
   '🦉','🐧','🐦','🦚','🦜','🐤','🐲','🦋','🐠','🦈',
   '🐙','🦑','🦎','🐊','🐻‍❄️','🦦','🦥','🦘','🦙','🐑',
   '🐿️','🦫','🦬','🦣','🦩','🦤',
+  '👻','🤖','👾','🎭','🧙','⚔️','🛡️','💀','🌙','⭐',
 ];
+
+// Display name helper: prefer game_username, fall back to username / TG_NAME
+function displayName(obj) {
+  if (!obj) return '—';
+  return obj.game_username || obj.username || TG_NAME || '—';
+}
 
 // ─────────────────────────────────────────────
 //  State
@@ -1782,16 +2134,23 @@ function _addOrUpdateMineMarker(mine) {
   const isOwn    = mine.is_mine ?? (mine.owner_id === playerId);
   const iconSt   = isOwn ? 'own' : 'other';
   const key      = `mine_${mine.id}`;
-  if (buildingMarkers[key]) {
-    buildingMarkers[key].setIcon(mineIcon(mine.level, iconSt));
-    buildingMarkers[key].setLatLng([mine.lat, mine.lng]);
+  const existing = buildingMarkers[key];
+  if (existing) {
+    // Only recreate icon if level or ownership changed (expensive DOM op)
+    if (existing._gw_level !== mine.level || existing._gw_iconSt !== iconSt) {
+      existing.setIcon(mineIcon(mine.level, iconSt));
+      existing._gw_level  = mine.level;
+      existing._gw_iconSt = iconSt;
+    }
     // Rebind click so popup shows fresh data
-    buildingMarkers[key].off('click');
-    buildingMarkers[key].on('click', () => showMinePopup(mine, isOwn, false));
+    existing.off('click');
+    existing.on('click', () => showMinePopup(mine, isOwn, false));
   } else {
     const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconSt), zIndexOffset: 450 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, false));
+    marker._gw_level  = mine.level;
+    marker._gw_iconSt = iconSt;
     buildingMarkers[key] = marker;
   }
 }
@@ -1800,15 +2159,19 @@ function _addOrUpdateHqMarker(hq) {
   const playerId = state.player?.id;
   const isOwn    = hq.is_mine ?? (hq.player_id === playerId);
   const key      = `hq_${hq.id}`;
-  if (buildingMarkers[key]) {
-    buildingMarkers[key].setIcon(hqIcon(isOwn));
-    buildingMarkers[key].setLatLng([hq.lat, hq.lng]);
-    buildingMarkers[key].off('click');
-    buildingMarkers[key].on('click', () => showHqPopup(hq, isOwn));
+  const existing = buildingMarkers[key];
+  if (existing) {
+    if (existing._gw_isOwn !== isOwn) {
+      existing.setIcon(hqIcon(isOwn));
+      existing._gw_isOwn = isOwn;
+    }
+    existing.off('click');
+    existing.on('click', () => showHqPopup(hq, isOwn));
   } else {
     const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 480 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
+    marker._gw_isOwn = isOwn;
     buildingMarkers[key] = marker;
   }
 }
@@ -1927,15 +2290,32 @@ const RARITY_NAMES_CLIENT = {
   legendary: 'Легендарный',
 };
 const RARITY_ORDER = {
-  legendary: 0,
-  mythic:    1,
-  epic:      2,
+  common:    1,
+  uncommon:  2,
   rare:      3,
-  uncommon:  4,
-  common:    5,
+  epic:      4,
+  mythic:    5,
+  legendary: 6,
 };
 
 function rarityClass(rarity) { return `rarity-${rarity}`; }
+
+function itemStatLabel(item) {
+  if (item.type === 'sword') {
+    const atk = item.attack || item.stat_value || 0;
+    const crit = item.crit_chance || 0;
+    return `⚔️ +${atk} урон  🎯 ${crit}% крит`;
+  }
+  if (item.type === 'axe') {
+    const atk = item.attack || item.stat_value || 0;
+    return `🪓 +${atk} урон`;
+  }
+  if (item.type === 'shield') {
+    const def = item.defense || item.stat_value || 0;
+    return `🛡️ +${def} HP`;
+  }
+  return `+${item.stat_value}`;
+}
 
 function rarityLabel(rarity) {
   const name  = RARITY_NAMES_CLIENT[rarity] || rarity;
@@ -1958,7 +2338,7 @@ function showProfilePopup() {
 
   // Header
   document.getElementById('profile-modal-avatar').textContent = p.avatar || '🐺';
-  document.getElementById('profile-modal-name').textContent   = p.username || TG_NAME || '—';
+  document.getElementById('profile-modal-name').textContent   = displayName(p);
   document.getElementById('profile-modal-level').textContent  = `Уровень ${level}`;
   document.getElementById('profile-modal-xp-fill').style.width = xpPct + '%';
 
@@ -1966,8 +2346,9 @@ function showProfilePopup() {
   const hp     = p.hp     ?? p.max_hp ?? 100;
   const maxHp  = p.max_hp ?? 100;
   const hpPct  = Math.round(Math.max(0, hp / maxHp) * 100);
-  const baseAtk = p.attack ?? (10 + (level - 1) * 2);
+  const baseAtk  = p.attack ?? (10 + (level - 1) * 2);
   const bonusAtk = p.bonus_attack ?? 0;
+  const bonusCrit = p.bonus_crit ?? 0;
   const bonusHp  = p.bonus_hp    ?? 0;
 
   const statsEl = document.getElementById('profile-stat-rows');
@@ -1978,8 +2359,10 @@ function showProfilePopup() {
     </div>
   `;
 
+  const critTotal = 20 + bonusCrit;
   const rows = [
     ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
+    ['🎯 Крит', bonusCrit > 0 ? `${critTotal}% <span class="bonus">(+${bonusCrit}%)</span>` : `${critTotal}%`],
     ['📍 Зоны', `🔵 ${SMALL_RADIUS}м / 🔴 ${LARGE_RADIUS}м`],
     ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
     ['⭐ XP уровня', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`],
@@ -2003,23 +2386,23 @@ function showProfilePopup() {
 
 function _renderEquipSlots() {
   const inv = state.inventory || [];
-  const sword  = inv.find(i => i.type === 'sword'  && i.equipped);
+  const weapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const shield = inv.find(i => i.type === 'shield' && i.equipped);
 
-  const swordSlot  = document.getElementById('equip-slot-sword');
+  const weaponSlot = document.getElementById('equip-slot-sword');
   const shieldSlot = document.getElementById('equip-slot-shield');
 
-  if (sword) {
-    swordSlot.className = `equip-slot ${rarityClass(sword.rarity)}`;
-    swordSlot.innerHTML = `
-      <span class="slot-emoji">${sword.emoji}</span>
-      <span class="slot-name">${sword.name}</span>
-      <span class="slot-stat">+${sword.stat_value} атк</span>
-      <span class="slot-rarity">${rarityLabel(sword.rarity)}</span>
+  if (weapon) {
+    weaponSlot.className = `equip-slot ${rarityClass(weapon.rarity)}`;
+    weaponSlot.innerHTML = `
+      <span class="slot-emoji">${weapon.emoji}</span>
+      <span class="slot-name">${weapon.name}</span>
+      <span class="slot-stat">${itemStatLabel(weapon)}</span>
+      <span class="slot-rarity">${rarityLabel(weapon.rarity)}</span>
     `;
   } else {
-    swordSlot.className = 'equip-slot';
-    swordSlot.innerHTML = `<span class="slot-empty" style="font-size:28px">🗡️</span><span class="slot-label">Меч</span>`;
+    weaponSlot.className = 'equip-slot';
+    weaponSlot.innerHTML = `<span class="slot-empty" style="font-size:28px">⚔️</span><span class="slot-label">Оружие</span>`;
   }
 
   if (shield) {
@@ -2027,7 +2410,7 @@ function _renderEquipSlots() {
     shieldSlot.innerHTML = `
       <span class="slot-emoji">${shield.emoji}</span>
       <span class="slot-name">${shield.name}</span>
-      <span class="slot-stat">+${shield.stat_value} HP</span>
+      <span class="slot-stat">${itemStatLabel(shield)}</span>
       <span class="slot-rarity">${rarityLabel(shield.rarity)}</span>
     `;
   } else {
@@ -2038,7 +2421,7 @@ function _renderEquipSlots() {
 
 function _renderInventoryGrid() {
   const inv = (state.inventory || []).slice().sort((a, b) =>
-    (RARITY_ORDER[a.rarity] ?? 99) - (RARITY_ORDER[b.rarity] ?? 99)
+    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
   );
   const titleEl = document.getElementById('inventory-title');
   titleEl.textContent = `Инвентарь (${inv.length} предметов)`;
@@ -2067,15 +2450,22 @@ function _renderInventoryGrid() {
 
 // Opens inventory for a specific slot type (from tapping empty/equipped slot)
 function openEquipSlot(type) {
-  const items = (state.inventory || []).filter(i => i.type === type);
+  const isWeapon = type === 'sword';
+  const items = isWeapon
+    ? (state.inventory || []).filter(i => i.type === 'sword' || i.type === 'axe')
+    : (state.inventory || []).filter(i => i.type === type);
   if (!items.length) {
-    showToast(`❌ Нет предметов типа ${type === 'sword' ? 'меч' : 'щит'}`);
+    showToast(`❌ Нет предметов типа ${isWeapon ? 'оружие' : 'щит'}`);
     return;
   }
-  // Show the first matching item (simplest approach: show detail of equipped or first)
   const equipped = items.find(i => i.equipped) || items[0];
   showItemDetail(equipped.id);
 }
+
+// ── Item sell prices (mirror of lib/items.js) ────────────────────────────────
+const ITEM_SELL_PRICE = {
+  common: 1, uncommon: 1, rare: 2, epic: 4, mythic: 8, legendary: 20,
+};
 
 // ── Item detail sheet ─────────────────────────────────────────────────────────
 let _currentItemId = null;
@@ -2088,8 +2478,7 @@ function showItemDetail(itemId) {
   document.getElementById('item-detail-emoji').textContent  = item.emoji;
   document.getElementById('item-detail-name').textContent   = item.name;
   document.getElementById('item-detail-rarity').innerHTML   = rarityLabel(item.rarity);
-  document.getElementById('item-detail-stat').textContent   =
-    item.type === 'sword' ? `⚔️ +${item.stat_value} к атаке` : `🛡️ +${item.stat_value} к HP`;
+  document.getElementById('item-detail-stat').textContent   = itemStatLabel(item);
 
   const btns = document.getElementById('item-detail-btns');
   btns.innerHTML = '';
@@ -2106,6 +2495,14 @@ function showItemDetail(itemId) {
     eqBtn.textContent = 'Надеть';
     eqBtn.onclick = () => doEquipItem(itemId);
     btns.appendChild(eqBtn);
+
+    // Sell button — intentionally subdued
+    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    const sellBtn = document.createElement('button');
+    sellBtn.className = 'btn-sell-item';
+    sellBtn.textContent = `Продать за ${sellPrice} 💎`;
+    sellBtn.onclick = () => showSellConfirm(item, sellPrice);
+    btns.appendChild(sellBtn);
   }
 
   const cancelBtn = document.createElement('button');
@@ -2120,6 +2517,40 @@ function showItemDetail(itemId) {
 function closeItemDetail() {
   document.getElementById('item-detail-overlay').classList.remove('open');
   _currentItemId = null;
+}
+
+function showSellConfirm(item, price) {
+  const overlay = document.getElementById('sell-confirm-overlay');
+  document.getElementById('sell-confirm-emoji').textContent = item.emoji;
+  document.getElementById('sell-confirm-name').textContent  = item.name;
+  document.getElementById('sell-confirm-price').textContent = `Вы получите: ${price} 💎`;
+  const confirmBtn = document.getElementById('sell-confirm-btn');
+  confirmBtn.onclick = () => doSellItem(item.id, price);
+  overlay.classList.add('open');
+}
+
+function closeSellConfirm() {
+  document.getElementById('sell-confirm-overlay').classList.remove('open');
+}
+
+async function doSellItem(itemId, price) {
+  closeSellConfirm();
+  closeItemDetail();
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'sell', item_id: itemId }),
+    });
+    // Remove from local state
+    state.inventory = (state.inventory || []).filter(i => i.id !== itemId);
+    if (state.player) state.player.diamonds = data.diamonds;
+    _renderEquipSlots();
+    _renderInventoryGrid();
+    updateDiamondDisplay();
+    showToast(`Продано за ${data.soldFor} 💎`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
 }
 
 async function doEquipItem(itemId) {
@@ -2233,7 +2664,7 @@ function updateXpBar() {
 
 function updatePlayerDisplay() {
   const avatar = state.player?.avatar || '🐺';
-  const name   = state.player?.username || TG_NAME || '—';
+  const name   = displayName(state.player);
   document.getElementById('player-avatar-emoji').textContent = avatar;
   document.getElementById('player-name-display').textContent = name;
   updateXpBar();
@@ -2296,7 +2727,7 @@ function showError(message) {
 const map = L.map('map', {
   zoomControl: false,
   attributionControl: false,
-  minZoom: 13,
+  minZoom: 15,
   maxZoom: 19,
 }).setView([55.75, 37.61], 16);
 
@@ -2350,6 +2781,8 @@ function _applyPlayerPosition(lat, lng) {
     playerCombatCircle.setRadius(LARGE_RADIUS);
   }
   updateHexGrid();
+  // Trigger building load when player moves (respects 2s throttle)
+  loadVisibleBuildings();
 }
 
 function togglePin() {
@@ -2591,6 +3024,12 @@ function handleHexClick(cellId) {
   const [cellLat, cellLng] = h3.cellToLatLng(cellId);
 
   if (!building) {
+    // Block build popup if hex center is beyond 200m
+    const dist = haversine(state.playerPos.lat, state.playerPos.lng, cellLat, cellLng);
+    if (dist > SMALL_RADIUS) {
+      showToast(`⚠️ Слишком далеко (${Math.round(dist)}м)`);
+      return;
+    }
     showBuildMenu(cellLat, cellLng);
   } else if (building.type === 'mine') {
     const isOwn = building.is_mine ?? (building.owner_id === state.player?.id);
@@ -2604,38 +3043,34 @@ function handleHexClick(cellId) {
 // ─────────────────────────────────────────────
 //  Rendering buildings on map
 // ─────────────────────────────────────────────
-function clearMarkers() {
-  Object.values(buildingMarkers).forEach(m => map.removeLayer(m));
-  Object.keys(buildingMarkers).forEach(k => delete buildingMarkers[k]);
-  Object.values(onlineMarkers).forEach(m => map.removeLayer(m));
-  Object.keys(onlineMarkers).forEach(k => delete onlineMarkers[k]);
-}
-
 function renderBuildings() {
-  clearMarkers();
   const { headquarters, mines } = state.mapBuildings;
   const playerId = state.player?.id;
+  const activeKeys = new Set();
 
-  // HQs — zIndexOffset: 480
+  // HQs — incremental update
   for (const hq of headquarters) {
-    const isOwn = hq.is_mine ?? (hq.player_id === playerId);
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 480 })
-      .addTo(map)
-      .on('click', () => showHqPopup(hq, isOwn));
-    buildingMarkers[`hq_${hq.id}`] = marker;
+    const key = `hq_${hq.id}`;
+    activeKeys.add(key);
+    _addOrUpdateHqMarker(hq);
   }
 
-  // Mines — zIndexOffset: 450
+  // Mines — incremental update
   for (const mine of mines) {
-    const isOwn = mine.is_mine ?? (mine.owner_id === playerId);
-    const iconState = isOwn ? 'own' : 'other';
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconState), zIndexOffset: 450 })
-      .addTo(map)
-      .on('click', () => showMinePopup(mine, isOwn, false));
-    buildingMarkers[`mine_${mine.id}`] = marker;
+    const key = `mine_${mine.id}`;
+    activeKeys.add(key);
+    _addOrUpdateMineMarker(mine);
   }
 
-  // Re-apply selected highlight after markers are rebuilt
+  // Remove stale building markers no longer in viewport
+  for (const key of Object.keys(buildingMarkers)) {
+    if (!activeKeys.has(key)) {
+      map.removeLayer(buildingMarkers[key]);
+      delete buildingMarkers[key];
+    }
+  }
+
+  // Re-apply selected highlight
   if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
     buildingMarkers[_selectedMarkerKey]._icon.classList.add('marker-selected');
   }
@@ -2643,19 +3078,30 @@ function renderBuildings() {
   // Re-apply attack status to mine markers
   updateMineAttackStatus();
 
-  // Online players — zIndexOffset: 600 (above own player + buildings)
+  // Online players — incremental update
+  const activePlayerIds = new Set();
   for (const p of (state.mapBuildings.online_players || [])) {
-    const minsAgo = Math.floor((Date.now() - new Date(p.last_seen).getTime()) / 60000);
-    const label = minsAgo === 0 ? 'только что' : `${minsAgo} мин назад`;
-    const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar), zIndexOffset: 600 })
-      .addTo(map)
-      .on('click', () => openPopup(
-        `${p.avatar || '🐺'} ${p.username || 'Unknown'}`,
-        `Ур. ${p.level ?? 1}`,
-        [],
-        []
-      ));
-    onlineMarkers[p.id] = marker;
+    activePlayerIds.add(p.id);
+    if (onlineMarkers[p.id]) {
+      onlineMarkers[p.id].setLatLng([p.last_lat, p.last_lng]);
+      onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar));
+    } else {
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar), zIndexOffset: 600 })
+        .addTo(map)
+        .on('click', () => openPopup(
+          `${p.avatar || '🐺'} ${displayName(p)}`,
+          `Ур. ${p.level ?? 1}`,
+          [],
+          []
+        ));
+      onlineMarkers[p.id] = marker;
+    }
+  }
+  for (const id of Object.keys(onlineMarkers)) {
+    if (!activePlayerIds.has(id)) {
+      map.removeLayer(onlineMarkers[id]);
+      delete onlineMarkers[id];
+    }
   }
 }
 
@@ -2828,7 +3274,7 @@ function showHqPopup(hq, isOwn) {
       ]
     );
   } else {
-    const owner = hq.players?.username || 'Unknown';
+    const owner = displayName(hq.players);
     let presenceText;
     const lastSeen = hq.players?.last_seen;
     const isOnline = lastSeen && (Date.now() - new Date(lastSeen).getTime()) < 3 * 60 * 1000;
@@ -2943,7 +3389,7 @@ function showMinePopup(mine, isOwn, canCapture) {
         {
           label: `🔥 Продать (+${formatCoins(sellTotal)} монет)`,
           cls: 'danger',
-          disabled: !inZone,
+          disabled: false,
           action: () => doSellMine(mine.id),
         },
         {
@@ -2958,7 +3404,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       _startUpgradeCountdown(mine.upgrade_finish_at);
     }
   } else {
-    const owner = mine.players?.username || 'Unknown';
+    const owner = displayName(mine.players);
     openPopup(
       `${emoji} ${name} (Ур. ${mine.level})`,
       `Владелец: ${owner} ${distLabel}`,
@@ -2988,7 +3434,13 @@ map.on('click', e => {
   handleHexClick(cellId);
 });
 
-map.on('moveend zoomend', () => { updateHexGrid(); loadVisibleBuildings(); });
+let _loadBuildingsTimer = null;
+function _debouncedLoad() {
+  clearTimeout(_loadBuildingsTimer);
+  _loadBuildingsTimer = setTimeout(() => { updateHexGrid(); loadVisibleBuildings(); }, 150);
+}
+map.on('moveend', _debouncedLoad);
+map.on('zoomend', _debouncedLoad);
 
 // ─────────────────────────────────────────────
 //  Actions
@@ -3078,7 +3530,17 @@ async function pollCompleteUpgrades() {
         _addOrUpdateMineMarker(prevMine);
         if (_currentPopupEntityId === `mine_${mine.id}`) showMinePopup(prevMine, true, false);
       }
+      // Also update state.mines (personal mines list) for income calc
+      const ownMine = (state.mines || []).find(m => m.id === mine.id);
+      if (ownMine) {
+        ownMine.level = mine.level;
+        ownMine.pending_level = null;
+        ownMine.upgrade_finish_at = null;
+      }
     }
+    // Recalculate total income
+    state.totalIncome = (state.mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
+    updateCoinDisplay();
     loadVisibleBuildings(true);
   } catch (e) { /* silently ignore */ }
 }
@@ -3338,43 +3800,41 @@ async function loadVisibleBuildings(force = false) {
   if (_mapLoadPending) return;
 
   const now = Date.now();
-  if (!force && now - _lastMapFetchTime < 12000) return;
+  if (!force && now - _lastMapFetchTime < 2000) return;
 
   const bounds = map.getBounds();
-  const center = bounds.getCenter();
-  if (!force && _lastMapCenter) {
-    const latDiff = Math.abs(center.lat - _lastMapCenter.lat);
-    const lngDiff = Math.abs(center.lng - _lastMapCenter.lng);
-    if (latDiff < 0.002 && lngDiff < 0.002) return;
-  }
-  _lastMapCenter = center;
+  _lastMapCenter = bounds.getCenter();
   _lastMapFetchTime = now;
 
   _mapLoadPending = true;
   try {
-    const pos     = state.playerPos;
-    const n = bounds.getNorth(), s = bounds.getSouth();
-    const e = bounds.getEast(),  w = bounds.getWest();
-    const latPad = (n - s) * 0.2;
-    const lngPad = (e - w) * 0.2;
+    const pos = state.playerPos;
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    const latPad = (ne.lat - sw.lat) * 0.2;
+    const lngPad = (ne.lng - sw.lng) * 0.2;
     const params = new URLSearchParams({
-      north: n + latPad,
-      south: s - latPad,
-      east:  e + lngPad,
-      west:  w - lngPad,
+      north: ne.lat + latPad,
+      south: sw.lat - latPad,
+      east:  ne.lng + lngPad,
+      west:  sw.lng - lngPad,
     });
     if (TG_ID)    params.set('telegram_id', TG_ID);
     if (pos?.lat) params.set('lat', pos.lat);
     if (pos?.lng) params.set('lng', pos.lng);
 
     const data = await apiFetch(`/api/map?${params}`);
+    console.log('[map] loaded:', { hq: data.headquarters?.length, mines: data.mines?.length, bots: data.bots?.length, vases: data.vases?.length, couriers: data.couriers?.length, drops: data.courier_drops?.length, markets: data.markets?.length });
     state.mapBuildings = data;
     renderBuildings();
-    if (data.bots?.length)  renderBots(data.bots);
-    if (data.vases)         renderVases(data.vases);
+    renderBots(data.bots || []);
+    renderVases(data.vases || []);
+    renderMarkets(data.markets || []);
+    renderCouriers(data.couriers || []);
+    renderDrops(data.courier_drops || []);
     updateHexGrid();
-  } catch (e) {
-    if (!e.message?.includes('Zoom in')) console.error('Map refresh error:', e);
+  } catch (err) {
+    console.error('[map] fetch error:', err);
   } finally {
     _mapLoadPending = false;
   }
@@ -3442,7 +3902,7 @@ function onPosition(pos) {
     }).addTo(map);
     if (!pinMode) {
       state.playerPos = { lat, lng };
-      map.setView([lat, lng], 13);
+      map.setView([lat, lng], 16);
     }
   } else {
     playerMarker.setIcon(pIcon);
@@ -3694,8 +4154,7 @@ function _showVaseDropPopup(item, diamonds) {
   document.getElementById('vase-drop-emoji').textContent    = item.emoji;
   document.getElementById('vase-drop-name').textContent     = item.name;
   document.getElementById('vase-drop-rarity').innerHTML     = rarityLabel(item.rarity);
-  document.getElementById('vase-drop-stat').textContent     =
-    item.type === 'sword' ? `⚔️ +${item.stat_value} к атаке` : `🛡️ +${item.stat_value} к HP`;
+  document.getElementById('vase-drop-stat').textContent     = itemStatLabel(item);
   document.getElementById('vase-drop-diamonds').textContent = `+ ${diamonds} 💎 алмазов`;
 
   if (item.rarity === 'legendary') {
@@ -3922,7 +4381,7 @@ function showBotPopup(botId) {
       <div class="combat-vs">⚔️</div>
       <div class="combat-fighter">
         <div class="combat-emoji">${state.player?.avatar || '🐺'}</div>
-        <div class="combat-name">${state.player?.username || 'Вы'}</div>
+        <div class="combat-name">${displayName(state.player)}</div>
         <div class="hp-bar-container"><div class="hp-bar-fill player" id="player-hp-bar" style="width:${pHpPct}%"></div></div>
         <div class="hp-label" id="player-hp-label">${pHp} / ${pMaxHp} HP</div>
       </div>
@@ -4327,16 +4786,24 @@ document.getElementById('btn-fix-hq').addEventListener('click', async () => {
 
 document.getElementById('btn-maintenance-toggle').addEventListener('click', async () => {
   const newState = !_adminMaintenanceOn;
+  const btn = document.getElementById('btn-maintenance-toggle');
+  btn.disabled = true;
+  btn.textContent = '📨 Отправка уведомлений...';
   try {
-    await apiFetch('/api/admin/maintenance', {
+    const action = newState ? 'maintenance-start' : 'maintenance-end';
+    const data = await apiFetch('/api/admin/maintenance', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, enabled: newState }),
+      body: JSON.stringify({ telegram_id: TG_ID, action }),
     });
     _adminMaintenanceOn = newState;
     updateAdminButton();
-    showToast(newState ? '🔧 Тех перерыв включён' : '✅ Тех перерыв выключен');
+    const label = newState ? '🔧 Тех перерыв включён' : '✅ Тех перерыв выключен';
+    showToast(`${label} (📨 ${data.notified || 0} уведомлений)`);
   } catch (err) {
     showToast(`❌ ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    updateAdminButton();
   }
 });
 
@@ -4371,7 +4838,7 @@ function adminPlayerCard(p, onSelect) {
   card.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;background:rgba(255,255,255,0.04);border-radius:8px;cursor:pointer;border:1px solid ${banned ? 'rgba(213,0,0,0.5)' : 'rgba(255,255,255,0.06)'};`;
   card.innerHTML = `
     <span style="font-size:20px">${p.avatar || '🐺'}</span>
-    <span style="flex:1;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${banned ? '🚫 ' : ''}${p.username || '—'}</span>
+    <span style="flex:1;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${banned ? '🚫 ' : ''}${displayName(p)}</span>
     <span style="font-size:11px;color:#888;">Ур.${p.level || 1}</span>
     <span style="font-size:11px;color:#aaa;">💰${formatNumber(p.coins || 0)}</span>
   `;
@@ -4392,7 +4859,7 @@ document.getElementById('admin-reward-search').addEventListener('input', (e) => 
       (data.players || []).forEach(p => {
         container.appendChild(adminPlayerCard(p, (sel) => {
           _rewardSelectedPlayer = sel;
-          document.getElementById('admin-reward-selected').textContent = `Выбран: ${sel.avatar || '🐺'} ${sel.username}`;
+          document.getElementById('admin-reward-selected').textContent = `Выбран: ${sel.avatar || '🐺'} ${displayName(sel)}`;
           document.getElementById('admin-reward-form').style.display = 'block';
           container.innerHTML = '';
         }));
@@ -4425,7 +4892,7 @@ document.getElementById('btn-admin-reward').addEventListener('click', async () =
       body: JSON.stringify({ telegram_id: TG_ID, action: 'reward', player_id: _rewardSelectedPlayer.id, currency: _rewardCurrency, amount }),
     });
     const label = _rewardCurrency === 'coins' ? 'монет' : 'алмазов';
-    showToast(`✅ Выдано ${formatNumber(amount)} ${label} → ${_rewardSelectedPlayer.username}`);
+    showToast(`✅ Выдано ${formatNumber(amount)} ${label} → ${displayName(_rewardSelectedPlayer)}`);
     document.getElementById('admin-reward-amount').value = '';
   } catch (err) { showToast('❌ ' + err.message); }
   finally { btn.disabled = false; }
@@ -4455,7 +4922,7 @@ document.getElementById('admin-ban-search').addEventListener('input', (e) => {
 function renderBanForm(player) {
   const form = document.getElementById('admin-ban-form');
   form.style.display = 'block';
-  document.getElementById('admin-ban-selected').innerHTML = `${player.is_banned ? '🚫 ' : ''}${player.avatar || '🐺'} <b>${player.username}</b>`;
+  document.getElementById('admin-ban-selected').innerHTML = `${player.is_banned ? '🚫 ' : ''}${player.avatar || '🐺'} <b>${displayName(player)}</b>`;
 
   const actionsDiv = document.getElementById('admin-ban-actions');
   if (player.is_banned) {
@@ -4471,7 +4938,7 @@ function renderBanForm(player) {
           method: 'POST',
           body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: player.id }),
         });
-        showToast(`✅ ${player.username} разблокирован`);
+        showToast(`✅ ${displayName(player)} разблокирован`);
         player.is_banned = false;
         renderBanForm(player);
       } catch (err) { showToast('❌ ' + err.message); }
@@ -4509,7 +4976,7 @@ function renderBanForm(player) {
           body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: player.id, reason, duration_days: _banDuration }),
         });
         const durText = _banDuration === 0 ? 'навсегда' : `на ${_banDuration}д`;
-        showToast(`🚫 ${player.username} забанен ${durText}`);
+        showToast(`🚫 ${displayName(player)} забанен ${durText}`);
         player.is_banned = true;
         player.ban_reason = reason;
         renderBanForm(player);
@@ -4519,8 +4986,149 @@ function renderBanForm(player) {
 }
 
 // ─────────────────────────────────────────────
+//  Username setup screen (first login)
+// ─────────────────────────────────────────────
+const SETUP_AVATARS = [
+  '🐺','🦊','🐻','🐯','🦁','🐸',
+  '🦅','🐉','👻','🤖','👾','🎭',
+  '🧙','⚔️','🛡️','💀','🌙','⭐',
+];
+let _setupAvatar = '🐺';
+
+function showUsernameSetupScreen() {
+  const screen = document.getElementById('username-setup-screen');
+  screen.classList.add('open');
+
+  // Build avatar grid
+  const grid = document.getElementById('setup-avatar-grid');
+  grid.innerHTML = '';
+  for (const em of SETUP_AVATARS) {
+    const cell = document.createElement('div');
+    cell.className = 'avatar-cell' + (em === _setupAvatar ? ' selected' : '');
+    cell.textContent = em;
+    cell.addEventListener('click', () => {
+      _setupAvatar = em;
+      document.getElementById('setup-avatar-preview').textContent = em;
+      grid.querySelectorAll('.avatar-cell').forEach(c => c.classList.remove('selected'));
+      cell.classList.add('selected');
+      validateSetupForm();
+    });
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('setup-username-input').addEventListener('input', validateSetupForm);
+  document.getElementById('btn-setup-start').addEventListener('click', submitSetupForm);
+}
+
+function validateSetupForm() {
+  const input = document.getElementById('setup-username-input');
+  const btn   = document.getElementById('btn-setup-start');
+  const v = input.value.trim();
+  const valid = v.length >= 3 && v.length <= 16 && /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(v);
+  btn.disabled = !valid;
+}
+
+async function submitSetupForm() {
+  const btn   = document.getElementById('btn-setup-start');
+  const input = document.getElementById('setup-username-input');
+  const errEl = document.getElementById('setup-username-error');
+  const username = input.value.trim();
+  btn.disabled = true;
+  errEl.textContent = '';
+
+  try {
+    // Save avatar
+    await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'avatar', telegram_id: TG_ID, avatar: _setupAvatar }),
+    });
+    // Save username
+    const res = await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-username', telegram_id: TG_ID, username }),
+    });
+    // Update state
+    state.player.avatar = _setupAvatar;
+    state.player.game_username = res.game_username;
+    state.player.username_changes = res.username_changes;
+    updatePlayerDisplay();
+    if (playerMarker && state.playerPos) playerMarker.setIcon(playerIcon(_setupAvatar));
+    // Hide screen and continue boot
+    document.getElementById('username-setup-screen').classList.remove('open');
+    continueBootAfterSetup();
+  } catch (err) {
+    errEl.textContent = err.message || 'Ошибка';
+    btn.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Change username modal (settings)
+// ─────────────────────────────────────────────
+document.getElementById('btn-change-username').addEventListener('click', openChangeUsername);
+document.getElementById('btn-change-username-cancel').addEventListener('click', closeChangeUsername);
+document.getElementById('change-username-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeChangeUsername();
+});
+document.getElementById('change-username-input').addEventListener('input', function() {
+  const v = this.value.trim();
+  const valid = v.length >= 3 && v.length <= 16 && /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(v);
+  document.getElementById('btn-change-username-confirm').disabled = !valid;
+  document.getElementById('change-username-error').textContent = '';
+});
+document.getElementById('btn-change-username-confirm').addEventListener('click', doChangeUsername);
+
+function openChangeUsername() {
+  const changes = state.player?.username_changes ?? 0;
+  document.getElementById('change-username-current').textContent = `Текущий: ${displayName(state.player)}`;
+  document.getElementById('change-username-cost').textContent = changes === 0
+    ? '💎 Стоимость: БЕСПЛАТНО'
+    : '💎 Стоимость: 10 алмазов';
+  document.getElementById('change-username-input').value = '';
+  document.getElementById('change-username-error').textContent = '';
+  document.getElementById('btn-change-username-confirm').disabled = true;
+  document.getElementById('change-username-overlay').classList.add('open');
+}
+
+function closeChangeUsername() {
+  document.getElementById('change-username-overlay').classList.remove('open');
+}
+
+async function doChangeUsername() {
+  const input = document.getElementById('change-username-input');
+  const errEl = document.getElementById('change-username-error');
+  const btn   = document.getElementById('btn-change-username-confirm');
+  const username = input.value.trim();
+  btn.disabled = true;
+  errEl.textContent = '';
+
+  try {
+    const res = await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-username', telegram_id: TG_ID, username }),
+    });
+    state.player.game_username = res.game_username;
+    state.player.username_changes = res.username_changes;
+    if (res.diamonds != null) state.player.diamonds = res.diamonds;
+    updatePlayerDisplay();
+    updateDiamondDisplay();
+    closeChangeUsername();
+    showToast('✅ Ник изменён!');
+  } catch (err) {
+    errEl.textContent = err.message || 'Ошибка';
+    btn.disabled = false;
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Boot sequence
 // ─────────────────────────────────────────────
+let _bootResolveSetup = null;
+
+function continueBootAfterSetup() {
+  if (_bootResolveSetup) { _bootResolveSetup(); _bootResolveSetup = null; }
+}
+
 async function boot() {
   if (typeof h3 === 'undefined') {
     showError('Ошибка загрузки библиотеки. Обнови страницу.');
@@ -4575,6 +5183,20 @@ async function boot() {
     if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
       document.getElementById('admin-section').style.display = 'block';
     }
+
+    // Show unread notifications as toasts
+    if (data.notifications && data.notifications.length > 0) {
+      for (const n of data.notifications.slice(0, 5)) {
+        setTimeout(() => showToast(n.message, 4000), 500);
+      }
+    }
+
+    // First-time username setup
+    if (data.needUsername) {
+      document.getElementById('loading').style.display = 'none';
+      showUsernameSetupScreen();
+      await new Promise(r => { _bootResolveSetup = r; });
+    }
   } catch (err) {
     if (err.name === 'TimeoutError' || err.name === 'AbortError') {
       showError('⏳ Сервер не отвечает. Попробуй через минуту.');
@@ -4585,6 +5207,7 @@ async function boot() {
   }
 
   setLoadingText('Getting GPS...');
+  document.getElementById('loading').style.display = '';
 
   // Request GPS
   if (!navigator.geolocation) {
@@ -4595,7 +5218,7 @@ async function boot() {
   navigator.geolocation.getCurrentPosition(async (pos) => {
     onPosition(pos);
     setLoadingText('Loading map...');
-    await loadVisibleBuildings(); // initial bbox load after GPS fix
+    await loadVisibleBuildings(true); // force — initial load after GPS fix
 
     // Hide loading
     document.getElementById('loading').style.display = 'none';
@@ -4762,9 +5385,9 @@ async function doOpenBox(boxType) {
   btn.textContent = '...';
 
   try {
-    const data = await apiFetch('/api/shop/open-box', {
+    const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, box_type: boxType }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'open-box', box_type: boxType }),
     });
 
     // Update state
@@ -4814,7 +5437,7 @@ function _animateBoxOpen(boxType, item) {
 
     // Phase 4: Show item (after 1200ms)
     setTimeout(() => {
-      const statLabel = item.type === 'sword' ? `⚔️ +${item.stat_value} к атаке` : `🛡️ +${item.stat_value} к HP`;
+      const statLabel = itemStatLabel(item);
       const nameHtml = item.rarity === 'legendary'
         ? `<span class="legendary-text">${item.name}</span>`
         : item.name;
@@ -4857,6 +5480,796 @@ document.querySelectorAll('.shop-info-btn').forEach(btn => {
 });
 
 // ─────────────────────────────────────────────
+//  Market system
+// ─────────────────────────────────────────────
+const marketLayer  = L.layerGroup().addTo(map);
+const courierLayer = L.layerGroup().addTo(map);
+const dropLayer    = L.layerGroup().addTo(map);
+const marketMarkers  = {}; // id → L.marker
+const courierMarkers = {}; // id → L.marker
+const courierData    = {}; // id → courier object
+const dropMarkers    = {}; // id → L.marker
+const dropData       = {}; // id → drop object
+
+let _marketSort = 'new';
+let _marketPage = 0;
+let _marketTab  = 'browse';
+let _marketListings = [];
+let _myListings = [];
+let _listSelectedItem = null;
+let _listIsPrivate = false;
+let _listPrivateCode = null;
+let _buyTargetListing = null;
+
+// ── Market icons ──────────────────────────────
+function _marketIcon() {
+  return L.divIcon({
+    className: '',
+    html: '<div class="marker-wrap" style="font-size:36px;line-height:1;filter:drop-shadow(0 0 6px rgba(255,215,0,0.5));">🎪</div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+function _courierIcon(courier) {
+  const emoji = courier.type === 'delivery' ? '🚚' : '🚶';
+  const size = courier.type === 'delivery' ? 32 : 28;
+  const hpPct = Math.max(0, Math.round((courier.hp / courier.max_hp) * 100));
+  const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+  return L.divIcon({
+    className: '',
+    html: `<div class="courier-marker">
+      <span style="font-size:${size}px;line-height:1;">${emoji}</span>
+      <div class="courier-hp-bar"><div class="courier-hp-fill" style="width:${hpPct}%;background:${hpColor};"></div></div>
+    </div>`,
+    iconSize: [size + 8, size + 12],
+    iconAnchor: [(size + 8) / 2, (size + 12) / 2],
+  });
+}
+
+function _dropIcon() {
+  return L.divIcon({
+    className: '',
+    html: '<div class="marker-wrap drop-marker" style="font-size:36px;line-height:1;">📦</div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+// ── Render markets on map ──────────────────────
+function renderMarkets(markets) {
+  const activeIds = new Set((markets || []).map(m => m.id));
+  for (const id of Object.keys(marketMarkers)) {
+    if (!activeIds.has(id)) {
+      marketLayer.removeLayer(marketMarkers[id]);
+      delete marketMarkers[id];
+    }
+  }
+  for (const m of (markets || [])) {
+    if (!marketMarkers[m.id]) {
+      const marker = L.marker([m.lat, m.lng], { icon: _marketIcon(), zIndexOffset: 400 });
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        map.flyTo([m.lat, m.lng], 17, { duration: 0.8 });
+        _showMarketPopup(m);
+      });
+      marker.addTo(marketLayer);
+      marketMarkers[m.id] = marker;
+    }
+  }
+}
+
+function _showMarketPopup(m) {
+  document.getElementById('popup-title').innerHTML = '🎪';
+  document.getElementById('popup-subtitle').textContent = m.name || 'Городской рынок';
+  document.getElementById('popup-stats').innerHTML =
+    '<div style="font-size:13px;color:#aaa;text-align:center;margin:8px 0;">Здесь торгуют игроки<br>со всего мира</div>';
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+  const enterBtn = document.createElement('button');
+  enterBtn.className = 'btn primary';
+  enterBtn.style.cssText = 'width:100%;margin-bottom:8px;';
+  enterBtn.innerHTML = '🛒 Войти на рынок';
+  enterBtn.addEventListener('click', () => { closePopup(); openMarket(); });
+  actEl.appendChild(enterBtn);
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%;';
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+// ── Render couriers on map ────────────────────
+function renderCouriers(couriers) {
+  const activeIds = new Set((couriers || []).map(c => c.id));
+  for (const id of Object.keys(courierMarkers)) {
+    if (!activeIds.has(id)) {
+      courierLayer.removeLayer(courierMarkers[id]);
+      delete courierMarkers[id];
+      delete courierData[id];
+    }
+  }
+  for (const c of (couriers || [])) {
+    courierData[c.id] = c;
+    if (courierMarkers[c.id]) {
+      courierMarkers[c.id].setLatLng([c.current_lat, c.current_lng]);
+      courierMarkers[c.id].setIcon(_courierIcon(c));
+    } else {
+      const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 1200 });
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        _showCourierPopup(c.id);
+      });
+      marker.addTo(courierLayer);
+      courierMarkers[c.id] = marker;
+    }
+  }
+}
+
+function _showCourierPopup(courierId) {
+  const c = courierData[courierId];
+  if (!c) return;
+  const isOwn = c.owner_id === state.player?.id;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, c.current_lat, c.current_lng) : Infinity;
+  const near = dist <= SMALL_RADIUS;
+  const emoji = c.type === 'delivery' ? '🚚' : '🚶';
+  const hpPct = Math.round(Math.max(0, c.hp / c.max_hp) * 100);
+
+  document.getElementById('popup-title').innerHTML = `${emoji} Курьер`;
+  document.getElementById('popup-subtitle').textContent =
+    isOwn ? 'Ваш курьер' : `Курьер другого игрока`;
+
+  document.getElementById('popup-stats').innerHTML = `
+    <div style="margin-bottom:8px;">
+      <div class="hp-bar-container"><div class="hp-bar-fill bot" id="courier-hp-bar" style="width:${hpPct}%"></div></div>
+      <div class="hp-label" style="text-align:center;margin-top:3px;" id="courier-hp-label">❤️ ${c.hp} / ${c.max_hp} HP</div>
+    </div>`;
+
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+
+  if (!isOwn) {
+    const atkBtn = document.createElement('button');
+    atkBtn.className = 'btn danger';
+    atkBtn.style.cssText = 'width:100%;margin-bottom:8px;';
+    if (!near) {
+      atkBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
+      atkBtn.disabled = true;
+    } else {
+      atkBtn.innerHTML = '⚔️ Атаковать';
+    }
+    atkBtn.addEventListener('click', () => doAttackCourier(courierId));
+    actEl.appendChild(atkBtn);
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%;';
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+async function doAttackCourier(courierId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+
+  const atkBtn = document.querySelector('#popup-actions .btn.danger');
+  if (atkBtn) { atkBtn.disabled = true; atkBtn.textContent = '⏳ Атака...'; }
+
+  try {
+    const data = await apiFetch('/api/market', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-courier', telegram_id: TG_ID, courier_id: courierId, lat: pos.lat, lng: pos.lng }),
+    });
+
+    // Show floating damage
+    const c = courierData[courierId];
+    if (c) {
+      const latlng = L.latLng(c.current_lat, c.current_lng);
+      const color = data.isCrit ? '#FFD700' : '#ff4444';
+      showFloatingText(`${data.isCrit ? 'КРИТ! ' : ''}-${data.damage}`, latlng, color);
+    }
+
+    if (data.killed) {
+      showToast('💥 Курьер уничтожен!');
+      closePopup();
+      // Remove courier marker
+      if (courierMarkers[courierId]) {
+        courierLayer.removeLayer(courierMarkers[courierId]);
+        delete courierMarkers[courierId];
+        delete courierData[courierId];
+      }
+      // Add drop marker
+      if (data.drop_id && data.drop_location) {
+        const drop = {
+          id: data.drop_id,
+          lat: data.drop_location.lat,
+          lng: data.drop_location.lng,
+          expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        };
+        dropData[drop.id] = drop;
+        const marker = L.marker([drop.lat, drop.lng], { icon: _dropIcon(), zIndexOffset: 1300 });
+        marker.on('click', (e) => { L.DomEvent.stopPropagation(e); _showDropPopup(drop.id); });
+        marker.addTo(dropLayer);
+        dropMarkers[drop.id] = marker;
+      }
+      handleXpResult(data.xp);
+    } else {
+      // Update HP in popup
+      if (c) { c.hp = data.courierHp; c.max_hp = data.courierMaxHp; }
+      const hpPct = Math.round(Math.max(0, data.courierHp / data.courierMaxHp) * 100);
+      const bar = document.getElementById('courier-hp-bar');
+      const label = document.getElementById('courier-hp-label');
+      if (bar) bar.style.width = hpPct + '%';
+      if (label) label.textContent = `❤️ ${data.courierHp} / ${data.courierMaxHp} HP`;
+      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+    }
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+  }
+}
+
+// ── Render drops on map ───────────────────────
+function renderDrops(drops) {
+  const activeIds = new Set((drops || []).map(d => d.id));
+  for (const id of Object.keys(dropMarkers)) {
+    if (!activeIds.has(id)) {
+      dropLayer.removeLayer(dropMarkers[id]);
+      delete dropMarkers[id];
+      delete dropData[id];
+    }
+  }
+  for (const d of (drops || [])) {
+    dropData[d.id] = d;
+    if (!dropMarkers[d.id]) {
+      const marker = L.marker([d.lat, d.lng], { icon: _dropIcon(), zIndexOffset: 1300 });
+      marker.on('click', (e) => { L.DomEvent.stopPropagation(e); _showDropPopup(d.id); });
+      marker.addTo(dropLayer);
+      dropMarkers[d.id] = marker;
+    }
+  }
+}
+
+function _showDropPopup(dropId) {
+  const drop = dropData[dropId];
+  if (!drop) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, drop.lat, drop.lng) : Infinity;
+  const near = dist <= SMALL_RADIUS;
+  const msLeft = new Date(drop.expires_at) - Date.now();
+  const minsLeft = Math.max(0, Math.floor(msLeft / 60000));
+  const secsLeft = Math.max(0, Math.floor((msLeft % 60000) / 1000));
+
+  document.getElementById('popup-title').innerHTML = '📦 Потерянная посылка!';
+  document.getElementById('popup-subtitle').textContent = '';
+  document.getElementById('popup-stats').innerHTML =
+    `<div style="text-align:center;font-size:13px;color:#aaa;margin:8px 0;">⏳ Исчезнет через ${minsLeft}:${String(secsLeft).padStart(2, '0')}</div>`;
+
+  const actEl = document.getElementById('popup-actions');
+  actEl.innerHTML = '';
+  const pickBtn = document.createElement('button');
+  pickBtn.className = 'btn primary';
+  pickBtn.style.cssText = 'width:100%;margin-bottom:8px;';
+  if (!near) {
+    pickBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
+    pickBtn.disabled = true;
+  } else {
+    pickBtn.innerHTML = '🎒 Подобрать';
+  }
+  pickBtn.addEventListener('click', () => doPickupDrop(dropId));
+  actEl.appendChild(pickBtn);
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%;';
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+async function doPickupDrop(dropId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+
+  try {
+    const data = await apiFetch('/api/market', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'pickup-drop', telegram_id: TG_ID, drop_id: dropId, lat: pos.lat, lng: pos.lng }),
+    });
+    closePopup();
+    if (dropMarkers[dropId]) {
+      dropLayer.removeLayer(dropMarkers[dropId]);
+      delete dropMarkers[dropId];
+      delete dropData[dropId];
+    }
+    if (data.item) state.inventory.unshift(data.item);
+    showToast(`🎒 ${data.message || 'Предмет подобран!'}`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+// ── Market modal ──────────────────────────────
+function openMarket() {
+  document.getElementById('market-coins').textContent = formatCoins(state.player?.coins ?? 0);
+  document.getElementById('market-diamonds').textContent = state.player?.diamonds ?? 0;
+  _marketTab = 'browse';
+  _marketPage = 0;
+  _marketListings = [];
+  document.getElementById('market-modal').classList.add('open');
+  document.getElementById('market-fab').style.display = 'block';
+  _updateMarketTabs();
+  _loadMarketListings();
+}
+
+function closeMarket() {
+  document.getElementById('market-modal').classList.remove('open');
+  document.getElementById('market-fab').style.display = 'none';
+}
+
+function _updateMarketTabs() {
+  document.querySelectorAll('.market-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === _marketTab);
+  });
+  document.getElementById('market-sort-row').style.display = _marketTab === 'browse' ? 'flex' : 'none';
+  document.getElementById('market-fab').style.display =
+    document.getElementById('market-modal').classList.contains('open') ? 'block' : 'none';
+}
+
+async function _loadMarketListings() {
+  const grid = document.getElementById('market-grid');
+  const empty = document.getElementById('market-empty');
+  const loadMore = document.getElementById('market-load-more');
+
+  if (_marketPage === 0) grid.innerHTML = '';
+
+  try {
+    if (_marketTab === 'browse') {
+      const params = new URLSearchParams({
+        action: 'listings', telegram_id: TG_ID, sort: _marketSort, page: _marketPage
+      });
+      const data = await apiFetch(`/api/market?${params}`);
+      _marketListings = _marketPage === 0 ? data.listings : [..._marketListings, ...data.listings];
+      empty.style.display = _marketListings.length === 0 ? 'block' : 'none';
+      loadMore.style.display = data.listings.length >= 20 ? 'block' : 'none';
+      _renderMarketCards(_marketListings, grid, false);
+    } else {
+      const params = new URLSearchParams({ action: 'my-listings', telegram_id: TG_ID });
+      const data = await apiFetch(`/api/market?${params}`);
+      _myListings = data.listings || [];
+      empty.style.display = _myListings.length === 0 ? 'block' : 'none';
+      loadMore.style.display = 'none';
+      _renderMarketCards(_myListings, grid, true);
+    }
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function _renderMarketCards(listings, grid, isMine) {
+  grid.innerHTML = '';
+  for (const l of listings) {
+    const item = l.items;
+    if (!item) continue;
+    const card = document.createElement('div');
+    card.className = 'market-card';
+
+    const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+    const isGrad = rarColor.startsWith('linear');
+    const glowStyle = `filter:drop-shadow(0 0 12px ${isGrad ? '#FFD700' : rarColor})`;
+
+    let statusHtml = '';
+    let btnHtml = '';
+
+    if (isMine) {
+      if (l.status === 'sold') {
+        const received = Math.floor(l.price_diamonds * 0.9);
+        statusHtml = `<div class="market-card-status" style="color:#FFD700;">💰 Продан!</div>
+          <div style="font-size:12px;color:#00cfff;">+${received} 💎</div>`;
+      } else if (l.status === 'pending') {
+        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>`;
+        btnHtml = `<button class="btn" data-cancel="${l.id}" style="font-size:12px;">Отменить</button>`;
+      } else if (l.status === 'active') {
+        const msLeft = new Date(l.expires_at) - Date.now();
+        const daysLeft = Math.floor(msLeft / 86400000);
+        const hrsLeft = Math.floor((msLeft % 86400000) / 3600000);
+        statusHtml = `<div class="market-card-status" style="color:#00cc44;">✅ Активен</div>
+          <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>`;
+        btnHtml = `<button class="btn" data-cancel="${l.id}" style="font-size:12px;">Снять</button>`;
+      } else if (l.status === 'intercepted') {
+        statusHtml = `<div class="market-card-status" style="color:#ff6b6b;">⚔️ Перехвачен</div>`;
+      } else {
+        statusHtml = `<div class="market-card-status" style="color:#888;">${l.status}</div>`;
+      }
+    } else {
+      const isSelf = l.seller?.id === state.player?.id;
+      if (!isSelf) {
+        btnHtml = `<button class="btn primary" data-buy="${l.id}" data-private="${l.is_private ? '1' : '0'}">Купить</button>`;
+      }
+    }
+
+    card.innerHTML = `
+      ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
+      <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
+      <div class="market-card-name">${item.name}</div>
+      <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
+      <div class="market-card-stat">${itemStatLabel(item)}</div>
+      <div class="market-card-price">💎 ${l.price_diamonds}</div>
+      ${!isMine && l.seller ? `<div class="market-card-seller">${l.seller.avatar || '🐺'} ${displayName(l.seller)}</div>` : ''}
+      ${statusHtml}
+      ${btnHtml}
+    `;
+
+    // Attach events
+    grid.appendChild(card);
+    const buyBtn = card.querySelector('[data-buy]');
+    if (buyBtn) {
+      buyBtn.addEventListener('click', () => {
+        const isPrivate = buyBtn.dataset.private === '1';
+        if (isPrivate) {
+          _buyTargetListing = l;
+          openMarketPrivate();
+        } else {
+          showMarketBuyConfirm(l);
+        }
+      });
+    }
+    const cancelBtn = card.querySelector('[data-cancel]');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => doCancelListing(l.id));
+    }
+  }
+}
+
+// ── Buy confirm ───────────────────────────────
+function showMarketBuyConfirm(listing) {
+  const item = listing.items;
+  const diamonds = state.player?.diamonds ?? 0;
+  const canAfford = diamonds >= listing.price_diamonds;
+
+  const preview = document.getElementById('market-buy-item-preview');
+  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+  const isGrad = rarColor.startsWith('linear');
+  preview.innerHTML = `
+    <div style="font-size:48px;${isGrad ? '' : `filter:drop-shadow(0 0 12px ${rarColor})`}">${item.emoji}</div>
+    <div style="font-size:14px;font-weight:700;margin:4px 0;">${item.name} ${rarityLabel(item.rarity)}</div>
+    <div style="font-size:13px;color:#f5c518;">${itemStatLabel(item)}</div>
+  `;
+
+  document.getElementById('market-buy-price-row').innerHTML = `
+    <div style="text-align:center;">Цена: 💎 <strong>${listing.price_diamonds}</strong> алмазов</div>
+    <div style="text-align:center;color:#aaa;margin-top:4px;">У вас: 💎 ${diamonds}</div>
+  `;
+
+  const errEl = document.getElementById('market-buy-error');
+  const buyBtn = document.getElementById('market-buy-btn');
+  if (!canAfford) {
+    errEl.textContent = 'Недостаточно алмазов';
+    errEl.style.display = 'block';
+    buyBtn.disabled = true;
+    buyBtn.style.opacity = '0.5';
+  } else {
+    errEl.style.display = 'none';
+    buyBtn.disabled = false;
+    buyBtn.style.opacity = '1';
+  }
+
+  buyBtn.onclick = () => doBuyListing(listing);
+  document.getElementById('market-buy-overlay').classList.add('open');
+}
+
+function closeMarketBuy() {
+  document.getElementById('market-buy-overlay').classList.remove('open');
+}
+
+async function doBuyListing(listing) {
+  const btn = document.getElementById('market-buy-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳...';
+
+  try {
+    const pos = state.playerPos;
+    const body = {
+      telegram_id: TG_ID,
+      listing_id: listing.id,
+      lat: pos?.lat, lng: pos?.lng,
+    };
+    if (listing._privateCode) body.private_code = listing._privateCode;
+
+    body.action = 'buy';
+    const data = await apiFetch('/api/market', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    closeMarketBuy();
+    showToast(`🛒 Куплено за ${data.price_paid} 💎!`);
+
+    // Update state
+    if (state.player) {
+      state.player.diamonds = (state.player.diamonds ?? 0) - data.price_paid;
+      updateDiamondDisplay();
+      document.getElementById('market-diamonds').textContent = state.player.diamonds;
+    }
+
+    // Reload listings
+    _marketPage = 0;
+    _loadMarketListings();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💎 Купить';
+  }
+}
+
+// ── Private code modal ────────────────────────
+function openMarketPrivate() {
+  document.getElementById('market-private-input').value = '';
+  document.getElementById('market-private-overlay').classList.add('open');
+}
+
+function closeMarketPrivate() {
+  document.getElementById('market-private-overlay').classList.remove('open');
+  _buyTargetListing = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('market-private-btn')?.addEventListener('click', () => {
+    const code = document.getElementById('market-private-input').value.trim().toUpperCase();
+    if (code.length !== 6) return showToast('❌ Код должен быть 6 символов');
+    closeMarketPrivate();
+    if (_buyTargetListing) {
+      _buyTargetListing._privateCode = code;
+      showMarketBuyConfirm(_buyTargetListing);
+    }
+  });
+});
+
+// ── Cancel listing ────────────────────────────
+async function doCancelListing(listingId) {
+  try {
+    await apiFetch('/api/market', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'cancel', telegram_id: TG_ID, listing_id: listingId }),
+    });
+    showToast('✅ Лот снят с продажи');
+    _loadMarketListings();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+// ── List item flow ────────────────────────────
+function openListItemFlow() {
+  _listSelectedItem = null;
+  _listIsPrivate = false;
+  _listPrivateCode = null;
+  document.getElementById('market-list-step1').style.display = 'block';
+  document.getElementById('market-list-step2').style.display = 'none';
+  document.getElementById('market-list-private-toggle').classList.remove('on');
+  document.getElementById('market-list-code-row').style.display = 'none';
+  document.getElementById('market-list-price-input').value = '';
+
+  // Build inventory grid
+  const grid = document.getElementById('market-list-inv-grid');
+  grid.innerHTML = '';
+  const inv = (state.inventory || []).slice().sort((a, b) =>
+    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
+  );
+  for (const item of inv) {
+    const cell = document.createElement('div');
+    const disabled = item.equipped || item.on_market;
+    cell.className = `market-inv-cell ${rarityClass(item.rarity)}${disabled ? ' disabled' : ''}`;
+    cell.innerHTML = `<span>${item.emoji}</span>`;
+    if (!disabled) {
+      cell.addEventListener('click', () => _selectListItem(item));
+    }
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('market-list-overlay').classList.add('open');
+}
+
+function closeListItemFlow() {
+  document.getElementById('market-list-overlay').classList.remove('open');
+}
+
+function _selectListItem(item) {
+  _listSelectedItem = item;
+  document.getElementById('market-list-step1').style.display = 'none';
+  document.getElementById('market-list-step2').style.display = 'block';
+
+  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+  const isGrad = rarColor.startsWith('linear');
+  document.getElementById('market-list-preview-emoji').innerHTML =
+    `<span style="${isGrad ? '' : `filter:drop-shadow(0 0 16px ${rarColor})`}">${item.emoji}</span>`;
+  document.getElementById('market-list-preview-name').textContent = item.name;
+  document.getElementById('market-list-preview-rarity').innerHTML = rarityLabel(item.rarity);
+  document.getElementById('market-list-preview-stat').textContent = itemStatLabel(item);
+}
+
+// ── Market event listeners ────────────────────
+document.getElementById('btn-market-hud').addEventListener('click', async () => {
+  if (!state.playerPos) { showToast('❌ Нет GPS'); return; }
+
+  // First check already-loaded market markers
+  let allMarkets = Object.values(state.mapBuildings?.markets || []);
+
+  // If no markets in current viewport, fetch nearby from API with wide bbox
+  if (allMarkets.length === 0) {
+    try {
+      const p = state.playerPos;
+      const data = await apiFetch(`/api/map?north=${p.lat+2}&south=${p.lat-2}&east=${p.lng+2}&west=${p.lng-2}&view=markets`);
+      allMarkets = data.markets || [];
+    } catch (e) { /* silent */ }
+  }
+
+  if (allMarkets.length === 0) {
+    showToast('🎪 Рынки ещё не появились');
+    return;
+  }
+
+  // Find nearest market
+  let nearest = allMarkets[0];
+  let nearestDist = Infinity;
+  for (const m of allMarkets) {
+    const d = haversine(state.playerPos.lat, state.playerPos.lng, m.lat, m.lng);
+    if (d < nearestDist) { nearestDist = d; nearest = m; }
+  }
+
+  // Fly to it
+  map.flyTo([nearest.lat, nearest.lng], 17, { duration: 1.2 });
+  showToast(`🎪 Ближайший рынок: ${Math.round(nearestDist)}м`);
+
+  // After fly, show popup
+  setTimeout(() => {
+    _showMarketPopup(nearest);
+  }, 1300);
+});
+
+// Market event listeners — deferred until DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('market-close')?.addEventListener('click', closeMarket);
+
+  document.querySelectorAll('.market-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      _marketTab = tab.dataset.tab;
+      _marketPage = 0;
+      _updateMarketTabs();
+      _loadMarketListings();
+    });
+  });
+
+  document.querySelectorAll('.market-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _marketSort = btn.dataset.sort;
+      _marketPage = 0;
+      document.querySelectorAll('.market-sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _loadMarketListings();
+    });
+  });
+
+  document.getElementById('market-load-more')?.addEventListener('click', () => {
+    _marketPage++;
+    _loadMarketListings();
+  });
+
+  document.getElementById('market-fab')?.addEventListener('click', openListItemFlow);
+  document.getElementById('market-list-close')?.addEventListener('click', closeListItemFlow);
+
+  // Private toggle
+  document.getElementById('market-list-private-toggle')?.addEventListener('click', function() {
+    _listIsPrivate = !_listIsPrivate;
+    this.classList.toggle('on', _listIsPrivate);
+    const codeRow = document.getElementById('market-list-code-row');
+    if (_listIsPrivate) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      _listPrivateCode = '';
+      for (let i = 0; i < 6; i++) _listPrivateCode += chars[Math.floor(Math.random() * chars.length)];
+      document.getElementById('market-list-code').textContent = _listPrivateCode;
+      codeRow.style.display = 'block';
+    } else {
+      _listPrivateCode = null;
+      codeRow.style.display = 'none';
+    }
+  });
+
+  document.getElementById('market-list-copy-code')?.addEventListener('click', () => {
+    const code = document.getElementById('market-list-code').textContent;
+    navigator.clipboard?.writeText(code).then(() => showToast('📋 Код скопирован'));
+  });
+
+  // Submit listing
+  document.getElementById('market-list-submit')?.addEventListener('click', async () => {
+    if (!_listSelectedItem) return;
+    const priceStr = document.getElementById('market-list-price-input').value;
+    const price = parseInt(priceStr, 10);
+    if (isNaN(price) || price < 1 || price > 100000) {
+      return showToast('❌ Цена от 1 до 100 000');
+    }
+
+    const btn = document.getElementById('market-list-submit');
+    btn.disabled = true;
+    btn.textContent = '⏳...';
+
+    try {
+      const pos = state.playerPos;
+      const data = await apiFetch('/api/market', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'list-item',
+          telegram_id: TG_ID,
+          item_id: _listSelectedItem.id,
+          price_diamonds: price,
+          is_private: _listIsPrivate,
+          lat: pos?.lat, lng: pos?.lng,
+        }),
+      });
+
+      const invItem = (state.inventory || []).find(i => i.id === _listSelectedItem.id);
+      if (invItem) invItem.on_market = true;
+
+      closeListItemFlow();
+      showToast('🎪 Товар выставлен на рынок!');
+
+      if (data.private_code) {
+        showToast(`🔒 Код: ${data.private_code}`, 5000);
+      }
+
+      _marketTab = 'my';
+      _updateMarketTabs();
+      _loadMarketListings();
+    } catch (err) {
+      showToast(`❌ ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🎪 Разместить';
+    }
+  });
+});
+
+// ── Smart courier movement tick ───────────────
+let _courierTickTimer = null;
+let _lastCourierTick = 0;
+function scheduleCourierTick() {
+  if (_courierTickTimer) clearTimeout(_courierTickTimer);
+  const hasActive = Object.keys(courierMarkers).length > 0;
+  const interval = hasActive ? 4000 : 30000;
+  _courierTickTimer = setTimeout(async () => {
+    _lastCourierTick = Date.now();
+    try {
+      const data = await apiFetch('/api/market', { method: 'POST', body: JSON.stringify({ action: 'move-couriers' }) });
+      if (data.couriers) renderCouriers(data.couriers);
+    } catch (e) { /* silent */ }
+    scheduleCourierTick();
+  }, interval);
+}
+scheduleCourierTick();
+
+// ── Drop expiration cleanup (every 30s) ───────
+setInterval(() => {
+  const now = Date.now();
+  for (const id of Object.keys(dropData)) {
+    if (dropData[id].expires_at && new Date(dropData[id].expires_at).getTime() < now) {
+      if (dropMarkers[id]) {
+        dropLayer.removeLayer(dropMarkers[id]);
+        delete dropMarkers[id];
+      }
+      delete dropData[id];
+    }
+  }
+}, 30000);
+
+// ─────────────────────────────────────────────
 //  Avatar bottom sheet
 // ─────────────────────────────────────────────
 document.getElementById('btn-change-avatar').addEventListener('click', openAvatarSheet);
@@ -4879,28 +6292,41 @@ function closeAvatarSheet() {
 // ─────────────────────────────────────────────
 document.getElementById('btn-leaderboard').addEventListener('click', openLeaderboard);
 document.getElementById('btn-close-leaderboard').addEventListener('click', closeLeaderboard);
+document.getElementById('btn-refresh-leaderboard').addEventListener('click', () => {
+  _lbCache = null;
+  openLeaderboard();
+});
 
-function openLeaderboard() {
+let _lbCache = null;
+let _lbCacheTime = 0;
+
+async function openLeaderboard() {
   document.getElementById('leaderboard-overlay').classList.add('open');
-  loadLeaderboard();
+
+  const now = Date.now();
+  if (_lbCache && now - _lbCacheTime < 60000) {
+    renderLeaderboard(_lbCache);
+    return;
+  }
+
+  const list = document.getElementById('leaderboard-list');
+  const currentDiv = document.getElementById('leaderboard-current');
+  list.innerHTML = '<div style="padding:32px;text-align:center;color:#666;">⏳ Загрузка...</div>';
+  currentDiv.innerHTML = '';
+
+  try {
+    const url = TG_ID ? `/api/map?view=leaderboard&telegram_id=${TG_ID}` : '/api/map?view=leaderboard';
+    const data = await apiFetch(url);
+    _lbCache = data;
+    _lbCacheTime = Date.now();
+    renderLeaderboard(data);
+  } catch (err) {
+    list.innerHTML = '<div style="padding:32px;text-align:center;color:#e06060;">Ошибка загрузки</div>';
+  }
 }
 
 function closeLeaderboard() {
   document.getElementById('leaderboard-overlay').classList.remove('open');
-}
-
-async function loadLeaderboard() {
-  const list = document.getElementById('leaderboard-list');
-  const currentDiv = document.getElementById('leaderboard-current');
-  list.innerHTML = '<div style="padding:32px;text-align:center;color:#666;">Загрузка...</div>';
-  currentDiv.innerHTML = '';
-  try {
-    const url = TG_ID ? `/api/map?view=leaderboard&telegram_id=${TG_ID}` : '/api/map?view=leaderboard';
-    const data = await apiFetch(url);
-    renderLeaderboard(data);
-  } catch (err) {
-    list.innerHTML = `<div style="padding:32px;text-align:center;color:#e06060;">Ошибка загрузки</div>`;
-  }
 }
 
 function renderLeaderboard(data) {
@@ -4921,7 +6347,7 @@ function renderLeaderboard(data) {
     row.innerHTML = `
       <span class="${rankCls}">#${p.rank}</span>
       <span class="lb-avatar">${p.avatar || '🐺'}</span>
-      <span class="lb-name">${p.username || 'Игрок'}</span>
+      <span class="lb-name">${displayName(p)}</span>
       <span class="lb-level">Ур.${p.level || 1}</span>
       <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)} XP</span>
     `;
@@ -4935,7 +6361,7 @@ function renderLeaderboard(data) {
       <div class="lb-row current-player">
         <span class="lb-rank">#${p.rank}</span>
         <span class="lb-avatar">${p.avatar || '🐺'}</span>
-        <span class="lb-name">${p.username || 'Игрок'}</span>
+        <span class="lb-name">${displayName(p)}</span>
         <span class="lb-level">Ур.${p.level || 1}</span>
         <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)} XP</span>
       </div>
@@ -4996,8 +6422,8 @@ function renderLeaderboard(data) {
     <div class="profile-section-title">Экипировка</div>
     <div class="equip-slots">
       <div class="equip-slot" id="equip-slot-sword" onclick="openEquipSlot('sword')">
-        <span class="slot-empty">🗡️</span>
-        <span class="slot-label">Меч</span>
+        <span class="slot-empty">⚔️</span>
+        <span class="slot-label">Оружие</span>
       </div>
       <div class="equip-slot" id="equip-slot-shield" onclick="openEquipSlot('shield')">
         <span class="slot-empty">🛡️</span>
@@ -5024,6 +6450,21 @@ function renderLeaderboard(data) {
   </div>
 </div>
 
+<!-- Sell confirm dialog -->
+<div id="sell-confirm-overlay" onclick="if(event.target===this)closeSellConfirm()">
+  <div id="sell-confirm-card">
+    <div style="font-size:14px;color:#ccc;margin-bottom:10px;">Продать предмет?</div>
+    <div id="sell-confirm-emoji" style="font-size:40px;text-align:center;"></div>
+    <div id="sell-confirm-name" style="font-size:14px;font-weight:600;text-align:center;margin:6px 0;"></div>
+    <div id="sell-confirm-price" style="font-size:13px;color:#00cfff;text-align:center;"></div>
+    <div style="font-size:11px;color:rgba(255,80,80,0.7);text-align:center;margin-top:6px;">Это невыгодно!</div>
+    <div style="display:flex;gap:10px;margin-top:14px;justify-content:center;">
+      <button class="btn" onclick="closeSellConfirm()">Отмена</button>
+      <button class="btn" id="sell-confirm-btn" style="color:#ff6b6b;">Продать</button>
+    </div>
+  </div>
+</div>
+
 <!-- Vase drop popup -->
 <div id="vase-drop-popup">
   <div id="vase-drop-card">
@@ -5033,6 +6474,94 @@ function renderLeaderboard(data) {
     <div class="vase-drop-rarity" id="vase-drop-rarity">—</div>
     <div class="vase-drop-stat" id="vase-drop-stat">—</div>
     <div class="vase-drop-diamonds" id="vase-drop-diamonds">—</div>
+  </div>
+</div>
+
+<!-- Market modal (fullscreen) -->
+<div id="market-modal">
+  <div id="market-header">
+    <div id="market-header-top">
+      <h2>🎪 РЫНОК</h2>
+      <button id="market-close">&#x2715;</button>
+    </div>
+    <div id="market-header-balances">
+      <span>💰 <span id="market-coins">0</span></span>
+      <span>💎 <span id="market-diamonds">0</span></span>
+    </div>
+  </div>
+  <div id="market-tabs">
+    <button class="market-tab active" data-tab="browse">🌍 Рынок</button>
+    <button class="market-tab" data-tab="my">📦 Мои лоты</button>
+  </div>
+  <div id="market-sort-row">
+    <button class="market-sort-btn" data-sort="cheap">💰 Дешевле</button>
+    <button class="market-sort-btn" data-sort="expensive">💎 Дороже</button>
+    <button class="market-sort-btn active" data-sort="new">🆕 Новые</button>
+  </div>
+  <div id="market-body">
+    <div id="market-grid"></div>
+    <div id="market-empty" style="display:none;">Пока нет товаров на рынке</div>
+    <button id="market-load-more">Загрузить ещё</button>
+  </div>
+  <button id="market-fab">+ Разместить товар</button>
+</div>
+
+<!-- Market buy confirm -->
+<div id="market-buy-overlay" onclick="if(event.target===this)closeMarketBuy()">
+  <div id="market-buy-card">
+    <h3>Купить предмет?</h3>
+    <div id="market-buy-item-preview" style="text-align:center;"></div>
+    <div id="market-buy-price-row" style="margin:12px 0;font-size:14px;"></div>
+    <div id="market-buy-error" style="color:#ff6b6b;font-size:12px;text-align:center;display:none;"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn" onclick="closeMarketBuy()" style="flex:1;">Отмена</button>
+      <button class="btn primary" id="market-buy-btn" style="flex:1;">💎 Купить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Market private code input -->
+<div id="market-private-overlay" onclick="if(event.target===this)closeMarketPrivate()">
+  <div id="market-private-card">
+    <h3 style="text-align:center;">🔒 Приватный товар</h3>
+    <p style="color:#aaa;font-size:13px;text-align:center;">Введите код доступа:</p>
+    <input id="market-private-input" maxlength="6" placeholder="______" autocomplete="off" />
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn" onclick="closeMarketPrivate()" style="flex:1;">Отмена</button>
+      <button class="btn primary" id="market-private-btn" style="flex:1;">Проверить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Market list-item flow -->
+<div id="market-list-overlay">
+  <div id="market-list-header">
+    <h2>Разместить товар</h2>
+    <button id="market-list-close" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,0.08);">&#x2715;</button>
+  </div>
+  <div id="market-list-body">
+    <div id="market-list-step1">
+      <p style="color:#aaa;font-size:13px;margin-bottom:12px;">Выберите предмет:</p>
+      <div id="market-list-inv-grid"></div>
+    </div>
+    <div id="market-list-step2">
+      <div id="market-list-preview-emoji"></div>
+      <div id="market-list-preview-name" style="text-align:center;font-size:16px;font-weight:700;"></div>
+      <div id="market-list-preview-rarity" style="text-align:center;margin:4px 0;"></div>
+      <div id="market-list-preview-stat" style="text-align:center;font-size:14px;color:#f5c518;margin-bottom:16px;"></div>
+      <p style="color:#aaa;font-size:13px;margin-bottom:4px;">Цена (алмазы):</p>
+      <input id="market-list-price-input" type="number" min="1" max="100000" placeholder="от 1 до 100 000" />
+      <div class="market-list-toggle-row">
+        <span>🔓 Приватный лот</span>
+        <button class="market-list-toggle" id="market-list-private-toggle"></button>
+      </div>
+      <div id="market-list-code-row">
+        <span style="color:#aaa;font-size:12px;">Код: </span>
+        <span id="market-list-code"></span>
+        <button id="market-list-copy-code" style="background:none;border:none;color:#aaa;font-size:14px;cursor:pointer;margin-left:4px;">📋</button>
+      </div>
+      <button class="btn primary" id="market-list-submit" style="width:100%;margin-top:16px;padding:14px;font-size:15px;">🎪 Разместить</button>
+    </div>
   </div>
 </div>
 

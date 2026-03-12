@@ -6,7 +6,7 @@ async function handleLeaderboard(req, res) {
 
   const { data: top, error } = await supabase
     .from('players')
-    .select('telegram_id, username, avatar, level, xp')
+    .select('telegram_id, username, game_username, avatar, level, xp')
     .order('xp', { ascending: false })
     .limit(100);
 
@@ -23,7 +23,7 @@ async function handleLeaderboard(req, res) {
       if (!inTop) {
         const { data: player } = await supabase
           .from('players')
-          .select('telegram_id, username, avatar, level, xp')
+          .select('telegram_id, username, game_username, avatar, level, xp')
           .eq('telegram_id', tgId)
           .maybeSingle();
         if (player) {
@@ -48,6 +48,13 @@ export default async function handler(req, res) {
   const { north, south, east, west, telegram_id, lat, lng, view } = req.query;
 
   if (view === 'leaderboard') return handleLeaderboard(req, res);
+  if (view === 'markets') {
+    const { data: mkts, error: mkErr } = await supabase
+      .from('markets').select('id,lat,lng,name').limit(200);
+    if (mkErr) return res.status(500).json({ error: mkErr.message });
+    return res.json({ markets: mkts || [] });
+  }
+
   if (view === 'health') {
     try {
       const { error } = await supabase.from('app_settings').select('key').limit(1);
@@ -70,6 +77,7 @@ export default async function handler(req, res) {
   }
 
   // Reject if bbox is too large (prevents loading thousands of objects)
+  // At minZoom 15 + 20% pad, max bbox ~0.04° lat × 0.07° lng; 0.1° gives margin
   if ((n - s) > 0.1 || (e - w) > 0.1) {
     return res.json({ mines: [], headquarters: [], bots: [], vases: [], online_players: [] });
   }
@@ -99,29 +107,32 @@ export default async function handler(req, res) {
     { data: allOnline, error: onlineErr },
     { data: allBots,   error: botsErr },
     { data: allVases,  error: vasesErr },
+    { data: allCouriers, error: couriersErr },
+    { data: allDrops,    error: dropsErr },
+    { data: allMarkets,  error: marketsErr },
   ] = await Promise.all([
     supabase
       .from('headquarters')
-      .select('id,lat,lng,level,player_id,coins,players(username,avatar,last_seen,level)')
+      .select('id,lat,lng,level,player_id,players(username,game_username,avatar,last_seen,level)')
       .gte('lat', s).lte('lat', n)
       .gte('lng', w).lte('lng', e)
-      .limit(50),
+      .limit(2000),
 
     supabase
       .from('mines')
-      .select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,players!mines_owner_id_fkey(username,avatar,level)')
+      .select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected,players!mines_owner_id_fkey(username,game_username,avatar,level)')
       .gte('lat', s).lte('lat', n)
       .gte('lng', w).lte('lng', e)
-      .limit(50),
+      .limit(2000),
 
     supabase
       .from('players')
-      .select('id,username,avatar,last_lat,last_lng,last_seen,level')
+      .select('id,username,game_username,avatar,last_lat,last_lng,last_seen,level')
       .gte('last_lat', s).lte('last_lat', n)
       .gte('last_lng', w).lte('last_lng', e)
       .gte('last_seen', onlineThreshold)
       .not('last_lat', 'is', null)
-      .limit(20),
+      .limit(100),
 
     supabase
       .from('bots')
@@ -129,7 +140,7 @@ export default async function handler(req, res) {
       .gt('expires_at', nowISO)
       .gte('lat', s).lte('lat', n)
       .gte('lng', w).lte('lng', e)
-      .limit(30),
+      .limit(500),
 
     supabase
       .from('vases')
@@ -138,19 +149,47 @@ export default async function handler(req, res) {
       .is('broken_by', null)
       .gte('lat', s).lte('lat', n)
       .gte('lng', w).lte('lng', e)
-      .limit(20),
+      .limit(200),
+
+    supabase
+      .from('couriers')
+      .select('id,type,owner_id,current_lat,current_lng,target_lat,target_lng,hp,max_hp,status,listing_id')
+      .eq('status', 'moving')
+      .gte('current_lat', s).lte('current_lat', n)
+      .gte('current_lng', w).lte('current_lng', e)
+      .limit(200),
+
+    supabase
+      .from('courier_drops')
+      .select('id,item_id,lat,lng,expires_at')
+      .eq('picked_up', false)
+      .gt('expires_at', nowISO)
+      .gte('lat', s).lte('lat', n)
+      .gte('lng', w).lte('lng', e)
+      .limit(100),
+
+    supabase
+      .from('markets')
+      .select('id,lat,lng,name')
+      .gte('lat', s).lte('lat', n)
+      .gte('lng', w).lte('lng', e)
+      .limit(50),
   ]);
 
-  if (hqErr)    console.error('[map] hq error:', hqErr);
-  if (minesErr) console.error('[map] mines error:', minesErr);
-  if (onlineErr) console.error('[map] online error:', onlineErr);
-  if (botsErr)  console.error('[map] bots error:', botsErr);
-  if (vasesErr) console.error('[map] vases error:', vasesErr);
+  if (hqErr)       console.error('[map] hq error:', hqErr);
+  if (minesErr)    console.error('[map] mines error:', minesErr);
+  if (onlineErr)   console.error('[map] online error:', onlineErr);
+  if (botsErr)     console.error('[map] bots error:', botsErr);
+  if (vasesErr)    console.error('[map] vases error:', vasesErr);
+  if (couriersErr) console.error('[map] couriers error:', couriersErr);
+  if (dropsErr)    console.error('[map] drops error:', dropsErr);
+  if (marketsErr)  console.error('[map] markets error:', marketsErr);
 
   const ONLINE_MS = 3 * 60 * 1000;
 
   const headquarters = (allHQ || []).map((hq) => ({
-    ...hq,
+    id: hq.id, lat: hq.lat, lng: hq.lng, level: hq.level, player_id: hq.player_id,
+    players: hq.players,
     is_mine:   currentPlayerId ? hq.player_id === currentPlayerId : false,
     is_online: hq.players?.last_seen
       ? (Date.now() - new Date(hq.players.last_seen).getTime()) < ONLINE_MS
@@ -158,7 +197,10 @@ export default async function handler(req, res) {
   }));
 
   const mines = (allMines || []).map((m) => ({
-    ...m,
+    id: m.id, lat: m.lat, lng: m.lng, level: m.level, owner_id: m.owner_id,
+    cell_id: m.cell_id, last_collected: m.last_collected,
+    upgrade_finish_at: m.upgrade_finish_at, pending_level: m.pending_level,
+    players: m.players,
     is_mine:     currentPlayerId ? m.owner_id === currentPlayerId : false,
     can_capture: currentPlayerId && playerRange
       ? m.owner_id !== currentPlayerId && playerRange.has(m.cell_id)
@@ -166,12 +208,15 @@ export default async function handler(req, res) {
   }));
 
   const online_players = (allOnline || []).filter((p) => p.id !== currentPlayerId);
-  const bots  = allBots  || [];
-  const vases = allVases || [];
+  const bots    = allBots    || [];
+  const vases   = allVases   || [];
+  const couriers     = allCouriers || [];
+  const courier_drops = allDrops   || [];
+  const markets      = allMarkets  || [];
 
-  const responseData = { headquarters, mines, online_players, bots, vases };
+  const responseData = { headquarters, mines, online_players, bots, vases, couriers, courier_drops, markets };
   console.log('[map] response size:', JSON.stringify(responseData).length, 'bytes, items:',
-    { hq: headquarters.length, mines: mines.length, bots: bots.length, vases: vases.length, online: online_players.length });
+    { hq: headquarters.length, mines: mines.length, bots: bots.length, vases: vases.length, online: online_players.length, couriers: couriers.length, drops: courier_drops.length, markets: markets.length });
 
   return res.status(200).json(responseData);
 }
