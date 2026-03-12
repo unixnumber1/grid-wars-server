@@ -105,11 +105,41 @@ export default async function handler(req, res) {
   }
   console.log('[init] step 2 done, player id:', player.id);
 
+  // ── Ban check (separate query — columns may not exist yet) ──
+  try {
+    const { data: banData } = await supabase
+      .from('players')
+      .select('is_banned,ban_reason,ban_until')
+      .eq('id', player.id)
+      .single();
+
+    if (banData?.is_banned) {
+      const bannedForever = !banData.ban_until;
+      const bannedUntil = banData.ban_until ? new Date(banData.ban_until) : null;
+      const stillBanned = bannedForever || bannedUntil > new Date();
+
+      if (stillBanned) {
+        return res.status(403).json({
+          banned: true,
+          reason: banData.ban_reason,
+          until: banData.ban_until,
+          avatar: player.avatar,
+        });
+      } else {
+        await supabase.from('players').update({
+          is_banned: false, ban_reason: null, ban_until: null,
+        }).eq('id', player.id);
+      }
+    }
+  } catch (_banErr) {
+    // Ban columns don't exist yet — skip check
+  }
+
   console.log('[init] step 3 - fetch hq + mines + inventory');
   let headquarters, mines, inventory;
   try {
     const [hqRes, minesRes, itemsRes] = await withTimeout(Promise.all([
-      supabase.from('headquarters').select('id,lat,lng,level,player_id,coins').eq('player_id', player.id).maybeSingle(),
+      supabase.from('headquarters').select('id,lat,lng,level,player_id,coins').eq('player_id', player.id).order('created_at', { ascending: true }).limit(1).maybeSingle(),
       supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected').eq('owner_id', player.id),
       supabase.from('items').select('id,type,rarity,name,emoji,stat_value,equipped,obtained_at').eq('owner_id', player.id).order('obtained_at', { ascending: false }),
     ]));

@@ -11,9 +11,9 @@ async function handlePlace(player, body, res) {
     return res.status(400).json({ error: 'lat, lng are required' });
   }
 
-  const { data: existingHq } = await supabase
-    .from('headquarters').select('id').eq('player_id', player.id).maybeSingle();
-  if (existingHq) return res.status(409).json({ error: 'Headquarters already placed' });
+  const { data: existingHqs } = await supabase
+    .from('headquarters').select('id').eq('player_id', player.id);
+  if (existingHqs && existingHqs.length > 0) return res.status(409).json({ error: 'Headquarters already placed' });
 
   const targetCell = getCellId(parseFloat(lat), parseFloat(lng));
 
@@ -50,32 +50,43 @@ async function handlePlace(player, body, res) {
   const [centerLat, centerLng] = cellToLatLng(finalCell);
   const cell_id = finalCell;
 
-  const bonusClaimed = player.starting_bonus_claimed === true;
-  const startingCoins = bonusClaimed ? 0 : 10000;
+  const bonusClaimed    = player.starting_bonus_claimed === true;
+  const startingCoins   = bonusClaimed ? 0 : 100_000;
+  const startingDiamonds = bonusClaimed ? 0 : 100;
 
   const { data: hq, error: insertError } = await supabase
     .from('headquarters')
-    .insert({ player_id: player.id, owner_username: player.username, lat: centerLat, lng: centerLng, cell_id, coins: startingCoins })
-    .select().single();
+    .insert({ player_id: player.id, owner_username: player.username, lat: centerLat, lng: centerLng, cell_id })
+    .select('id,player_id,lat,lng,cell_id,level,created_at').single();
   if (insertError) {
     console.error('[headquarters] insert error:', insertError);
     return res.status(500).json({ error: 'Failed to place headquarters' });
   }
 
   if (!bonusClaimed) {
-    await supabase.from('players').update({ starting_bonus_claimed: true }).eq('id', player.id);
+    await supabase.from('players').update({
+      starting_bonus_claimed: true,
+      coins:    (player.coins    ?? 0) + startingCoins,
+      diamonds: (player.diamonds ?? 0) + startingDiamonds,
+    }).eq('id', player.id);
   }
 
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
 
-  return res.status(201).json({ headquarters: hq, xp: xpResult, startingBonus: !bonusClaimed });
+  return res.status(201).json({
+    headquarters: hq,
+    xp: xpResult,
+    startingBonus: !bonusClaimed,
+    player_coins:    (player.coins    ?? 0) + startingCoins,
+    player_diamonds: (player.diamonds ?? 0) + startingDiamonds,
+  });
 }
 
 // ── UPGRADE HQ ─────────────────────────────────────────────────────────────
 async function handleUpgrade(player, res) {
   const { data: hq, error: hqError } = await supabase
-    .from('headquarters').select('*').eq('player_id', player.id).maybeSingle();
+    .from('headquarters').select('id,level').eq('player_id', player.id).order('created_at', { ascending: true }).limit(1).maybeSingle();
   if (hqError) return res.status(500).json({ error: hqError.message });
   if (!hq)     return res.status(404).json({ error: 'Headquarters not found' });
 
@@ -83,28 +94,36 @@ async function handleUpgrade(player, res) {
   if (currentLevel >= HQ_MAX_LEVEL) return res.status(400).json({ error: 'Headquarters is already at max level' });
 
   const cost = hqUpgradeCost(currentLevel);
-  if (hq.coins < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${cost})` });
+  const balance = player.coins ?? 0;
+  if (balance < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${Math.round(cost).toLocaleString()})` });
 
-  const { data: updatedHq, error: updateError } = await supabase
-    .from('headquarters')
-    .update({ level: currentLevel + 1, coins: hq.coins - cost })
-    .eq('id', hq.id).select().single();
-  if (updateError) return res.status(500).json({ error: 'Failed to upgrade headquarters' });
+  const newBalance = balance - cost;
+  const [{ data: updatedHq, error: updateError }, { error: coinsError }] = await Promise.all([
+    supabase.from('headquarters').update({ level: currentLevel + 1 })
+      .eq('id', hq.id).select('id,player_id,lat,lng,cell_id,level,created_at').single(),
+    supabase.from('players').update({ coins: newBalance }).eq('id', player.id),
+  ]);
+  if (updateError || coinsError) return res.status(500).json({ error: 'Failed to upgrade headquarters' });
 
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_HQ); } catch (e) {}
 
-  return res.status(200).json({ headquarters: updatedHq, xp: xpResult });
+  return res.status(200).json({
+    headquarters: updatedHq,
+    player_coins: newBalance,
+    xp: xpResult,
+  });
 }
 
 // ── SELL HQ ────────────────────────────────────────────────────────────────
 async function handleSell(player, res) {
-  const { data: hq, error: hqError } = await supabase
-    .from('headquarters').select('id').eq('player_id', player.id).maybeSingle();
+  const { data: hqs, error: hqError } = await supabase
+    .from('headquarters').select('id').eq('player_id', player.id);
   if (hqError) return res.status(500).json({ error: hqError.message });
-  if (!hq)     return res.status(404).json({ error: 'Headquarters not found' });
+  if (!hqs || hqs.length === 0) return res.status(404).json({ error: 'Headquarters not found' });
 
-  const { error: delError } = await supabase.from('headquarters').delete().eq('id', hq.id);
+  // Delete all HQs for this player (handles duplicates)
+  const { error: delError } = await supabase.from('headquarters').delete().eq('player_id', player.id);
   if (delError) return res.status(500).json({ error: delError.message });
   return res.status(200).json({ success: true });
 }
@@ -116,7 +135,7 @@ export default async function handler(req, res) {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed');
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed, coins');
   if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 

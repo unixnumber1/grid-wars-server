@@ -74,6 +74,32 @@
       font-weight: 700;
       color: #00cfff;
     }
+    #hud-currency-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 6px;
+    }
+    #hud-currency-buttons button {
+      flex: 1;
+      height: 32px;
+      border-radius: 8px;
+      font-size: 13px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: white;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.2s;
+    }
+    #hud-currency-buttons button:active {
+      background: rgba(255,255,255,0.18);
+    }
+    #hud-currency-buttons .hud-btn-placeholder {
+      border-style: dashed;
+      opacity: 0.5;
+    }
 
     /* Floating buttons island */
     #hud-buttons {
@@ -607,6 +633,9 @@
       align-items: center;
       justify-content: center;
     }
+    .player-marker-passthrough {
+      pointer-events: none !important;
+    }
 
     /* Selected building highlight */
     .marker-selected .marker-wrap {
@@ -808,6 +837,53 @@
       0%   { transform: translateX(100vw); }
       100% { transform: translateX(-200px); }
     }
+
+    /* Ban screen */
+    #ban-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(100,0,0,0.9), rgba(0,0,0,0.98));
+      z-index: 99999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      padding: 32px;
+    }
+    #ban-screen.open { display: flex; }
+
+    #ban-avatar-circle {
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      border: 3px solid #d50000;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.4);
+    }
+    #ban-avatar-emoji { font-size: 64px; line-height: 1; }
+
+    #ban-coffin {
+      font-size: 80px; line-height: 1;
+      animation: coffin 3s ease-in-out infinite;
+    }
+    @keyframes coffin {
+      0%,100% { transform: rotate(-5deg); }
+      50%     { transform: rotate(5deg); }
+    }
+
+    #ban-title {
+      font-size: 26px; font-weight: 900;
+      color: #d50000; letter-spacing: 1px;
+    }
+
+    #ban-reason-wrap { color: #aaa; font-size: 15px; }
+    #ban-reason-text { color: #fff; font-size: 16px; font-style: italic; margin-top: 4px; }
+
+    #ban-until-text { color: #ff6666; font-size: 18px; font-weight: 700; }
+
+    #ban-contact { color: #555; font-size: 13px; margin-top: 12px; line-height: 1.5; }
+    #ban-contact b { color: #888; }
 
     /* Upgrade progress bar */
     .upgrade-progress-wrap {
@@ -1055,8 +1131,8 @@
     .rarity-common    { border-color: #888888 !important; }
     .rarity-rare      { border-color: #00c853 !important; }
     .rarity-uncommon  { border-color: #2979ff !important; }
-    .rarity-epic      { border-color: #f50057 !important; }
-    .rarity-mythic    { border-color: #d50000 !important; }
+    .rarity-epic      { border-color: #ff00aa !important; }
+    .rarity-mythic    { border-color: #8b0000 !important; }
     .rarity-legendary { border-color: #FFD700 !important; animation: legendaryBorder 2s linear infinite; }
 
     @keyframes legendaryBorder {
@@ -1137,6 +1213,133 @@
     .vase-drop-rarity   { font-size: 12px; margin: 4px 0; }
     .vase-drop-stat     { font-size: 13px; color: #f5c518; margin-top: 4px; }
     .vase-drop-diamonds { font-size: 14px; color: #00cfff; margin-top: 10px; }
+
+    /* ── Shop modal (fullscreen) ── */
+    #shop-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 3500;
+      background: #0d0d1a;
+      flex-direction: column;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #shop-modal.open { display: flex; }
+    #shop-header {
+      position: sticky; top: 0; z-index: 1;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    #shop-header-top { display: flex; justify-content: space-between; align-items: center; }
+    #shop-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
+    #shop-header-balances { display: flex; gap: 14px; margin-top: 6px; font-size: 14px; }
+    #shop-close {
+      background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; background: rgba(255,255,255,0.08);
+    }
+    #shop-body { padding: 16px; flex: 1; }
+    .shop-section-title {
+      font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #eee; letter-spacing: 0.5px;
+    }
+    .shop-boxes-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .shop-box-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      border: 1px solid;
+      padding: 16px;
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .shop-box-icon {
+      font-size: 64px; line-height: 1;
+      animation: boxFloat 3s ease-in-out infinite;
+    }
+    @keyframes boxFloat {
+      0%,100% { transform: translateY(0px) rotate(-3deg); }
+      50%     { transform: translateY(-8px) rotate(3deg); }
+    }
+    .shop-box-name { font-size: 14px; font-weight: 700; }
+    .shop-box-price { font-size: 13px; color: #00cfff; margin: 4px 0; }
+    .shop-box-btns { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
+    .shop-box-btns .btn { flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 10px; }
+    .shop-box-btns .btn.info-btn {
+      background: rgba(255,255,255,0.08); color: #aaa;
+    }
+
+    /* Box open overlay */
+    #box-open-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.95);
+      align-items: center; justify-content: center;
+      flex-direction: column;
+    }
+    #box-open-overlay.open { display: flex; }
+    .box-anim-icon { font-size: 120px; line-height: 1; }
+    @keyframes boxShake {
+      0%,100% { transform: scale(1.2) rotate(0deg); }
+      20%     { transform: scale(1.3) rotate(-8deg); }
+      40%     { transform: scale(1.2) rotate(8deg); }
+      60%     { transform: scale(1.3) rotate(-5deg); }
+      80%     { transform: scale(1.2) rotate(5deg); }
+    }
+    @keyframes flashBg {
+      0%   { opacity: 0; }
+      30%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .box-flash {
+      position: fixed; inset: 0; z-index: 10000; pointer-events: none;
+      animation: flashBg 0.3s ease-out forwards;
+    }
+    .box-result {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      animation: popIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    .box-result-emoji { font-size: 96px; line-height: 1; }
+    .box-result-name { font-size: 18px; font-weight: 700; }
+    .box-result-rarity { font-size: 14px; }
+    .box-result-stat { font-size: 15px; color: #f5c518; }
+    .box-result-hint { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 24px; }
+
+    /* Box odds popup */
+    #box-odds-popup {
+      display: none;
+      position: fixed; inset: 0; z-index: 9998;
+      background: rgba(0,0,0,0.7);
+      align-items: center; justify-content: center;
+    }
+    #box-odds-popup.open { display: flex; }
+    #box-odds-card {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 20px;
+      width: calc(100% - 48px);
+      max-width: 320px;
+      animation: popIn 0.2s ease-out;
+    }
+    #box-odds-card h3 { font-size: 15px; font-weight: 700; margin: 0 0 12px; }
+    .odds-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; margin: 6px 0;
+    }
+    .odds-bar {
+      width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+    }
+    .odds-name { flex: 1; }
+    .odds-pct { color: #aaa; }
+    .odds-footer { font-size: 11px; color: #888; margin-top: 12px; line-height: 1.4; }
+    #box-odds-close {
+      margin-top: 12px; width: 100%; padding: 10px;
+      background: rgba(255,255,255,0.08); border: none; color: #fff;
+      border-radius: 10px; font-size: 13px; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1159,6 +1362,20 @@
     <span id="maintenance-runner">🏃</span>
     <div id="maintenance-ground">・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・</div>
   </div>
+</div>
+
+<!-- Ban screen -->
+<div id="ban-screen">
+  <div id="ban-avatar-bg"></div>
+  <div id="ban-avatar-circle"><span id="ban-avatar-emoji">🐺</span></div>
+  <div id="ban-coffin">⚰️</div>
+  <div id="ban-title">Вы заблокированы</div>
+  <div id="ban-reason-wrap">
+    <div id="ban-reason-label">Причина:</div>
+    <div id="ban-reason-text">"—"</div>
+  </div>
+  <div id="ban-until-text">Навсегда</div>
+  <div id="ban-contact">По вопросам разблокировки:<br><b>@nickandreyuk</b></div>
 </div>
 
 <!-- HQ placement prompt -->
@@ -1201,6 +1418,39 @@
       <button id="btn-spawn-vases" class="btn" style="width:100%;padding:12px;font-size:14px;margin-top:8px;background:#8B5CF6;">
         🏺 Заспаунить вазы
       </button>
+      <button id="btn-fix-hq" class="btn yellow" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">
+        🏠 Почистить дубли штабов
+      </button>
+
+      <!-- Player management -->
+      <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+        <div class="settings-section-title">💰 Выдать ресурсы</div>
+        <div style="position:relative;">
+          <input id="admin-reward-search" type="text" placeholder="🔍 Поиск по нику..." style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;">
+          <div id="admin-reward-results" style="margin-top:4px;"></div>
+        </div>
+        <div id="admin-reward-form" style="display:none;margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;">
+          <div id="admin-reward-selected" style="font-size:14px;margin-bottom:10px;"></div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <button class="admin-currency-btn active" data-currency="coins" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;cursor:pointer;">💰 Монеты</button>
+            <button class="admin-currency-btn" data-currency="diamonds" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#999;font-size:13px;cursor:pointer;">💎 Алмазы</button>
+          </div>
+          <input id="admin-reward-amount" type="number" placeholder="Сумма" style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+          <button id="btn-admin-reward" class="btn primary" style="width:100%;padding:12px;font-size:14px;">✅ Выдать</button>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+        <div class="settings-section-title">🚫 Блокировка</div>
+        <div style="position:relative;">
+          <input id="admin-ban-search" type="text" placeholder="🔍 Поиск по нику..." style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;">
+          <div id="admin-ban-results" style="margin-top:4px;"></div>
+        </div>
+        <div id="admin-ban-form" style="display:none;margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;">
+          <div id="admin-ban-selected" style="font-size:14px;margin-bottom:10px;"></div>
+          <div id="admin-ban-actions"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1237,6 +1487,10 @@
   <div id="diamond-balance">
     <span id="diamond-balance-icon">💎</span>
     <span id="diamond-display">0</span>
+  </div>
+  <div id="hud-currency-buttons">
+    <button id="btn-shop-hud" title="Магазин">🛒 Магазин</button>
+    <button class="hud-btn-placeholder" disabled>🔜</button>
   </div>
 </div>
 
@@ -1289,6 +1543,59 @@
 <!-- Toast container -->
 <div id="toast-container"></div>
 
+<!-- Shop modal (fullscreen) -->
+<div id="shop-modal">
+  <div id="shop-header">
+    <div id="shop-header-top">
+      <h2>🛒 МАГАЗИН</h2>
+      <button id="shop-close">&#x2715;</button>
+    </div>
+    <div id="shop-header-balances">
+      <span>💰 <span id="shop-coins">0</span></span>
+      <span>💎 <span id="shop-diamonds">0</span></span>
+    </div>
+  </div>
+  <div id="shop-body">
+    <div class="shop-section-title">📦 БОКСЫ</div>
+    <div class="shop-boxes-row">
+      <div class="shop-box-card" style="border-color:#00c853;box-shadow:0 0 20px rgba(0,200,83,0.3);">
+        <div class="shop-box-icon">📦</div>
+        <div class="shop-box-name">Редкий бокс</div>
+        <div class="shop-box-price">💎 5 алмазов</div>
+        <div class="shop-box-btns">
+          <button class="btn yellow shop-open-btn" data-box="rare">Открыть</button>
+          <button class="btn info-btn shop-info-btn" data-box="rare">Инфо</button>
+        </div>
+      </div>
+      <div class="shop-box-card" style="border-color:#f50057;box-shadow:0 0 20px rgba(245,0,87,0.3);">
+        <div class="shop-box-icon">🎁</div>
+        <div class="shop-box-name">Эпический бокс</div>
+        <div class="shop-box-price">💎 30 алмазов</div>
+        <div class="shop-box-btns">
+          <button class="btn yellow shop-open-btn" data-box="epic">Открыть</button>
+          <button class="btn info-btn shop-info-btn" data-box="epic">Инфо</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Box open overlay -->
+<div id="box-open-overlay"></div>
+
+<!-- Box odds popup -->
+<div id="box-odds-popup">
+  <div id="box-odds-card">
+    <h3 id="box-odds-title"></h3>
+    <div id="box-odds-rows"></div>
+    <div class="odds-footer">
+      Предметы: 🗡️ мечи, 🛡️ щиты<br>
+      Легендарные: недоступны
+    </div>
+    <button id="box-odds-close">Закрыть</button>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────
 //  Global error trap — catches silent crashes
@@ -1340,26 +1647,42 @@ const H3_RES            = 11;    // ~50m hex diameter
 const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
 
 // Formulas (keep in sync with lib/formulas.js)
-// Income is in real coins per HOUR
-function mineRate(level) {
+function getMineUpgradeCost(level) {
+  function base(l) {
+    if (l <= 50)  return 100 * Math.pow(1.21, l - 1);
+    const e1 = 100 * Math.pow(1.21, 49);
+    if (l <= 100) return e1 * 5 * Math.pow(1.15, l - 51);
+    const e2 = e1 * 5 * Math.pow(1.15, 49);
+    if (l <= 150) return e2 * 8 * Math.pow(1.13, l - 101);
+    const e3 = e2 * 8 * Math.pow(1.13, 49);
+    if (l <= 200) return e3 * 12 * Math.pow(1.12, l - 151);
+    const e4 = e3 * 12 * Math.pow(1.12, 49);
+    return e4 * 20 * Math.pow(1.11, l - 201);
+  }
+  let cost = base(level);
+  if (level >= 10 && level % 10 === 0) cost *= 4;
+  return Math.min(Math.round(cost), 9_000_000_000_000_000_000);
+}
+function getMineIncome(level) {
   if (level === 0) return 0;
-  return Math.round(30 * Math.pow(level, 1.18));
+  function getPayback(l) {
+    if (l <= 50)  return 3600 * Math.pow(6, (l - 1) / 49);
+    if (l <= 100) return 21600 * Math.pow(12, (l - 50) / 50);
+    if (l <= 150) return 259200 * Math.pow(4.67, (l - 100) / 50);
+    if (l <= 200) return 1209600 * Math.pow(4.29, (l - 150) / 50);
+    return 5184000 * Math.pow(6.08, (l - 200) / 50);
+  }
+  const cost = getMineUpgradeCost(level);
+  return Math.max(1, Math.round(cost / getPayback(level)));
 }
 function getMineCapacity(level) {
   if (level === 0) return 0;
-  return mineRate(level) * 144;
+  const days = level <= 100 ? 6 : level <= 150 ? 5 : level <= 200 ? 4 : 3;
+  return Math.round(getMineIncome(level) * days * 86400);
 }
-// Cost to upgrade FROM `level` to level+1 (real coins)
-function mineUpgradeCost(level) {
-  let base;
-  if      (level < 50)  base = 80 * Math.pow(1.065, level);
-  else if (level < 100) base = 2e6 * Math.pow(1.085, level - 50);
-  else if (level < 150) base = 60e9 * Math.pow(1.105, level - 100);
-  else if (level < 200) base = 40e12 * Math.pow(1.13, level - 150);
-  else                  base = 3e15 * Math.pow(1.18, level - 200);
-  const tierMult = 1 + 2.5 * Math.floor(level / 10);
-  return Math.round(base * tierMult);
-}
+// Backward-compat aliases used elsewhere in this file
+const mineRate = getMineIncome;
+const mineUpgradeCost = getMineUpgradeCost;
 
 const HQ_LEVELS = [
   { level:1,  maxMines:10,  maxMineLevel:25,  upgradeCost:0 },
@@ -1412,18 +1735,17 @@ function getMineUpgradeCostBulk(currentLevel, count) {
   return total;
 }
 
-// Format large coin numbers: 1234 → "1.2K", 1500000 → "1.5M", etc.
-function formatCoins(n) {
+// Format large numbers with Russian suffixes
+function formatNumber(n) {
   if (n == null || isNaN(n)) return '0';
   n = Math.round(n);
-  if (n >= 1e18) return (n / 1e18).toFixed(1).replace(/\.0$/, '') + 'Q';
-  if (n >= 1e15) return (n / 1e15).toFixed(1).replace(/\.0$/, '') + 'T';
-  if (n >= 1e12) return (n / 1e12).toFixed(1).replace(/\.0$/, '') + 'B';
-  if (n >= 1e9)  return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (n >= 1e6)  return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'K';
-  if (n >= 1e3)  return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'к';
-  return n.toLocaleString();
+  if (n >= 1_000_000_000_000) return (n / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '') + 'Т';
+  if (n >= 1_000_000_000)     return (n / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'В';
+  if (n >= 1_000_000)         return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'М';
+  if (n >= 1_000)             return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'К';
+  return Math.floor(n).toString();
 }
+function formatCoins(n) { return formatNumber(n); }
 function getNextRoundLevel(currentLevel) {
   return Math.ceil((currentLevel + 1) / 10) * 10;
 }
@@ -1484,7 +1806,7 @@ function _addOrUpdateHqMarker(hq) {
     buildingMarkers[key].off('click');
     buildingMarkers[key].on('click', () => showHqPopup(hq, isOwn));
   } else {
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 500 })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 480 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     buildingMarkers[key] = marker;
@@ -1522,9 +1844,9 @@ function getBuildingInCell(cellId) {
 
 function calcAccumulated(level, lastCollectedISO) {
   if (level === 0) return 0;
-  const elapsedHours = (Date.now() - new Date(lastCollectedISO).getTime()) / 3_600_000;
-  const raw = mineRate(level) * Math.max(0, elapsedHours);
-  return Math.min(raw, getMineCapacity(level));
+  const elapsedSec = (Date.now() - new Date(lastCollectedISO).getTime()) / 1000;
+  const raw = mineRate(level) * Math.max(0, elapsedSec);
+  return Math.min(Math.round(raw), getMineCapacity(level));
 }
 
 // XP / level helpers (mirrors lib/formulas.js)
@@ -1569,7 +1891,13 @@ window.testLevelUp = (level = 5) => showLevelUp(level);
 function handleXpResult(xp) {
   console.log('[levelup] handleXpResult:', JSON.stringify(xp));
   if (!xp) return;
-  if (xp.xpGained > 0) showXpToast(xp.xpGained);
+  if (xp.xpGained > 0) {
+    showXpToast(xp.xpGained);
+    // Floating +XP text over player
+    if (state.playerPos) {
+      showFloatingText(`+${xp.xpGained} XP`, L.latLng(state.playerPos.lat, state.playerPos.lng), '#FFD700');
+    }
+  }
   if (state.player && xp.newXp != null) {
     state.player.xp    = xp.newXp;
     state.player.level = xp.newLevel;
@@ -1584,19 +1912,27 @@ function handleXpResult(xp) {
 // ── Rarity helpers (client-side mirror of lib/items.js) ───────────────────────
 const RARITY_COLORS_CLIENT = {
   common:    '#888888',
-  rare:      '#00c853',
   uncommon:  '#2979ff',
-  epic:      '#f50057',
-  mythic:    '#d50000',
-  legendary: '#FFD700',
+  rare:      '#00c853',
+  epic:      '#ff00aa',
+  mythic:    '#8b0000',
+  legendary: 'linear-gradient(90deg, #FFD700, #FF8C00, #FFD700)',
 };
 const RARITY_NAMES_CLIENT = {
   common:    'Обычный',
-  rare:      'Редкий',
   uncommon:  'Необычный',
+  rare:      'Редкий',
   epic:      'Эпический',
   mythic:    'Мифический',
   legendary: 'Легендарный',
+};
+const RARITY_ORDER = {
+  legendary: 0,
+  mythic:    1,
+  epic:      2,
+  rare:      3,
+  uncommon:  4,
+  common:    5,
 };
 
 function rarityClass(rarity) { return `rarity-${rarity}`; }
@@ -1646,8 +1982,8 @@ function showProfilePopup() {
     ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
     ['📍 Зоны', `🔵 ${SMALL_RADIUS}м / 🔴 ${LARGE_RADIUS}м`],
     ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
-    ['⭐ XP уровня', `${xpThisLevel.toLocaleString()} / ${xpNext.toLocaleString()}`],
-    ['💎 Алмазы', (p.diamonds ?? 0).toLocaleString()],
+    ['⭐ XP уровня', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`],
+    ['💎 Алмазы', formatNumber(p.diamonds ?? 0)],
   ];
   for (const [label, val] of rows) {
     const row = document.createElement('div');
@@ -1701,7 +2037,9 @@ function _renderEquipSlots() {
 }
 
 function _renderInventoryGrid() {
-  const inv = state.inventory || [];
+  const inv = (state.inventory || []).slice().sort((a, b) =>
+    (RARITY_ORDER[a.rarity] ?? 99) - (RARITY_ORDER[b.rarity] ?? 99)
+  );
   const titleEl = document.getElementById('inventory-title');
   titleEl.textContent = `Инвентарь (${inv.length} предметов)`;
 
@@ -1862,8 +2200,8 @@ function _refreshProfileStats() {
     ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
     ['📍 Зоны', `🔵 ${SMALL_RADIUS}м / 🔴 ${LARGE_RADIUS}м`],
     ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
-    ['⭐ XP уровня', `${xpThisLevel.toLocaleString()} / ${xpNext.toLocaleString()}`],
-    ['💎 Алмазы', (p.diamonds ?? 0).toLocaleString()],
+    ['⭐ XP уровня', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`],
+    ['💎 Алмазы', formatNumber(p.diamonds ?? 0)],
   ];
   for (const [label, val] of rows) {
     const row = document.createElement('div');
@@ -2087,16 +2425,32 @@ function mineIcon(level, state) {
 
 function playerIcon(avatar) {
   const em = avatar || '🐺';
-  return makeMarkerIcon(
-    `<div class="marker-wrap" style="pointer-events:none!important"><span style="font-size:30px">${em}</span></div>`, 44
-  );
+  return L.divIcon({
+    html: `<div style="
+      font-size: 44px;
+      line-height: 1;
+      filter: drop-shadow(0 0 12px rgba(0,0,0,0.9)) drop-shadow(0 4px 8px rgba(0,0,0,0.7));
+      pointer-events: none !important;
+    ">${em}</div>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    className: 'player-marker-passthrough',
+  });
 }
 
 function otherPlayerIcon(avatar) {
   const em = avatar || '🐺';
-  return makeMarkerIcon(
-    `<div class="marker-wrap"><span style="font-size:34px">${em}</span></div>`, 34
-  );
+  return L.divIcon({
+    html: `<div style="
+      font-size: 34px;
+      line-height: 1;
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.7));
+      pointer-events: auto;
+    ">${em}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    className: '',
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -2262,10 +2616,10 @@ function renderBuildings() {
   const { headquarters, mines } = state.mapBuildings;
   const playerId = state.player?.id;
 
-  // HQs — zIndexOffset: 500
+  // HQs — zIndexOffset: 480
   for (const hq of headquarters) {
     const isOwn = hq.is_mine ?? (hq.player_id === playerId);
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 500 })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 480 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     buildingMarkers[`hq_${hq.id}`] = marker;
@@ -2289,11 +2643,11 @@ function renderBuildings() {
   // Re-apply attack status to mine markers
   updateMineAttackStatus();
 
-  // Online players — zIndexOffset: 1000 (above buildings)
+  // Online players — zIndexOffset: 600 (above own player + buildings)
   for (const p of (state.mapBuildings.online_players || [])) {
     const minsAgo = Math.floor((Date.now() - new Date(p.last_seen).getTime()) / 60000);
     const label = minsAgo === 0 ? 'только что' : `${minsAgo} мин назад`;
-    const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar), zIndexOffset: 1000 })
+    const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar), zIndexOffset: 600 })
       .addTo(map)
       .on('click', () => openPopup(
         `${p.avatar || '🐺'} ${p.username || 'Unknown'}`,
@@ -2322,7 +2676,7 @@ function _makePopupBtn(btn) {
 
 function openPopup(title, subtitle, stats, actions) {
   document.getElementById('popup-title').innerHTML = title;
-  document.getElementById('popup-subtitle').textContent = subtitle;
+  document.getElementById('popup-subtitle').innerHTML = subtitle;
 
   const statsEl = document.getElementById('popup-stats');
   statsEl.innerHTML = '';
@@ -2506,10 +2860,22 @@ function showMinePopup(mine, isOwn, canCapture) {
   _selectMarker(`mine_${mine.id}`);
   const appearance  = getMineAppearance(mine.level);
   const { emoji, name } = appearance;
-  const rate        = mineRate(mine.level);
+  const ratePerSec  = mineRate(mine.level);
+  const rate        = Math.round(ratePerSec * 3600);
   const capacity    = getMineCapacity(mine.level);
   const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected) : 0;
   const isFull      = mine.level > 0 && accumulated >= capacity;
+
+  // Distance check
+  const pos = state.playerPos;
+  const dist = (pos && mine.lat != null && mine.lng != null)
+    ? haversine(pos.lat, pos.lng, mine.lat, mine.lng) : null;
+  const inZone = dist !== null && dist <= SMALL_RADIUS;
+  const distLabel = dist !== null
+    ? (inZone
+      ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>`
+      : `<span style="color:#ff4444">📍 ${Math.round(dist)}м ⚠️</span>`)
+    : '<span style="color:#888">📍 GPS...</span>';
 
   // Check if any bot is currently attacking this mine
   const attacker = Object.values(botData).find(
@@ -2519,7 +2885,7 @@ function showMinePopup(mine, isOwn, canCapture) {
   if (isOwn) {
     const playerCoins = state.player?.coins ?? 0;
     const refund   = calcSellRefund(mine.level);
-    const sellTotal = refund + accumulated;
+    const sellTotal = refund + (accumulated || 0);
     const levelLabel = mine.level === 0 ? 'Неактивен' : `Ур. ${mine.level}`;
 
     // Check if upgrade is in progress
@@ -2527,29 +2893,29 @@ function showMinePopup(mine, isOwn, canCapture) {
     const pendingLevel = mine.pending_level;
 
     const nextCost = mine.level < MINE_MAX_LEVEL ? mineUpgradeCost(mine.level) : null;
-    const canUpgrade  = !isUpgrading && nextCost !== null && playerCoins >= nextCost;
+    const canUpgrade  = !isUpgrading && nextCost !== null && playerCoins >= nextCost && inZone;
     const upgradeLabel = isUpgrading
       ? '⏳ Идёт улучшение...'
       : nextCost !== null
         ? mine.level === 0
           ? `⚡ Активировать (${formatCoins(nextCost)} монет)`
-          : `⬆️ Улучшить (${nextCost.toLocaleString()})`
+          : `⬆️ Улучшить (${formatNumber(nextCost)})`
         : 'МАКС УРОВЕНЬ';
 
     // Bulk upgrade button: to next round level
     const targetBulkLevel = Math.min(getNextRoundLevel(mine.level), MINE_MAX_LEVEL);
     const bulkLevelsCount = targetBulkLevel - mine.level;
     const bulkCost = bulkLevelsCount > 0 ? getMineUpgradeCostBulk(mine.level, bulkLevelsCount) : 0;
-    const canBulk = !isUpgrading && bulkLevelsCount > 0 && mine.level > 0 && playerCoins >= bulkCost;
+    const canBulk = !isUpgrading && bulkLevelsCount > 0 && mine.level > 0 && playerCoins >= bulkCost && inZone;
     const bulkLabel = (bulkLevelsCount > 0 && mine.level > 0)
       ? `⚡ до ур.${targetBulkLevel} (${formatCoins(bulkCost)})`
       : null;
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : `Ваше здание`,
+      attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : distLabel,
       [
-        ...(attacker ? [['Высосано', `${attacker.drained_amount || 0} монет`]] : []),
+        ...(attacker ? [['Высосано', `${formatNumber(attacker.drained_amount || 0)} монет`]] : []),
         ...(isUpgrading
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
           : mine.level === 0
@@ -2574,17 +2940,16 @@ function showMinePopup(mine, isOwn, canCapture) {
           disabled: !canBulk,
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
-        [
-          {
-            label: `🔥 Продать (+${formatCoins(sellTotal)})`,
-            cls: 'primary',
-            action: () => doSellMine(mine.id),
-          },
-          {
-            label: 'Закрыть',
-            isClose: true,
-          },
-        ],
+        {
+          label: `🔥 Продать (+${formatCoins(sellTotal)} монет)`,
+          cls: 'danger',
+          disabled: !inZone,
+          action: () => doSellMine(mine.id),
+        },
+        {
+          label: 'Закрыть',
+          isClose: true,
+        },
       ]
     );
 
@@ -2596,7 +2961,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const owner = mine.players?.username || 'Unknown';
     openPopup(
       `${emoji} ${name} (Ур. ${mine.level})`,
-      `Владелец: ${owner}`,
+      `Владелец: ${owner} ${distLabel}`,
       [
         ['Доход', `${formatCoins(rate)}/ч`],
         ['Ёмкость', `${formatCoins(capacity)} монет`],
@@ -2651,6 +3016,10 @@ async function doUpgradeHq() {
 
 async function doUpgrade(mineId, targetLevel) {
   const pos = state.playerPos;
+  if (!pos || pos.lat == null || pos.lng == null) {
+    showToast('❌ GPS не готов, подожди');
+    return;
+  }
   try {
     const data = await apiFetch('/api/buildings/upgrade', {
       method: 'POST',
@@ -2680,7 +3049,11 @@ async function doUpgrade(mineId, targetLevel) {
       loadVisibleBuildings(true);
     }
   } catch (err) {
-    showToast(`❌ ${err.message}`);
+    if (err.message && err.message.includes('200м')) {
+      showToast('⚠️ Подойди к шахте (200м)');
+    } else {
+      showToast(`❌ ${err.message}`);
+    }
   }
 }
 
@@ -2721,7 +3094,7 @@ async function doSellMine(mineId) {
 
     const data = await apiFetch('/api/buildings/sell', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId }),
+      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
     });
     if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
     updateCoinDisplay();
@@ -2870,6 +3243,11 @@ async function doBuildMine(lat, lng) {
 async function doCollect() {
   document.getElementById('btn-collect').disabled = true;
   const pos = state.playerPos;
+  if (!pos || pos.lat == null || pos.lng == null) {
+    showToast('❌ GPS не готов, подожди');
+    document.getElementById('btn-collect').disabled = false;
+    return;
+  }
   try {
     const data = await apiFetch('/api/economy/collect', {
       method: 'POST',
@@ -2949,7 +3327,7 @@ function updateCoinDisplay() {
   const inc = state.totalIncome;
   const incEl = document.getElementById('income-display');
   if (incEl) {
-    incEl.textContent = inc > 0 ? `⚡+${formatCoins(inc)}/ч` : '';
+    incEl.textContent = inc > 0 ? `⚡+${formatCoins(Math.round(inc * 3600))}/ч` : '';
   }
 }
 
@@ -3044,7 +3422,7 @@ function onPosition(pos) {
   const pIcon = playerIcon(state.player?.avatar);
   if (!playerMarker) {
     // First GPS fix — create marker at real position even if PIN will override it
-    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 400 }).addTo(map);
+    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 500 }).addTo(map);
     // Combat zone (large red dashed circle — no fill)
     playerCombatCircle = L.circle([lat, lng], {
       radius: LARGE_RADIUS,
@@ -3267,6 +3645,7 @@ async function doBreakVase(vaseId) {
     // Update diamonds display
     if (state.player) state.player.diamonds = data.totalDiamonds;
     updateDiamondDisplay();
+    handleXpResult(data.xp);
 
     // Add item to inventory
     if (data.item) {
@@ -3276,7 +3655,11 @@ async function doBreakVase(vaseId) {
       showToast(`💥 +${data.diamonds} 💎 Алмазов!`);
     }
   } catch (err) {
-    showToast(`❌ ${err.message}`);
+    if (err.message && err.message.includes('200м')) {
+      showToast('⚠️ Подойди к вазе (200м)');
+    } else {
+      showToast(`❌ ${err.message}`);
+    }
   }
 }
 
@@ -3376,7 +3759,7 @@ function stopDrainAnimation(botId) {
 function showDrainText(latLng, amount) {
   const pos = map.latLngToContainerPoint(latLng);
   const el  = document.createElement('div');
-  el.textContent = `-${amount} 💸`;
+  el.textContent = `-${formatNumber(amount)} 💸`;
   el.style.cssText = `position:fixed;left:${pos.x}px;top:${pos.y}px;color:#ff4444;font-size:14px;font-weight:bold;pointer-events:none;z-index:9999;animation:floatUp 1.5s ease-out forwards;`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1500);
@@ -3544,8 +3927,8 @@ function showBotPopup(botId) {
         <div class="hp-label" id="player-hp-label">${pHp} / ${pMaxHp} HP</div>
       </div>
     </div>
-    ${bot.category === 'undead' ? `<div class="popup-stat"><span>💸 Украдено</span><span class="val">${bot.coins_drained || 0} монет</span></div>` : ''}
-    ${bot.reward_max > 0 ? `<div class="popup-stat"><span>💰 Награда за победу</span><span class="val">${bot.reward_min}–${bot.reward_max} монет</span></div>` : ''}
+    ${bot.category === 'undead' ? `<div class="popup-stat"><span>💸 Украдено</span><span class="val">${formatNumber(bot.coins_drained || 0)} монет</span></div>` : ''}
+    ${bot.reward_max > 0 ? `<div class="popup-stat"><span>💰 Награда за победу</span><span class="val">${formatNumber(bot.reward_min)}–${formatNumber(bot.reward_max)} монет</span></div>` : ''}
   `;
 
   const actEl = document.getElementById('popup-actions');
@@ -3731,7 +4114,7 @@ async function doRepelBot(botId) {
       method: 'POST',
       body: JSON.stringify({ action: 'repel', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
     });
-    showToast(`🔥 Прогнан! Успел украсть ${data.coins_drained} монет`);
+    showToast(`🔥 Прогнан! Успел украсть ${formatNumber(data.coins_drained)} монет`);
     // Remove from local state
     if (botMarkers[botId]) {
       if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
@@ -3924,6 +4307,24 @@ document.getElementById('btn-spawn-vases').addEventListener('click', async () =>
   }
 });
 
+document.getElementById('btn-fix-hq').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-fix-hq');
+  btn.disabled = true; btn.textContent = '⏳ Чищу...';
+  try {
+    const data = await apiFetch('/api/admin/fix-hq', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID }),
+    });
+    showToast(`✅ ${data.message}`);
+    _lastMapCenter = null;
+    await loadVisibleBuildings();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = '🏠 Почистить дубли штабов';
+  }
+});
+
 document.getElementById('btn-maintenance-toggle').addEventListener('click', async () => {
   const newState = !_adminMaintenanceOn;
   try {
@@ -3938,6 +4339,184 @@ document.getElementById('btn-maintenance-toggle').addEventListener('click', asyn
     showToast(`❌ ${err.message}`);
   }
 });
+
+// ─────────────────────────────────────────────
+//  Ban screen
+// ─────────────────────────────────────────────
+function showBanScreen(data) {
+  const avatar = data.avatar || '🐺';
+  document.getElementById('ban-avatar-emoji').textContent = avatar;
+  document.getElementById('ban-reason-text').textContent = `"${data.reason || 'Не указана'}"`;
+  if (data.until) {
+    const d = new Date(data.until);
+    document.getElementById('ban-until-text').textContent = 'До: ' + d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  } else {
+    document.getElementById('ban-until-text').textContent = 'Навсегда';
+  }
+  document.getElementById('ban-screen').classList.add('open');
+  document.getElementById('loading').style.display = 'none';
+}
+
+// ─────────────────────────────────────────────
+//  Admin: player management
+// ─────────────────────────────────────────────
+let _rewardSelectedPlayer = null;
+let _rewardCurrency = 'coins';
+let _banSelectedPlayer = null;
+let _banDuration = 1;
+
+function adminPlayerCard(p, onSelect) {
+  const card = document.createElement('div');
+  const banned = p.is_banned;
+  card.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;background:rgba(255,255,255,0.04);border-radius:8px;cursor:pointer;border:1px solid ${banned ? 'rgba(213,0,0,0.5)' : 'rgba(255,255,255,0.06)'};`;
+  card.innerHTML = `
+    <span style="font-size:20px">${p.avatar || '🐺'}</span>
+    <span style="flex:1;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${banned ? '🚫 ' : ''}${p.username || '—'}</span>
+    <span style="font-size:11px;color:#888;">Ур.${p.level || 1}</span>
+    <span style="font-size:11px;color:#aaa;">💰${formatNumber(p.coins || 0)}</span>
+  `;
+  card.addEventListener('click', () => onSelect(p));
+  return card;
+}
+
+let _rewardSearchTimer = null;
+document.getElementById('admin-reward-search').addEventListener('input', (e) => {
+  clearTimeout(_rewardSearchTimer);
+  const q = e.target.value.trim();
+  if (!q) { document.getElementById('admin-reward-results').innerHTML = ''; return; }
+  _rewardSearchTimer = setTimeout(async () => {
+    try {
+      const data = await apiFetch(`/api/admin/maintenance?action=players-list&admin_id=${TG_ID}&search=${encodeURIComponent(q)}`);
+      const container = document.getElementById('admin-reward-results');
+      container.innerHTML = '';
+      (data.players || []).forEach(p => {
+        container.appendChild(adminPlayerCard(p, (sel) => {
+          _rewardSelectedPlayer = sel;
+          document.getElementById('admin-reward-selected').textContent = `Выбран: ${sel.avatar || '🐺'} ${sel.username}`;
+          document.getElementById('admin-reward-form').style.display = 'block';
+          container.innerHTML = '';
+        }));
+      });
+    } catch (err) { showToast('❌ ' + err.message); }
+  }, 500);
+});
+
+document.querySelectorAll('.admin-currency-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-currency-btn').forEach(b => {
+      b.style.background = 'rgba(255,255,255,0.05)'; b.style.color = '#999';
+      b.classList.remove('active');
+    });
+    btn.style.background = 'rgba(255,255,255,0.1)'; btn.style.color = '#fff';
+    btn.classList.add('active');
+    _rewardCurrency = btn.dataset.currency;
+  });
+});
+
+document.getElementById('btn-admin-reward').addEventListener('click', async () => {
+  if (!_rewardSelectedPlayer) return;
+  const amount = parseInt(document.getElementById('admin-reward-amount').value, 10);
+  if (!amount || amount <= 0) return showToast('❌ Введи сумму');
+  const btn = document.getElementById('btn-admin-reward');
+  btn.disabled = true;
+  try {
+    await apiFetch('/api/admin/maintenance', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'reward', player_id: _rewardSelectedPlayer.id, currency: _rewardCurrency, amount }),
+    });
+    const label = _rewardCurrency === 'coins' ? 'монет' : 'алмазов';
+    showToast(`✅ Выдано ${formatNumber(amount)} ${label} → ${_rewardSelectedPlayer.username}`);
+    document.getElementById('admin-reward-amount').value = '';
+  } catch (err) { showToast('❌ ' + err.message); }
+  finally { btn.disabled = false; }
+});
+
+let _banSearchTimer = null;
+document.getElementById('admin-ban-search').addEventListener('input', (e) => {
+  clearTimeout(_banSearchTimer);
+  const q = e.target.value.trim();
+  if (!q) { document.getElementById('admin-ban-results').innerHTML = ''; return; }
+  _banSearchTimer = setTimeout(async () => {
+    try {
+      const data = await apiFetch(`/api/admin/maintenance?action=players-list&admin_id=${TG_ID}&search=${encodeURIComponent(q)}`);
+      const container = document.getElementById('admin-ban-results');
+      container.innerHTML = '';
+      (data.players || []).forEach(p => {
+        container.appendChild(adminPlayerCard(p, (sel) => {
+          _banSelectedPlayer = sel;
+          renderBanForm(sel);
+          container.innerHTML = '';
+        }));
+      });
+    } catch (err) { showToast('❌ ' + err.message); }
+  }, 500);
+});
+
+function renderBanForm(player) {
+  const form = document.getElementById('admin-ban-form');
+  form.style.display = 'block';
+  document.getElementById('admin-ban-selected').innerHTML = `${player.is_banned ? '🚫 ' : ''}${player.avatar || '🐺'} <b>${player.username}</b>`;
+
+  const actionsDiv = document.getElementById('admin-ban-actions');
+  if (player.is_banned) {
+    const untilText = player.ban_until ? new Date(player.ban_until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'навсегда';
+    actionsDiv.innerHTML = `
+      <div style="color:#ff6666;font-size:13px;margin-bottom:6px;">Причина: "${player.ban_reason || '—'}"</div>
+      <div style="color:#ff6666;font-size:13px;margin-bottom:12px;">До: ${untilText}</div>
+      <button id="btn-admin-unban" class="btn primary" style="width:100%;padding:12px;font-size:14px;">✅ Разблокировать</button>
+    `;
+    document.getElementById('btn-admin-unban').addEventListener('click', async () => {
+      try {
+        await apiFetch('/api/admin/maintenance', {
+          method: 'POST',
+          body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: player.id }),
+        });
+        showToast(`✅ ${player.username} разблокирован`);
+        player.is_banned = false;
+        renderBanForm(player);
+      } catch (err) { showToast('❌ ' + err.message); }
+    });
+  } else {
+    _banDuration = 1;
+    actionsDiv.innerHTML = `
+      <input id="admin-ban-reason" type="text" placeholder="Причина бана..." style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+      <div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="ban-dur-btn active" data-days="1" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(213,0,0,0.5);color:#fff;font-size:12px;cursor:pointer;">1д</button>
+        <button class="ban-dur-btn" data-days="3" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">3д</button>
+        <button class="ban-dur-btn" data-days="7" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">7д</button>
+        <button class="ban-dur-btn" data-days="30" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">30д</button>
+        <button class="ban-dur-btn" data-days="0" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">∞</button>
+      </div>
+      <button id="btn-admin-ban" class="btn danger" style="width:100%;padding:12px;font-size:14px;">🚫 Заблокировать</button>
+    `;
+    actionsDiv.querySelectorAll('.ban-dur-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        actionsDiv.querySelectorAll('.ban-dur-btn').forEach(b => {
+          b.style.background = 'rgba(255,255,255,0.1)';
+          b.classList.remove('active');
+        });
+        btn.style.background = 'rgba(213,0,0,0.5)';
+        btn.classList.add('active');
+        _banDuration = parseInt(btn.dataset.days, 10);
+      });
+    });
+    document.getElementById('btn-admin-ban').addEventListener('click', async () => {
+      const reason = document.getElementById('admin-ban-reason').value.trim();
+      if (!reason) return showToast('❌ Укажи причину');
+      try {
+        await apiFetch('/api/admin/maintenance', {
+          method: 'POST',
+          body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: player.id, reason, duration_days: _banDuration }),
+        });
+        const durText = _banDuration === 0 ? 'навсегда' : `на ${_banDuration}д`;
+        showToast(`🚫 ${player.username} забанен ${durText}`);
+        player.is_banned = true;
+        player.ban_reason = reason;
+        renderBanForm(player);
+      } catch (err) { showToast('❌ ' + err.message); }
+    });
+  }
+}
 
 // ─────────────────────────────────────────────
 //  Boot sequence
@@ -3965,11 +4544,21 @@ async function boot() {
 
   setLoadingText('Loading player data...');
   try {
-    const data = await apiFetch('/api/player/init', {
+    const initRes = await fetch('/api/player/init', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
       signal: AbortSignal.timeout(8000),
     });
+    const data = await initRes.json();
+
+    // Ban check
+    if (data.banned) {
+      showBanScreen(data);
+      return;
+    }
+    if (!initRes.ok) throw new Error(data.message || data.error || 'API error');
+
     state.player      = data.player; // includes hp, max_hp, attack, kills, deaths
     state.hq          = data.headquarters;
     state.mines       = data.mines;
@@ -4011,10 +4600,7 @@ async function boot() {
     // Hide loading
     document.getElementById('loading').style.display = 'none';
 
-    // Show HQ prompt if needed
-    if (!state.hq) {
-      document.getElementById('hq-prompt').classList.add('open');
-    }
+    // HQ is optional — no forced prompt
 
     updateCoinDisplay();
 
@@ -4114,6 +4700,163 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
 });
 
 // ─────────────────────────────────────────────
+//  Shop
+// ─────────────────────────────────────────────
+const SHOP_BOX_PRICES = { rare: 5, epic: 30 };
+const SHOP_BOX_ODDS = {
+  rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
+  epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
+};
+
+function openShop() {
+  document.getElementById('shop-coins').textContent = formatCoins(state.player?.coins ?? 0);
+  document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
+  _updateShopButtons();
+  document.getElementById('shop-modal').classList.add('open');
+}
+
+function closeShop() {
+  document.getElementById('shop-modal').classList.remove('open');
+}
+
+function _updateShopButtons() {
+  const diamonds = state.player?.diamonds ?? 0;
+  document.querySelectorAll('.shop-open-btn').forEach(btn => {
+    const box = btn.dataset.box;
+    const price = SHOP_BOX_PRICES[box];
+    const canAfford = diamonds >= price;
+    btn.disabled = !canAfford;
+    btn.style.opacity = canAfford ? '1' : '0.5';
+    btn.style.cursor = canAfford ? 'pointer' : 'not-allowed';
+  });
+}
+
+function showBoxOdds(boxType) {
+  const odds = SHOP_BOX_ODDS[boxType];
+  const title = boxType === 'rare' ? '📦 Редкий бокс — содержимое' : '🎁 Эпический бокс — содержимое';
+  document.getElementById('box-odds-title').textContent = title;
+  const container = document.getElementById('box-odds-rows');
+  container.innerHTML = '';
+  for (const [rarity, pct] of Object.entries(odds)) {
+    const rawColor = RARITY_COLORS_CLIENT[rarity] || '#888';
+    const barBg = rawColor.startsWith('linear') ? rawColor : rawColor;
+    const name = RARITY_NAMES_CLIENT[rarity] || rarity;
+    const nameHtml = rarity === 'legendary' ? `<span class="legendary-text">${name}</span>` : name;
+    container.innerHTML += `<div class="odds-row"><div class="odds-bar" style="background:${barBg}"></div><span class="odds-name">${nameHtml}</span><span class="odds-pct">${pct}%</span></div>`;
+  }
+  document.getElementById('box-odds-popup').classList.add('open');
+}
+
+async function doOpenBox(boxType) {
+  const price = SHOP_BOX_PRICES[boxType];
+  const diamonds = state.player?.diamonds ?? 0;
+  if (diamonds < price) {
+    showToast('💎 Недостаточно алмазов!');
+    return;
+  }
+
+  // Disable button & show loader
+  const btn = document.querySelector(`.shop-open-btn[data-box="${boxType}"]`);
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const data = await apiFetch('/api/shop/open-box', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, box_type: boxType }),
+    });
+
+    // Update state
+    if (state.player) state.player.diamonds = data.diamondsLeft;
+    state.inventory.unshift(data.item);
+    updateDiamondDisplay();
+    document.getElementById('shop-diamonds').textContent = data.diamondsLeft;
+    _updateShopButtons();
+
+    // Run box open animation
+    await _animateBoxOpen(boxType, data.item);
+
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+    _updateShopButtons();
+  }
+}
+
+function _animateBoxOpen(boxType, item) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('box-open-overlay');
+    const boxEmoji = boxType === 'rare' ? '📦' : '🎁';
+    const rarityColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+
+    // Phase 1: Show box
+    overlay.innerHTML = `<div class="box-anim-icon">${boxEmoji}</div>`;
+    overlay.classList.add('open');
+
+    // Phase 2: Shake (after 500ms)
+    setTimeout(() => {
+      const icon = overlay.querySelector('.box-anim-icon');
+      if (icon) icon.style.animation = 'boxShake 0.4s ease-in-out';
+    }, 500);
+
+    // Phase 3: Flash (after 900ms)
+    setTimeout(() => {
+      const flash = document.createElement('div');
+      flash.className = 'box-flash';
+      flash.style.background = rarityColor.startsWith('linear') ? '#FFD700' : rarityColor;
+      flash.style.opacity = '0.8';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 300);
+    }, 900);
+
+    // Phase 4: Show item (after 1200ms)
+    setTimeout(() => {
+      const statLabel = item.type === 'sword' ? `⚔️ +${item.stat_value} к атаке` : `🛡️ +${item.stat_value} к HP`;
+      const nameHtml = item.rarity === 'legendary'
+        ? `<span class="legendary-text">${item.name}</span>`
+        : item.name;
+      const glowStyle = `filter: drop-shadow(0 0 20px ${rarityColor.startsWith('linear') ? '#FFD700' : rarityColor})`;
+
+      overlay.innerHTML = `
+        <div class="box-result">
+          <div class="box-result-emoji" style="${glowStyle}">${item.emoji}</div>
+          <div class="box-result-name">${nameHtml}</div>
+          <div class="box-result-rarity">${rarityLabel(item.rarity)}</div>
+          <div class="box-result-stat">${statLabel}</div>
+          <div class="box-result-hint">Нажмите чтобы продолжить</div>
+        </div>
+      `;
+
+      // Phase 5: Click to close
+      overlay.addEventListener('click', function close() {
+        overlay.removeEventListener('click', close);
+        overlay.classList.remove('open');
+        overlay.innerHTML = '';
+        resolve();
+      });
+    }, 1200);
+  });
+}
+
+document.getElementById('btn-shop-hud').addEventListener('click', openShop);
+document.getElementById('shop-close').addEventListener('click', closeShop);
+document.getElementById('box-odds-close').addEventListener('click', () => {
+  document.getElementById('box-odds-popup').classList.remove('open');
+});
+document.getElementById('box-odds-popup').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.querySelectorAll('.shop-open-btn').forEach(btn => {
+  btn.addEventListener('click', () => doOpenBox(btn.dataset.box));
+});
+document.querySelectorAll('.shop-info-btn').forEach(btn => {
+  btn.addEventListener('click', () => showBoxOdds(btn.dataset.box));
+});
+
+// ─────────────────────────────────────────────
 //  Avatar bottom sheet
 // ─────────────────────────────────────────────
 document.getElementById('btn-change-avatar').addEventListener('click', openAvatarSheet);
@@ -4180,7 +4923,7 @@ function renderLeaderboard(data) {
       <span class="lb-avatar">${p.avatar || '🐺'}</span>
       <span class="lb-name">${p.username || 'Игрок'}</span>
       <span class="lb-level">Ур.${p.level || 1}</span>
-      <span class="lb-xp">⭐ ${(p.xp || 0).toLocaleString()} XP</span>
+      <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)} XP</span>
     `;
     list.appendChild(row);
   }
@@ -4194,7 +4937,7 @@ function renderLeaderboard(data) {
         <span class="lb-avatar">${p.avatar || '🐺'}</span>
         <span class="lb-name">${p.username || 'Игрок'}</span>
         <span class="lb-level">Ур.${p.level || 1}</span>
-        <span class="lb-xp">⭐ ${(p.xp || 0).toLocaleString()} XP</span>
+        <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)} XP</span>
       </div>
     `;
   }
