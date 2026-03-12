@@ -761,7 +761,7 @@ async function handleMoveCouriers(req, res) {
   // ── 4. Return remaining moving couriers ────────────────────
   const { data: allCouriers } = await supabase
     .from('couriers')
-    .select('id, type, owner_id, current_lat, current_lng, target_lat, target_lng, hp, max_hp, status, listing_id')
+    .select('id, type, owner_id, current_lat, current_lng, target_lat, target_lng, hp, max_hp, speed, status, listing_id')
     .eq('status', 'moving');
 
   return res.json({

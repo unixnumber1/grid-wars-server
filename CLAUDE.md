@@ -672,6 +672,8 @@ GET — `action` в query; POST — `action` в body.
 - Дропы на карте: 📦 (36px, пульсирующая анимация dropPulse), z-index 1300
   - Тап → попап с таймером, кнопка "🎒 Подобрать" (≤200м)
 - Тик курьеров: smart polling — 4с если есть активные, 30с для проверки
+- Плавное движение курьеров: `courierInterp` + `requestAnimationFrame` интерполяция между серверными тиками
+- Optimistic UI: list-item мгновенно убирает предмет из инвентаря (rollback при ошибке), buy мгновенно скрывает карточку
 - Экспирация дропов: каждые 30с удаляются просроченные маркеры на фронте
 - Бэкенд в move-couriers: удаляет expired drops (возвращает предмет), expire listings
 - Магазин (shop): open-box перенесён в `/api/items` action `open-box`

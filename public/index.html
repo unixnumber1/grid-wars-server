@@ -5581,7 +5581,10 @@ function _showMarketPopup(m) {
   document.getElementById('popup-overlay').classList.add('open');
 }
 
-// ── Render couriers on map ────────────────────
+// ── Render couriers on map (with client-side interpolation) ──
+// courierInterp stores interpolation state: { displayLat, displayLng, targetLat, targetLng, speed }
+const courierInterp = {};
+
 function renderCouriers(couriers) {
   const activeIds = new Set((couriers || []).map(c => c.id));
   for (const id of Object.keys(courierMarkers)) {
@@ -5589,12 +5592,21 @@ function renderCouriers(couriers) {
       courierLayer.removeLayer(courierMarkers[id]);
       delete courierMarkers[id];
       delete courierData[id];
+      delete courierInterp[id];
     }
   }
   for (const c of (couriers || [])) {
     courierData[c.id] = c;
     if (courierMarkers[c.id]) {
-      courierMarkers[c.id].setLatLng([c.current_lat, c.current_lng]);
+      // Update target for interpolation — don't jump position
+      courierInterp[c.id].targetLat = c.target_lat;
+      courierInterp[c.id].targetLng = c.target_lng;
+      courierInterp[c.id].speed = c.speed || 0.0002;
+      courierInterp[c.id].hp = c.hp;
+      courierInterp[c.id].max_hp = c.max_hp;
+      // Sync server position (will be smoothly approached)
+      courierInterp[c.id].serverLat = c.current_lat;
+      courierInterp[c.id].serverLng = c.current_lng;
       courierMarkers[c.id].setIcon(_courierIcon(c));
     } else {
       const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 1200 });
@@ -5604,16 +5616,56 @@ function renderCouriers(couriers) {
       });
       marker.addTo(courierLayer);
       courierMarkers[c.id] = marker;
+      courierInterp[c.id] = {
+        displayLat: c.current_lat, displayLng: c.current_lng,
+        targetLat: c.target_lat, targetLng: c.target_lng,
+        serverLat: c.current_lat, serverLng: c.current_lng,
+        speed: c.speed || 0.0002,
+        hp: c.hp, max_hp: c.max_hp,
+      };
     }
   }
 }
+
+// ── Smooth courier animation loop (requestAnimationFrame) ──
+let _courierAnimLast = 0;
+function _animateCouriers(now) {
+  if (!_courierAnimLast) _courierAnimLast = now;
+  const dtSec = Math.min((now - _courierAnimLast) / 1000, 0.5); // cap at 0.5s
+  _courierAnimLast = now;
+
+  for (const id of Object.keys(courierInterp)) {
+    const ci = courierInterp[id];
+    const marker = courierMarkers[id];
+    if (!marker) continue;
+
+    // Move displayLat/Lng toward target at courier speed (deg/tick=4s → deg/s = speed/4)
+    const speedPerSec = ci.speed / 4;
+    const dlat = ci.targetLat - ci.displayLat;
+    const dlng = ci.targetLng - ci.displayLng;
+    const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+
+    if (dist > 0.0000005) {
+      const step = Math.min(dist, speedPerSec * dtSec);
+      ci.displayLat += (dlat / dist) * step;
+      ci.displayLng += (dlng / dist) * step;
+      marker.setLatLng([ci.displayLat, ci.displayLng]);
+    }
+  }
+
+  requestAnimationFrame(_animateCouriers);
+}
+requestAnimationFrame(_animateCouriers);
 
 function _showCourierPopup(courierId) {
   const c = courierData[courierId];
   if (!c) return;
   const isOwn = c.owner_id === state.player?.id;
   const pos = state.playerPos;
-  const dist = pos ? haversine(pos.lat, pos.lng, c.current_lat, c.current_lng) : Infinity;
+  const ci = courierInterp[courierId];
+  const cLat = ci ? ci.displayLat : c.current_lat;
+  const cLng = ci ? ci.displayLng : c.current_lng;
+  const dist = pos ? haversine(pos.lat, pos.lng, cLat, cLng) : Infinity;
   const near = dist <= SMALL_RADIUS;
   const emoji = c.type === 'delivery' ? '🚚' : '🚶';
   const hpPct = Math.round(Math.max(0, c.hp / c.max_hp) * 100);
@@ -5974,6 +6026,12 @@ async function doBuyListing(listing) {
   btn.disabled = true;
   btn.textContent = '⏳...';
 
+  // Optimistic: close buy overlay and hide listing card immediately
+  closeMarketBuy();
+  _marketListings = _marketListings.filter(l => l.id !== listing.id);
+  const grid = document.getElementById('market-grid');
+  if (grid) _renderMarketCards(_marketListings, grid, false);
+
   try {
     const pos = state.playerPos;
     const body = {
@@ -5989,7 +6047,6 @@ async function doBuyListing(listing) {
       body: JSON.stringify(body),
     });
 
-    closeMarketBuy();
     showToast(`🛒 Куплено за ${data.price_paid} 💎!`);
 
     // Update state
@@ -5998,11 +6055,10 @@ async function doBuyListing(listing) {
       updateDiamondDisplay();
       document.getElementById('market-diamonds').textContent = state.player.diamonds;
     }
-
-    // Reload listings
-    _marketPage = 0;
-    _loadMarketListings();
   } catch (err) {
+    // Rollback: re-add listing and re-render
+    _marketListings.push(listing);
+    if (grid) _renderMarketCards(_marketListings, grid, false);
     showToast(`❌ ${err.message}`);
   } finally {
     btn.disabled = false;
@@ -6188,7 +6244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.clipboard?.writeText(code).then(() => showToast('📋 Код скопирован'));
   });
 
-  // Submit listing
+  // Submit listing (optimistic UI)
   document.getElementById('market-list-submit')?.addEventListener('click', async () => {
     if (!_listSelectedItem) return;
     const priceStr = document.getElementById('market-list-price-input').value;
@@ -6201,6 +6257,14 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     btn.textContent = '⏳...';
 
+    // Optimistic: remove from inventory immediately
+    const listedId = _listSelectedItem.id;
+    const originalItem = { ..._listSelectedItem };
+    state.inventory = (state.inventory || []).filter(i => i.id !== listedId);
+    _renderEquipSlots();
+    _renderInventoryGrid();
+    closeListItemFlow();
+
     try {
       const pos = state.playerPos;
       const data = await apiFetch('/api/market', {
@@ -6208,20 +6272,13 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           action: 'list-item',
           telegram_id: TG_ID,
-          item_id: _listSelectedItem.id,
+          item_id: listedId,
           price_diamonds: price,
           is_private: _listIsPrivate,
           lat: pos?.lat, lng: pos?.lng,
         }),
       });
 
-      // Remove item from inventory (it's now on market)
-      const listedId = _listSelectedItem.id;
-      state.inventory = (state.inventory || []).filter(i => i.id !== listedId);
-      _renderEquipSlots();
-      _renderInventoryGrid();
-
-      closeListItemFlow();
       showToast('🎪 Товар выставлен на рынок!');
 
       if (data.private_code) {
@@ -6232,6 +6289,11 @@ document.addEventListener('DOMContentLoaded', () => {
       _updateMarketTabs();
       _loadMarketListings();
     } catch (err) {
+      // Rollback: return item to inventory
+      state.inventory = state.inventory || [];
+      state.inventory.push(originalItem);
+      _renderEquipSlots();
+      _renderInventoryGrid();
       showToast(`❌ ${err.message}`);
     } finally {
       btn.disabled = false;

@@ -153,7 +153,7 @@ export default async function handler(req, res) {
 
     supabase
       .from('couriers')
-      .select('id,type,owner_id,current_lat,current_lng,target_lat,target_lng,hp,max_hp,status,listing_id')
+      .select('id,type,owner_id,current_lat,current_lng,target_lat,target_lng,hp,max_hp,speed,status,listing_id')
       .eq('status', 'moving')
       .gte('current_lat', s).lte('current_lat', n)
       .gte('current_lng', w).lte('current_lng', e)
