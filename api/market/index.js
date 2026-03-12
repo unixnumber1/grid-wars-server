@@ -137,7 +137,7 @@ async function handleListItem(req, res) {
     .from('market_listings')
     .select('*', { count: 'exact', head: true })
     .eq('seller_id', player.id)
-    .eq('status', 'active');
+    .in('status', ['active', 'pending']);
 
   if ((count || 0) >= MAX_ACTIVE_LISTINGS) {
     return res.status(400).json({ error: `Max ${MAX_ACTIVE_LISTINGS} active listings` });
@@ -290,6 +290,7 @@ async function handleBuy(req, res) {
   const { data: seller } = await supabase
     .from('players').select('diamonds').eq('id', listing.seller_id).single();
 
+  // Item stays on_market=true until delivery courier arrives (or immediately if no courier)
   const [
     { error: buyerErr },
     { error: sellerErr },
@@ -306,7 +307,7 @@ async function handleBuy(req, res) {
       .update({ status: 'sold', buyer_id: buyer.id })
       .eq('id', listing_id),
     supabase.from('items')
-      .update({ owner_id: buyer.id, on_market: false })
+      .update({ owner_id: buyer.id })
       .eq('id', listing.item_id),
   ]);
 
@@ -360,9 +361,15 @@ async function handleBuy(req, res) {
       .single();
     if (courier) {
       courierId = courier.id;
-      // Item held by delivery courier
+      // Item held by delivery courier — stays on_market until delivered
       await supabase.from('items').update({ held_by_courier: courier.id, held_by_market: null }).eq('id', listing.item_id);
+    } else {
+      // No courier — release item to buyer immediately
+      await supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
     }
+  } else {
+    // No GPS / no markets — release item to buyer immediately
+    await supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
   }
 
   return res.json({
@@ -732,7 +739,7 @@ async function handleMoveCouriers(req, res) {
     const { data: expiredListings } = await supabase
       .from('market_listings')
       .select('id, item_id, seller_id')
-      .eq('status', 'active')
+      .in('status', ['active', 'pending'])
       .lt('expires_at', nowISO)
       .limit(50);
 

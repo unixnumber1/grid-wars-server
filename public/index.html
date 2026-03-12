@@ -2483,7 +2483,13 @@ function showItemDetail(itemId) {
   const btns = document.getElementById('item-detail-btns');
   btns.innerHTML = '';
 
-  if (item.equipped) {
+  if (item.on_market) {
+    // Item is in transit (courier delivery) — no actions
+    const info = document.createElement('div');
+    info.style.cssText = 'text-align:center;color:#ffaa00;font-size:13px;margin:8px 0;';
+    info.textContent = '🚚 Предмет в пути (доставка курьером)';
+    btns.appendChild(info);
+  } else if (item.equipped) {
     const unBtn = document.createElement('button');
     unBtn.className = 'btn';
     unBtn.textContent = 'Снять';
@@ -5724,10 +5730,13 @@ async function doAttackCourier(courierId) {
       body: JSON.stringify({ action: 'attack-courier', telegram_id: TG_ID, courier_id: courierId, lat: pos.lat, lng: pos.lng }),
     });
 
-    // Show floating damage
+    // Show floating damage (use interpolated display position)
     const c = courierData[courierId];
+    const ci = courierInterp[courierId];
     if (c) {
-      const latlng = L.latLng(c.current_lat, c.current_lng);
+      const dLat = ci ? ci.displayLat : c.current_lat;
+      const dLng = ci ? ci.displayLng : c.current_lng;
+      const latlng = L.latLng(dLat, dLng);
       const color = data.isCrit ? '#FFD700' : '#ff4444';
       showFloatingText(`${data.isCrit ? 'КРИТ! ' : ''}-${data.damage}`, latlng, color);
     }
@@ -5735,11 +5744,12 @@ async function doAttackCourier(courierId) {
     if (data.killed) {
       showToast('💥 Курьер уничтожен!');
       closePopup();
-      // Remove courier marker
+      // Remove courier marker + interp state
       if (courierMarkers[courierId]) {
         courierLayer.removeLayer(courierMarkers[courierId]);
         delete courierMarkers[courierId];
         delete courierData[courierId];
+        delete courierInterp[courierId];
       }
       // Add drop marker
       if (data.drop_id && data.drop_location) {
@@ -6102,6 +6112,14 @@ async function doCancelListing(listingId) {
     });
     showToast('✅ Лот снят с продажи');
     _loadMarketListings();
+    // Refresh inventory so the returned item appears
+    try {
+      const initData = await apiFetch('/api/player/init', {
+        method: 'POST',
+        body: JSON.stringify({ telegram_id: TG_ID }),
+      });
+      if (initData.inventory) state.inventory = initData.inventory;
+    } catch (e) { /* will sync on next refreshAll */ }
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
