@@ -192,6 +192,7 @@ BOT_TOKEN=
 - ✅ Маркеры рынков/курьеров/дропов на карте
 - ✅ Все API ≤12 serverless functions (Vercel Hobby limit): shop merged в items, market = 1 router
 - ✅ Генерация рынков из OpenStreetMap Overpass API (админ)
+- ✅ Тап на аватарку в нижней панели = центрировать камеру на игроке (аналог PIN)
 
 ## Кастомные ники (game_username)
 

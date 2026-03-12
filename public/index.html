@@ -3772,7 +3772,11 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
 document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
-document.getElementById('player-avatar-wrap').addEventListener('click', showProfilePopup);
+document.getElementById('player-avatar-wrap').addEventListener('click', () => {
+  const pos = state.playerPos;
+  if (pos) map.setView([pos.lat, pos.lng], map.getZoom(), { animate: true, duration: 0.5 });
+});
+document.getElementById('player-avatar-wrap').style.cursor = 'pointer';
 // profile-modal-close is rendered after the closing script tag, bind after full parse
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('profile-modal-close')?.addEventListener('click', () => {
