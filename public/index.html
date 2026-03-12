@@ -1527,12 +1527,19 @@
       height: 100%; background: #00cc44; transition: width 0.3s;
     }
 
-    /* Drop pulse */
+    /* Drop pulse (loot) */
     @keyframes dropPulse {
       0%,100% { opacity: 1; transform: scale(1); }
       50%     { opacity: 0.6; transform: scale(1.2); }
     }
     .drop-marker { animation: dropPulse 1.5s ease-in-out infinite; }
+
+    /* Delivery box pulse (gold glow) */
+    @keyframes deliveryPulse {
+      0%,100% { transform: scale(1); filter: drop-shadow(0 0 8px #FFD700); }
+      50%     { transform: scale(1.15); filter: drop-shadow(0 0 16px #FFD700); }
+    }
+    .delivery-marker { animation: deliveryPulse 1.2s ease-in-out infinite; }
 
     /* Box odds popup */
     #box-odds-popup {
@@ -5526,24 +5533,38 @@ function _courierIcon(courier) {
   const size = courier.type === 'delivery' ? 32 : 28;
   const hpPct = Math.max(0, Math.round((courier.hp / courier.max_hp) * 100));
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+  const isMy = courier.owner_id === state.player?.id;
+  const ownerName = courier.owner?.game_username || courier.owner?.username || '';
+  const label = isMy ? '📦 Мой' : ('🚶 ' + (ownerName || 'Курьер'));
+  const labelColor = isMy ? '#FFD700' : '#fff';
+  const labelBorder = isMy ? '#FFD700' : 'rgba(255,255,255,0.2)';
   return L.divIcon({
     className: '',
-    html: `<div class="courier-marker">
-      <span style="font-size:${size}px;line-height:1;">${emoji}</span>
-      <div class="courier-hp-bar"><div class="courier-hp-fill" style="width:${hpPct}%;background:${hpColor};"></div></div>
+    html: `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:none;">
+      <div style="background:rgba(0,0,0,0.75);color:${labelColor};font-size:10px;padding:2px 6px;border-radius:8px;white-space:nowrap;margin-bottom:2px;border:1px solid ${labelBorder};max-width:80px;overflow:hidden;text-overflow:ellipsis;">${label}</div>
+      <span style="font-size:${size}px;line-height:1;pointer-events:auto;">${emoji}</span>
+      <div style="width:${size}px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>
     </div>`,
-    iconSize: [size + 8, size + 12],
-    iconAnchor: [(size + 8) / 2, (size + 12) / 2],
+    iconSize: [size + 40, size + 24],
+    iconAnchor: [(size + 40) / 2, (size + 24) / 2],
   });
 }
 
-function _dropIcon() {
+function _dropIcon(drop) {
+  const isDelivery = drop && drop.drop_type === 'delivery';
+  const isMy = isDelivery && _isMyDeliveryDrop(drop);
+  const cls = isDelivery && isMy ? 'delivery-marker' : 'drop-marker';
   return L.divIcon({
     className: '',
-    html: '<div class="marker-wrap drop-marker" style="font-size:36px;line-height:1;">📦</div>',
+    html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">📦</div>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
   });
+}
+
+function _isMyDeliveryDrop(drop) {
+  const ownerId = drop.couriers?.owner_id || drop.owner_id;
+  return ownerId === state.player?.id;
 }
 
 // ── Render markets on map ──────────────────────
@@ -5795,7 +5816,7 @@ function renderDrops(drops) {
   for (const d of (drops || [])) {
     dropData[d.id] = d;
     if (!dropMarkers[d.id]) {
-      const marker = L.marker([d.lat, d.lng], { icon: _dropIcon(), zIndexOffset: 1300 });
+      const marker = L.marker([d.lat, d.lng], { icon: _dropIcon(d), zIndexOffset: 1300 });
       marker.on('click', (e) => { L.DomEvent.stopPropagation(e); _showDropPopup(d.id); });
       marker.addTo(dropLayer);
       dropMarkers[d.id] = marker;
@@ -5809,14 +5830,30 @@ function _showDropPopup(dropId) {
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, drop.lat, drop.lng) : Infinity;
   const near = dist <= SMALL_RADIUS;
-  const msLeft = new Date(drop.expires_at) - Date.now();
-  const minsLeft = Math.max(0, Math.floor(msLeft / 60000));
-  const secsLeft = Math.max(0, Math.floor((msLeft % 60000) / 1000));
+  const isDelivery = drop.drop_type === 'delivery';
+  const isMy = isDelivery && _isMyDeliveryDrop(drop);
 
-  document.getElementById('popup-title').innerHTML = '📦 Потерянная посылка!';
-  document.getElementById('popup-subtitle').textContent = '';
-  document.getElementById('popup-stats').innerHTML =
-    `<div style="text-align:center;font-size:13px;color:#aaa;margin:8px 0;">⏳ Исчезнет через ${minsLeft}:${String(secsLeft).padStart(2, '0')}</div>`;
+  if (isDelivery && !isMy) {
+    showToast('📦 Чужая посылка');
+    return;
+  }
+
+  if (isDelivery) {
+    // My delivery box popup
+    document.getElementById('popup-title').innerHTML = '📦 Ваш заказ прибыл!';
+    document.getElementById('popup-subtitle').textContent = '';
+    document.getElementById('popup-stats').innerHTML =
+      '<div style="text-align:center;font-size:13px;color:#FFD700;margin:8px 0;">Откройте посылку чтобы получить предмет</div>';
+  } else {
+    // Loot drop popup
+    const msLeft = drop.expires_at ? new Date(drop.expires_at) - Date.now() : 0;
+    const minsLeft = Math.max(0, Math.floor(msLeft / 60000));
+    const secsLeft = Math.max(0, Math.floor((msLeft % 60000) / 1000));
+    document.getElementById('popup-title').innerHTML = '📦 Потерянная посылка!';
+    document.getElementById('popup-subtitle').textContent = '';
+    document.getElementById('popup-stats').innerHTML =
+      `<div style="text-align:center;font-size:13px;color:#aaa;margin:8px 0;">⏳ Исчезнет через ${minsLeft}:${String(secsLeft).padStart(2, '0')}</div>`;
+  }
 
   const actEl = document.getElementById('popup-actions');
   actEl.innerHTML = '';
@@ -5827,7 +5864,7 @@ function _showDropPopup(dropId) {
     pickBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
     pickBtn.disabled = true;
   } else {
-    pickBtn.innerHTML = '🎒 Подобрать';
+    pickBtn.innerHTML = isDelivery ? '🎁 Открыть посылку' : '🎒 Подобрать';
   }
   pickBtn.addEventListener('click', () => doPickupDrop(dropId));
   actEl.appendChild(pickBtn);

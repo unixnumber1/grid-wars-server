@@ -626,17 +626,32 @@ GET — `action` в query; POST — `action` в body.
 
 ### Курьеры
 - `to_market` — от игрока до ближайшего рынка при листинге (>200м)
-- `delivery` — от рынка к покупателю
+- `delivery` — от ближайшего к покупателю рынка до last_lat/last_lng покупателя
 - Скорость: seller 0.0002 deg/tick (~20 км/ч), delivery 0.0015 deg/tick (~150 км/ч)
 - HP: 5000 (единый)
 - `to_market_id` — колонка в couriers, рынок назначения
-- При убийстве: дроп на карте (5 мин), +50 XP атакующему
-- Перехват delivery: предмет переходит подобравшему, покупателю возврат алмазов
+- При убийстве: drop_type='loot' на карте (5 мин), +50 XP атакующему, любой может подобрать
+- Перехват loot-дропа delivery курьера: предмет переходит подобравшему, покупателю возврат алмазов
+- Подпись на маркере: "📦 Мой" (золотой) для своих, "🚶 Ник" для чужих
+
+### Доставка покупки
+- Курьер delivery доезжает → создаёт drop_type='delivery' рядом с last_lat/last_lng покупателя (±10-30м)
+- Коробка доставки НЕ истекает (expires_at=null)
+- Только покупатель (courier.owner_id) может открыть свою коробку (403 для чужих)
+- Тап на чужую коробку → toast "📦 Чужая посылка"
+- Тап на свою → попап "📦 Ваш заказ прибыл!" + кнопка "🎁 Открыть посылку"
+- Своя коробка: золотая пульсация (deliveryPulse), чужая/лут: обычная (dropPulse)
+
+### Типы дропов (drop_type в courier_drops)
+| Тип | Описание | Истекает | Кто подбирает |
+|-----|----------|---------|---------------|
+| `loot` | Дроп от убитого курьера | 5 мин | Любой |
+| `delivery` | Коробка от доставки | Никогда | Только покупатель |
 
 ### Владение предметом (held_by)
 - `items.held_by_courier` — UUID курьера, который несёт предмет
 - `items.held_by_market` — UUID рынка, на котором лежит предмет
-- Жизненный цикл: игрок → held_by_courier → held_by_market → (покупка) → held_by_courier(delivery) → покупатель
+- Жизненный цикл: игрок → held_by_courier → held_by_market → (покупка) → held_by_courier(delivery) → delivery_drop → покупатель
 - При отмене/экспирации/убийстве курьера — все held_by обнуляются
 
 ### Правила маркета
@@ -687,6 +702,7 @@ ALTER TABLE items ADD COLUMN IF NOT EXISTS held_by_courier UUID REFERENCES couri
 ALTER TABLE items ADD COLUMN IF NOT EXISTS held_by_market UUID REFERENCES markets(id);
 ALTER TABLE couriers ADD COLUMN IF NOT EXISTS to_market_id UUID REFERENCES markets(id);
 ALTER TABLE couriers ALTER COLUMN speed SET DEFAULT 0.0002;
+ALTER TABLE courier_drops ADD COLUMN IF NOT EXISTS drop_type TEXT DEFAULT 'loot' CHECK (drop_type IN ('loot', 'delivery'));
 ```
 
 ### Уведомления

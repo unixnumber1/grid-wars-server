@@ -321,24 +321,26 @@ async function handleBuy(req, res) {
     `💰 Ваш предмет продан за ${price} 💎 (получено ${sellerPayout} 💎)`,
     { listing_id: listing.id, price, payout: sellerPayout });
 
+  // Use buyer's last known position from DB for delivery target
   let courierId = null;
-  const buyerLat = parseFloat(lat), buyerLng = parseFloat(lng);
-  let marketLat = null;
-  let marketLng = null;
+  const { data: buyerPos } = await supabase
+    .from('players').select('last_lat, last_lng').eq('id', buyer.id).single();
+  const bLat = buyerPos?.last_lat;
+  const bLng = buyerPos?.last_lng;
 
-  // Always find nearest market to BUYER (delivery starts from buyer's closest market)
-  if (!isNaN(buyerLat) && !isNaN(buyerLng)) {
+  let marketLat = null, marketLng = null;
+  if (bLat != null && bLng != null) {
     const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(100);
     if (allMarkets && allMarkets.length > 0) {
       let minDist = Infinity;
       for (const m of allMarkets) {
-        const d = haversine(buyerLat, buyerLng, m.lat, m.lng);
+        const d = haversine(bLat, bLng, m.lat, m.lng);
         if (d < minDist) { minDist = d; marketLat = m.lat; marketLng = m.lng; }
       }
     }
   }
 
-  if (!isNaN(buyerLat) && !isNaN(buyerLng) && marketLat && marketLng) {
+  if (bLat != null && bLng != null && marketLat && marketLng) {
     const { data: courier } = await supabase
       .from('couriers')
       .insert({
@@ -348,8 +350,8 @@ async function handleBuy(req, res) {
         type: 'delivery',
         start_lat: marketLat,
         start_lng: marketLng,
-        target_lat: buyerLat,
-        target_lng: buyerLng,
+        target_lat: bLat,
+        target_lng: bLng,
         current_lat: marketLat,
         current_lng: marketLng,
         speed: COURIER_SPEED_DELIVERY,
@@ -361,14 +363,11 @@ async function handleBuy(req, res) {
       .single();
     if (courier) {
       courierId = courier.id;
-      // Item held by delivery courier — stays on_market until delivered
       await supabase.from('items').update({ held_by_courier: courier.id, held_by_market: null }).eq('id', listing.item_id);
     } else {
-      // No courier — release item to buyer immediately
       await supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
     }
   } else {
-    // No GPS / no markets — release item to buyer immediately
     await supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
   }
 
@@ -473,6 +472,7 @@ async function handleAttackCourier(req, res) {
         listing_id: courier.listing_id,
         lat: courier.current_lat,
         lng: courier.current_lng,
+        drop_type: 'loot',
         expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       })
       .select('id')
@@ -537,7 +537,7 @@ async function handlePickupDrop(req, res) {
   const { data: drop, error: dErr } = await supabase
     .from('courier_drops')
     .select(`
-      id, item_id, listing_id, lat, lng, picked_up, expires_at,
+      id, item_id, listing_id, lat, lng, picked_up, expires_at, drop_type,
       couriers!courier_drops_courier_id_fkey(type, owner_id, listing_id)
     `)
     .eq('id', drop_id)
@@ -546,13 +546,39 @@ async function handlePickupDrop(req, res) {
   if (dErr) return res.status(500).json({ error: dErr.message });
   if (!drop) return res.status(404).json({ error: 'Drop not found' });
   if (drop.picked_up) return res.status(400).json({ error: 'Already picked up' });
-  if (new Date(drop.expires_at) < new Date()) return res.status(400).json({ error: 'Drop expired' });
+  // Loot drops expire; delivery drops don't
+  if (drop.drop_type !== 'delivery' && drop.expires_at && new Date(drop.expires_at) < new Date()) {
+    return res.status(400).json({ error: 'Drop expired' });
+  }
 
   const dist = haversine(pLat, pLng, drop.lat, drop.lng);
   if (dist > SMALL_RADIUS) {
     return res.status(400).json({ error: 'Too far from drop', distance: Math.round(dist) });
   }
 
+  // ── Delivery box: only the buyer (courier owner) can pick up ──
+  if (drop.drop_type === 'delivery') {
+    const courierOwner = drop.couriers?.owner_id;
+    if (courierOwner && courierOwner !== player.id) {
+      return res.status(403).json({ error: 'Это не ваша посылка' });
+    }
+    await Promise.all([
+      supabase.from('items')
+        .update({ on_market: false, held_by_courier: null, held_by_market: null })
+        .eq('id', drop.item_id),
+      supabase.from('courier_drops')
+        .update({ picked_up: true, picked_by: player.id })
+        .eq('id', drop_id),
+    ]);
+    const { data: item } = await supabase
+      .from('items')
+      .select('id, type, rarity, name, emoji, attack, crit_chance, defense')
+      .eq('id', drop.item_id)
+      .maybeSingle();
+    return res.json({ success: true, item, message: '🎁 Получено!' });
+  }
+
+  // ── Loot drop: anyone can pick up ──
   await Promise.all([
     supabase.from('items')
       .update({ owner_id: player.id, on_market: false, held_by_courier: null, held_by_market: null })
@@ -562,7 +588,7 @@ async function handlePickupDrop(req, res) {
       .eq('id', drop_id),
   ]);
 
-  let message = 'Item picked up!';
+  let message = 'Предмет подобран!';
   if (drop.couriers?.type === 'delivery' && drop.listing_id) {
     const { data: listing } = await supabase
       .from('market_listings')
@@ -578,12 +604,10 @@ async function handlePickupDrop(req, res) {
           .update({ diamonds: (buyerPlayer.diamonds ?? 0) + listing.price_diamonds })
           .eq('id', listing.buyer_id);
       }
-
       await supabase.from('market_listings')
         .update({ status: 'intercepted' })
         .eq('id', listing.id);
-
-      message = 'Courier intercepted! Item stolen, buyer refunded.';
+      message = 'Курьер перехвачен! Предмет украден, покупателю возврат.';
     }
   }
 
@@ -678,13 +702,27 @@ async function handleMoveCouriers(req, res) {
           }
           notify(dc.owner_id, 'item_delivered', '🎪 Курьер доставил товар на рынок!', { listing_id: dc.listing_id });
         } else if (dc.type === 'delivery') {
-          // Delivery complete → clear all held_by flags
+          // Delivery complete → create a pickup box near buyer's last position
+          const { data: buyerPos } = await supabase
+            .from('players').select('last_lat, last_lng').eq('id', dc.owner_id).single();
+          const dropLat = (buyerPos?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
+          const dropLng = (buyerPos?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004;
+          await supabase.from('courier_drops').insert({
+            courier_id: dc.id,
+            item_id: dc.item_id,
+            listing_id: dc.listing_id,
+            lat: dropLat,
+            lng: dropLng,
+            drop_type: 'delivery',
+            expires_at: null, // delivery boxes don't expire
+          });
           if (dc.item_id) {
             await supabase.from('items')
-              .update({ held_by_courier: null, held_by_market: null, on_market: false })
+              .update({ held_by_courier: null, held_by_market: null })
               .eq('id', dc.item_id);
+            // on_market stays true until buyer picks up the box
           }
-          notify(dc.owner_id, 'item_delivered', '📦 Курьер доставил ваш предмет!', { courier_id: dc.id });
+          notify(dc.owner_id, 'delivery_arrived', '📦 Ваш заказ доставлен! Найдите коробку на карте.', { courier_id: dc.id });
         }
       }
     } catch (e) { /* silent */ }
@@ -694,8 +732,9 @@ async function handleMoveCouriers(req, res) {
   try {
     const { data: expiredDrops } = await supabase
       .from('courier_drops')
-      .select('id, item_id, courier_id, listing_id')
+      .select('id, item_id, courier_id, listing_id, drop_type')
       .eq('picked_up', false)
+      .neq('drop_type', 'delivery') // delivery boxes don't expire
       .lt('expires_at', nowISO)
       .limit(50);
 
@@ -768,7 +807,7 @@ async function handleMoveCouriers(req, res) {
   // ── 4. Return remaining moving couriers ────────────────────
   const { data: allCouriers } = await supabase
     .from('couriers')
-    .select('id, type, owner_id, current_lat, current_lng, target_lat, target_lng, hp, max_hp, speed, status, listing_id')
+    .select('id, type, owner_id, current_lat, current_lng, target_lat, target_lng, hp, max_hp, speed, status, listing_id, owner:players!couriers_owner_id_fkey(game_username,username)')
     .eq('status', 'moving');
 
   return res.json({

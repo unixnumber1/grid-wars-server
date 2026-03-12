@@ -153,7 +153,7 @@ export default async function handler(req, res) {
 
     supabase
       .from('couriers')
-      .select('id,type,owner_id,current_lat,current_lng,target_lat,target_lng,hp,max_hp,speed,status,listing_id')
+      .select('id,type,owner_id,current_lat,current_lng,target_lat,target_lng,hp,max_hp,speed,status,listing_id,owner:players!couriers_owner_id_fkey(game_username,username)')
       .eq('status', 'moving')
       .gte('current_lat', s).lte('current_lat', n)
       .gte('current_lng', w).lte('current_lng', e)
@@ -161,9 +161,9 @@ export default async function handler(req, res) {
 
     supabase
       .from('courier_drops')
-      .select('id,item_id,lat,lng,expires_at')
+      .select('id,item_id,lat,lng,expires_at,drop_type,couriers!courier_drops_courier_id_fkey(owner_id)')
       .eq('picked_up', false)
-      .gt('expires_at', nowISO)
+      .or(`expires_at.gt.${nowISO},drop_type.eq.delivery`)
       .gte('lat', s).lte('lat', n)
       .gte('lng', w).lte('lng', e)
       .limit(100),
