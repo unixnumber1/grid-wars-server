@@ -12,7 +12,8 @@ const COMMISSION = 0.10; // 10% market fee
 const COURIER_KILL_XP = 50;
 
 const COURIER_HP = 5000;
-const COURIER_SPEED = 0.0015; // ~150 km/h stored in DB
+const COURIER_SPEED_SELLER   = 0.0002;  // 🚶 ~20 km/h (to_market)
+const COURIER_SPEED_DELIVERY = 0.0015;  // 🚚 ~150 km/h (delivery)
 
 async function notify(playerId, type, message, data = null) {
   try {
@@ -164,7 +165,8 @@ async function handleListItem(req, res) {
     }
   }
 
-  await supabase.from('items').update({ on_market: true }).eq('id', item_id);
+  // Will be updated with held_by_courier or held_by_market after courier/listing creation
+  await supabase.from('items').update({ on_market: true, equipped: false }).eq('id', item_id);
 
   const listingRow = {
     item_id,
@@ -216,14 +218,22 @@ async function handleListItem(req, res) {
         target_lng: nearestMarket.lng,
         current_lat: pLat,
         current_lng: pLng,
-        speed: COURIER_SPEED,
+        speed: COURIER_SPEED_SELLER,
         hp: COURIER_HP,
         max_hp: COURIER_HP,
         status: 'moving',
+        to_market_id: nearestMarket.id,
       })
       .select('id')
       .single();
-    if (courier) courierId = courier.id;
+    if (courier) {
+      courierId = courier.id;
+      // Item is now held by courier
+      await supabase.from('items').update({ held_by_courier: courier.id, held_by_market: null }).eq('id', item_id);
+    }
+  } else if (nearestMarket) {
+    // No courier needed — item goes directly to market
+    await supabase.from('items').update({ held_by_courier: null, held_by_market: nearestMarket.id }).eq('id', item_id);
   }
 
   return res.json({
@@ -341,14 +351,18 @@ async function handleBuy(req, res) {
         target_lng: buyerLng,
         current_lat: marketLat,
         current_lng: marketLng,
-        speed: COURIER_SPEED,
+        speed: COURIER_SPEED_DELIVERY,
         hp: COURIER_HP,
         max_hp: COURIER_HP,
         status: 'moving',
       })
       .select('id')
       .single();
-    if (courier) courierId = courier.id;
+    if (courier) {
+      courierId = courier.id;
+      // Item held by delivery courier
+      await supabase.from('items').update({ held_by_courier: courier.id, held_by_market: null }).eq('id', listing.item_id);
+    }
   }
 
   return res.json({
@@ -388,7 +402,7 @@ async function handleCancel(req, res) {
       .update({ status: 'cancelled' })
       .eq('id', listing_id),
     supabase.from('items')
-      .update({ on_market: false })
+      .update({ on_market: false, held_by_courier: null, held_by_market: null })
       .eq('id', listing.item_id),
     supabase.from('couriers')
       .update({ status: 'cancelled' })
@@ -461,6 +475,11 @@ async function handleAttackCourier(req, res) {
       .update({ status: 'killed', hp: 0 })
       .eq('id', courier_id);
 
+    // Item dropped — clear held_by flags
+    await supabase.from('items')
+      .update({ held_by_courier: null, held_by_market: null, on_market: false })
+      .eq('id', courier.item_id);
+
     // Notify courier owner
     notify(courier.owner_id, 'courier_killed',
       '💥 Ваш курьер был уничтожен! Предмет выпал на карту.',
@@ -529,7 +548,7 @@ async function handlePickupDrop(req, res) {
 
   await Promise.all([
     supabase.from('items')
-      .update({ owner_id: player.id, on_market: false })
+      .update({ owner_id: player.id, on_market: false, held_by_courier: null, held_by_market: null })
       .eq('id', drop.item_id),
     supabase.from('courier_drops')
       .update({ picked_up: true, picked_by: player.id })
@@ -578,7 +597,7 @@ async function handleMoveCouriers(req, res) {
   // ── 1. Move active couriers ────────────────────────────────
   const { data: couriers, error } = await supabase
     .from('couriers')
-    .select('id, start_lat, start_lng, current_lat, current_lng, target_lat, target_lng, speed, status, created_at')
+    .select('id, start_lat, start_lng, current_lat, current_lng, target_lat, target_lng, speed, status, created_at, type, item_id, listing_id, to_market_id')
     .eq('status', 'moving');
 
   if (error) {
@@ -587,8 +606,7 @@ async function handleMoveCouriers(req, res) {
   }
 
   // Time-based: compute position from elapsed time since creation
-  // 150 km/h ≈ 0.000375 deg/sec
-  const SPEED_DEG_PER_SEC = 0.000375;
+  // Use per-courier speed from DB (deg/tick where tick=4s → speed/4 deg/sec)
   const now = Date.now();
   const updates = [];
   const arrived = [];
@@ -599,16 +617,18 @@ async function handleMoveCouriers(req, res) {
     const routeDist = Math.sqrt(routeLat * routeLat + routeLng * routeLng);
 
     if (routeDist < 0.0001) {
-      arrived.push(c.id);
+      arrived.push(c);
       continue;
     }
 
+    // speed is in deg/tick (4s), convert to deg/sec
+    const speedDegPerSec = (c.speed || 0.0002) / 4;
     const elapsedSec = (now - new Date(c.created_at).getTime()) / 1000;
-    const traveled = SPEED_DEG_PER_SEC * elapsedSec;
+    const traveled = speedDegPerSec * elapsedSec;
     const progress = Math.min(traveled / routeDist, 1.0);
 
     if (progress >= 0.99) {
-      arrived.push(c.id);
+      arrived.push(c);
       continue;
     }
 
@@ -623,32 +643,40 @@ async function handleMoveCouriers(req, res) {
       .eq('id', u.id)
   );
 
-  if (arrived.length > 0) {
+  const arrivedIds = arrived.map(c => c.id);
+  if (arrivedIds.length > 0) {
     updatePromises.push(
       supabase.from('couriers')
         .update({ status: 'delivered' })
-        .in('id', arrived)
+        .in('id', arrivedIds)
     );
   }
 
   if (updatePromises.length > 0) await Promise.all(updatePromises);
 
-  // Handle delivered couriers: activate pending listings (to_market), notify (delivery)
+  // Handle delivered couriers: transfer held_by, activate pending listings
   if (arrived.length > 0) {
     try {
-      const { data: deliveredCouriers } = await supabase
-        .from('couriers')
-        .select('id, owner_id, type, listing_id')
-        .in('id', arrived);
-      for (const dc of (deliveredCouriers || [])) {
+      for (const dc of arrived) {
         if (dc.type === 'to_market' && dc.listing_id) {
-          // Courier arrived at market → activate the listing
+          // Courier arrived at market → activate the listing, transfer item to market
           await supabase.from('market_listings')
             .update({ status: 'active' })
             .eq('id', dc.listing_id)
             .eq('status', 'pending');
+          if (dc.item_id) {
+            await supabase.from('items')
+              .update({ held_by_courier: null, held_by_market: dc.to_market_id || null })
+              .eq('id', dc.item_id);
+          }
           notify(dc.owner_id, 'item_delivered', '🎪 Курьер доставил товар на рынок!', { listing_id: dc.listing_id });
         } else if (dc.type === 'delivery') {
+          // Delivery complete → clear all held_by flags
+          if (dc.item_id) {
+            await supabase.from('items')
+              .update({ held_by_courier: null, held_by_market: null, on_market: false })
+              .eq('id', dc.item_id);
+          }
           notify(dc.owner_id, 'item_delivered', '📦 Курьер доставил ваш предмет!', { courier_id: dc.id });
         }
       }
@@ -668,7 +696,7 @@ async function handleMoveCouriers(req, res) {
       for (const drop of expiredDrops) {
         // Return item to original owner (on_market = false)
         await supabase.from('items')
-          .update({ on_market: false })
+          .update({ on_market: false, held_by_courier: null, held_by_market: null })
           .eq('id', drop.item_id);
         // Mark drop as picked up so it won't be processed again
         await supabase.from('courier_drops')
@@ -715,7 +743,7 @@ async function handleMoveCouriers(req, res) {
             .update({ status: 'expired' })
             .eq('id', listing.id),
           supabase.from('items')
-            .update({ on_market: false })
+            .update({ on_market: false, held_by_courier: null, held_by_market: null })
             .eq('id', listing.item_id),
         ]);
         // Kill any active courier for this listing

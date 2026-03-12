@@ -624,12 +624,19 @@ GET — `action` в query; POST — `action` в body.
 Генерация рынков: `POST /api/admin/maintenance` action `generate-markets` (админ).
 
 ### Курьеры
-- `to_market` — декоративный, от игрока до ближайшего рынка при листинге
-- `delivery` — от рынка к покупателю, HP x1.5
-- Скорость: 0.00005 (deg/tick)
-- HP по редкости предмета: common 30, uncommon 60, rare 100, epic 180, mythic 300, legendary 500
+- `to_market` — от игрока до ближайшего рынка при листинге (>200м)
+- `delivery` — от рынка к покупателю
+- Скорость: seller 0.0002 deg/tick (~20 км/ч), delivery 0.0015 deg/tick (~150 км/ч)
+- HP: 5000 (единый)
+- `to_market_id` — колонка в couriers, рынок назначения
 - При убийстве: дроп на карте (5 мин), +50 XP атакующему
 - Перехват delivery: предмет переходит подобравшему, покупателю возврат алмазов
+
+### Владение предметом (held_by)
+- `items.held_by_courier` — UUID курьера, который несёт предмет
+- `items.held_by_market` — UUID рынка, на котором лежит предмет
+- Жизненный цикл: игрок → held_by_courier → held_by_market → (покупка) → held_by_courier(delivery) → покупатель
+- При отмене/экспирации/убийстве курьера — все held_by обнуляются
 
 ### Правила маркета
 - Макс 10 активных листингов на игрока
@@ -668,6 +675,14 @@ GET — `action` в query; POST — `action` в body.
 - Экспирация дропов: каждые 30с удаляются просроченные маркеры на фронте
 - Бэкенд в move-couriers: удаляет expired drops (возвращает предмет), expire listings
 - Магазин (shop): open-box перенесён в `/api/items` action `open-box`
+
+### SQL миграции (маркет v2)
+```sql
+ALTER TABLE items ADD COLUMN IF NOT EXISTS held_by_courier UUID REFERENCES couriers(id);
+ALTER TABLE items ADD COLUMN IF NOT EXISTS held_by_market UUID REFERENCES markets(id);
+ALTER TABLE couriers ADD COLUMN IF NOT EXISTS to_market_id UUID REFERENCES markets(id);
+ALTER TABLE couriers ALTER COLUMN speed SET DEFAULT 0.0002;
+```
 
 ### Уведомления
 - Таблица `notifications` (player_id, type, message, data JSONB, read)

@@ -6215,8 +6215,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }),
       });
 
-      const invItem = (state.inventory || []).find(i => i.id === _listSelectedItem.id);
-      if (invItem) invItem.on_market = true;
+      // Remove item from inventory (it's now on market)
+      const listedId = _listSelectedItem.id;
+      state.inventory = (state.inventory || []).filter(i => i.id !== listedId);
+      _renderEquipSlots();
+      _renderInventoryGrid();
 
       closeListItemFlow();
       showToast('🎪 Товар выставлен на рынок!');
