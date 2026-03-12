@@ -2385,7 +2385,7 @@ function showProfilePopup() {
 }
 
 function _renderEquipSlots() {
-  const inv = state.inventory || [];
+  const inv = (state.inventory || []).filter(i => !i.on_market);
   const weapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const shield = inv.find(i => i.type === 'shield' && i.equipped);
 
@@ -2420,7 +2420,7 @@ function _renderEquipSlots() {
 }
 
 function _renderInventoryGrid() {
-  const inv = (state.inventory || []).slice().sort((a, b) =>
+  const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) =>
     (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
   );
   const titleEl = document.getElementById('inventory-title');
@@ -2452,8 +2452,8 @@ function _renderInventoryGrid() {
 function openEquipSlot(type) {
   const isWeapon = type === 'sword';
   const items = isWeapon
-    ? (state.inventory || []).filter(i => i.type === 'sword' || i.type === 'axe')
-    : (state.inventory || []).filter(i => i.type === type);
+    ? (state.inventory || []).filter(i => (i.type === 'sword' || i.type === 'axe') && !i.on_market)
+    : (state.inventory || []).filter(i => i.type === type && !i.on_market);
   if (!items.length) {
     showToast(`❌ Нет предметов типа ${isWeapon ? 'оружие' : 'щит'}`);
     return;
@@ -6279,10 +6279,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     btn.textContent = '⏳...';
 
-    // Optimistic: remove from inventory immediately
+    // Optimistic: mark item as on_market immediately so it hides from inventory
     const listedId = _listSelectedItem.id;
-    const originalItem = { ..._listSelectedItem };
-    state.inventory = (state.inventory || []).filter(i => i.id !== listedId);
+    const invItem = (state.inventory || []).find(i => i.id === listedId);
+    if (invItem) invItem.on_market = true;
     _renderEquipSlots();
     _renderInventoryGrid();
     closeListItemFlow();
@@ -6311,9 +6311,8 @@ document.addEventListener('DOMContentLoaded', () => {
       _updateMarketTabs();
       _loadMarketListings();
     } catch (err) {
-      // Rollback: return item to inventory
-      state.inventory = state.inventory || [];
-      state.inventory.push(originalItem);
+      // Rollback: un-mark on_market so it reappears
+      if (invItem) invItem.on_market = false;
       _renderEquipSlots();
       _renderInventoryGrid();
       showToast(`❌ ${err.message}`);
