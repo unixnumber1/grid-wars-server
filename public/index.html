@@ -15,6 +15,9 @@
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+  <!-- Socket.io client -->
+  <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1880,6 +1883,165 @@
     #selection-bar.open { display: flex; }
     #selection-bar-info { font-size: 13px; color: #aaa; }
     #selection-bar-info strong { color: #FFD700; }
+
+    /* ── Clan system ── */
+    .clan-hq-label {
+      background: rgba(0,0,0,0.7);
+      border-radius: 8px;
+      font-size: 11px;
+      padding: 2px 6px;
+      color: #fff;
+      white-space: nowrap;
+      pointer-events: none;
+      text-align: center;
+    }
+    #clan-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 6000;
+      background: #0d0d0d;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+    #clan-screen.open { display: block; }
+    #clan-screen .cs-back {
+      font-size: 14px;
+      color: #888;
+      background: none;
+      border: none;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    #clan-screen .cs-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    .clan-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .clan-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .clan-card-header .clan-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .clan-card-header .clan-lvl {
+      font-size: 12px;
+      color: #888;
+    }
+    .clan-card-desc {
+      font-size: 12px;
+      color: #777;
+      margin-bottom: 6px;
+    }
+    .clan-card-stats {
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+    .clan-card .btn {
+      width: 100%;
+      padding: 8px;
+      font-size: 13px;
+    }
+    .clan-member-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .clan-member-avatar {
+      font-size: 24px;
+      width: 32px;
+      text-align: center;
+    }
+    .clan-member-info { flex: 1; }
+    .clan-member-name { font-size: 13px; color: #fff; font-weight: 600; }
+    .clan-member-meta { font-size: 11px; color: #888; }
+    .clan-member-actions { display: flex; gap: 4px; }
+    .clan-member-actions button {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #aaa;
+      cursor: pointer;
+    }
+    /* Clan create form */
+    .clan-form-field { margin-bottom: 14px; }
+    .clan-form-field label {
+      display: block;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .clan-form-field input,
+    .clan-form-field textarea {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #fff;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .clan-form-field textarea { resize: none; height: 60px; }
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+    .emoji-grid .eg-cell {
+      width: 100%;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      background: #1a1a1a;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .emoji-grid .eg-cell.selected {
+      border-color: #FFD700;
+      background: rgba(255,215,0,0.1);
+    }
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+    .color-grid .cg-cell {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      cursor: pointer;
+    }
+    .color-grid .cg-cell.selected {
+      border-color: #fff;
+      box-shadow: 0 0 8px rgba(255,255,255,0.5);
+    }
   </style>
 </head>
 <body>
@@ -2212,6 +2374,13 @@
   </div>
 </div>
 
+<!-- Clan screen (fullscreen) -->
+<div id="clan-screen">
+  <button class="cs-back" id="clan-back">&larr; Назад</button>
+  <div class="cs-title" id="clan-screen-title">Кланы</div>
+  <div id="clan-screen-body"></div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────
 //  Global error trap — catches silent crashes
@@ -2253,6 +2422,7 @@ let TG_NAME = tgUser?.username || 'unknown';
 // ─────────────────────────────────────────────
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
+const SERVER_URL = 'http://93.123.30.179:3000';
 const MINE_MAX_LEVEL    = 250;
 const HQ_MAX_LEVEL      = 10;
 const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
@@ -2389,7 +2559,7 @@ let state = {
   player: null,
   hq: null,
   mines: [],           // player's own mines (from /api/player/init)
-  mapBuildings: { headquarters: [], mines: [] },
+  mapBuildings: { headquarters: [], mines: [], clan_hqs: [] },
   playerPos: null,     // { lat, lng }
   totalIncome: 0,      // sum of getMineIncome across all owned mines
   inventory: [],       // player's items from /api/player/init
@@ -2980,7 +3150,8 @@ function setLoadingText(t) {
 
 async function apiFetch(path, opts = {}) {
   if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
-  const res = await fetch(path, {
+  const url = `${SERVER_URL}${path}`;
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
@@ -3052,6 +3223,10 @@ function updatePinButton(active) {
 // Apply a position to the player marker, zone circle, and state.playerPos
 function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
+  // Send location to Socket.io server
+  if (_socket?.connected) {
+    _socket.emit('player:location', { lat, lng });
+  }
   if (playerMarker) {
     playerMarker.setLatLng([lat, lng]);
   }
@@ -3294,6 +3469,26 @@ function showBuildMenu(cellLat, cellLng) {
   mineBtn.addEventListener('click', () => { closePopup(); doBuildMine(cellLat, cellLng); });
   mineCard.appendChild(mineBtn);
   statsEl.appendChild(mineCard);
+
+  // Clan HQ card — only if player has no clan HQ and coins >= 10M
+  const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine);
+  const playerCoins = state.player?.coins ?? 0;
+  if (!hasClanHq && playerCoins >= 10000000) {
+    const chqCard = document.createElement('div');
+    chqCard.className = 'build-card';
+    chqCard.innerHTML = `
+      <div class="build-card-header"><span>&#x1F3F0;</span><span>Штаб Клана</span></div>
+      <div class="build-card-desc">Зона клана &bull; Бусты для участников</div>
+      <div class="build-card-meta">10 000 000 монет</div>
+    `;
+    const chqBtn = document.createElement('button');
+    chqBtn.className = 'btn primary';
+    chqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
+    chqBtn.innerHTML = '&#x1F3F0; Построить штаб клана';
+    chqBtn.addEventListener('click', () => { closePopup(); doBuildClanHq(cellLat, cellLng); });
+    chqCard.appendChild(chqBtn);
+    statsEl.appendChild(chqCard);
+  }
 
   const actEl = document.getElementById('popup-actions');
   actEl.innerHTML = '';
@@ -4015,9 +4210,9 @@ async function doCollect() {
     return;
   }
   try {
-    const data = await apiFetch('/api/economy/collect', {
+    const data = await apiFetch('/api/buildings/mine', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, lat: pos?.lat, lng: pos?.lng }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'collect', lat: pos?.lat, lng: pos?.lng }),
     });
     if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
     if (data.totalIncome != null) state.totalIncome = data.totalIncome;
@@ -4147,6 +4342,7 @@ async function loadVisibleBuildings(force = false) {
     renderBots(data.bots || []);
     renderVases(data.vases || []);
     renderMarkets(data.markets || []);
+    renderClanHqs(data.clan_hqs || []);
     renderCouriers(data.couriers || []);
     renderDrops(data.courier_drops || []);
     updateHexGrid();
@@ -4185,7 +4381,91 @@ async function refreshAll() {
 }
 
 // ─────────────────────────────────────────────
-//  Unified game tick (single polling loop)
+//  Socket.io connection
+// ─────────────────────────────────────────────
+let _socket = null;
+
+function initSocket() {
+  if (_socket) return;
+  _socket = io(SERVER_URL);
+
+  _socket.on('connect', () => {
+    console.log('[socket] Connected to game server');
+    if (TG_ID && state.playerPos) {
+      _socket.emit('player:init', {
+        telegram_id: TG_ID,
+        lat: state.playerPos.lat,
+        lng: state.playerPos.lng,
+      });
+    }
+  });
+
+  _socket.on('tick', (data) => {
+    console.log('[socket] tick received');
+    processTickData(data);
+  });
+
+  _socket.on('disconnect', () => {
+    console.log('[socket] Disconnected from server');
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Process tick data (shared by polling & socket)
+// ─────────────────────────────────────────────
+function processTickData(data) {
+  const prevLevel = state.player?.level;
+
+  // Update player state
+  if (data.player) {
+    state.player = data.player;
+    if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
+  }
+  if (data.mines_own) {
+    state.mines = data.mines_own;
+  }
+  if (data.totalIncome != null) state.totalIncome = data.totalIncome;
+  if (data.inventory) state.inventory = data.inventory;
+
+  // Render map data
+  state.mapBuildings = data;
+  renderBuildings();
+  renderBots(data.bots || []);
+  renderVases(data.vases || []);
+  renderMarkets(data.markets || []);
+  renderClanHqs(data.clan_hqs || []);
+  renderCouriers(data.couriers || []);
+  renderDrops(data.courier_drops || []);
+  updateHexGrid();
+  updateCoinDisplay();
+  updatePlayerDisplay();
+  updateShieldDisplay();
+
+  // Handle completed upgrades
+  if (data.completedUpgrades?.length) {
+    for (const mine of data.completedUpgrades) {
+      const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
+      const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
+      const newApp = getMineAppearance(mine.level);
+      if (prevName && newApp.name !== prevName) {
+        showToast(`✅ Ур.${mine.level}! ✨ Эволюция → ${newApp.emoji} ${newApp.name}`);
+      } else {
+        showToast(`✅ Постройка улучшена до уровня ${mine.level}!`);
+      }
+      handleXpResult(mine.xp);
+    }
+  }
+
+  // Show notifications as toasts
+  if (data.notifications?.length) {
+    for (const n of data.notifications.slice(0, 5)) {
+      showToast(n.message, 4000);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Unified game tick (polling fallback)
 // ─────────────────────────────────────────────
 let _unifiedTickInterval = null;
 let _tickPending = false;
@@ -4195,7 +4475,6 @@ async function unifiedTick() {
   if (_tickPending || !TG_ID || !state.playerPos) return;
   _tickPending = true;
 
-  const prevLevel = state.player?.level;
   try {
     const pos = state.playerPos;
     const bounds = map.getBounds();
@@ -4217,51 +4496,7 @@ async function unifiedTick() {
       }),
     });
 
-    // Update player state
-    if (data.player) {
-      state.player = data.player;
-      if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
-    }
-    if (data.mines_own) {
-      state.mines = data.mines_own;
-    }
-    if (data.totalIncome != null) state.totalIncome = data.totalIncome;
-    if (data.inventory) state.inventory = data.inventory;
-
-    // Render map data
-    state.mapBuildings = data;
-    renderBuildings();
-    renderBots(data.bots || []);
-    renderVases(data.vases || []);
-    renderMarkets(data.markets || []);
-    renderCouriers(data.couriers || []);
-    renderDrops(data.courier_drops || []);
-    updateHexGrid();
-    updateCoinDisplay();
-    updatePlayerDisplay();
-    updateShieldDisplay();
-
-    // Handle completed upgrades
-    if (data.completedUpgrades?.length) {
-      for (const mine of data.completedUpgrades) {
-        const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
-        const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
-        const newApp = getMineAppearance(mine.level);
-        if (prevName && newApp.name !== prevName) {
-          showToast(`✅ Ур.${mine.level}! ✨ Эволюция → ${newApp.emoji} ${newApp.name}`);
-        } else {
-          showToast(`✅ Постройка улучшена до уровня ${mine.level}!`);
-        }
-        handleXpResult(mine.xp);
-      }
-    }
-
-    // Show notifications as toasts
-    if (data.notifications?.length) {
-      for (const n of data.notifications.slice(0, 5)) {
-        showToast(n.message, 4000);
-      }
-    }
+    processTickData(data);
   } catch (err) {
     if (err.name === 'AbortError') return;
     console.warn('[tick] error:', err.message);
@@ -5087,7 +5322,7 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${SERVER_URL}/api/admin/maintenance`, { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
 
     if (maintenance) {
@@ -5560,7 +5795,7 @@ async function boot() {
 
   setLoadingText('Loading player data...');
   try {
-    const initRes = await fetch('/api/player/init', {
+    const initRes = await fetch(`${SERVER_URL}/api/player/init`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
@@ -5644,7 +5879,8 @@ async function boot() {
       timeout: 10000,
     });
 
-    // ── Unified game tick (replaces separate map/bots/couriers/upgrades polling) ──
+    // ── Socket.io connection + unified game tick (polling fallback) ──
+    initSocket();
     startUnifiedTick();
     startBotAnimation();
 
@@ -7895,6 +8131,501 @@ async function sellSelectedItems() {
 }
 
 // ─────────────────────────────────────────────
+//  Clan system
+// ─────────────────────────────────────────────
+const CLAN_LEVELS = [
+  { level:1,  radius:75,  income:5,  defense:10, maxMembers:10,  cost:0 },
+  { level:2,  radius:100, income:8,  defense:15, maxMembers:15,  cost:5000 },
+  { level:3,  radius:125, income:11, defense:20, maxMembers:20,  cost:15000 },
+  { level:4,  radius:150, income:14, defense:26, maxMembers:27,  cost:40000 },
+  { level:5,  radius:175, income:17, defense:32, maxMembers:35,  cost:100000 },
+  { level:6,  radius:200, income:20, defense:38, maxMembers:45,  cost:250000 },
+  { level:7,  radius:225, income:23, defense:45, maxMembers:57,  cost:600000 },
+  { level:8,  radius:250, income:26, defense:52, maxMembers:72,  cost:1500000 },
+  { level:9,  radius:275, income:28, defense:62, maxMembers:90,  cost:4000000 },
+  { level:10, radius:300, income:30, defense:75, maxMembers:120, cost:10000000 },
+];
+const CLAN_HQ_COST = 10000000;
+const ALLOWED_CLAN_COLORS = [
+  '#FF1744','#FF6D00','#FFD700','#00E676',
+  '#00B0FF','#2979FF','#651FFF','#D500F9',
+  '#FF4081','#FFFFFF','#607D8B','#795548',
+];
+const CLAN_SYMBOLS = [
+  '⚔️','🛡️','🏹','🗡️','🔱','⚡','🌙','☀️','🔥','💎','👑','🦅',
+  '🐉','🦁','🐺','🦊','🦋','🌊','🏔️','🌲','🌹','🦄','🐴','🦅',
+];
+
+function getClanLevelConfig(level) {
+  return CLAN_LEVELS.find(l => l.level === level) || CLAN_LEVELS[0];
+}
+
+const clanHqMarkers = {};
+const clanHqCircles = {};
+const clanHqLabels = {};
+
+function clanHqIcon(ch) {
+  const isActive = ch.is_active && ch.color;
+  const glow = isActive ? `filter: drop-shadow(0 0 8px ${ch.color});` : 'filter: grayscale(1); opacity:0.6;';
+  return L.divIcon({
+    html: `<div style="font-size:28px;line-height:1;${glow}pointer-events:auto;">🏰</div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    className: '',
+  });
+}
+
+function renderClanHqs(clanHqs) {
+  const activeIds = new Set((clanHqs || []).map(ch => ch.id));
+
+  // Remove stale
+  for (const id of Object.keys(clanHqMarkers)) {
+    if (!activeIds.has(id)) {
+      map.removeLayer(clanHqMarkers[id]);
+      delete clanHqMarkers[id];
+      if (clanHqCircles[id]) { map.removeLayer(clanHqCircles[id]); delete clanHqCircles[id]; }
+      if (clanHqLabels[id]) { map.removeLayer(clanHqLabels[id]); delete clanHqLabels[id]; }
+    }
+  }
+
+  for (const ch of (clanHqs || [])) {
+    const config = ch.is_active ? getClanLevelConfig(ch.clan_level) : null;
+
+    // Marker
+    if (clanHqMarkers[ch.id]) {
+      clanHqMarkers[ch.id].setIcon(clanHqIcon(ch));
+      clanHqMarkers[ch.id].off('click').on('click', () => showClanHqPopup(ch));
+    } else {
+      const marker = L.marker([ch.lat, ch.lng], { icon: clanHqIcon(ch), zIndexOffset: 470 })
+        .addTo(map)
+        .on('click', () => showClanHqPopup(ch));
+      clanHqMarkers[ch.id] = marker;
+    }
+
+    // Circle zone (active only)
+    if (ch.is_active && config) {
+      if (clanHqCircles[ch.id]) {
+        clanHqCircles[ch.id].setRadius(config.radius);
+        clanHqCircles[ch.id].setStyle({ color: ch.color, fillColor: ch.color });
+      } else {
+        clanHqCircles[ch.id] = L.circle([ch.lat, ch.lng], {
+          radius: config.radius,
+          color: ch.color || '#888',
+          fillColor: ch.color || '#888',
+          fillOpacity: 0.08,
+          weight: 1.5,
+          opacity: 0.4,
+          interactive: false,
+        }).addTo(map);
+      }
+      // Label above marker
+      if (!clanHqLabels[ch.id]) {
+        const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${ch.symbol || '🏰'} ${ch.clan_name || ''}</div>`;
+        clanHqLabels[ch.id] = L.marker([ch.lat, ch.lng], {
+          icon: L.divIcon({
+            html: labelHtml,
+            className: '',
+            iconSize: [120, 20],
+            iconAnchor: [60, 40],
+          }),
+          zIndexOffset: 471,
+          interactive: false,
+        }).addTo(map);
+      }
+    } else {
+      if (clanHqCircles[ch.id]) { map.removeLayer(clanHqCircles[ch.id]); delete clanHqCircles[ch.id]; }
+      if (clanHqLabels[ch.id]) { map.removeLayer(clanHqLabels[ch.id]); delete clanHqLabels[ch.id]; }
+    }
+  }
+}
+
+// ── Clan HQ popup ──
+function showClanHqPopup(ch) {
+  const isOwn = ch.is_mine;
+  const isActive = ch.is_active;
+
+  if (isOwn && !isActive) {
+    openPopup(
+      '🏰 Штаб Клана',
+      'Вступите в клан чтобы активировать штаб',
+      [],
+      [
+        { label: '🔍 Найти клан', cls: 'primary', action: () => openClanList() },
+        { label: '⚔️ Создать клан', cls: 'yellow', action: () => openClanCreate() },
+      ]
+    );
+  } else if (isOwn && isActive) {
+    showOwnClanPopup(ch);
+  } else if (isActive) {
+    showOtherClanHqPopup(ch);
+  } else {
+    openPopup('🏰 Штаб Клана', 'Неактивный штаб', [], []);
+  }
+}
+
+async function showOwnClanPopup(ch) {
+  try {
+    const data = await apiFetch(`/api/clan?view=info&clan_id=${ch.clan_id}`);
+    const clan = data.clan;
+    const config = getClanLevelConfig(clan.level);
+    const isLeader = state.player?.clan_role === 'leader';
+    const isOfficer = state.player?.clan_role === 'officer';
+    const canUpgrade = (isLeader || isOfficer) && clan.level < 10 && (clan.treasury ?? 0) >= getClanLevelConfig(clan.level + 1).cost;
+    const nextCost = clan.level < 10 ? getClanLevelConfig(clan.level + 1).cost : null;
+
+    openPopup(
+      `🏰 ${clan.symbol} ${clan.name}`,
+      `Уровень клана: ${clan.level}`,
+      [
+        ['📍 Зона', `${config.radius}м радиус`],
+        ['⚡ Буст дохода', `+${config.income}%`],
+        ['🛡️ Защита построек', `+${config.defense}%`],
+        ['💎 Казна', `${clan.treasury ?? 0} алмазов`],
+        ['👥 Участников', `${clan.member_count}/${config.maxMembers}`],
+      ],
+      [
+        ...(isLeader || isOfficer ? [{
+          label: '💎 Пополнить казну',
+          cls: 'primary',
+          action: () => doClanDonate(),
+        }] : []),
+        ...(canUpgrade && nextCost != null ? [{
+          label: `⬆️ Улучшить клан (${nextCost} 💎)`,
+          cls: 'yellow',
+          action: () => doClanUpgrade(),
+        }] : []),
+        { label: '👥 Участники', cls: '', action: () => openClanMembers(ch.clan_id) },
+        ...(!isLeader ? [{
+          label: '🚪 Покинуть клан',
+          cls: 'danger',
+          action: () => doClanLeave(),
+        }] : []),
+      ]
+    );
+  } catch (err) {
+    showToast('Ошибка: ' + err.message);
+  }
+}
+
+function showOtherClanHqPopup(ch) {
+  const config = getClanLevelConfig(ch.clan_level);
+  const playerInClan = !!state.player?.clan_id;
+  const hasClanHq = (state.mapBuildings.clan_hqs || []).some(c => c.is_mine);
+
+  let joinStatus = '';
+  let canJoin = false;
+  if (playerInClan) {
+    joinStatus = 'Вы уже состоите в клане';
+  } else if (!hasClanHq) {
+    joinStatus = 'Сначала постройте штаб клана';
+  } else {
+    canJoin = true;
+  }
+
+  openPopup(
+    `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
+    '',
+    [
+      ['Уровень', ch.clan_level],
+      ['⚡ Буст', `+${config.income}%`],
+      ['🛡️ Защита', `+${config.defense}%`],
+    ],
+    [
+      ...(canJoin ? [{
+        label: '⚔️ Вступить в клан',
+        cls: 'primary',
+        action: () => doClanJoin(ch.clan_id),
+      }] : []),
+      ...(!canJoin && joinStatus ? [{
+        label: joinStatus,
+        cls: '',
+        disabled: true,
+      }] : []),
+    ]
+  );
+}
+
+// ── Clan actions ──
+async function doBuildClanHq(lat, lng) {
+  try {
+    const data = await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'build-hq', lat, lng }),
+    });
+    if (state.player) state.player.coins = data.player_coins;
+    updateCoinDisplay();
+    showToast('🏰 Штаб клана построен!');
+    loadVisibleBuildings(true);
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+async function doClanJoin(clanId) {
+  closePopup();
+  try {
+    await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'join', clan_id: clanId }),
+    });
+    showToast('⚔️ Вы вступили в клан!');
+    refreshAll();
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+async function doClanLeave() {
+  closePopup();
+  if (!confirm('Покинуть клан? Кулдаун 72 часа.')) return;
+  try {
+    await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'leave' }),
+    });
+    showToast('🚪 Вы покинули клан');
+    refreshAll();
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+async function doClanDonate() {
+  closePopup();
+  const amount = prompt('Сколько алмазов пожертвовать в казну?');
+  if (!amount || isNaN(amount) || parseInt(amount) <= 0) return;
+  try {
+    const data = await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'donate', amount: parseInt(amount) }),
+    });
+    if (state.player) state.player.diamonds = data.player_diamonds;
+    updateDiamondDisplay();
+    showToast(`💎 Пожертвовано ${amount} алмазов! Казна: ${data.treasury}`);
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+async function doClanUpgrade() {
+  closePopup();
+  try {
+    const data = await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }),
+    });
+    showToast(`🎉 Клан улучшен до уровня ${data.clan.level}!`);
+    refreshAll();
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+// ── Clan screen ──
+function openClanScreen(title, html) {
+  const screen = document.getElementById('clan-screen');
+  document.getElementById('clan-screen-title').textContent = title;
+  document.getElementById('clan-screen-body').innerHTML = html;
+  screen.classList.add('open');
+}
+function closeClanScreen() {
+  document.getElementById('clan-screen').classList.remove('open');
+}
+document.getElementById('clan-back').addEventListener('click', closeClanScreen);
+
+async function openClanList() {
+  closePopup();
+  openClanScreen('Найти клан', '<div style="text-align:center;color:#888;padding:20px;">Загрузка...</div>');
+  try {
+    const data = await apiFetch(`/api/clan?view=list&telegram_id=${TG_ID}`);
+    const clans = data.clans || [];
+    if (clans.length === 0) {
+      document.getElementById('clan-screen-body').innerHTML =
+        '<div style="text-align:center;color:#888;padding:40px;">Кланов пока нет</div>';
+      return;
+    }
+    let html = '';
+    for (const c of clans) {
+      const config = getClanLevelConfig(c.level);
+      html += `
+        <div class="clan-card">
+          <div class="clan-card-header">
+            <span class="clan-name" style="color:${c.color || '#fff'}">${c.symbol || ''} ${c.name}</span>
+            <span class="clan-lvl">Ур. ${c.level}</span>
+          </div>
+          ${c.description ? `<div class="clan-card-desc">${c.description}</div>` : ''}
+          <div class="clan-card-stats">
+            <span>👥 ${c.member_count}/${config.maxMembers}</span>
+            <span>⚡ +${config.income}%</span>
+            <span>🛡️ +${config.defense}%</span>
+          </div>
+          <div class="clan-card-stats"><span>Мин. уровень: ${c.min_level || 1}</span><span>Лидер: ${c.leader_name}</span></div>
+          <button class="btn ${c.can_join ? 'primary' : ''}" ${c.can_join ? '' : 'disabled'} onclick="doClanJoin('${c.id}');closeClanScreen();">
+            ${c.can_join ? 'Вступить →' : 'Нельзя вступить'}
+          </button>
+        </div>
+      `;
+    }
+    document.getElementById('clan-screen-body').innerHTML = html;
+  } catch (err) {
+    document.getElementById('clan-screen-body').innerHTML =
+      `<div style="color:red;padding:20px;">${err.message}</div>`;
+  }
+}
+
+function openClanCreate() {
+  closePopup();
+  let selectedSymbol = '⚔️';
+  let selectedColor = '#FF1744';
+
+  let symbolsHtml = '';
+  for (const s of CLAN_SYMBOLS) {
+    symbolsHtml += `<div class="eg-cell ${s === selectedSymbol ? 'selected' : ''}" data-sym="${s}">${s}</div>`;
+  }
+  let colorsHtml = '';
+  for (const c of ALLOWED_CLAN_COLORS) {
+    colorsHtml += `<div class="cg-cell ${c === selectedColor ? 'selected' : ''}" data-color="${c}" style="background:${c}"></div>`;
+  }
+
+  openClanScreen('Создать клан', `
+    <div class="clan-form-field">
+      <label>Символ клана</label>
+      <div class="emoji-grid" id="clan-sym-grid">${symbolsHtml}</div>
+    </div>
+    <div class="clan-form-field">
+      <label>Название (3-20 символов)</label>
+      <input type="text" id="clan-name-input" maxlength="20" placeholder="Название клана">
+    </div>
+    <div class="clan-form-field">
+      <label>Цвет клана</label>
+      <div class="color-grid" id="clan-color-grid">${colorsHtml}</div>
+    </div>
+    <div class="clan-form-field">
+      <label>Мин. уровень для вступления</label>
+      <input type="range" id="clan-minlvl" min="1" max="50" value="1" style="width:100%">
+      <div style="text-align:center;color:#888;font-size:12px;" id="clan-minlvl-val">1</div>
+    </div>
+    <div class="clan-form-field">
+      <label>Описание (до 100 символов)</label>
+      <textarea id="clan-desc-input" maxlength="100" placeholder="Описание клана..."></textarea>
+    </div>
+    <div style="font-size:12px;color:#888;text-align:center;margin-bottom:12px;">Создание клана бесплатно</div>
+    <button class="btn yellow" id="clan-create-btn" style="width:100%;padding:12px;font-size:15px;">⚔️ Создать клан</button>
+  `);
+
+  // Symbol grid
+  document.getElementById('clan-sym-grid').addEventListener('click', e => {
+    const cell = e.target.closest('.eg-cell');
+    if (!cell) return;
+    selectedSymbol = cell.dataset.sym;
+    document.querySelectorAll('#clan-sym-grid .eg-cell').forEach(c => c.classList.remove('selected'));
+    cell.classList.add('selected');
+  });
+
+  // Color grid
+  document.getElementById('clan-color-grid').addEventListener('click', e => {
+    const cell = e.target.closest('.cg-cell');
+    if (!cell) return;
+    selectedColor = cell.dataset.color;
+    document.querySelectorAll('#clan-color-grid .cg-cell').forEach(c => c.classList.remove('selected'));
+    cell.classList.add('selected');
+  });
+
+  // Min level slider
+  document.getElementById('clan-minlvl').addEventListener('input', e => {
+    document.getElementById('clan-minlvl-val').textContent = e.target.value;
+  });
+
+  // Create button
+  document.getElementById('clan-create-btn').addEventListener('click', async () => {
+    const name = document.getElementById('clan-name-input').value.trim();
+    const desc = document.getElementById('clan-desc-input').value.trim();
+    const minLvl = parseInt(document.getElementById('clan-minlvl').value);
+
+    if (name.length < 3 || name.length > 20) { showToast('Название: 3-20 символов'); return; }
+
+    try {
+      await apiFetch('/api/clan', {
+        method: 'POST',
+        body: JSON.stringify({
+          telegram_id: TG_ID,
+          action: 'create',
+          name,
+          symbol: selectedSymbol,
+          color: selectedColor,
+          description: desc,
+          min_level: minLvl,
+        }),
+      });
+      closeClanScreen();
+      showToast('⚔️ Клан создан!');
+      refreshAll();
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
+}
+
+async function openClanMembers(clanId) {
+  closePopup();
+  openClanScreen('Участники', '<div style="text-align:center;color:#888;padding:20px;">Загрузка...</div>');
+  try {
+    const data = await apiFetch(`/api/clan?view=info&clan_id=${clanId}`);
+    const members = data.members || [];
+    const isLeader = state.player?.clan_role === 'leader';
+
+    let html = '';
+    for (const m of members) {
+      const p = m.players || {};
+      const name = p.game_username || p.username || '???';
+      const avatar = p.avatar || '🐺';
+      const roleLabel = m.role === 'leader' ? '👑' : m.role === 'officer' ? '⭐' : '';
+      html += `<div class="clan-member-row">
+        <div class="clan-member-avatar">${avatar}</div>
+        <div class="clan-member-info">
+          <div class="clan-member-name">${roleLabel} ${name}</div>
+          <div class="clan-member-meta">Ур.${p.level || 1} · ⛏️ ${m.mine_count} шахт</div>
+        </div>
+        ${isLeader && m.role !== 'leader' ? `
+          <div class="clan-member-actions">
+            ${m.role === 'member' ? `<button onclick="doClanSetRole('${p.telegram_id}','officer')">⬆️</button>` : `<button onclick="doClanSetRole('${p.telegram_id}','member')">⬇️</button>`}
+            <button onclick="doClanKick('${p.telegram_id}')">👢</button>
+          </div>
+        ` : ''}
+      </div>`;
+    }
+    document.getElementById('clan-screen-body').innerHTML = html || '<div style="color:#888;padding:20px;">Нет участников</div>';
+  } catch (err) {
+    document.getElementById('clan-screen-body').innerHTML = `<div style="color:red;padding:20px;">${err.message}</div>`;
+  }
+}
+
+async function doClanSetRole(targetTgId, role) {
+  try {
+    await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'set-role', target_telegram_id: targetTgId, role }),
+    });
+    showToast(`Роль изменена на ${role}`);
+    const clanId = state.player?.clan_id;
+    if (clanId) openClanMembers(clanId);
+  } catch (err) { showToast(err.message); }
+}
+
+async function doClanKick(targetTgId) {
+  if (!confirm('Кикнуть этого игрока?')) return;
+  try {
+    await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'kick', target_telegram_id: targetTgId }),
+    });
+    showToast('👢 Игрок исключён');
+    const clanId = state.player?.clan_id;
+    if (clanId) openClanMembers(clanId);
+  } catch (err) { showToast(err.message); }
+}
+
+// ─────────────────────────────────────────────
 //  Boot
 // ─────────────────────────────────────────────
 (async () => {
@@ -7909,7 +8640,7 @@ async function sellSelectedItems() {
 
   // For everyone else: check maintenance first (3s timeout — never block boot)
   try {
-    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${SERVER_URL}/api/admin/maintenance`, { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;

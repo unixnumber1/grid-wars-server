@@ -3,12 +3,16 @@
 Telegram Mini App — геолокационная стратегия в реальном мире.
 
 ## Стек
-- **Frontend**: `/public/index.html` (единый файл HTML+CSS+JS), Leaflet.js
-- **Backend**: Vercel Functions (`/api/*`), Node.js ESM
+- **Frontend**: `/public/index.html` (единый файл HTML+CSS+JS), Leaflet.js, Socket.io client
+- **Backend**: Express + Socket.io на VPS (`93.123.30.179:3000`), Node.js ESM
+- **Legacy Backend**: Vercel Functions (`/api/*`) — фронт перенаправлен на VPS
 - **БД**: Supabase (service-role key, RLS off)
-- **Хостинг**: Vercel (Hobby, ≤12 functions)
+- **Хостинг frontend**: Vercel (Hobby)
+- **Хостинг backend**: VPS 93.123.30.179, PM2, Nginx
 - **Telegram**: Bot API + WebApp SDK
-- **URL**: https://grid-wars-two.vercel.app
+- **URL frontend**: https://grid-wars-two.vercel.app
+- **URL backend**: http://93.123.30.179:3000
+- **Репо backend**: https://github.com/unixnumber1/grid-wars-server.git
 
 ## Env
 ```
@@ -26,14 +30,15 @@ BOT_TOKEN=
   /buildings/mine.js
   /buildings/attack.js     — attack/finish/extinguish/sell
   /buildings/upgrade.js
-  /economy/collect.js
+  (collect merged into /buildings/mine.js action:collect)
   /items/index.js          — equip/unequip/sell/open-box/craft/daily-diamonds/daily-check/stars-invoice/webhook
   /market/index.js         — listings/buy/list-item/cancel/attack-courier/pickup-drop/move-couriers
   /bots.js                 — spawn/move/attack/repel/lure
   /vases.js                — spawn/break/cron
+  /clan.js                 — build-hq/create/list/join/leave/donate/upgrade/set-role/kick/transfer/info
   /admin/maintenance.js    — reward/ban/unban/generate-markets/maintenance-start/end/fix-hq/setup-webhook
 /lib
-  supabase.js  grid.js  haversine.js  income.js  formulas.js  items.js  bots.js  vases.js  xp.js
+  supabase.js  grid.js  haversine.js  income.js  formulas.js  items.js  bots.js  vases.js  xp.js  clans.js
 /public
   index.html
 vercel.json  CLAUDE.md
@@ -43,7 +48,7 @@ vercel.json  CLAUDE.md
 
 | Таблица | Ключевые колонки |
 |---------|-----------------|
-| `players` | telegram_id, game_username, avatar, coins(BIGINT), diamonds, level, xp, hp, max_hp, attack, bonus_attack, bonus_crit, bonus_hp, equipped_sword, equipped_shield, shield_until, is_banned, daily_diamonds_claimed_at |
+| `players` | telegram_id, game_username, avatar, coins(BIGINT), diamonds, level, xp, hp, max_hp, attack, bonus_attack, bonus_crit, bonus_hp, equipped_sword, equipped_shield, shield_until, is_banned, daily_diamonds_claimed_at, clan_id, clan_role, clan_left_at |
 | `headquarters` | player_id, lat, lng, cell_id, level |
 | `mines` | owner_id, lat, lng, cell_id, level(0-250), last_collected, hp, max_hp, status(normal/under_attack/burning/destroyed), attacker_id, burning_started_at |
 | `items` | player_id, type(sword/axe/shield), rarity, attack, crit_chance, defense, on_market, held_by_courier, held_by_market |
@@ -56,6 +61,9 @@ vercel.json  CLAUDE.md
 | `notifications` | player_id, type, message, data(JSONB), read |
 | `pvp_cooldowns` | attacker_id, defender_id, expires_at |
 | `pvp_log` | attacker_id, defender_id, winner_id, rounds(JSONB), coins_transferred |
+| `clans` | name, symbol, color, description, min_level, level(1-10), treasury(BIGINT), leader_id |
+| `clan_members` | clan_id, player_id, role(leader/officer/member), joined_at, left_at |
+| `clan_headquarters` | player_id, clan_id, lat, lng, cell_id |
 
 ## Ключевые механики
 
@@ -95,9 +103,21 @@ vercel.json  CLAUDE.md
 - Физические точки рынка (OSM), курьеры на карте, PvP перехват курьеров
 - Макс 10 листингов, цена 1-100K💎, TTL 48ч
 
+### Кланы
+- Штаб клана (clan_headquarters): 10М монет, на карте маркер 🏰
+- Создание клана: бесплатно, нужен штаб клана
+- 10 уровней клана: бусты дохода (5-30%), защиты (10-75%), радиус (75-300м)
+- Апгрейд за алмазы из казны клана
+- Роли: leader, officer, member; лидер может менять роли и кикать
+- Автопередача лидерства при 7 днях неактивности лидера
+- Кулдаун 72ч при выходе из клана
+- Шахты в зоне штаба клана получают income_bonus и defense_bonus
+- Единый эндпоинт: POST /api/clan action:(build-hq/create/join/leave/donate/upgrade/set-role/kick/transfer)
+- GET /api/clan?view=list — список кланов; GET /api/clan?view=info&clan_id=... — инфо
+
 ### Unified Tick
 - POST /api/map action:tick каждые 5с — заменяет 7+ polling-запросов
-- Возвращает: player, buildings, bots, vases, couriers, drops, markets, online_players, notifications
+- Возвращает: player, buildings, bots, vases, couriers, drops, markets, online_players, notifications, clan_hqs
 - Периодическая чистка БД каждые 60 тиков (~5мин)
 
 ## Оптимизации
@@ -111,6 +131,10 @@ vercel.json  CLAUDE.md
 - Тёмная тема (#0d0d0d), Segoe UI / system-ui
 - Inline CSS в index.html (единый `<style>` блок)
 - Эмодзи маркеры на Leaflet карте
+- PvP: fullscreen battle animation с HP барами и floating damage
+- Mine attack: projectile animation + countdown overlay
+- Shop: daily diamonds countdown + Stars purchase via Telegram.WebApp.openInvoice
+- Mass sell: multi-select mode в инвентаре
 
 ## Admin
 - ADMIN_TG_ID: 560013667
@@ -118,4 +142,4 @@ vercel.json  CLAUDE.md
 - Панель: выдача ресурсов, бан/разбан, генерация рынков, maintenance mode, webhook setup
 
 ## TODO
-- [ ] Кланы
+- [x] Кланы
