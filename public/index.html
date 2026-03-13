@@ -1206,6 +1206,110 @@
       animation: popIn 0.2s ease-out;
     }
 
+    /* Craft screen */
+    #craft-overlay {
+      display: none; position: fixed; inset: 0;
+      background: #0d0d1a; z-index: 3600;
+      flex-direction: column; overflow-y: auto;
+    }
+    #craft-overlay.open { display: flex; }
+    #craft-header {
+      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    #craft-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
+    #craft-header p { font-size: 12px; color: #aaa; margin: 4px 0 0; }
+    #craft-close {
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
+    }
+    .craft-slots {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 8px; padding: 16px 20px;
+    }
+    .craft-slot {
+      aspect-ratio: 1; border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; color: rgba(255,255,255,0.2); cursor: pointer;
+      background: rgba(255,255,255,0.03); transition: all 0.2s; position: relative;
+    }
+    .craft-slot.filled { border-style: solid; color: #fff; }
+    .craft-slot.filled .craft-slot-remove {
+      position: absolute; top: -4px; right: -4px;
+      background: #ff4444; color: #fff; border-radius: 50%;
+      width: 16px; height: 16px; font-size: 10px; line-height: 16px;
+      text-align: center; pointer-events: none;
+    }
+    #craft-info { padding: 0 20px; min-height: 40px; }
+    #craft-info .craft-warning { color: #ffaa00; font-size: 13px; }
+    #craft-info .craft-count { color: #aaa; font-size: 13px; }
+    #craft-result-preview { padding: 0 20px 16px; }
+    .craft-chances { margin: 8px 0; }
+    .craft-chance-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+    .craft-chance-bar { height: 8px; border-radius: 4px; transition: width 0.3s; }
+    .craft-chance-label { min-width: 70px; }
+    .craft-chance-pct { min-width: 35px; text-align: right; color: #aaa; }
+    #craft-btn {
+      display: block; margin: 0 auto 16px; padding: 14px 40px; font-size: 16px; font-weight: 700;
+      border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #f5c518, #ff8c00); color: #000;
+      transition: opacity 0.2s;
+    }
+    #craft-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    /* Craft pick overlay */
+    #craft-pick-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 3700;
+      flex-direction: column;
+    }
+    #craft-pick-overlay.open { display: flex; }
+    #craft-pick-header {
+      padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #craft-pick-header h3 { margin: 0; font-size: 16px; }
+    #craft-pick-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+    .craft-pick-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 8px; padding: 16px 20px; overflow-y: auto; flex: 1;
+    }
+    .craft-pick-cell {
+      aspect-ratio: 1; background: rgba(255,255,255,0.05);
+      border-radius: 10px; border: 2px solid rgba(255,255,255,0.12);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 26px; transition: opacity 0.2s;
+    }
+    .craft-pick-cell.disabled { opacity: 0.3; pointer-events: none; }
+    .craft-pick-cell.locked { opacity: 0.3; pointer-events: none; position: relative; }
+    .craft-pick-cell.locked::after {
+      content: '🔒'; position: absolute; font-size: 14px; bottom: 2px; right: 4px;
+    }
+    @keyframes craftGlow {
+      0%,100% { box-shadow: 0 0 5px currentColor; }
+      50%     { box-shadow: 0 0 20px currentColor; }
+    }
+    @keyframes craftShrink {
+      to { transform: scale(0); opacity: 0; }
+    }
+
+    /* Joystick */
+    #joystick-base {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2);
+      position: relative; display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); touch-action: none;
+    }
+    #joystick-stick {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(255,255,255,0.9); position: absolute;
+      cursor: grab; box-shadow: 0 2px 8px rgba(0,0,0,0.4); touch-action: none;
+    }
+    #joystick-speed { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+    .speed-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(255,255,255,0.3); cursor: pointer; transition: background 0.2s;
+    }
+    .speed-dot.active { background: #00e676; }
+
     /* Vase drop popup */
     #vase-drop-popup {
       display: none;
@@ -1770,6 +1874,9 @@
       <button id="btn-fix-hq" class="btn yellow" style="width:100%;padding:12px;font-size:14px;margin-top:8px;">
         🏠 Почистить дубли штабов
       </button>
+      <button id="btn-joystick-toggle" class="btn" style="width:100%;padding:12px;font-size:14px;margin-top:8px;background:rgba(255,255,255,0.1);" onclick="toggleJoystick()">
+        🕹️ Джойстик: ВЫКЛ
+      </button>
 
       <!-- Player management -->
       <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
@@ -1872,6 +1979,18 @@
   </div>
   <div></div>
   <button class="btn primary" id="btn-collect" disabled>&#x1F4B0; Собрать</button>
+</div>
+
+<!-- Joystick (admin only) -->
+<div id="joystick-container" style="display:none;position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));right:20px;z-index:999;flex-direction:column;align-items:center;">
+  <div id="joystick-base">
+    <div id="joystick-stick"></div>
+  </div>
+  <div id="joystick-speed">
+    <div class="speed-dot active" data-speed="0" onclick="setJoystickSpeed(0)"></div>
+    <div class="speed-dot" data-speed="1" onclick="setJoystickSpeed(1)"></div>
+    <div class="speed-dot" data-speed="2" onclick="setJoystickSpeed(2)"></div>
+  </div>
 </div>
 
 <!-- Generic popup -->
@@ -1999,32 +2118,33 @@ const H3_RES            = 11;    // ~50m hex diameter
 const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
 
 // Formulas (keep in sync with lib/formulas.js)
+function mineBaseCost(l) {
+  if (l <= 0)   return 100; // activation cost 0→1
+  if (l <= 50)  return 100 * Math.pow(1.21, l - 1);
+  const e1 = 100 * Math.pow(1.21, 49);
+  if (l <= 100) return e1 * 5 * Math.pow(1.15, l - 51);
+  const e2 = e1 * 5 * Math.pow(1.15, 49);
+  if (l <= 150) return e2 * 8 * Math.pow(1.13, l - 101);
+  const e3 = e2 * 8 * Math.pow(1.13, 49);
+  if (l <= 200) return e3 * 12 * Math.pow(1.12, l - 151);
+  const e4 = e3 * 12 * Math.pow(1.12, 49);
+  return e4 * 20 * Math.pow(1.11, l - 201);
+}
 function getMineUpgradeCost(level) {
-  function base(l) {
-    if (l <= 50)  return 100 * Math.pow(1.21, l - 1);
-    const e1 = 100 * Math.pow(1.21, 49);
-    if (l <= 100) return e1 * 5 * Math.pow(1.15, l - 51);
-    const e2 = e1 * 5 * Math.pow(1.15, 49);
-    if (l <= 150) return e2 * 8 * Math.pow(1.13, l - 101);
-    const e3 = e2 * 8 * Math.pow(1.13, 49);
-    if (l <= 200) return e3 * 12 * Math.pow(1.12, l - 151);
-    const e4 = e3 * 12 * Math.pow(1.12, 49);
-    return e4 * 20 * Math.pow(1.11, l - 201);
-  }
-  let cost = base(level);
+  let cost = mineBaseCost(level);
   if (level >= 9 && level % 10 === 9) cost *= 4;
   return Math.min(Math.round(cost), 9_000_000_000_000_000_000);
 }
+function getPayback(l) {
+  if (l <= 50)  return 3600 * Math.pow(6, (l - 1) / 49);
+  if (l <= 100) return 21600 * Math.pow(12, (l - 50) / 50);
+  if (l <= 150) return 259200 * Math.pow(4.67, (l - 100) / 50);
+  if (l <= 200) return 1209600 * Math.pow(4.29, (l - 150) / 50);
+  return 5184000 * Math.pow(6.08, (l - 200) / 50);
+}
 function getMineIncome(level) {
   if (level === 0) return 0;
-  function getPayback(l) {
-    if (l <= 50)  return 3600 * Math.pow(6, (l - 1) / 49);
-    if (l <= 100) return 21600 * Math.pow(12, (l - 50) / 50);
-    if (l <= 150) return 259200 * Math.pow(4.67, (l - 100) / 50);
-    if (l <= 200) return 1209600 * Math.pow(4.29, (l - 150) / 50);
-    return 5184000 * Math.pow(6.08, (l - 200) / 50);
-  }
-  const cost = getMineUpgradeCost(level);
+  const cost = mineBaseCost(level);
   return Math.max(1, Math.round(cost / getPayback(level)));
 }
 function getMineCapacity(level) {
@@ -2714,6 +2834,7 @@ function setLoadingText(t) {
 }
 
 async function apiFetch(path, opts = {}) {
+  if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
@@ -2755,6 +2876,10 @@ style.textContent = '.map-tiles { filter: brightness(0.55) saturate(0.7) invert(
 document.head.appendChild(style);
 
 // zoom controls disabled (zoomControl: false in map init)
+
+// Keep Leaflet container size in sync with viewport changes (Telegram WebApp resizes)
+window.addEventListener('resize', () => map.invalidateSize());
+if (tg?.onEvent) tg.onEvent('viewportChanged', () => setTimeout(() => map.invalidateSize(), 50));
 
 let playerMarker = null;
 let playerZoneCircle = null;   // small blue circle (build zone)
@@ -2804,10 +2929,11 @@ function togglePin() {
     return;
   }
   pinMode = !pinMode;
+  map.invalidateSize();
   if (pinMode) {
     realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
     _applyPlayerPosition(hqLat, hqLng);
-    map.setView([hqLat, hqLng], map.getZoom());
+    map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
     updatePinButton(true);
     loadVisibleBuildings();
     if (TG_ID) apiFetch('/api/player/init', {
@@ -2816,13 +2942,15 @@ function togglePin() {
     }).catch(() => {});
     showToast('📌 Телепорт на штаб');
   } else {
-    const restoreTo = realPlayerPos || state.playerPos;
-    if (restoreTo) {
-      _applyPlayerPosition(restoreTo.lat, restoreTo.lng);
-      map.setView([restoreTo.lat, restoreTo.lng], map.getZoom());
-      if (TG_ID) apiFetch('/api/player/location', {
+    // Joystick: stay where joystick left us (state.playerPos is HQ here, but realPlayerPos was saved at PIN-on)
+    // No joystick: restore to latest real GPS
+    const target = realPlayerPos || state.playerPos;
+    if (target) {
+      _applyPlayerPosition(target.lat, target.lng);
+      map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
+      if (TG_ID) apiFetch('/api/player/init', {
         method: 'POST',
-        body: JSON.stringify({ telegram_id: TG_ID, lat: restoreTo.lat, lng: restoreTo.lng }),
+        body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng }),
       }).catch(() => {});
     }
     updatePinButton(false);
@@ -2969,6 +3097,7 @@ function updateHexGrid() {
     if (inPlayerZone) {
       poly.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
+        if (Date.now() - _suppressMapClick < 300) return;
         handleHexClick(cellId);
       });
     }
@@ -3345,7 +3474,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const playerCoins = state.player?.coins ?? 0;
     const refund   = calcSellRefund(mine.level);
     const sellTotal = refund + (accumulated || 0);
-    const levelLabel = mine.level === 0 ? 'Неактивен' : `Ур. ${mine.level}`;
+    const levelLabel = `Ур. ${mine.level}`;
 
     // Check if upgrade is in progress
     const isUpgrading = mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date();
@@ -3356,17 +3485,15 @@ function showMinePopup(mine, isOwn, canCapture) {
     const upgradeLabel = isUpgrading
       ? '⏳ Идёт улучшение...'
       : nextCost !== null
-        ? mine.level === 0
-          ? `⚡ Активировать (${formatCoins(nextCost)} монет)`
-          : `⬆️ Улучшить (${formatNumber(nextCost)})`
+        ? `⬆️ Улучшить (${formatNumber(nextCost)})`
         : 'МАКС УРОВЕНЬ';
 
     // Bulk upgrade button: to next round level
     const targetBulkLevel = Math.min(getNextRoundLevel(mine.level), MINE_MAX_LEVEL);
     const bulkLevelsCount = targetBulkLevel - mine.level;
     const bulkCost = bulkLevelsCount > 0 ? getMineUpgradeCostBulk(mine.level, bulkLevelsCount) : 0;
-    const canBulk = !isUpgrading && bulkLevelsCount > 0 && mine.level > 0 && playerCoins >= bulkCost && inZone;
-    const bulkLabel = (bulkLevelsCount > 0 && mine.level > 0)
+    const canBulk = !isUpgrading && bulkLevelsCount > 0 && playerCoins >= bulkCost && inZone;
+    const bulkLabel = (bulkLevelsCount > 0)
       ? `⚡ до ур.${targetBulkLevel} (${formatCoins(bulkCost)})`
       : null;
 
@@ -3377,12 +3504,10 @@ function showMinePopup(mine, isOwn, canCapture) {
         ...(attacker ? [['Высосано', `${formatNumber(attacker.drained_amount || 0)} монет`]] : []),
         ...(isUpgrading
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
-          : mine.level === 0
-            ? [['Статус', 'Нужен первый апгрейд']]
-            : [
-                ['Доход', `${formatCoins(rate)}/ч`],
-                ['Накоплено', `${formatCoins(accumulated)} / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`],
-              ]),
+          : [
+              ['Доход', `${formatCoins(rate)}/ч`],
+              ...(mine.level > 0 ? [['Накоплено', `${formatCoins(accumulated)} / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
+            ]),
         ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? formatCoins(nextCost) : 'МАКС']] : []),
         ['Монеты', formatCoins(playerCoins)],
       ],
@@ -3433,7 +3558,9 @@ function showMinePopup(mine, isOwn, canCapture) {
 // ─────────────────────────────────────────────
 //  Map click → outside-zone feedback or hex routing
 // ─────────────────────────────────────────────
+let _suppressMapClick = 0; // timestamp — suppress map click briefly after marker click
 map.on('click', e => {
+  if (Date.now() - _suppressMapClick < 300) return;
   if (!state.player || !state.playerPos) return;
   const { lat, lng } = e.latlng;
   const pos = state.playerPos;
@@ -3785,9 +3912,19 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
 document.getElementById('btn-collect').addEventListener('click', doCollect);
 
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
+let _centerLockUntil = 0; // suppress GPS marker drift during flyTo
 document.getElementById('player-avatar-wrap').addEventListener('click', () => {
-  const pos = state.playerPos;
-  if (pos) map.setView([pos.lat, pos.lng], map.getZoom(), { animate: true, duration: 0.5 });
+  alert('avatar-wrap tapped! pinMode=' + pinMode);
+  const markerLL = playerMarker ? playerMarker.getLatLng() : null;
+  console.log('[avatar-tap] pinMode:', pinMode, 'joystick:', _joystickEnabled,
+    'markerLL:', markerLL ? `${markerLL.lat.toFixed(5)},${markerLL.lng.toFixed(5)}` : null,
+    'statePos:', state.playerPos ? `${state.playerPos.lat.toFixed(5)},${state.playerPos.lng.toFixed(5)}` : null,
+    'realGPS:', realPlayerPos ? `${realPlayerPos.lat.toFixed(5)},${realPlayerPos.lng.toFixed(5)}` : null);
+  const pos = markerLL || state.playerPos || realPlayerPos;
+  if (!pos) return;
+  map.invalidateSize();
+  _centerLockUntil = Date.now() + 1500;
+  map.flyTo([pos.lat, pos.lng], map.getZoom(), { animate: true, duration: 0.4 });
 });
 document.getElementById('player-avatar-wrap').style.cursor = 'pointer';
 // profile-modal-close is rendered after the closing script tag, bind after full parse
@@ -3885,6 +4022,97 @@ async function refreshAll() {
 }
 
 // ─────────────────────────────────────────────
+//  Unified game tick (single polling loop)
+// ─────────────────────────────────────────────
+let _unifiedTickInterval = null;
+let _tickPending = false;
+let _tickAbort = null;
+
+async function unifiedTick() {
+  if (_tickPending || !TG_ID || !state.playerPos) return;
+  _tickPending = true;
+
+  const prevLevel = state.player?.level;
+  try {
+    const pos = state.playerPos;
+    const bounds = map.getBounds();
+    const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
+    const latPad = (ne.lat - sw.lat) * 0.2;
+    const lngPad = (ne.lng - sw.lng) * 0.2;
+
+    if (_tickAbort) _tickAbort.abort();
+    _tickAbort = new AbortController();
+    const data = await apiFetch('/api/map', {
+      method: 'POST',
+      signal: _tickAbort.signal,
+      body: JSON.stringify({
+        action: 'tick',
+        telegram_id: TG_ID,
+        lat: pos.lat, lng: pos.lng,
+        north: ne.lat + latPad, south: sw.lat - latPad,
+        east: ne.lng + lngPad, west: sw.lng - lngPad,
+      }),
+    });
+
+    // Update player state
+    if (data.player) {
+      state.player = data.player;
+      if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
+    }
+    if (data.mines_own) {
+      state.mines = data.mines_own;
+    }
+    if (data.totalIncome != null) state.totalIncome = data.totalIncome;
+    if (data.inventory) state.inventory = data.inventory;
+
+    // Render map data
+    state.mapBuildings = data;
+    renderBuildings();
+    renderBots(data.bots || []);
+    renderVases(data.vases || []);
+    renderMarkets(data.markets || []);
+    renderCouriers(data.couriers || []);
+    renderDrops(data.courier_drops || []);
+    updateHexGrid();
+    updateCoinDisplay();
+    updatePlayerDisplay();
+
+    // Handle completed upgrades
+    if (data.completedUpgrades?.length) {
+      for (const mine of data.completedUpgrades) {
+        const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
+        const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
+        const newApp = getMineAppearance(mine.level);
+        if (prevName && newApp.name !== prevName) {
+          showToast(`✅ Ур.${mine.level}! ✨ Эволюция → ${newApp.emoji} ${newApp.name}`);
+        } else {
+          showToast(`✅ Постройка улучшена до уровня ${mine.level}!`);
+        }
+        handleXpResult(mine.xp);
+      }
+    }
+
+    // Show notifications as toasts
+    if (data.notifications?.length) {
+      for (const n of data.notifications.slice(0, 5)) {
+        showToast(n.message, 4000);
+      }
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.warn('[tick] error:', err.message);
+  } finally {
+    _tickAbort = null;
+    _tickPending = false;
+  }
+}
+
+function startUnifiedTick() {
+  if (_unifiedTickInterval) clearInterval(_unifiedTickInterval);
+  _unifiedTickInterval = setInterval(unifiedTick, 5000);
+}
+
+// ─────────────────────────────────────────────
 //  GPS tracking
 // ─────────────────────────────────────────────
 let _lastLocationReport = 0;
@@ -3925,10 +4153,12 @@ function onPosition(pos) {
     playerMarker.setIcon(pIcon);
   }
 
-  if (!pinMode) {
+  if (!pinMode && !_joystickEnabled) {
     // Normal mode — apply real GPS to marker/zone/state
     _applyPlayerPosition(lat, lng);
   }
+  // While centerLock is active (after avatar tap flyTo), suppress GPS map moves
+  // so the camera doesn't jump away from the target
   // PIN mode — keep marker/zone/state at HQ, ignore GPS movement
 
   // Enable action buttons on first GPS fix
@@ -3936,17 +4166,7 @@ function onPosition(pos) {
     document.getElementById('btn-collect').disabled = false;
   }
 
-  // Location report: HQ coords in PIN mode, real GPS otherwise
-  const now = Date.now();
-  if (TG_ID && now - _lastLocationReport > 8000) {
-    _lastLocationReport = now;
-    const reportLat = pinMode ? hqLat : lat;
-    const reportLng = pinMode ? hqLng : lng;
-    apiFetch('/api/player/init', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: reportLat, lng: reportLng }),
-    }).catch(() => {});
-  }
+  // Location reporting is now handled by unified tick (every 5s)
 }
 
 function onGpsError(err) {
@@ -4025,7 +4245,7 @@ function renderVases(vasesRaw) {
     vaseData[vase.id] = vase;
     if (!vaseMarkers[vase.id]) {
       const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 2000 });
-      marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showVasePopup(vase.id); });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showVasePopup(vase.id); });
       marker.addTo(vaseLayer);
       vaseMarkers[vase.id] = marker;
     }
@@ -4033,7 +4253,7 @@ function renderVases(vasesRaw) {
 }
 
 // Update countdown timers every second
-setInterval(() => {
+let _vaseTimerInterval = setInterval(() => {
   const el = document.getElementById('vase-popup-timer');
   if (!el) return;
   const vaseId = el.dataset.vaseId;
@@ -4041,7 +4261,7 @@ setInterval(() => {
 }, 1000);
 
 // Remove expired vase markers every minute
-setInterval(() => {
+let _vaseCleanupInterval = setInterval(() => {
   const now = new Date();
   Object.entries(vaseMarkers).forEach(([id, marker]) => {
     const vase = vaseData[id];
@@ -4345,7 +4565,7 @@ function renderBots(bots) {
       ref.marker.setIcon(botIcon(bot));
     } else {
       const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
-      marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
       marker.addTo(botLayer);
       botMarkers[bot.id] = { marker };
     }
@@ -5200,6 +5420,7 @@ async function boot() {
     if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
       document.getElementById('admin-section').style.display = 'block';
     }
+    _checkJoystickAdmin();
 
     // Show unread notifications as toasts
     if (data.notifications && data.notifications.length > 0) {
@@ -5251,20 +5472,9 @@ async function boot() {
       timeout: 10000,
     });
 
-    // Periodic map refresh (every 12s, skips if map didn't move)
-    setInterval(loadVisibleBuildings, 12000);
-
-    // Periodic player/level refresh (detect XP gains, level-ups)
-    setInterval(refreshAll, 30000);
-
-    // Bot system: move every 8s (global lock prevents too-frequent runs), spawn every 45s
-    tickBotSpawn();
-    setInterval(tickBotMove,  8000);
-    setInterval(tickBotSpawn, 45000);
+    // ── Unified game tick (replaces separate map/bots/couriers/upgrades polling) ──
+    startUnifiedTick();
     startBotAnimation();
-
-    // Poll for completed mine upgrades every 3s
-    setInterval(pollCompleteUpgrades, 3000);
 
     _gameInitialised = true;
 
@@ -5497,6 +5707,441 @@ document.querySelectorAll('.shop-info-btn').forEach(btn => {
 });
 
 // ─────────────────────────────────────────────
+//  Craft system
+// ─────────────────────────────────────────────
+const NEXT_RARITY = { common:'uncommon', uncommon:'rare', rare:'epic', epic:'mythic', mythic:'legendary' };
+const ITEM_EMOJI_MAP = { sword:'🗡️', axe:'🪓', shield:'🛡️' };
+let _craftSelected = []; // array of item objects
+
+function openCraftScreen() {
+  _craftSelected = [];
+  _renderCraftSlots();
+  _updateCraftInfo();
+  document.getElementById('craft-overlay').classList.add('open');
+}
+
+function closeCraftScreen() {
+  document.getElementById('craft-overlay').classList.remove('open');
+  _craftSelected = [];
+}
+
+function _renderCraftSlots() {
+  const container = document.getElementById('craft-slots');
+  container.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const slot = document.createElement('div');
+    const item = _craftSelected[i];
+    if (item) {
+      slot.className = `craft-slot filled ${rarityClass(item.rarity)}`;
+      slot.innerHTML = `<span>${item.emoji}</span><span class="craft-slot-remove">✕</span>`;
+      slot.onclick = () => { _craftSelected.splice(i, 1); _renderCraftSlots(); _updateCraftInfo(); };
+    } else {
+      slot.className = 'craft-slot';
+      slot.textContent = '+';
+      slot.onclick = () => openCraftPick();
+    }
+    container.appendChild(slot);
+  }
+}
+
+function _updateCraftInfo() {
+  const infoEl = document.getElementById('craft-info');
+  const previewEl = document.getElementById('craft-result-preview');
+  const btn = document.getElementById('craft-btn');
+
+  if (_craftSelected.length === 0) {
+    infoEl.innerHTML = '<div class="craft-count">Выбрано: 0/10</div>';
+    previewEl.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
+
+  const rarities = new Set(_craftSelected.map(i => i.rarity));
+  if (rarities.size > 1) {
+    infoEl.innerHTML = '<div class="craft-warning">⚠️ Все предметы должны быть одной редкости</div>';
+    previewEl.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
+
+  const rarity = _craftSelected[0].rarity;
+  const rarName = RARITY_NAMES_CLIENT[rarity] || rarity;
+  infoEl.innerHTML = `<div class="craft-count">Выбрано: ${_craftSelected.length}/10 &nbsp; [${rarName}]</div>`;
+
+  if (_craftSelected.length < 10) {
+    previewEl.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
+
+  // All 10 same rarity — show preview
+  const nextRar = NEXT_RARITY[rarity];
+  const typeCounts = {};
+  for (const it of _craftSelected) typeCounts[it.type] = (typeCounts[it.type] || 0) + 1;
+
+  const rarColor = RARITY_COLORS_CLIENT[rarity] || '#888';
+  const barColor = rarColor.startsWith('linear') ? '#FFD700' : rarColor;
+
+  let chancesHtml = '';
+  for (const [type, count] of Object.entries(typeCounts)) {
+    const pct = count * 10;
+    const emoji = ITEM_EMOJI_MAP[type] || '';
+    const name = type === 'sword' ? 'Меч' : type === 'axe' ? 'Топор' : 'Щит';
+    chancesHtml += `
+      <div class="craft-chance-row">
+        <span class="craft-chance-label">${emoji} ${name}</span>
+        <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;">
+          <div class="craft-chance-bar" style="width:${pct}%;background:${barColor};"></div>
+        </div>
+        <span class="craft-chance-pct">${pct}%</span>
+      </div>
+    `;
+  }
+
+  previewEl.innerHTML = `
+    <div style="font-size:14px;color:#ccc;margin-bottom:4px;">Результат:</div>
+    <div style="font-size:15px;font-weight:700;">✨ ${rarityLabel(nextRar)}</div>
+    <div style="font-size:12px;color:#888;margin:4px 0 8px;">Шансы типа:</div>
+    <div class="craft-chances">${chancesHtml}</div>
+  `;
+  btn.disabled = false;
+}
+
+function openCraftPick() {
+  const selectedIds = new Set(_craftSelected.map(i => i.id));
+  const lockedRarity = _craftSelected.length > 0 ? _craftSelected[0].rarity : null;
+
+  const inv = (state.inventory || []).filter(i => !i.on_market && !i.equipped).slice().sort((a, b) =>
+    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
+  );
+
+  const grid = document.getElementById('craft-pick-grid');
+  grid.innerHTML = '';
+
+  for (const item of inv) {
+    if (selectedIds.has(item.id)) continue;
+
+    const cell = document.createElement('div');
+    cell.className = `craft-pick-cell ${rarityClass(item.rarity)}`;
+
+    if (item.rarity === 'legendary') {
+      cell.classList.add('locked');
+      cell.innerHTML = `<span>${item.emoji}</span>`;
+    } else if (lockedRarity && item.rarity !== lockedRarity) {
+      cell.classList.add('disabled');
+      cell.innerHTML = `<span>${item.emoji}</span>`;
+    } else {
+      cell.innerHTML = `<span>${item.emoji}</span>`;
+      cell.onclick = () => {
+        _craftSelected.push(item);
+        closeCraftPick();
+        _renderCraftSlots();
+        _updateCraftInfo();
+      };
+    }
+    grid.appendChild(cell);
+  }
+
+  if (grid.children.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">Нет подходящих предметов</div>';
+  }
+
+  document.getElementById('craft-pick-overlay').classList.add('open');
+}
+
+function closeCraftPick() {
+  document.getElementById('craft-pick-overlay').classList.remove('open');
+}
+
+async function doCraft() {
+  if (_craftSelected.length !== 10) return;
+  const btn = document.getElementById('craft-btn');
+  btn.disabled = true;
+  btn.textContent = '⚒️ Крафтим...';
+
+  try {
+    const sourceItems = _craftSelected.slice();
+    const itemIds = sourceItems.map(i => i.id);
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'craft', item_ids: itemIds }),
+    });
+
+    // Remove consumed items from state
+    const consumedSet = new Set(itemIds);
+    state.inventory = (state.inventory || []).filter(i => !consumedSet.has(i.id));
+    state.inventory.unshift(data.item);
+
+    // Run full animation
+    await _playCraftAnimation(data.item, sourceItems);
+
+    _craftSelected = [];
+    _renderCraftSlots();
+    _updateCraftInfo();
+    _renderEquipSlots();
+    _renderInventoryGrid();
+    showToast(`⚒️ Скрафтлен ${data.item.name}!`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.textContent = '⚒️ Скрафтить';
+    btn.disabled = _craftSelected.length !== 10;
+  }
+}
+
+function _craftSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function _playCraftAnimation(resultItem, sourceItems) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+  document.body.appendChild(overlay);
+
+  // Phase 1: items form a circle
+  const icons = sourceItems.map(item => {
+    const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+    const bc = rc.startsWith('linear') ? '#FFD700' : rc;
+    const el = document.createElement('div');
+    el.style.cssText = `position:absolute;font-size:32px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:2px solid ${bc};background:rgba(0,0,0,0.8);transition:all 0.6s cubic-bezier(0.34,1.56,0.64,1);transform:translate(-50%,-50%);left:50%;top:50%;opacity:0;filter:drop-shadow(0 0 8px ${bc});`;
+    el.textContent = item.emoji;
+    overlay.appendChild(el);
+    return el;
+  });
+
+  await _craftSleep(100);
+  const radius = 110;
+  icons.forEach((el, i) => {
+    const angle = (i / icons.length) * Math.PI * 2 - Math.PI / 2;
+    el.style.opacity = '1';
+    el.style.transform = `translate(calc(-50% + ${Math.cos(angle) * radius}px), calc(-50% + ${Math.sin(angle) * radius}px))`;
+  });
+  await _craftSleep(700);
+
+  // Phase 2: spin faster and faster
+  const ring = document.createElement('div');
+  ring.style.cssText = 'position:absolute;width:100%;height:100%;top:0;left:0;';
+  icons.forEach(el => ring.appendChild(el));
+  overlay.appendChild(ring);
+
+  const craftStyle = document.createElement('style');
+  craftStyle.textContent = `
+    @keyframes _craftSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    @keyframes _craftItemAppear { 0%{transform:scale(0) rotate(-180deg);opacity:0} 60%{transform:scale(1.3) rotate(10deg)} 100%{transform:scale(1) rotate(0deg);opacity:1} }
+  `;
+  document.head.appendChild(craftStyle);
+
+  let duration = 2.0;
+  const spinInterval = setInterval(() => {
+    duration = Math.max(0.15, duration * 0.82);
+    ring.style.animation = `_craftSpin ${duration}s linear infinite`;
+  }, 350);
+
+  let shakeIntensity = 2;
+  const shakeInterval = setInterval(() => {
+    shakeIntensity = Math.min(18, shakeIntensity * 1.3);
+    const sx = (Math.random() - 0.5) * shakeIntensity;
+    const sy = (Math.random() - 0.5) * shakeIntensity;
+    overlay.style.transform = `translate(${sx}px,${sy}px)`;
+  }, 80);
+
+  await _craftSleep(2800);
+
+  // Phase 3: stop — white out
+  clearInterval(spinInterval);
+  clearInterval(shakeInterval);
+  overlay.style.transform = 'none';
+  ring.style.animation = 'none';
+
+  const whiteout = document.createElement('div');
+  whiteout.style.cssText = 'position:absolute;inset:0;background:white;opacity:0;transition:opacity 0.8s ease-in;';
+  overlay.appendChild(whiteout);
+  await _craftSleep(50);
+  whiteout.style.opacity = '1';
+  await _craftSleep(850);
+
+  // Phase 4: rarity color flash
+  const rarityColor = RARITY_COLORS_CLIENT[resultItem.rarity] || '#888';
+  const flashColor = resultItem.rarity === 'legendary' ? '#FFD700' : (rarityColor.startsWith('linear') ? '#FFD700' : rarityColor);
+
+  whiteout.style.transition = 'background 0.05s, opacity 0.4s';
+  whiteout.style.background = flashColor;
+  whiteout.style.opacity = '0.95';
+  await _craftSleep(120);
+  whiteout.style.opacity = '0';
+  whiteout.style.transition = 'opacity 0.5s ease-out';
+  await _craftSleep(500);
+
+  // Phase 5: result banner
+  ring.style.opacity = '0';
+  ring.style.transition = 'opacity 0.3s';
+
+  const rarityName = RARITY_NAMES_CLIENT[resultItem.rarity] || resultItem.rarity;
+  const isLegendary = resultItem.rarity === 'legendary';
+
+  const statsHtml = [
+    resultItem.attack ? `<span>⚔️ +${resultItem.attack}</span>` : '',
+    resultItem.crit_chance ? `<span>🎯 ${resultItem.crit_chance}%</span>` : '',
+    resultItem.defense ? `<span>🛡️ +${resultItem.defense}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;opacity:0;transition:opacity 0.6s ease;';
+  banner.innerHTML = `
+    <div style="font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚒️ СКРАФТЛЕНО</div>
+    <div style="font-size:96px;line-height:1;filter:drop-shadow(0 0 30px ${flashColor});animation:_craftItemAppear 0.5s cubic-bezier(0.34,1.56,0.64,1);">${resultItem.emoji}</div>
+    <div style="font-size:24px;font-weight:bold;${isLegendary ? 'background:linear-gradient(90deg,#FFD700,#FF8C00,#FFD700);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:legendaryShimmer 2s linear infinite;' : `color:${flashColor};`}">${resultItem.name}</div>
+    <div style="padding:4px 16px;border-radius:20px;font-size:13px;font-weight:bold;background:${flashColor}33;border:1px solid ${flashColor};color:${flashColor};">${rarityName}</div>
+    <div style="font-size:15px;color:rgba(255,255,255,0.7);display:flex;gap:16px;margin-top:4px;">${statsHtml}</div>
+    <div style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.3);letter-spacing:1px;">Нажмите чтобы продолжить</div>
+  `;
+  overlay.appendChild(banner);
+  await _craftSleep(50);
+  banner.style.opacity = '1';
+
+  // Click to close
+  await new Promise(resolve => {
+    overlay.addEventListener('click', resolve, { once: true });
+  });
+
+  overlay.style.transition = 'opacity 0.3s';
+  overlay.style.opacity = '0';
+  await _craftSleep(300);
+  overlay.remove();
+  craftStyle.remove();
+}
+
+// ─────────────────────────────────────────────
+//  Joystick (admin only)
+// ─────────────────────────────────────────────
+const JOYSTICK_SPEEDS = [0.00003, 0.00015, 0.0006];
+let _joystickEnabled = false;
+let _joystickActive = false;
+let _joystickDx = 0, _joystickDy = 0;
+let _joystickSpeed = 0;
+let _joystickInterval = null;
+let _joystickSyncInterval = null;
+let _joystickLastSyncLat = null, _joystickLastSyncLng = null;
+
+function toggleJoystick() {
+  _joystickEnabled = !_joystickEnabled;
+  localStorage.setItem('joystickEnabled', _joystickEnabled ? 'true' : 'false');
+  const btn = document.getElementById('btn-joystick-toggle');
+  if (_joystickEnabled) {
+    btn.textContent = '🕹️ Джойстик: ВКЛ';
+    btn.style.background = '#00c853';
+    _showJoystick();
+  } else {
+    btn.textContent = '🕹️ Джойстик: ВЫКЛ';
+    btn.style.background = 'rgba(255,255,255,0.1)';
+    _hideJoystick();
+  }
+}
+
+function _showJoystick() {
+  document.getElementById('joystick-container').style.display = 'flex';
+  if (!_joystickInterval) {
+    _joystickInterval = setInterval(_joystickTick, 100);
+  }
+  if (!_joystickSyncInterval) {
+    _joystickSyncInterval = setInterval(_joystickSync, 2000);
+  }
+}
+
+function _hideJoystick() {
+  document.getElementById('joystick-container').style.display = 'none';
+  if (_joystickInterval) { clearInterval(_joystickInterval); _joystickInterval = null; }
+  if (_joystickSyncInterval) { clearInterval(_joystickSyncInterval); _joystickSyncInterval = null; }
+  _joystickActive = false;
+  _joystickDx = 0; _joystickDy = 0;
+}
+
+function _joystickTick() {
+  if (!_joystickActive) return;
+  if (Math.abs(_joystickDx) < 0.05 && Math.abs(_joystickDy) < 0.05) return;
+  const speed = JOYSTICK_SPEEDS[_joystickSpeed];
+  const pos = state.playerPos;
+  if (!pos) return;
+  const newLat = pos.lat + (-_joystickDy * speed);
+  const newLng = pos.lng + (_joystickDx * speed);
+  _applyPlayerPosition(newLat, newLng);
+  if (pinMode) {
+    // Keep camera centered during joystick movement
+    map.setView([newLat, newLng], map.getZoom(), { animate: false });
+  }
+}
+
+function _joystickSync() {
+  if (!_joystickEnabled) return;
+  const pos = state.playerPos;
+  if (!pos) return;
+  if (pos.lat === _joystickLastSyncLat && pos.lng === _joystickLastSyncLng) return;
+  _joystickLastSyncLat = pos.lat;
+  _joystickLastSyncLng = pos.lng;
+  apiFetch('/api/player/init', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
+  }).catch(() => {});
+}
+
+function setJoystickSpeed(idx) {
+  _joystickSpeed = idx;
+  document.querySelectorAll('.speed-dot').forEach((d, i) => d.classList.toggle('active', i <= idx));
+}
+
+// Joystick touch/mouse handlers (bind after DOM ready)
+(function _initJoystick() {
+  const base = document.getElementById('joystick-base');
+  const stick = document.getElementById('joystick-stick');
+  if (!base || !stick) return;
+  const MAX_DIST = 38;
+
+  function getPos(e) {
+    const t = e.touches?.[0] || e;
+    const r = base.getBoundingClientRect();
+    return { x: t.clientX - r.left - r.width / 2, y: t.clientY - r.top - r.height / 2 };
+  }
+  function onStart(e) { e.preventDefault(); _joystickActive = true; }
+  function onMove(e) {
+    e.preventDefault();
+    if (!_joystickActive) return;
+    const p = getPos(e);
+    const dist = Math.sqrt(p.x ** 2 + p.y ** 2);
+    const clamp = Math.min(dist, MAX_DIST);
+    const angle = Math.atan2(p.y, p.x);
+    const sx = Math.cos(angle) * clamp, sy = Math.sin(angle) * clamp;
+    stick.style.transform = `translate(${sx}px, ${sy}px)`;
+    _joystickDx = sx / MAX_DIST;
+    _joystickDy = sy / MAX_DIST;
+  }
+  function onEnd(e) {
+    e.preventDefault();
+    _joystickActive = false;
+    _joystickDx = 0; _joystickDy = 0;
+    stick.style.transform = 'translate(0,0)';
+  }
+  base.addEventListener('touchstart', onStart, { passive: false });
+  base.addEventListener('touchmove', onMove, { passive: false });
+  base.addEventListener('touchend', onEnd, { passive: false });
+  base.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', e => { if (_joystickActive) onMove(e); });
+  window.addEventListener('mouseup', onEnd);
+
+  // Restore state from localStorage (admin only)
+  if (localStorage.getItem('joystickEnabled') === 'true') {
+    _joystickEnabled = true;
+    const btn = document.getElementById('btn-joystick-toggle');
+    if (btn) { btn.textContent = '🕹️ Джойстик: ВКЛ'; btn.style.background = '#00c853'; }
+    _showJoystick();
+  }
+})();
+
+// Remove joystick for non-admins after boot
+function _checkJoystickAdmin() {
+  if (parseInt(TG_ID, 10) !== ADMIN_TG_ID) {
+    document.getElementById('joystick-container')?.remove();
+  }
+}
+
+// ─────────────────────────────────────────────
 //  Market system
 // ─────────────────────────────────────────────
 const marketLayer  = L.layerGroup().addTo(map);
@@ -5550,18 +6195,6 @@ function _courierIcon(courier) {
   });
 }
 
-function _dropIcon(drop) {
-  const isDelivery = drop && drop.drop_type === 'delivery';
-  const isMy = isDelivery && _isMyDeliveryDrop(drop);
-  const cls = isDelivery && isMy ? 'delivery-marker' : 'drop-marker';
-  return L.divIcon({
-    className: '',
-    html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">📦</div>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
-  });
-}
-
 function _isMyDeliveryDrop(drop) {
   const ownerId = drop.couriers?.owner_id || drop.owner_id;
   return ownerId === state.player?.id;
@@ -5580,6 +6213,7 @@ function renderMarkets(markets) {
     if (!marketMarkers[m.id]) {
       const marker = L.marker([m.lat, m.lng], { icon: _marketIcon(), zIndexOffset: 400 });
       marker.on('click', (e) => {
+        _suppressMapClick = Date.now();
         L.DomEvent.stopPropagation(e);
         map.flyTo([m.lat, m.lng], 17, { duration: 0.8 });
         _showMarketPopup(m);
@@ -5642,6 +6276,7 @@ function renderCouriers(couriers) {
     } else {
       const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 1200 });
       marker.on('click', (e) => {
+        _suppressMapClick = Date.now();
         L.DomEvent.stopPropagation(e);
         _showCourierPopup(c.id);
       });
@@ -5781,10 +6416,15 @@ async function doAttackCourier(courierId) {
           expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
         };
         dropData[drop.id] = drop;
-        const marker = L.marker([drop.lat, drop.lng], { icon: _dropIcon(), zIndexOffset: 1300 });
-        marker.on('click', (e) => { L.DomEvent.stopPropagation(e); _showDropPopup(drop.id); });
-        marker.addTo(dropLayer);
-        dropMarkers[drop.id] = marker;
+        const dIcon = L.divIcon({
+          className: '',
+          html: '<div class="marker-wrap drop-marker" style="font-size:36px;line-height:1;">📦</div>',
+          iconSize: [44, 44], iconAnchor: [22, 22],
+        });
+        const dMarker = L.marker([drop.lat, drop.lng], { icon: dIcon, zIndexOffset: 2000 });
+        dMarker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDropPopup(drop.id); });
+        dMarker.addTo(dropLayer);
+        dropMarkers[drop.id] = dMarker;
       }
       handleXpResult(data.xp);
     } else {
@@ -5803,7 +6443,7 @@ async function doAttackCourier(courierId) {
   }
 }
 
-// ── Render drops on map ───────────────────────
+// ── Render drops on map (same pattern as vases) ──
 function renderDrops(drops) {
   const activeIds = new Set((drops || []).map(d => d.id));
   for (const id of Object.keys(dropMarkers)) {
@@ -5816,65 +6456,76 @@ function renderDrops(drops) {
   for (const d of (drops || [])) {
     dropData[d.id] = d;
     if (!dropMarkers[d.id]) {
-      const marker = L.marker([d.lat, d.lng], { icon: _dropIcon(d), zIndexOffset: 1300 });
-      marker.on('click', (e) => { L.DomEvent.stopPropagation(e); _showDropPopup(d.id); });
+      const isDelivery = d.drop_type === 'delivery';
+      const isMy = isDelivery && _isMyDeliveryDrop(d);
+      const cls = isDelivery && isMy ? 'delivery-marker' : 'drop-marker';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">📦</div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+      const marker = L.marker([d.lat, d.lng], { icon, zIndexOffset: 2000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDropPopup(d.id); });
       marker.addTo(dropLayer);
       dropMarkers[d.id] = marker;
     }
   }
 }
 
-function _showDropPopup(dropId) {
-  const drop = dropData[dropId];
-  if (!drop) return;
-  const pos = state.playerPos;
-  const dist = pos ? haversine(pos.lat, pos.lng, drop.lat, drop.lng) : Infinity;
-  const near = dist <= SMALL_RADIUS;
-  const isDelivery = drop.drop_type === 'delivery';
-  const isMy = isDelivery && _isMyDeliveryDrop(drop);
+function showDropPopup(dropId) {
+  try {
+    const drop = dropData[dropId];
+    if (!drop) { showToast('ERR: no drop data'); return; }
 
-  if (isDelivery && !isMy) {
-    showToast('📦 Чужая посылка');
-    return;
-  }
+    const isDelivery = drop.drop_type === 'delivery';
+    if (isDelivery && !_isMyDeliveryDrop(drop)) {
+      showToast('📦 Чужая посылка');
+      return;
+    }
 
-  if (isDelivery) {
-    // My delivery box popup
-    document.getElementById('popup-title').innerHTML = '📦 Ваш заказ прибыл!';
-    document.getElementById('popup-subtitle').textContent = '';
-    document.getElementById('popup-stats').innerHTML =
-      '<div style="text-align:center;font-size:13px;color:#FFD700;margin:8px 0;">Откройте посылку чтобы получить предмет</div>';
-  } else {
-    // Loot drop popup
-    const msLeft = drop.expires_at ? new Date(drop.expires_at) - Date.now() : 0;
-    const minsLeft = Math.max(0, Math.floor(msLeft / 60000));
-    const secsLeft = Math.max(0, Math.floor((msLeft % 60000) / 1000));
-    document.getElementById('popup-title').innerHTML = '📦 Потерянная посылка!';
-    document.getElementById('popup-subtitle').textContent = '';
-    document.getElementById('popup-stats').innerHTML =
-      `<div style="text-align:center;font-size:13px;color:#aaa;margin:8px 0;">⏳ Исчезнет через ${minsLeft}:${String(secsLeft).padStart(2, '0')}</div>`;
-  }
+    const pos  = state.playerPos;
+    const dist = pos ? haversine(pos.lat, pos.lng, drop.lat, drop.lng) : Infinity;
+    const near = dist <= SMALL_RADIUS;
 
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  const pickBtn = document.createElement('button');
-  pickBtn.className = 'btn primary';
-  pickBtn.style.cssText = 'width:100%;margin-bottom:8px;';
-  if (!near) {
-    pickBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
-    pickBtn.disabled = true;
-  } else {
-    pickBtn.innerHTML = isDelivery ? '🎁 Открыть посылку' : '🎒 Подобрать';
+    document.getElementById('popup-title').innerHTML = isDelivery ? '📦 Ваш заказ прибыл!' : '📦 Потерянная посылка';
+    document.getElementById('popup-subtitle').textContent = near ? '' : ('До посылки: ' + Math.round(dist) + 'м');
+
+    const statsEl = document.getElementById('popup-stats');
+    const item = drop.items;
+    if (item) {
+      const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+      const glow = rc.startsWith('linear') ? '' : 'filter:drop-shadow(0 0 12px ' + rc + ')';
+      statsEl.innerHTML = '<div style="text-align:center;margin:8px 0;">' +
+        '<div style="font-size:40px;' + glow + '">' + item.emoji + '</div>' +
+        '<div style="font-size:14px;font-weight:700;margin:4px 0;">' + item.name + ' ' + rarityLabel(item.rarity) + '</div>' +
+        '<div style="font-size:12px;color:#ccc;">' + itemStatLabel(item) + '</div>' +
+        '</div>';
+    } else {
+      statsEl.innerHTML = '<div style="text-align:center;font-size:13px;color:#FFD700;margin:8px 0;">Внутри что-то ценное!</div>';
+    }
+
+    const actEl = document.getElementById('popup-actions');
+    actEl.innerHTML = '';
+    if (near) {
+      const pickBtn = document.createElement('button');
+      pickBtn.className = 'btn primary';
+      pickBtn.style.cssText = 'width:100%;margin-bottom:8px;';
+      pickBtn.textContent = isDelivery ? '🎁 Открыть посылку' : '🎒 Подобрать';
+      pickBtn.addEventListener('click', function() { doPickupDrop(dropId); });
+      actEl.appendChild(pickBtn);
+    }
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn';
+    closeBtn.style.cssText = 'width:100%;';
+    closeBtn.textContent = 'Закрыть';
+    closeBtn.addEventListener('click', closePopup);
+    actEl.appendChild(closeBtn);
+
+    document.getElementById('popup-overlay').classList.add('open');
+  } catch (err) {
+    console.error('[drop-popup] error:', err);
   }
-  pickBtn.addEventListener('click', () => doPickupDrop(dropId));
-  actEl.appendChild(pickBtn);
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
-  document.getElementById('popup-overlay').classList.add('open');
 }
 
 async function doPickupDrop(dropId) {
@@ -6360,26 +7011,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ── Smart courier movement tick ───────────────
-let _courierTickTimer = null;
-let _lastCourierTick = 0;
-function scheduleCourierTick() {
-  if (_courierTickTimer) clearTimeout(_courierTickTimer);
-  const hasActive = Object.keys(courierMarkers).length > 0;
-  const interval = hasActive ? 4000 : 30000;
-  _courierTickTimer = setTimeout(async () => {
-    _lastCourierTick = Date.now();
-    try {
-      const data = await apiFetch('/api/market', { method: 'POST', body: JSON.stringify({ action: 'move-couriers' }) });
-      if (data.couriers) renderCouriers(data.couriers);
-    } catch (e) { /* silent */ }
-    scheduleCourierTick();
-  }, interval);
-}
-scheduleCourierTick();
+// ── Courier tick disabled — handled by unified tick ───────
+// (scheduleCourierTick removed — couriers move via /api/map tick)
 
 // ── Drop expiration cleanup (every 30s) ───────
-setInterval(() => {
+let _dropCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const id of Object.keys(dropData)) {
     if (dropData[id].expires_at && new Date(dropData[id].expires_at).getTime() < now) {
@@ -6496,8 +7132,8 @@ function renderLeaderboard(data) {
 //  Boot
 // ─────────────────────────────────────────────
 (async () => {
-  // Poll every 30s so users see maintenance screen go away automatically
-  _maintenanceTimer = setInterval(checkMaintenance, 30000);
+  // Poll every 60s so users see maintenance screen go away automatically
+  _maintenanceTimer = setInterval(checkMaintenance, 60000);
 
   // Admin skips maintenance check entirely and boots straight into the game
   if (currentTelegramId === ADMIN_ID) {
@@ -6557,7 +7193,10 @@ function renderLeaderboard(data) {
 
   <!-- Inventory -->
   <div class="profile-section" style="margin-bottom:16px;">
-    <div class="profile-section-title" id="inventory-title">Инвентарь (0 предметов)</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="profile-section-title" id="inventory-title">Инвентарь (0 предметов)</div>
+      <button id="btn-craft" onclick="openCraftScreen()" style="background:linear-gradient(135deg,#f5c518,#ff8c00);color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">⚒️ Крафт</button>
+    </div>
     <div class="inventory-grid" id="inventory-grid"></div>
   </div>
 </div>
@@ -6586,6 +7225,28 @@ function renderLeaderboard(data) {
       <button class="btn" id="sell-confirm-btn" style="color:#ff6b6b;">Продать</button>
     </div>
   </div>
+</div>
+
+<!-- Craft screen -->
+<div id="craft-overlay">
+  <div id="craft-header" style="position:relative;">
+    <h2>⚒️ КРАФТ</h2>
+    <p>Объедини 10 предметов одной редкости</p>
+    <button id="craft-close" onclick="closeCraftScreen()">✕</button>
+  </div>
+  <div class="craft-slots" id="craft-slots"></div>
+  <div id="craft-info"></div>
+  <div id="craft-result-preview"></div>
+  <button id="craft-btn" disabled onclick="doCraft()">⚒️ Скрафтить</button>
+</div>
+
+<!-- Craft pick items overlay -->
+<div id="craft-pick-overlay">
+  <div id="craft-pick-header">
+    <h3>Выберите предмет</h3>
+    <button id="craft-pick-close" onclick="closeCraftPick()">✕</button>
+  </div>
+  <div class="craft-pick-grid" id="craft-pick-grid"></div>
 </div>
 
 <!-- Vase drop popup -->
