@@ -7635,7 +7635,7 @@ function fireProjectile(fromLatLng, toLatLng) {
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
     el.innerHTML = `<span style="display:inline-block;font-size:24px;">🗡️</span>`;
     // Emoji natively points ~upper-right (-45°). Rotate so tip aims at target.
-    el.style.transform = `rotate(${angle + 45}deg)`;
+    el.style.transform = `rotate(${angle - 135}deg)`;
     el.style.transformOrigin = 'center center';
   }
 
