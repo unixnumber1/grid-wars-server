@@ -3713,11 +3713,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     openPopup(
       `${emoji} ${name} (Ур. ${mine.level})`,
       `Владелец: ${owner} ${distLabel}${statusLabel}`,
-      [
-        ['Доход', `${formatCoins(rate)}/ч`],
-        ['Ёмкость', `${formatCoins(capacity)} монет`],
-        ...(mine.hp != null ? [['HP', `${Math.round(mine.hp)} / ${mine.max_hp || '?'}`]] : []),
-      ],
+      [],
       attackActions
     );
   }
