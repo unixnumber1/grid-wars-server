@@ -138,13 +138,25 @@ export default async function handler(req, res) {
       }
 
       const { data: player, error: fetchErr } = await supabase
-        .from('players').select('id, coins, diamonds').eq('id', player_id).single();
+        .from('players').select('id, telegram_id, coins, diamonds').eq('id', player_id).single();
       if (fetchErr || !player) return res.status(404).json({ error: 'Player not found' });
 
       const newBalance = (player[currency] ?? 0) + numAmount;
       const { error: updateErr } = await supabase
         .from('players').update({ [currency]: newBalance }).eq('id', player_id);
       if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+      // Send Telegram notification
+      const BOT = process.env.BOT_TOKEN;
+      if (BOT && player.telegram_id) {
+        const label = currency === 'coins' ? '🪙 монет' : '💎 алмазов';
+        const text = `🎁 Вам выдано ${numAmount.toLocaleString('ru')} ${label} от администрации игры!`;
+        fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: player.telegram_id, text }),
+        }).catch(() => {});
+      }
 
       return res.status(200).json({ success: true, newBalance });
     }
