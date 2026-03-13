@@ -7334,10 +7334,7 @@ function showOtherPlayerPopup(p) {
   openPopup(
     `${p.avatar || '🐺'} ${displayName(p)}`,
     `Ур. ${p.level ?? 1} ${distLabel}${shieldLabel}`,
-    [
-      ...(p.bonus_attack ? [['⚔️ Атака', `${10 + p.bonus_attack}`]] : []),
-      ...(p.bonus_hp ? [['🛡️ Доп. HP', `+${p.bonus_hp}`]] : []),
-    ],
+    [],
     actions
   );
 }
