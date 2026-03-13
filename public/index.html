@@ -2422,7 +2422,7 @@ let TG_NAME = tgUser?.username || 'unknown';
 // ─────────────────────────────────────────────
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
-const SERVER_URL = 'http://93.123.30.179:3000';
+const VPS_URL = 'http://93.123.30.179:3000';  // Socket.io direct
 const MINE_MAX_LEVEL    = 250;
 const HQ_MAX_LEVEL      = 10;
 const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
@@ -3150,7 +3150,7 @@ function setLoadingText(t) {
 
 async function apiFetch(path, opts = {}) {
   if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
-  const url = `${SERVER_URL}${path}`;
+  const url = `/api/proxy?path=${encodeURIComponent(path)}`;
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
@@ -4387,7 +4387,7 @@ let _socket = null;
 
 function initSocket() {
   if (_socket) return;
-  _socket = io(SERVER_URL);
+  _socket = io(VPS_URL, { transports: ['polling'] });
 
   _socket.on('connect', () => {
     console.log('[socket] Connected to game server');
@@ -5322,7 +5322,7 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch(`${SERVER_URL}/api/admin/maintenance`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`/api/proxy?path=${encodeURIComponent('/api/admin/maintenance')}`, { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
 
     if (maintenance) {
@@ -5795,7 +5795,7 @@ async function boot() {
 
   setLoadingText('Loading player data...');
   try {
-    const initRes = await fetch(`${SERVER_URL}/api/player/init`, {
+    const initRes = await fetch(`/api/proxy?path=${encodeURIComponent('/api/player/init')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
@@ -8640,7 +8640,7 @@ async function doClanKick(targetTgId) {
 
   // For everyone else: check maintenance first (3s timeout — never block boot)
   try {
-    const res = await fetch(`${SERVER_URL}/api/admin/maintenance`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`/api/proxy?path=${encodeURIComponent('/api/admin/maintenance')}`, { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;
