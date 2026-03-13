@@ -3644,7 +3644,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
       mine.status === 'burning' ? `🔥 Шахта горит! Потушите в течение 24ч` : (mine.status === 'under_attack' ? '⚔️ Шахту атакуют!' : (attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : distLabel)),
-      [
+      mine.status === 'burning' ? [] : [
         ...(attacker ? [['Высосано', `${formatNumber(attacker.drained_amount || 0)} монет`]] : []),
         ...(isUpgrading
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
