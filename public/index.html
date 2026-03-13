@@ -4082,7 +4082,6 @@ document.getElementById('btn-collect').addEventListener('click', doCollect);
 document.getElementById('player-level-display').addEventListener('click', showProfilePopup);
 let _centerLockUntil = 0; // suppress GPS marker drift during flyTo
 document.getElementById('player-avatar-wrap').addEventListener('click', () => {
-  alert('avatar-wrap tapped! pinMode=' + pinMode);
   const markerLL = playerMarker ? playerMarker.getLatLng() : null;
   console.log('[avatar-tap] pinMode:', pinMode, 'joystick:', _joystickEnabled,
     'markerLL:', markerLL ? `${markerLL.lat.toFixed(5)},${markerLL.lng.toFixed(5)}` : null,
