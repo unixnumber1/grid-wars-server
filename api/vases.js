@@ -43,16 +43,18 @@ async function handleBreak(req, res) {
   if (dist > BREAK_RADIUS)
     return res.status(400).json({ error: 'Ваза слишком далеко! Подойди ближе (200м)' });
 
+  // Mark vase as broken first (optimistic lock — only succeeds if not yet broken)
+  const { data: vaseLocked } = await supabase.from('vases')
+    .update({ broken_by: player.id, broken_at: new Date().toISOString() })
+    .eq('id', vase_id).is('broken_by', null)
+    .select('id').maybeSingle();
+  if (!vaseLocked) return res.status(400).json({ error: 'Already broken' });
+
   // Award diamonds
   const newDiamonds = (player.diamonds || 0) + vase.diamonds_reward;
-  await Promise.all([
-    supabase.from('players')
-      .update({ diamonds: newDiamonds })
-      .eq('id', player.id),
-    supabase.from('vases')
-      .update({ broken_by: player.id, broken_at: new Date().toISOString() })
-      .eq('id', vase_id),
-  ]);
+  await supabase.from('players')
+    .update({ diamonds: newDiamonds })
+    .eq('id', player.id);
 
   // Roll and insert item — try with new columns, fallback without
   const rolled = rollVaseItem();
@@ -123,7 +125,8 @@ async function handleCron(req, res) {
   const onlineThreshold = new Date(Date.now() - 3 * 60 * 1000).toISOString();
   const { data: online } = await supabase
     .from('players').select('telegram_id')
-    .gte('last_seen', onlineThreshold);
+    .gte('last_seen', onlineThreshold)
+    .limit(1000);
 
   for (const p of (online || [])) {
     fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {

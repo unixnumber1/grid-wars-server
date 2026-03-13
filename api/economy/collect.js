@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
   const { data: allMines, error: minesError } = await supabase
     .from('mines')
-    .select('id, level, last_collected, cell_id, lat, lng')
+    .select('id, level, last_collected, cell_id, lat, lng, status')
     .eq('owner_id', player.id);
 
   if (minesError) {
@@ -39,6 +39,7 @@ export default async function handler(req, res) {
   }
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const mines = allMines.filter(m => {
+    if (m.status === 'burning' || m.status === 'destroyed') return false;
     const mLat = m.lat != null ? m.lat : getCellCenter(m.cell_id)[0];
     const mLng = m.lng != null ? m.lng : getCellCenter(m.cell_id)[1];
     return haversine(pLat, pLng, mLat, mLng) <= SMALL_RADIUS;
@@ -58,14 +59,17 @@ export default async function handler(req, res) {
   const currentCoins = player.coins ?? 0;
   const newCoins = currentCoins + Math.round(totalCoins);
 
-  const [{ error: playerUpdateError }, { error: minesUpdateError }] = await Promise.all([
-    supabase.from('players').update({ coins: newCoins }).eq('id', player.id),
+  const [{ data: coinsOk, error: playerUpdateError }, { error: minesUpdateError }] = await Promise.all([
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', currentCoins).select('id').maybeSingle(),
     supabase.from('mines').update({ last_collected: now }).in('id', mines.map((m) => m.id)),
   ]);
 
   if (playerUpdateError || minesUpdateError) {
     console.error('[collect] update error:', playerUpdateError, minesUpdateError);
     return res.status(500).json({ error: 'Failed to collect coins' });
+  }
+  if (!coinsOk && !playerUpdateError) {
+    return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
   }
 
   // 0.1% of collected coins, minimum 1

@@ -1,4 +1,4 @@
-import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, rateLimit, sendTelegramNotification } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { SMALL_RADIUS, getPlayerAttack } from '../../lib/formulas.js';
@@ -290,30 +290,34 @@ async function handleBuy(req, res) {
   const { data: seller } = await supabase
     .from('players').select('diamonds').eq('id', listing.seller_id).single();
 
-  // Item stays on_market=true until delivery courier arrives (or immediately if no courier)
-  const [
-    { error: buyerErr },
-    { error: sellerErr },
-    { error: listingErr },
-    { error: itemErr },
-  ] = await Promise.all([
-    supabase.from('players')
-      .update({ diamonds: (buyer.diamonds ?? 0) - price })
-      .eq('id', buyer.id),
+  // Optimistic lock: listing must still be active
+  const { data: listingLocked, error: listingErr } = await supabase.from('market_listings')
+    .update({ status: 'sold', buyer_id: buyer.id })
+    .eq('id', listing_id).eq('status', 'active')
+    .select('id').maybeSingle();
+  if (!listingLocked) return res.status(409).json({ error: 'Listing already sold or changed' });
+
+  // Optimistic lock: buyer must still have enough diamonds
+  const { data: buyerLocked, error: buyerErr } = await supabase.from('players')
+    .update({ diamonds: (buyer.diamonds ?? 0) - price })
+    .eq('id', buyer.id).eq('diamonds', buyer.diamonds ?? 0)
+    .select('id').maybeSingle();
+  if (!buyerLocked) {
+    await supabase.from('market_listings').update({ status: 'active', buyer_id: null }).eq('id', listing_id);
+    return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+  }
+
+  const [{ error: sellerErr }, { error: itemErr }] = await Promise.all([
     supabase.from('players')
       .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
       .eq('id', listing.seller_id),
-    supabase.from('market_listings')
-      .update({ status: 'sold', buyer_id: buyer.id })
-      .eq('id', listing_id),
     supabase.from('items')
       .update({ owner_id: buyer.id })
       .eq('id', listing.item_id),
   ]);
 
-  if (buyerErr || sellerErr || listingErr || itemErr) {
-    console.error('[market/buy] errors:', { buyerErr, sellerErr, listingErr, itemErr });
-    return res.status(500).json({ error: 'Transaction failed' });
+  if (sellerErr || itemErr) {
+    console.error('[market/buy] errors:', { sellerErr, itemErr });
   }
 
   // Notify seller about the sale
@@ -487,10 +491,12 @@ async function handleAttackCourier(req, res) {
       .update({ held_by_courier: null, held_by_market: null, on_market: false })
       .eq('id', courier.item_id);
 
-    // Notify courier owner
-    notify(courier.owner_id, 'courier_killed',
-      '💥 Ваш курьер был уничтожен! Предмет выпал на карту.',
+    // Notify courier owner (in-game + Telegram)
+    const courierKillMsg = '💥 Ваш курьер был уничтожен! Предмет выпал на карту.';
+    notify(courier.owner_id, 'courier_killed', courierKillMsg,
       { courier_id: courier.id, listing_id: courier.listing_id });
+    const { data: courierOwner } = await supabase.from('players').select('telegram_id').eq('id', courier.owner_id).maybeSingle();
+    if (courierOwner?.telegram_id) sendTelegramNotification(courierOwner.telegram_id, courierKillMsg);
 
     const xpResult = await addXp(player.id, COURIER_KILL_XP);
 
@@ -658,7 +664,9 @@ async function handleMoveCouriers(req, res) {
     const traveled = speedDegPerSec * elapsedSec;
     const progress = Math.min(traveled / routeDist, 1.0);
 
-    if (progress >= 0.99) {
+    // Max delivery time: delivery 5min, to_market 30min
+    const maxSec = c.type === 'delivery' ? 300 : 1800;
+    if (progress >= 0.99 || elapsedSec > maxSec) {
       arrived.push(c);
       continue;
     }
@@ -707,15 +715,17 @@ async function handleMoveCouriers(req, res) {
             .from('players').select('last_lat, last_lng').eq('id', dc.owner_id).single();
           const dropLat = (buyerPos?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
           const dropLng = (buyerPos?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004;
-          await supabase.from('courier_drops').insert({
+          const deliveryExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+          const { error: dropErr } = await supabase.from('courier_drops').insert({
             courier_id: dc.id,
             item_id: dc.item_id,
             listing_id: dc.listing_id,
             lat: dropLat,
             lng: dropLng,
             drop_type: 'delivery',
-            expires_at: null, // delivery boxes don't expire
+            expires_at: deliveryExpiry,
           });
+          if (dropErr) console.error('[move-couriers] delivery drop insert error:', dropErr);
           if (dc.item_id) {
             await supabase.from('items')
               .update({ held_by_courier: null, held_by_market: null })
@@ -725,7 +735,7 @@ async function handleMoveCouriers(req, res) {
           notify(dc.owner_id, 'delivery_arrived', '📦 Ваш заказ доставлен! Найдите коробку на карте.', { courier_id: dc.id });
         }
       }
-    } catch (e) { /* silent */ }
+    } catch (e) { console.error('[move-couriers] delivery handling error:', e.message); }
   }
 
   // ── 2. Expire old drops → return items to owners ───────────
@@ -734,7 +744,6 @@ async function handleMoveCouriers(req, res) {
       .from('courier_drops')
       .select('id, item_id, courier_id, listing_id, drop_type')
       .eq('picked_up', false)
-      .neq('drop_type', 'delivery') // delivery boxes don't expire
       .lt('expires_at', nowISO)
       .limit(50);
 
@@ -831,6 +840,12 @@ export default async function handler(req, res) {
   // POST actions: read from body
   if (req.method === 'POST') {
     const { action } = req.body || {};
+    const _tgId = req.body?.telegram_id;
+    if (_tgId && ['buy', 'attack-courier', 'list-item'].includes(action)) {
+      if (!rateLimit(_tgId, 30)) {
+        return res.status(429).json({ error: 'Слишком много запросов' });
+      }
+    }
     if (action === 'list-item')       return handleListItem(req, res);
     if (action === 'buy')             return handleBuy(req, res);
     if (action === 'cancel')          return handleCancel(req, res);

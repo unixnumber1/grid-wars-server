@@ -1,8 +1,8 @@
-import { supabase, getPlayerByTelegramId } from '../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, rateLimit } from '../lib/supabase.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../lib/bots.js';
 import { haversine } from '../lib/haversine.js';
 import { addXp } from '../lib/xp.js';
-import { LARGE_RADIUS, getMaxHp, getPlayerAttack, calcHpRegen } from '../lib/formulas.js';
+import { LARGE_RADIUS, calcHpRegen } from '../lib/formulas.js';
 
 const BOTS_PER_ZONE = 10;          // target bot count within 2km of each player
 const BOT_TTL_MS    = 5 * 60 * 1000; // bots expire after 5 minutes
@@ -120,7 +120,7 @@ async function handleMove(player, body) {
   const now = new Date().toISOString();
 
   const { data: bots, error } = await supabase
-    .from('bots').select('*').gt('expires_at', now);
+    .from('bots').select('id,type,category,emoji,lat,lng,spawn_lat,spawn_lng,direction,status,target_mine_id,drained_amount,drain_limit,drain_per_sec,coins_drained,reward_min,reward_max,speed,hp,max_hp,attack,size,expires_at').gt('expires_at', now).limit(100);
 
   if (error) return { status: 500, error: error.message };
   console.log('[move] bots to move:', bots?.length);
@@ -131,7 +131,7 @@ async function handleMove(player, body) {
 
   // Fetch all mines once — needed for undead targeting
   const { data: allMines } = await supabase
-    .from('mines').select('id, lat, lng, owner_id');
+    .from('mines').select('id, lat, lng, owner_id').limit(5000);
   const mineMap = {};
   for (const m of (allMines || [])) mineMap[m.id] = m;
 
@@ -236,18 +236,12 @@ async function handleMove(player, body) {
     });
   }
 
-  // Write bot positions (always) and state (separate call to isolate schema errors)
-  await Promise.all(updates.map(async u => {
-    const { error: posErr } = await supabase.from('bots')
-      .update({ lat: u.lat, lng: u.lng, direction: u.direction })
-      .eq('id', u.id);
-    if (posErr) { console.error('[move] position update error:', posErr.message); return; }
-
-    const { error: stateErr } = await supabase.from('bots')
-      .update({ status: u.status, target_mine_id: u.target_mine_id, drained_amount: u.drained_amount })
-      .eq('id', u.id);
-    if (stateErr) console.error('[move] state update error (run SQL migrations):', stateErr.message);
-  }));
+  // Write bot positions + state in a single update per bot
+  await Promise.all(updates.map(u =>
+    supabase.from('bots')
+      .update({ lat: u.lat, lng: u.lng, direction: u.direction, status: u.status, target_mine_id: u.target_mine_id, drained_amount: u.drained_amount })
+      .eq('id', u.id)
+  ));
 
   // Update last_collected on drained mines (resets their coin accumulation)
   if (minesToDrain.size > 0) {
@@ -297,7 +291,7 @@ async function handleAttack(player, body) {
   }
 
   const { data: bot, error: botErr } = await supabase
-    .from('bots').select('*').eq('id', bot_id).maybeSingle();
+    .from('bots').select('id,type,category,lat,lng,hp,max_hp,attack,speed,size,emoji,drain_per_sec,reward_min,reward_max').eq('id', bot_id).maybeSingle();
   if (botErr) return { status: 500, error: botErr.message };
   if (!bot)   return { status: 404, error: 'Bot not found' };
 
@@ -308,9 +302,8 @@ async function handleAttack(player, body) {
     .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, equipped_sword, coins').eq('id', player.id).single();
   if (pErr) return { status: 500, error: pErr.message };
 
-  const lvl       = pFull.level ?? 1;
-  const maxHp     = getMaxHp(lvl) + (pFull.bonus_hp ?? 0);
-  const playerAtk = getPlayerAttack(lvl) + (pFull.bonus_attack ?? 0);
+  const maxHp     = 100 + (pFull.bonus_hp ?? 0);
+  const playerAtk = 10 + (pFull.bonus_attack ?? 0);
   let   playerHp  = calcHpRegen(pFull.hp ?? maxHp, maxHp, pFull.last_hp_regen);
   if (playerHp > maxHp) playerHp = maxHp;
 
@@ -341,7 +334,7 @@ async function handleAttack(player, body) {
       const reward = getRandomReward(botCfg);
       result.reward = reward;
       const newCoins = (pFull.coins ?? 0) + reward;
-      await supabase.from('players').update({ coins: newCoins }).eq('id', player.id);
+      await supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', pFull.coins ?? 0);
       result.player_coins = newCoins;
     }
 
@@ -432,7 +425,7 @@ async function handleLure(player, body) {
 
   const newCoins = (player.coins ?? 0) + reward;
   const [{ error: playerUpdErr }, { error: delErr }] = await Promise.all([
-    supabase.from('players').update({ coins: newCoins }).eq('id', player.id),
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', player.coins ?? 0),
     supabase.from('bots').delete().eq('id', bot_id),
   ]);
   if (playerUpdErr) return { status: 500, error: playerUpdErr.message };
@@ -450,6 +443,12 @@ export default async function handler(req, res) {
 
   const telegram_id = req.method === 'GET' ? req.query.telegram_id : req.body?.telegram_id;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+
+  if (['attack', 'lure', 'repel'].includes(action)) {
+    if (!rateLimit(telegram_id, 30)) {
+      return res.status(429).json({ error: 'Слишком много запросов' });
+    }
+  }
 
   // Include respawn_until so handleAttack can check it without extra query
   const { player, error } = await getPlayerByTelegramId(telegram_id, 'id, level, respawn_until, coins');

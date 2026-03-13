@@ -5,3 +5,5 @@ supabase/.temp/
 *.log
 .DS_Store
 .claude/
+
+.env*.local

@@ -8,7 +8,8 @@ async function _notifyAllPlayers(text) {
   const { data: players } = await supabase
     .from('players')
     .select('telegram_id')
-    .not('telegram_id', 'is', null);
+    .not('telegram_id', 'is', null)
+    .limit(10000);
 
   let sent = 0;
   const BOT = process.env.BOT_TOKEN;
@@ -97,12 +98,29 @@ export default async function handler(req, res) {
 
     // ── fix-usernames: backfill owner_username on all headquarters ──
     if (action === 'fix-usernames') {
-      const { data: allHQ } = await supabase.from('headquarters').select('id, player_id');
+      const { data: allHQ } = await supabase.from('headquarters').select('id, player_id').limit(5000);
       for (const hq of (allHQ || [])) {
         const { data: player } = await supabase.from('players').select('username').eq('id', hq.player_id).single();
         await supabase.from('headquarters').update({ owner_username: player?.username ?? null }).eq('id', hq.id);
       }
       return res.status(200).json({ fixed: allHQ?.length ?? 0 });
+    }
+
+    // ── setup-webhook: register Telegram webhook URL ──
+    if (action === 'setup-webhook') {
+      const BOT = process.env.BOT_TOKEN;
+      if (!BOT) return res.status(500).json({ error: 'BOT_TOKEN not set' });
+      const webhookUrl = 'https://grid-wars-two.vercel.app/api/items';
+      const tgRes = await fetch(
+        `https://api.telegram.org/bot${BOT}/setWebhook`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message', 'pre_checkout_query'] }),
+        }
+      );
+      const tgData = await tgRes.json();
+      return res.json({ success: tgData.ok, description: tgData.description, webhookUrl });
     }
 
     // ── reward: give coins or diamonds to a player ──
@@ -215,7 +233,8 @@ export default async function handler(req, res) {
 
       const { data: hqs, error: hqErr } = await supabase
         .from('headquarters')
-        .select('id, lat, lng');
+        .select('id, lat, lng')
+        .limit(5000);
 
       if (hqErr) return res.status(500).json({ error: hqErr.message });
       if (!hqs || hqs.length === 0) return res.json({ generated: 0, markets: [] });

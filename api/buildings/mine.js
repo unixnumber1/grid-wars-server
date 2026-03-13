@@ -81,9 +81,11 @@ export default async function handler(req, res) {
       lng: cellCenterLng,
       cell_id: targetCell,
       level: 0,
+      hp: 0,
+      max_hp: 0,
       last_collected: new Date().toISOString(),
     })
-    .select('id,owner_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level')
+    .select('id,owner_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level,hp,max_hp')
     .single();
 
   if (insertError) {

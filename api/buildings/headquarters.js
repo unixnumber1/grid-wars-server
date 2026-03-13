@@ -64,11 +64,12 @@ async function handlePlace(player, body, res) {
   }
 
   if (!bonusClaimed) {
-    await supabase.from('players').update({
+    const { data: bonusOk } = await supabase.from('players').update({
       starting_bonus_claimed: true,
       coins:    (player.coins    ?? 0) + startingCoins,
       diamonds: (player.diamonds ?? 0) + startingDiamonds,
-    }).eq('id', player.id);
+    }).eq('id', player.id).eq('starting_bonus_claimed', false).select('id').maybeSingle();
+    if (!bonusOk) return res.status(409).json({ error: 'Бонус уже получен' });
   }
 
   let xpResult = null;
@@ -98,12 +99,13 @@ async function handleUpgrade(player, res) {
   if (balance < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${Math.round(cost).toLocaleString()})` });
 
   const newBalance = balance - cost;
-  const [{ data: updatedHq, error: updateError }, { error: coinsError }] = await Promise.all([
+  const [{ data: updatedHq, error: updateError }, { data: coinsOk, error: coinsError }] = await Promise.all([
     supabase.from('headquarters').update({ level: currentLevel + 1 })
       .eq('id', hq.id).select('id,player_id,lat,lng,cell_id,level,created_at').single(),
-    supabase.from('players').update({ coins: newBalance }).eq('id', player.id),
+    supabase.from('players').update({ coins: newBalance }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle(),
   ]);
   if (updateError || coinsError) return res.status(500).json({ error: 'Failed to upgrade headquarters' });
+  if (!coinsOk && !coinsError) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
 
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_HQ); } catch (e) {}
@@ -135,7 +137,7 @@ export default async function handler(req, res) {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
 
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed, coins');
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed, coins, diamonds');
   if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
   if (!player)     return res.status(404).json({ error: 'Player not found' });
 

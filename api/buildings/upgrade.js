@@ -1,5 +1,5 @@
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
-import { mineUpgradeCost, MINE_MAX_LEVEL, SMALL_RADIUS } from '../../lib/formulas.js';
+import { mineUpgradeCost, MINE_MAX_LEVEL, SMALL_RADIUS, getMineHp } from '../../lib/formulas.js';
 import { getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -26,9 +26,10 @@ export default async function handler(req, res) {
 
     const completed = [];
     for (const mine of readyMines) {
+      const newMaxHp = getMineHp(mine.pending_level);
       const { data: updated, error: upErr } = await supabase
         .from('mines')
-        .update({ level: mine.pending_level, pending_level: null, upgrade_finish_at: null })
+        .update({ level: mine.pending_level, pending_level: null, upgrade_finish_at: null, hp: newMaxHp, max_hp: newMaxHp })
         .eq('id', mine.id)
         .select()
         .single();
@@ -110,8 +111,8 @@ export default async function handler(req, res) {
   const newBalance = balance - cost;
   const finishAt = new Date(Date.now() + 20000);
 
-  const [{ error: playerUpdateError }, { error: mineUpdateError }] = await Promise.all([
-    supabase.from('players').update({ coins: newBalance }).eq('id', player.id),
+  const [{ data: coinsOk, error: playerUpdateError }, { error: mineUpdateError }] = await Promise.all([
+    supabase.from('players').update({ coins: newBalance }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle(),
     supabase.from('mines').update({
       pending_level: targetLevel,
       upgrade_finish_at: finishAt.toISOString(),
@@ -121,6 +122,9 @@ export default async function handler(req, res) {
   if (playerUpdateError || mineUpdateError) {
     console.error('[upgrade] error:', playerUpdateError, mineUpdateError);
     return res.status(500).json({ error: 'Failed to start upgrade' });
+  }
+  if (!coinsOk && !playerUpdateError) {
+    return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
   }
 
   return res.status(200).json({

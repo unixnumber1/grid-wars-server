@@ -1757,6 +1757,122 @@
     #btn-change-username-cancel { background: rgba(255,255,255,0.08); color: #aaa; }
     #btn-change-username-confirm { background: linear-gradient(135deg, #FFD700, #FFA000); color: #000; }
     #btn-change-username-confirm:disabled { opacity: 0.35; cursor: default; }
+
+    /* ── PvP Battle overlay ── */
+    #pvp-overlay {
+      display: none; position: fixed; inset: 0; z-index: 9999;
+      background: #0a0a0f; flex-direction: column; align-items: center; justify-content: center;
+    }
+    #pvp-overlay.open { display: flex; }
+    .pvp-vs-screen { text-align: center; width: 100%; padding: 20px; }
+    .pvp-vs-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 16px 0; }
+    .pvp-fighter { text-align: center; flex: 1; }
+    .pvp-fighter-avatar { font-size: 56px; line-height: 1; margin-bottom: 6px; }
+    .pvp-fighter-name { font-size: 14px; font-weight: 700; color: #fff; }
+    .pvp-fighter-level { font-size: 11px; color: #888; }
+    .pvp-fighter-weapon { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .pvp-vs-icon { font-size: 36px; color: #ff4444; font-weight: 900; text-shadow: 0 0 20px rgba(255,50,50,0.7); }
+    .pvp-hp-bar { width: 100%; height: 8px; background: #333; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+    .pvp-hp-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .pvp-hp-fill.attacker { background: #2979ff; }
+    .pvp-hp-fill.defender { background: #ff4444; }
+    .pvp-hp-label { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .pvp-round-label { font-size: 16px; font-weight: 700; color: #FFD700; margin: 20px 0 8px; letter-spacing: 2px; }
+    .pvp-hit-line { font-size: 13px; color: #ccc; margin: 4px 0; }
+    .pvp-hit-line .crit { color: #FFD700; font-weight: 700; }
+    .pvp-result-banner {
+      margin-top: 24px; padding: 16px; border-radius: 14px; text-align: center;
+      font-size: 18px; font-weight: 800; letter-spacing: 1px;
+    }
+    .pvp-result-banner.win { background: rgba(0,230,118,0.15); color: #00E676; border: 1px solid rgba(0,230,118,0.3); }
+    .pvp-result-banner.lose { background: rgba(255,23,68,0.15); color: #FF1744; border: 1px solid rgba(255,23,68,0.3); }
+    .pvp-result-detail { font-size: 13px; color: #aaa; margin-top: 8px; }
+    .pvp-close-hint { font-size: 12px; color: #555; margin-top: 20px; }
+
+    /* ── Shield timer in bottom panel ── */
+    #shield-timer-display {
+      display: none; font-size: 11px; color: #2979ff; margin-top: 2px;
+    }
+
+    /* ── Mine attack animation overlay ── */
+    #mine-attack-overlay {
+      display: none; position: fixed; bottom: calc(80px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%); z-index: 1500;
+      background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,215,0,0.2); border-radius: 14px;
+      padding: 12px 20px; text-align: center; min-width: 200px;
+    }
+    #mine-attack-overlay.open { display: block; }
+    #mine-attack-timer { font-size: 22px; font-weight: 800; color: #FFD700; }
+    #mine-attack-label { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .mine-status-burning { position: relative; }
+    .mine-status-burning::after {
+      content: '🔥'; position: absolute; top: -4px; right: -4px;
+      font-size: 14px; animation: fireFlicker 0.8s infinite alternate;
+    }
+    .mine-status-attack::after {
+      content: '⚔️'; position: absolute; top: -4px; right: -4px;
+      font-size: 12px;
+    }
+    @keyframes fireFlicker { 0% { opacity: 0.7; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.1); } }
+
+    /* ── Projectile animation ── */
+    .attack-projectile {
+      position: fixed; z-index: 2000; font-size: 18px; pointer-events: none;
+      transition: none;
+    }
+    @keyframes projectileSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* ── Daily diamonds section in shop ── */
+    .shop-daily-section {
+      margin-top: 20px; padding: 16px; border-radius: 14px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(0,207,255,0.15);
+    }
+    .shop-daily-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .shop-daily-info { flex: 1; }
+    .shop-daily-title { font-size: 15px; font-weight: 700; color: #00cfff; }
+    .shop-daily-desc { font-size: 12px; color: #888; margin-top: 2px; }
+    .shop-daily-btn {
+      padding: 10px 16px; border-radius: 10px; border: none;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      background: linear-gradient(135deg, #00cfff, #0088cc); color: #000;
+      white-space: nowrap;
+    }
+    .shop-daily-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .shop-daily-timer { font-size: 13px; color: #ffaa00; font-weight: 700; }
+
+    /* ── Stars purchase section ── */
+    .shop-stars-section {
+      margin-top: 14px; padding: 16px; border-radius: 14px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,215,0,0.15);
+    }
+    .shop-stars-btn {
+      width: 100%; padding: 12px; border-radius: 10px; border: none;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      background: linear-gradient(135deg, #FFD700, #FFA000); color: #000;
+    }
+    .shop-stars-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Mass selection mode ── */
+    .inv-cell.selectable { cursor: pointer; }
+    .inv-cell.selected { border-color: #FFD700 !important; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
+    .inv-cell .select-check {
+      display: none; position: absolute; top: 2px; right: 2px;
+      font-size: 12px; background: #FFD700; color: #000; border-radius: 50%;
+      width: 16px; height: 16px; line-height: 16px; text-align: center;
+    }
+    .inv-cell.selectable .select-check { display: block; }
+    .inv-cell.selected .select-check { display: block; }
+    #selection-bar {
+      display: none; position: fixed; bottom: calc(80px + env(safe-area-inset-bottom));
+      left: 8px; right: 8px; z-index: 3700;
+      background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,215,0,0.2); border-radius: 14px;
+      padding: 10px 16px; align-items: center; justify-content: space-between;
+    }
+    #selection-bar.open { display: flex; }
+    #selection-bar-info { font-size: 13px; color: #aaa; }
+    #selection-bar-info strong { color: #FFD700; }
   </style>
 </head>
 <body>
@@ -1972,6 +2088,7 @@
     <div>
       <div id="player-name-display">—</div>
       <div id="player-level-display">&#x423;&#x440;. 1</div>
+      <div id="shield-timer-display"></div>
       <div id="player-xp-bar-wrap">
         <div id="player-xp-bar-bg"><div id="player-xp-bar-fill"></div></div>
       </div>
@@ -2047,6 +2164,27 @@
           <button class="btn info-btn shop-info-btn" data-box="epic">Инфо</button>
         </div>
       </div>
+    </div>
+
+    <!-- Daily diamonds -->
+    <div class="shop-daily-section">
+      <div class="shop-daily-row">
+        <div class="shop-daily-info">
+          <div class="shop-daily-title">💎 Ежедневный бонус</div>
+          <div class="shop-daily-desc">5 алмазов каждый день</div>
+          <div class="shop-daily-timer" id="daily-timer"></div>
+        </div>
+        <button class="shop-daily-btn" id="btn-daily-diamonds" onclick="claimDailyDiamonds()">Забрать 5 💎</button>
+      </div>
+    </div>
+
+    <!-- Stars purchase -->
+    <div class="shop-stars-section">
+      <div style="text-align:center;margin-bottom:10px;">
+        <div style="font-size:15px;font-weight:700;color:#FFD700;">⭐ Купить алмазы</div>
+        <div style="font-size:12px;color:#888;margin-top:2px;">100 алмазов за 15 Telegram Stars</div>
+      </div>
+      <button class="shop-stars-btn" id="btn-buy-stars" onclick="buyStars()">⭐ Купить 100 💎 за 15 Stars</button>
     </div>
   </div>
 </div>
@@ -3012,15 +3150,18 @@ function playerIcon(avatar) {
   });
 }
 
-function otherPlayerIcon(avatar) {
+function otherPlayerIcon(avatar, shieldUntil) {
   const em = avatar || '🐺';
+  const hasShield = shieldUntil && new Date(shieldUntil) > new Date();
+  const badge = hasShield ? '<span style="position:absolute;top:-4px;right:-6px;font-size:12px;">🛡️</span>' : '';
   return L.divIcon({
     html: `<div style="
       font-size: 34px;
       line-height: 1;
       filter: drop-shadow(0 0 8px rgba(0,0,0,0.7));
       pointer-events: auto;
-    ">${em}</div>`,
+      position: relative;
+    ">${em}${badge}</div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     className: '',
@@ -3226,16 +3367,12 @@ function renderBuildings() {
     activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
       onlineMarkers[p.id].setLatLng([p.last_lat, p.last_lng]);
-      onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar));
+      onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
+      onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
     } else {
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar), zIndexOffset: 600 })
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 600 })
         .addTo(map)
-        .on('click', () => openPopup(
-          `${p.avatar || '🐺'} ${displayName(p)}`,
-          `Ур. ${p.level ?? 1}`,
-          [],
-          []
-        ));
+        .on('click', () => showOtherPlayerPopup(p));
       onlineMarkers[p.id] = marker;
     }
   }
@@ -3499,7 +3636,7 @@ function showMinePopup(mine, isOwn, canCapture) {
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : distLabel,
+      mine.status === 'burning' ? `🔥 Шахта горит! Потушите в течение 24ч` : (mine.status === 'under_attack' ? '⚔️ Шахту атакуют!' : (attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : distLabel)),
       [
         ...(attacker ? [['Высосано', `${formatNumber(attacker.drained_amount || 0)} монет`]] : []),
         ...(isUpgrading
@@ -3524,6 +3661,11 @@ function showMinePopup(mine, isOwn, canCapture) {
           disabled: !canBulk,
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
+        ...(mine.status === 'burning' ? [{
+          label: '🧯 Потушить (восстановит 25% HP)',
+          cls: 'primary',
+          action: () => doExtinguish(mine.id),
+        }] : []),
         {
           label: `🔥 Продать (+${formatCoins(sellTotal)} монет)`,
           cls: 'danger',
@@ -3543,14 +3685,28 @@ function showMinePopup(mine, isOwn, canCapture) {
     }
   } else {
     const owner = displayName(mine.players);
+    const inCombatZone = dist !== null && dist <= LARGE_RADIUS;
+    const isBurning = mine.status === 'burning';
+    const isUnderAttack = mine.status === 'under_attack';
+    const canAttack = inCombatZone && mine.level > 0 && mine.status === 'normal';
+    const attackActions = [];
+    if (canAttack) {
+      attackActions.push({
+        label: '⚔️ Атаковать шахту',
+        cls: 'danger',
+        action: () => doAttackMine(mine.id),
+      });
+    }
+    const statusLabel = isBurning ? ' 🔥 Горит!' : (isUnderAttack ? ' ⚔️ Атакуется' : '');
     openPopup(
       `${emoji} ${name} (Ур. ${mine.level})`,
-      `Владелец: ${owner} ${distLabel}`,
+      `Владелец: ${owner} ${distLabel}${statusLabel}`,
       [
         ['Доход', `${formatCoins(rate)}/ч`],
         ['Ёмкость', `${formatCoins(capacity)} монет`],
+        ...(mine.hp != null ? [['HP', `${Math.round(mine.hp)} / ${mine.max_hp || '?'}`]] : []),
       ],
-      []
+      attackActions
     );
   }
 }
@@ -3694,9 +3850,9 @@ async function doSellMine(mineId) {
     updateHexGrid();
     closePopup();
 
-    const data = await apiFetch('/api/buildings/sell', {
+    const data = await apiFetch('/api/buildings/attack', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
+      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
     });
     if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
     updateCoinDisplay();
@@ -4076,6 +4232,7 @@ async function unifiedTick() {
     updateHexGrid();
     updateCoinDisplay();
     updatePlayerDisplay();
+    updateShieldDisplay();
 
     // Handle completed upgrades
     if (data.completedUpgrades?.length) {
@@ -4462,18 +4619,25 @@ function showDrainText(latLng, amount) {
 }
 
 function updateMineAttackStatus() {
-  // Clear all attack classes
+  // Clear all attack/status classes
   for (const [key, marker] of Object.entries(buildingMarkers)) {
     if (key.startsWith('mine_') && marker._icon) {
-      marker._icon.classList.remove('mine-under-attack');
+      marker._icon.classList.remove('mine-under-attack', 'mine-status-burning', 'mine-status-attack');
     }
   }
-  // Mark attacked mines
+  // Mark attacked mines (bots)
   for (const bot of Object.values(botData)) {
     if (bot.status === 'attacking' && bot.target_mine_id) {
       const m = buildingMarkers[`mine_${bot.target_mine_id}`];
       if (m?._icon) m._icon.classList.add('mine-under-attack');
     }
+  }
+  // Mark burning/under_attack status from mine data
+  for (const mine of (state.mapBuildings.mines || [])) {
+    const m = buildingMarkers[`mine_${mine.id}`];
+    if (!m?._icon) continue;
+    if (mine.status === 'burning') m._icon.classList.add('mine-status-burning');
+    else if (mine.status === 'under_attack') m._icon.classList.add('mine-status-attack');
   }
 }
 
@@ -5415,6 +5579,7 @@ async function boot() {
     // Cache avatar for maintenance screen
     if (data.player?.avatar) localStorage.setItem('gw_avatar', data.player.avatar);
     updateDiamondDisplay();
+    updateShieldDisplay();
 
     // Show admin section if this is the admin
     if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
@@ -5563,6 +5728,7 @@ function openShop() {
   document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
   _updateShopButtons();
   document.getElementById('shop-modal').classList.add('open');
+  checkDailyDiamonds();
 }
 
 function closeShop() {
@@ -7129,6 +7295,585 @@ function renderLeaderboard(data) {
 }
 
 // ─────────────────────────────────────────────
+//  PvP System
+// ─────────────────────────────────────────────
+function showOtherPlayerPopup(p) {
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, p.last_lat, p.last_lng) : null;
+  const inRange = dist !== null && dist <= LARGE_RADIUS;
+  const hasShield = p.shield_until && new Date(p.shield_until) > new Date();
+  const distLabel = dist !== null
+    ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
+    : '<span style="color:#888">📍 GPS...</span>';
+  const shieldLabel = hasShield ? ' 🛡️ Щит активен' : '';
+
+  const actions = [];
+  if (inRange && !hasShield) {
+    actions.push({
+      label: '⚔️ Напасть',
+      cls: 'danger',
+      action: () => showPvpPreview(p),
+    });
+  } else if (hasShield) {
+    actions.push({ label: '🛡️ Игрок под защитой', cls: '', disabled: true });
+  } else if (!inRange) {
+    actions.push({ label: '⚔️ Слишком далеко', cls: 'danger', disabled: true });
+  }
+
+  openPopup(
+    `${p.avatar || '🐺'} ${displayName(p)}`,
+    `Ур. ${p.level ?? 1} ${distLabel}${shieldLabel}`,
+    [
+      ...(p.bonus_attack ? [['⚔️ Атака', `${10 + p.bonus_attack}`]] : []),
+      ...(p.bonus_hp ? [['🛡️ Доп. HP', `+${p.bonus_hp}`]] : []),
+    ],
+    actions
+  );
+}
+
+function showPvpPreview(defender) {
+  const p = state.player;
+  const ov = document.getElementById('pvp-overlay');
+  ov.innerHTML = `
+    <div class="pvp-vs-screen">
+      <div class="pvp-vs-row">
+        <div class="pvp-fighter">
+          <div class="pvp-fighter-avatar">${p.avatar || '🐺'}</div>
+          <div class="pvp-fighter-name">${displayName(p)}</div>
+          <div class="pvp-fighter-level">Ур. ${p.level ?? 1}</div>
+          <div class="pvp-fighter-weapon">⚔️ ${10 + (p.bonus_attack || 0)} ATK</div>
+        </div>
+        <div class="pvp-vs-icon">VS</div>
+        <div class="pvp-fighter">
+          <div class="pvp-fighter-avatar">${defender.avatar || '🐺'}</div>
+          <div class="pvp-fighter-name">${displayName(defender)}</div>
+          <div class="pvp-fighter-level">Ур. ${defender.level ?? 1}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:center;">
+        <button class="btn" onclick="document.getElementById('pvp-overlay').classList.remove('open')" style="flex:1;max-width:140px;">Отмена</button>
+        <button class="btn danger" id="pvp-fight-btn" style="flex:1;max-width:140px;">⚔️ В бой!</button>
+      </div>
+    </div>
+  `;
+  ov.classList.add('open');
+  document.getElementById('pvp-fight-btn').onclick = () => initiatePvp(defender.telegram_id);
+}
+
+async function initiatePvp(defenderTelegramId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  const btn = document.getElementById('pvp-fight-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+
+  try {
+    const data = await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'pvp-initiate', telegram_id: TG_ID, defender_telegram_id: defenderTelegramId, lat: pos.lat, lng: pos.lng }),
+    });
+    // Update coins
+    if (state.player) {
+      if (data.winner === 'attacker') {
+        state.player.coins = (state.player.coins || 0) + data.coinsWon;
+      } else {
+        state.player.coins = Math.max(0, (state.player.coins || 0) - data.coinsLost);
+        state.player.shield_until = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      }
+    }
+    updateCoinDisplay();
+    handleXpResult(data.xp);
+    await playBattleAnimation(data);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    document.getElementById('pvp-overlay').classList.remove('open');
+  }
+}
+
+async function fleePvp(attackerTelegramId) {
+  try {
+    const data = await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'pvp-flee', telegram_id: TG_ID, attacker_telegram_id: attackerTelegramId }),
+    });
+    if (state.player) state.player.coins = data.coinsLeft;
+    updateCoinDisplay();
+    showToast(`🏃 Вы сбежали! -${formatCoins(data.fleeCost)} монет`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function playBattleAnimation(data) {
+  return new Promise(resolve => {
+    const ov = document.getElementById('pvp-overlay');
+    const atk = data.attacker;
+    const def = data.defender;
+    const rounds = data.battle.rounds;
+    const atkMaxHp = 100 + (atk.bonusHp || 0);
+    const defMaxHp = 100 + (def.bonusHp || 0);
+    let atkHp = atkMaxHp;
+    let defHp = defMaxHp;
+    const isWinner = data.winner === 'attacker';
+    const myTgId = String(TG_ID);
+    const iAmAttacker = String(atk.telegram_id) === myTgId;
+    const iWon = (iAmAttacker && isWinner) || (!iAmAttacker && !isWinner);
+
+    let html = `<div class="pvp-vs-screen" style="max-height:100vh;overflow-y:auto;padding-bottom:40px;">
+      <div class="pvp-vs-row">
+        <div class="pvp-fighter">
+          <div class="pvp-fighter-avatar">${atk.avatar || '🐺'}</div>
+          <div class="pvp-fighter-name" style="color:#2979ff;">${atk.username || 'Игрок'}</div>
+          <div class="pvp-hp-bar"><div class="pvp-hp-fill attacker" id="pvp-atk-hp" style="width:100%"></div></div>
+          <div class="pvp-hp-label" id="pvp-atk-hp-label">${atkHp} HP</div>
+        </div>
+        <div class="pvp-vs-icon">⚔️</div>
+        <div class="pvp-fighter">
+          <div class="pvp-fighter-avatar">${def.avatar || '🐺'}</div>
+          <div class="pvp-fighter-name" style="color:#ff4444;">${def.username || 'Игрок'}</div>
+          <div class="pvp-hp-bar"><div class="pvp-hp-fill defender" id="pvp-def-hp" style="width:100%"></div></div>
+          <div class="pvp-hp-label" id="pvp-def-hp-label">${defHp} HP</div>
+        </div>
+      </div>
+      <div id="pvp-rounds-log"></div>
+      <div id="pvp-result-area"></div>
+    </div>`;
+
+    ov.innerHTML = html;
+    ov.classList.add('open');
+
+    const log = document.getElementById('pvp-rounds-log');
+    const atkBar = document.getElementById('pvp-atk-hp');
+    const defBar = document.getElementById('pvp-def-hp');
+    const atkLabel = document.getElementById('pvp-atk-hp-label');
+    const defLabel = document.getElementById('pvp-def-hp-label');
+
+    let delay = 0;
+    for (let i = 0; i < rounds.length; i++) {
+      const r = rounds[i];
+      delay += 800;
+      ((roundIdx, round, d) => {
+        setTimeout(() => {
+          const el = document.createElement('div');
+          el.innerHTML = `<div class="pvp-round-label">Раунд ${roundIdx + 1}</div>`;
+
+          // Attacker hits
+          const critA = round.attackerCrit ? ' <span class="crit">КРИТ!</span>' : '';
+          el.innerHTML += `<div class="pvp-hit-line" style="color:#2979ff;">${atk.username || 'Атакующий'} наносит <strong>-${round.attackerDmg}</strong>${critA}</div>`;
+          defHp = round.defenderHpAfter ?? defHp;
+          if (defBar) defBar.style.width = Math.max(0, (defHp / defMaxHp) * 100) + '%';
+          if (defLabel) defLabel.textContent = `${Math.max(0, defHp)} HP`;
+
+          if (round.defenderDmg != null) {
+            const critD = round.defenderCrit ? ' <span class="crit">КРИТ!</span>' : '';
+            el.innerHTML += `<div class="pvp-hit-line" style="color:#ff4444;">${def.username || 'Защитник'} наносит <strong>-${round.defenderDmg}</strong>${critD}</div>`;
+            atkHp = round.attackerHpAfter ?? atkHp;
+            if (atkBar) atkBar.style.width = Math.max(0, (atkHp / atkMaxHp) * 100) + '%';
+            if (atkLabel) atkLabel.textContent = `${Math.max(0, atkHp)} HP`;
+          }
+
+          log.appendChild(el);
+          el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, d);
+      })(i, r, delay);
+      delay += 600;
+    }
+
+    // Show result
+    delay += 500;
+    setTimeout(() => {
+      const area = document.getElementById('pvp-result-area');
+      if (!area) return;
+      const bannerClass = iWon ? 'win' : 'lose';
+      const bannerText = iWon ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ';
+      const coinsText = iWon
+        ? `+${formatCoins(data.coinsWon)} монет, +${data.xpGain} XP`
+        : `-${formatCoins(data.coinsLost)} монет`;
+      area.innerHTML = `
+        <div class="pvp-result-banner ${bannerClass}">${bannerText}</div>
+        <div class="pvp-result-detail">${coinsText}</div>
+        <div class="pvp-close-hint">Нажмите чтобы закрыть</div>
+      `;
+      ov.onclick = () => {
+        ov.classList.remove('open');
+        ov.onclick = null;
+        resolve();
+      };
+    }, delay);
+  });
+}
+
+// Shield display
+let _shieldInterval = null;
+function updateShieldDisplay() {
+  const el = document.getElementById('shield-timer-display');
+  if (!el) return;
+  const shieldUntil = state.player?.shield_until;
+  if (!shieldUntil || new Date(shieldUntil) <= new Date()) {
+    el.style.display = 'none';
+    if (_shieldInterval) { clearInterval(_shieldInterval); _shieldInterval = null; }
+    return;
+  }
+  el.style.display = 'block';
+  function tick() {
+    const left = Math.max(0, new Date(shieldUntil) - Date.now());
+    if (left <= 0) {
+      el.style.display = 'none';
+      if (_shieldInterval) { clearInterval(_shieldInterval); _shieldInterval = null; }
+      return;
+    }
+    const m = Math.floor(left / 60000);
+    const s = Math.floor((left % 60000) / 1000);
+    el.textContent = `🛡️ ${m}м ${s}с`;
+  }
+  tick();
+  if (_shieldInterval) clearInterval(_shieldInterval);
+  _shieldInterval = setInterval(tick, 1000);
+}
+
+// ─────────────────────────────────────────────
+//  Mine Attack System
+// ─────────────────────────────────────────────
+let _mineAttackTimer = null;
+let _mineAttackMineId = null;
+let _projectileInterval = null;
+
+async function doAttackMine(mineId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  closePopup();
+
+  try {
+    const data = await apiFetch('/api/buildings/attack', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId, lat: pos.lat, lng: pos.lng }),
+    });
+    showToast(`⚔️ Атака начата! ${data.attackDuration}с`);
+    _startAttackAnimation(mineId, data.attackDuration, data.attackEndsAt);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function _startAttackAnimation(mineId, duration, endsAtISO) {
+  _mineAttackMineId = mineId;
+  const overlay = document.getElementById('mine-attack-overlay');
+  const timerEl = document.getElementById('mine-attack-timer');
+  overlay.classList.add('open');
+
+  const endsAt = new Date(endsAtISO).getTime();
+
+  function tick() {
+    const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+    const m = Math.floor(left / 60);
+    const s = left % 60;
+    timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+    if (left <= 0) {
+      clearInterval(_mineAttackTimer);
+      _mineAttackTimer = null;
+      if (_projectileInterval) { clearInterval(_projectileInterval); _projectileInterval = null; }
+      _finishAttack(mineId);
+    }
+  }
+  tick();
+  if (_mineAttackTimer) clearInterval(_mineAttackTimer);
+  _mineAttackTimer = setInterval(tick, 1000);
+
+  // Fire projectiles every 1.5s
+  const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
+  if (mine && state.playerPos) {
+    if (_projectileInterval) clearInterval(_projectileInterval);
+    _projectileInterval = setInterval(() => {
+      if (!state.playerPos) return;
+      fireProjectile(
+        L.latLng(state.playerPos.lat, state.playerPos.lng),
+        L.latLng(mine.lat, mine.lng)
+      );
+    }, 1500);
+    // Fire first one immediately
+    fireProjectile(
+      L.latLng(state.playerPos.lat, state.playerPos.lng),
+      L.latLng(mine.lat, mine.lng)
+    );
+  }
+}
+
+function fireProjectile(fromLatLng, toLatLng) {
+  const fromPt = map.latLngToContainerPoint(fromLatLng);
+  const toPt   = map.latLngToContainerPoint(toLatLng);
+  const el = document.createElement('div');
+  el.className = 'attack-projectile';
+  el.textContent = '💥';
+  el.style.left = fromPt.x + 'px';
+  el.style.top  = fromPt.y + 'px';
+  el.style.animation = 'projectileSpin 0.5s linear infinite';
+  document.body.appendChild(el);
+
+  const dx = toPt.x - fromPt.x;
+  const dy = toPt.y - fromPt.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const durationMs = Math.max(300, dist * 2);
+
+  el.style.transition = `left ${durationMs}ms linear, top ${durationMs}ms linear`;
+  requestAnimationFrame(() => {
+    el.style.left = toPt.x + 'px';
+    el.style.top  = toPt.y + 'px';
+  });
+
+  setTimeout(() => {
+    // Impact flash
+    showFloatingText('💥', toLatLng, '#FFD700');
+    el.remove();
+  }, durationMs + 50);
+}
+
+async function _finishAttack(mineId) {
+  const overlay = document.getElementById('mine-attack-overlay');
+  overlay.classList.remove('open');
+  _mineAttackMineId = null;
+
+  try {
+    const data = await apiFetch('/api/buildings/attack', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'finish', telegram_id: TG_ID, mine_id: mineId }),
+    });
+    if (data.result === 'burning') {
+      showToast(`🔥 Шахта горит! +${data.xpGain} XP`);
+      handleXpResult(data.xp);
+    } else {
+      showToast(`🛡️ Шахта устояла (${data.remainingHp}/${data.maxHp} HP)`);
+    }
+    loadVisibleBuildings(true);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function doExtinguish(mineId) {
+  closePopup();
+  try {
+    const data = await apiFetch('/api/buildings/attack', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'extinguish', telegram_id: TG_ID, mine_id: mineId }),
+    });
+    showToast(`🧯 Потушено! HP: ${data.restoredHp}/${data.maxHp}`);
+    loadVisibleBuildings(true);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Daily Diamonds & Stars Purchase
+// ─────────────────────────────────────────────
+let _dailyCountdownInterval = null;
+
+async function checkDailyDiamonds() {
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'daily-check', telegram_id: TG_ID }),
+    });
+    updateDailyDiamondsUI(data.canClaim, data.nextClaimIn);
+  } catch (err) {
+    console.error('[daily] check error:', err.message);
+  }
+}
+
+function updateDailyDiamondsUI(canClaim, nextClaimIn) {
+  const btn = document.getElementById('btn-daily-diamonds');
+  const timer = document.getElementById('daily-timer');
+  if (!btn || !timer) return;
+
+  if (_dailyCountdownInterval) { clearInterval(_dailyCountdownInterval); _dailyCountdownInterval = null; }
+
+  if (canClaim) {
+    btn.disabled = false;
+    btn.textContent = 'Забрать 5 💎';
+    timer.textContent = '';
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'Получено ✓';
+    let msLeft = nextClaimIn || 0;
+    function tick() {
+      if (msLeft <= 0) {
+        timer.textContent = '';
+        btn.disabled = false;
+        btn.textContent = 'Забрать 5 💎';
+        if (_dailyCountdownInterval) clearInterval(_dailyCountdownInterval);
+        return;
+      }
+      const h = Math.floor(msLeft / 3600000);
+      const m = Math.floor((msLeft % 3600000) / 60000);
+      const s = Math.floor((msLeft % 60000) / 1000);
+      timer.textContent = `⏰ ${h}ч ${m}м ${s}с`;
+      msLeft -= 1000;
+    }
+    tick();
+    _dailyCountdownInterval = setInterval(tick, 1000);
+  }
+}
+
+async function claimDailyDiamonds() {
+  const btn = document.getElementById('btn-daily-diamonds');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'daily-diamonds', telegram_id: TG_ID }),
+    });
+    if (state.player) state.player.diamonds = data.diamonds;
+    updateDiamondDisplay();
+    document.getElementById('shop-diamonds').textContent = data.diamonds;
+    showToast('💎 +5 алмазов!');
+    updateDailyDiamondsUI(false, 24 * 3600 * 1000);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Забрать 5 💎'; }
+  }
+}
+
+async function buyStars() {
+  const btn = document.getElementById('btn-buy-stars');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'stars-invoice', telegram_id: TG_ID }),
+    });
+    if (btn) { btn.disabled = false; btn.textContent = '⭐ Купить 100 💎 за 15 Stars'; }
+    if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
+      window.Telegram.WebApp.openInvoice(data.invoiceLink, (status) => {
+        if (status === 'paid') {
+          showToast('💎 Оплата прошла! Алмазы будут начислены.');
+          // Refresh player data after a short delay
+          setTimeout(async () => {
+            try {
+              const initData = await apiFetch('/api/player/init', {
+                method: 'POST',
+                body: JSON.stringify({ telegram_id: TG_ID }),
+              });
+              if (initData.player) {
+                state.player.diamonds = initData.player.diamonds;
+                updateDiamondDisplay();
+              }
+            } catch (_) {}
+          }, 3000);
+        } else if (status === 'cancelled') {
+          showToast('Оплата отменена');
+        }
+      });
+    } else {
+      // Fallback: open link directly
+      window.open(data.invoiceLink, '_blank');
+    }
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = '⭐ Купить 100 💎 за 15 Stars'; }
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Mass Item Selection & Selling
+// ─────────────────────────────────────────────
+let _selectionMode = false;
+let _selectedItemIds = new Set();
+
+function enterSelectionMode() {
+  _selectionMode = true;
+  _selectedItemIds.clear();
+  _renderInventoryGridSelectable();
+  document.getElementById('selection-bar').classList.add('open');
+  _updateSelectionBar();
+}
+
+function exitSelectionMode() {
+  _selectionMode = false;
+  _selectedItemIds.clear();
+  document.getElementById('selection-bar').classList.remove('open');
+  _renderInventoryGrid();
+}
+
+function _renderInventoryGridSelectable() {
+  const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) =>
+    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
+  );
+  const grid = document.getElementById('inventory-grid');
+  grid.innerHTML = '';
+
+  for (const item of inv) {
+    const cell = document.createElement('div');
+    const canSelect = !item.equipped && !item.on_market;
+    cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}${canSelect ? ' selectable' : ''}`;
+    cell.style.position = 'relative';
+    const check = document.createElement('span');
+    check.className = 'select-check';
+    check.textContent = '✓';
+    if (!canSelect) check.style.display = 'none';
+    cell.innerHTML = `<span>${item.emoji}</span>`;
+    cell.appendChild(check);
+
+    if (canSelect) {
+      cell.onclick = () => {
+        if (_selectedItemIds.has(item.id)) {
+          _selectedItemIds.delete(item.id);
+          cell.classList.remove('selected');
+        } else {
+          _selectedItemIds.add(item.id);
+          cell.classList.add('selected');
+        }
+        _updateSelectionBar();
+      };
+    }
+    grid.appendChild(cell);
+  }
+}
+
+function _updateSelectionBar() {
+  const count = _selectedItemIds.size;
+  document.getElementById('sel-count').textContent = count;
+  let totalGems = 0;
+  for (const id of _selectedItemIds) {
+    const item = (state.inventory || []).find(i => i.id === id);
+    if (item) totalGems += (ITEM_SELL_PRICE[item.rarity] ?? 1);
+  }
+  document.getElementById('sel-gems').textContent = totalGems;
+  document.getElementById('sel-sell-btn').disabled = count === 0;
+}
+
+async function sellSelectedItems() {
+  if (_selectedItemIds.size === 0) return;
+  const ids = [..._selectedItemIds];
+  const totalGems = ids.reduce((sum, id) => {
+    const item = (state.inventory || []).find(i => i.id === id);
+    return sum + (ITEM_SELL_PRICE[item?.rarity] ?? 1);
+  }, 0);
+
+  if (!confirm(`Продать ${ids.length} предметов за ~${totalGems} 💎?`)) return;
+
+  let soldCount = 0;
+  let totalSold = 0;
+  for (const id of ids) {
+    try {
+      const data = await apiFetch('/api/items', {
+        method: 'POST',
+        body: JSON.stringify({ telegram_id: TG_ID, action: 'sell', item_id: id }),
+      });
+      state.inventory = (state.inventory || []).filter(i => i.id !== id);
+      if (state.player) state.player.diamonds = data.diamonds;
+      soldCount++;
+      totalSold += data.soldFor;
+    } catch (err) {
+      console.error('[sell] item', id, err.message);
+    }
+  }
+
+  updateDiamondDisplay();
+  _renderEquipSlots();
+  exitSelectionMode();
+  showToast(`Продано ${soldCount} предметов за ${totalSold} 💎`);
+}
+
+// ─────────────────────────────────────────────
 //  Boot
 // ─────────────────────────────────────────────
 (async () => {
@@ -7195,7 +7940,10 @@ function renderLeaderboard(data) {
   <div class="profile-section" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div class="profile-section-title" id="inventory-title">Инвентарь (0 предметов)</div>
-      <button id="btn-craft" onclick="openCraftScreen()" style="background:linear-gradient(135deg,#f5c518,#ff8c00);color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">⚒️ Крафт</button>
+      <div style="display:flex;gap:6px;">
+        <button id="btn-mass-sell" onclick="enterSelectionMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
+        <button id="btn-craft" onclick="openCraftScreen()" style="background:linear-gradient(135deg,#f5c518,#ff8c00);color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">⚒️ Крафт</button>
+      </div>
     </div>
     <div class="inventory-grid" id="inventory-grid"></div>
   </div>
@@ -7346,6 +8094,24 @@ function renderLeaderboard(data) {
       </div>
       <button class="btn primary" id="market-list-submit" style="width:100%;margin-top:16px;padding:14px;font-size:15px;">🎪 Разместить</button>
     </div>
+  </div>
+</div>
+
+<!-- PvP battle overlay -->
+<div id="pvp-overlay"></div>
+
+<!-- Mine attack countdown overlay -->
+<div id="mine-attack-overlay">
+  <div id="mine-attack-timer">0:00</div>
+  <div id="mine-attack-label">Атака шахты...</div>
+</div>
+
+<!-- Mass selection bar -->
+<div id="selection-bar">
+  <div id="selection-bar-info">Выбрано: <strong id="sel-count">0</strong> | 💎 <strong id="sel-gems">0</strong></div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn" onclick="exitSelectionMode()">Отмена</button>
+    <button class="btn danger" id="sel-sell-btn" onclick="sellSelectedItems()">Продать</button>
   </div>
 </div>
 
