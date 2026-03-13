@@ -3150,8 +3150,7 @@ function setLoadingText(t) {
 
 async function apiFetch(path, opts = {}) {
   if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
-  const url = `/api/proxy?path=${encodeURIComponent(path)}`;
-  const res = await fetch(url, {
+  const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
@@ -4387,27 +4386,45 @@ let _socket = null;
 
 function initSocket() {
   if (_socket) return;
-  _socket = io(VPS_URL, { transports: ['polling'] });
+  try {
+    _socket = io(VPS_URL, {
+      transports: ['polling'],
+      timeout: 3000,
+      reconnectionAttempts: 3,
+    });
 
-  _socket.on('connect', () => {
-    console.log('[socket] Connected to game server');
-    if (TG_ID && state.playerPos) {
-      _socket.emit('player:init', {
-        telegram_id: TG_ID,
-        lat: state.playerPos.lat,
-        lng: state.playerPos.lng,
-      });
-    }
-  });
+    // If not connected within 3s, give up silently (REST fallback works)
+    const _socketTimeout = setTimeout(() => {
+      if (!_socket.connected) {
+        console.warn('[socket] Connection timeout — falling back to REST polling');
+        _socket.close();
+        _socket = null;
+      }
+    }, 3000);
 
-  _socket.on('tick', (data) => {
-    console.log('[socket] tick received');
-    processTickData(data);
-  });
+    _socket.on('connect', () => {
+      clearTimeout(_socketTimeout);
+      console.log('[socket] Connected to game server');
+      if (TG_ID && state.playerPos) {
+        _socket.emit('player:init', {
+          telegram_id: TG_ID,
+          lat: state.playerPos.lat,
+          lng: state.playerPos.lng,
+        });
+      }
+    });
 
-  _socket.on('disconnect', () => {
-    console.log('[socket] Disconnected from server');
-  });
+    _socket.on('tick', (data) => {
+      processTickData(data);
+    });
+
+    _socket.on('disconnect', () => {
+      console.log('[socket] Disconnected from server');
+    });
+  } catch (e) {
+    console.warn('[socket] Init failed:', e.message);
+    _socket = null;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -5322,7 +5339,7 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch(`/api/proxy?path=${encodeURIComponent('/api/admin/maintenance')}`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
 
     if (maintenance) {
@@ -5795,7 +5812,7 @@ async function boot() {
 
   setLoadingText('Loading player data...');
   try {
-    const initRes = await fetch(`/api/proxy?path=${encodeURIComponent('/api/player/init')}`, {
+    const initRes = await fetch('/api/player/init', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
@@ -8640,7 +8657,7 @@ async function doClanKick(targetTgId) {
 
   // For everyone else: check maintenance first (3s timeout — never block boot)
   try {
-    const res = await fetch(`/api/proxy?path=${encodeURIComponent('/api/admin/maintenance')}`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch('/api/admin/maintenance', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;
