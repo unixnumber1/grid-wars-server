@@ -1807,21 +1807,28 @@
     #mine-attack-label { font-size: 12px; color: #aaa; margin-top: 4px; }
     .mine-status-burning { position: relative; }
     .mine-status-burning::after {
-      content: '🔥'; position: absolute; top: -4px; right: -4px;
-      font-size: 14px; animation: fireFlicker 0.8s infinite alternate;
+      content: '🔥'; position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 18px; pointer-events: none;
     }
     .mine-status-attack::after {
       content: '⚔️'; position: absolute; top: -4px; right: -4px;
       font-size: 12px;
     }
-    @keyframes fireFlicker { 0% { opacity: 0.7; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.1); } }
+    @keyframes fireFlicker { 0% { opacity: 0.7; transform: translate(-50%,-50%) scale(0.9); } 100% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); } }
 
     /* ── Projectile animation ── */
     .attack-projectile {
-      position: fixed; z-index: 2000; font-size: 18px; pointer-events: none;
-      transition: none;
+      position: fixed; z-index: 2000; font-size: 24px; pointer-events: none;
+      transition: none; filter: none; border-radius: 50%;
     }
-    @keyframes projectileSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes projectileSpinCCW { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
+    .projectile-glow-common    { filter: drop-shadow(0 0 6px #888888) drop-shadow(0 0 12px #88888866); }
+    .projectile-glow-uncommon  { filter: drop-shadow(0 0 6px #2979ff) drop-shadow(0 0 12px #2979ff88); }
+    .projectile-glow-rare      { filter: drop-shadow(0 0 8px #00c853) drop-shadow(0 0 16px #00c85388); }
+    .projectile-glow-epic      { filter: drop-shadow(0 0 8px #ff00aa) drop-shadow(0 0 16px #ff00aa88); }
+    .projectile-glow-mythic    { filter: drop-shadow(0 0 10px #8b0000) drop-shadow(0 0 20px #8b000088); }
+    .projectile-glow-legendary { filter: drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FF8C00aa) drop-shadow(0 0 30px #FFD70066); }
 
     /* ── Daily diamonds section in shop ── */
     .shop-daily-section {
@@ -7600,18 +7607,33 @@ function _startAttackAnimation(mineId, duration, endsAtISO) {
 function fireProjectile(fromLatLng, toLatLng) {
   const fromPt = map.latLngToContainerPoint(fromLatLng);
   const toPt   = map.latLngToContainerPoint(toLatLng);
+
+  // Determine equipped weapon
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'sword';
+  const weaponRarity = weapon ? (weapon.rarity || 'common') : 'common';
+
   const el = document.createElement('div');
-  el.className = 'attack-projectile';
-  el.textContent = '💥';
-  el.style.left = fromPt.x + 'px';
-  el.style.top  = fromPt.y + 'px';
-  el.style.animation = 'projectileSpin 0.5s linear infinite';
-  document.body.appendChild(el);
+  el.className = 'attack-projectile projectile-glow-' + weaponRarity;
 
   const dx = toPt.x - fromPt.x;
   const dy = toPt.y - fromPt.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
   const durationMs = Math.max(300, dist * 2);
+
+  if (weaponType === 'axe') {
+    el.textContent = '🪓';
+    el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
+  } else {
+    // Sword — point toward target
+    el.textContent = '🗡️';
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    el.style.transform = `rotate(${angle - 45}deg)`;
+  }
+
+  el.style.left = fromPt.x + 'px';
+  el.style.top  = fromPt.y + 'px';
+  document.body.appendChild(el);
 
   el.style.transition = `left ${durationMs}ms linear, top ${durationMs}ms linear`;
   requestAnimationFrame(() => {
@@ -7620,7 +7642,6 @@ function fireProjectile(fromLatLng, toLatLng) {
   });
 
   setTimeout(() => {
-    // Impact flash
     showFloatingText('💥', toLatLng, '#FFD700');
     el.remove();
   }, durationMs + 50);
