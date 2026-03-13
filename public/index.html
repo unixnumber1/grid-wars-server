@@ -3655,7 +3655,17 @@ function showMinePopup(mine, isOwn, canCapture) {
         ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? formatCoins(nextCost) : 'МАКС']] : []),
         ['Монеты', formatCoins(playerCoins)],
       ],
-      [
+      mine.status === 'burning' ? [
+        {
+          label: '🧯 Потушить (восстановит 25% HP)',
+          cls: 'primary',
+          action: () => doExtinguish(mine.id),
+        },
+        {
+          label: 'Закрыть',
+          isClose: true,
+        },
+      ] : [
         ...(nextCost !== null ? [{
           label: upgradeLabel,
           cls: 'yellow',
@@ -3667,11 +3677,6 @@ function showMinePopup(mine, isOwn, canCapture) {
           cls: 'yellow',
           disabled: !canBulk,
           action: () => doUpgrade(mine.id, targetBulkLevel),
-        }] : []),
-        ...(mine.status === 'burning' ? [{
-          label: '🧯 Потушить (восстановит 25% HP)',
-          cls: 'primary',
-          action: () => doExtinguish(mine.id),
         }] : []),
         {
           label: `🔥 Продать (+${formatCoins(sellTotal)} монет)`,
@@ -7625,14 +7630,13 @@ function fireProjectile(fromLatLng, toLatLng) {
     el.textContent = '🪓';
     el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
   } else {
-    // Sword — SVG blade always points right (0°), rotate toward target
+    // Sword emoji 🗡️ — base orientation varies by platform
+    // Wrap in inner span so we can normalize then rotate to target
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    el.innerHTML = `<svg width="32" height="32" viewBox="0 0 32 32" style="display:block;">
-      <line x1="4" y1="16" x2="26" y2="16" stroke="#ccc" stroke-width="2.5" stroke-linecap="round"/>
-      <polygon points="26,16 20,12 20,20" fill="#e0e0e0"/>
-      <line x1="8" y1="12" x2="8" y2="20" stroke="#a08050" stroke-width="2" stroke-linecap="round"/>
-    </svg>`;
-    el.style.transform = `rotate(${angle}deg)`;
+    el.innerHTML = `<span style="display:inline-block;font-size:24px;">🗡️</span>`;
+    // Emoji natively points ~upper-right (-45°). Rotate so tip aims at target.
+    el.style.transform = `rotate(${angle + 45}deg)`;
+    el.style.transformOrigin = 'center center';
   }
 
   el.style.left = fromPt.x + 'px';
