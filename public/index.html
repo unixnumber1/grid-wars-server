@@ -8562,26 +8562,42 @@ async function doClanLeave() {
 
 async function doClanDonate() {
   closePopup();
-  const amount = prompt('Сколько алмазов пожертвовать в казну?');
-  const parsed = parseInt(amount);
-  if (!amount || isNaN(parsed) || parsed <= 0) return;
   const currentDiamonds = state.player?.diamonds ?? 0;
-  if (parsed > currentDiamonds) { showToast('❌ Недостаточно алмазов'); return; }
-  // Optimistic UI update
-  if (state.player) state.player.diamonds = currentDiamonds - parsed;
+  // Show donate popup with preset amounts
+  const presets = [10, 50, 100, 500].filter(v => v <= currentDiamonds);
+  openPopup(
+    '💎 Пополнить казну',
+    `У вас: ${currentDiamonds} 💎`,
+    [],
+    [
+      ...presets.map(v => ({
+        label: `💎 ${v}`,
+        cls: 'primary',
+        action: () => { closePopup(); _executeDonate(v, currentDiamonds); },
+      })),
+      ...(currentDiamonds > 0 ? [{
+        label: `💎 Все (${currentDiamonds})`,
+        cls: 'yellow',
+        action: () => { closePopup(); _executeDonate(currentDiamonds, currentDiamonds); },
+      }] : []),
+    ]
+  );
+}
+
+async function _executeDonate(amount, prevDiamonds) {
+  if (state.player) state.player.diamonds = prevDiamonds - amount;
   updateDiamondDisplay();
-  showToast(`💎 Отправляем ${parsed} алмазов в казну...`);
+  showToast(`💎 Отправляем ${amount} алмазов в казну...`);
   try {
     const data = await apiFetch('/api/clan', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'donate', amount: parsed }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'donate', amount }),
     });
     if (state.player) state.player.diamonds = data.player_diamonds;
     updateDiamondDisplay();
-    showToast(`💎 Пожертвовано ${parsed} алмазов! Казна: ${data.treasury}`);
+    showToast(`💎 Пожертвовано ${amount} алмазов! Казна: ${data.treasury}`);
   } catch (err) {
-    // Rollback on error
-    if (state.player) state.player.diamonds = currentDiamonds;
+    if (state.player) state.player.diamonds = prevDiamonds;
     updateDiamondDisplay();
     showToast(err.message);
   }
