@@ -3935,7 +3935,8 @@ function showMinePopup(mine, isOwn, canCapture) {
     for (const ch of myClanHqs) {
       const cfg = getClanLevelConfig(ch.clan_level);
       if (haversine(mine.lat, mine.lng, ch.lat, ch.lng) <= cfg.radius) {
-        clanBonusInfo = { income: cfg.income, defense: cfg.defense };
+        const boostMul = state.clanBoost?.multiplier || null;
+        clanBonusInfo = { income: cfg.income, defense: cfg.defense, boost: boostMul };
         break;
       }
     }
@@ -3977,7 +3978,12 @@ function showMinePopup(mine, isOwn, canCapture) {
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
           : [
               ['Доход', clanBonusInfo
-                ? `${formatCoins(Math.round(rate * (1 + clanBonusInfo.income / 100)))}/ч <span style="color:#D500F9">(+${clanBonusInfo.income}% 🏰)</span>`
+                ? (() => {
+                    let boosted = rate * (1 + clanBonusInfo.income / 100);
+                    let tags = `+${clanBonusInfo.income}%`;
+                    if (clanBonusInfo.boost) { boosted *= clanBonusInfo.boost; tags += ` · x${clanBonusInfo.boost} 🚀`; }
+                    return `${formatCoins(Math.round(boosted))}/ч <span style="color:#D500F9">(${tags})</span>`;
+                  })()
                 : `${formatCoins(rate)}/ч`],
               ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
             ]),
