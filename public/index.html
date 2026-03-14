@@ -4608,8 +4608,11 @@ function processTickData(data) {
   if (data.inventory) state.inventory = data.inventory;
   if (data.clanBoost) state.clanBoost = data.clanBoost; else state.clanBoost = null;
 
-  // Render map data
-  state.mapBuildings = data;
+  // Render map data — merge only map-specific arrays, preserve existing if missing
+  if (data.headquarters) state.mapBuildings.headquarters = data.headquarters;
+  if (data.mines) state.mapBuildings.mines = data.mines;
+  if (data.online_players) state.mapBuildings.online_players = data.online_players;
+  if (data.clan_hqs) state.mapBuildings.clan_hqs = data.clan_hqs;
   renderBuildings();
   renderBots(data.bots || []);
   renderVases(data.vases || []);
