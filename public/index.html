@@ -2716,7 +2716,7 @@ function handleXpResult(xp) {
     showXpToast(xp.xpGained);
     // Floating +XP text over player
     if (state.playerPos) {
-      showFloatingText(`+${xp.xpGained} XP`, L.latLng(state.playerPos.lat, state.playerPos.lng), '#FFD700');
+      showFloatingText(L.latLng(state.playerPos.lat, state.playerPos.lng), `+${xp.xpGained} XP`, '#FFD700');
     }
   }
   if (state.player && xp.newXp != null) {
@@ -6704,7 +6704,7 @@ async function doAttackCourier(courierId) {
       const dLng = ci ? ci.displayLng : c.current_lng;
       const latlng = L.latLng(dLat, dLng);
       const color = data.isCrit ? '#FFD700' : '#ff4444';
-      showFloatingText(`${data.isCrit ? 'КРИТ! ' : ''}-${data.damage}`, latlng, color);
+      showFloatingText(latlng, `${data.isCrit ? 'КРИТ! ' : ''}-${data.damage}`, color);
     }
 
     if (data.killed) {
@@ -7778,7 +7778,7 @@ function fireProjectile(fromLatLng, toLatLng) {
   });
 
   setTimeout(() => {
-    showFloatingText('💥', toLatLng, '#FFD700');
+    showFloatingText(toLatLng, '💥', '#FFD700');
     el.remove();
   }, durationMs + 50);
 }
