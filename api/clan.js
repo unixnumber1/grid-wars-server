@@ -148,12 +148,7 @@ async function handleJoin(req, res) {
   if (!player) return res.status(404).json({ error: 'Player not found' });
   if (player.clan_id) return res.status(400).json({ error: 'Вы уже в клане' });
 
-  if (player.clan_left_at) {
-    const elapsed = Date.now() - new Date(player.clan_left_at).getTime();
-    if (elapsed < CLAN_LEAVE_COOLDOWN) {
-      return res.status(400).json({ error: `Кулдаун: подождите ещё ${Math.ceil((CLAN_LEAVE_COOLDOWN - elapsed) / 3600000)}ч` });
-    }
-  }
+  // Cooldown removed — players can join clans immediately after leaving
 
   const { data: clanHq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
   if (!clanHq) return res.status(400).json({ error: 'Сначала постройте штаб клана' });
