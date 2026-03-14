@@ -3339,6 +3339,7 @@ const vaseLayer = L.layerGroup().addTo(map);
 // Building markers registry
 const buildingMarkers = {}; // id → L.marker
 const onlineMarkers  = {}; // player id → L.marker
+const _tgIdToPlayerId = {}; // telegram_id → player UUID for socket lookups
 
 // ─────────────────────────────────────────────
 //  Emoji icon factories
@@ -3625,6 +3626,7 @@ function renderBuildings() {
   const activePlayerIds = new Set();
   for (const p of (state.mapBuildings.online_players || [])) {
     activePlayerIds.add(p.id);
+    if (p.telegram_id) _tgIdToPlayerId[String(p.telegram_id)] = p.id;
     if (onlineMarkers[p.id]) {
       _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 1500);
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
@@ -4539,24 +4541,31 @@ function initSocket() {
 
     _socket.on('player:moved', (data) => {
       if (!data?.telegram_id || !data.lat || !data.lng) return;
-      // Find online marker by telegram_id
-      const p = (state.mapBuildings.online_players || []).find(op => String(op.telegram_id) === String(data.telegram_id));
-      const markerId = p?.id;
-      if (!markerId || !onlineMarkers[markerId]) return;
-      const marker = onlineMarkers[markerId];
+      const tid = String(data.telegram_id);
+      const playerId = _tgIdToPlayerId[tid];
+      if (!playerId || !onlineMarkers[playerId]) return;
+      const marker = onlineMarkers[playerId];
       const from = marker.getLatLng();
       const dist = haversine(from.lat, from.lng, data.lat, data.lng);
       if (dist < 2) return;
-      if (dist < 10) {
+      // Cancel previous animation
+      if (marker._animFrame) { cancelAnimationFrame(marker._animFrame); marker._animFrame = null; }
+      if (dist < 10 || dist > 200) {
         marker.setLatLng([data.lat, data.lng]);
-      } else if (dist < 50) {
-        _animateMarkerTo(marker, data.lat, data.lng, 300);
-      } else if (dist < 200) {
-        _animateMarkerTo(marker, data.lat, data.lng, 800);
       } else {
-        marker.setLatLng([data.lat, data.lng]);
+        const duration = dist < 50 ? 300 : 800;
+        const startTime = Date.now();
+        const fromLat = from.lat, fromLng = from.lng;
+        const animate = () => {
+          const t = Math.min((Date.now() - startTime) / duration, 1);
+          const ease = 1 - Math.pow(1 - t, 3);
+          marker.setLatLng([fromLat + (data.lat - fromLat) * ease, fromLng + (data.lng - fromLng) * ease]);
+          if (t < 1) marker._animFrame = requestAnimationFrame(animate);
+        };
+        marker._animFrame = requestAnimationFrame(animate);
       }
       // Update cached position
+      const p = (state.mapBuildings.online_players || []).find(op => op.id === playerId);
       if (p) { p.last_lat = data.lat; p.last_lng = data.lng; }
     });
 
