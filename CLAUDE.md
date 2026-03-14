@@ -128,6 +128,14 @@ vercel.json  CLAUDE.md
 - .limit() на все unbounded запросы
 - AbortController + 15с таймаут на фронте
 - Инкрементальный рендер маркеров (кэш по id)
+- Плавная анимация маркеров между тиками (easeInOut интерполяция):
+  - Боты: клиентская экстраполяция по direction+speed + drift correction к серверу за 4.5с
+  - Курьеры: клиентская интерполяция к target через requestAnimationFrame
+  - Игрок: smooth GPS-переход за 1с
+  - Другие игроки: анимация позиции за 4.5с
+- Пассивный доход: локальный счётчик монет каждую секунду (без записи в БД)
+- Условное логирование на VPS: `lib/log.js` — только при `NODE_ENV=development`
+- Автодеплой VPS: webhook.js (pm2, GitHub push → git pull + restart)
 
 ## UI
 - Тёмная тема (#0d0d0d), Segoe UI / system-ui
@@ -145,3 +153,4 @@ vercel.json  CLAUDE.md
 
 ## TODO
 - [x] Кланы
+- [x] Аудит и оптимизация (анимации, пассивный доход, логирование, автодеплой)
