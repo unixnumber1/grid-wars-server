@@ -3629,10 +3629,7 @@ function renderBuildings() {
     activePlayerIds.add(p.id);
     if (p.telegram_id) _tgIdToPlayerId[String(p.telegram_id)] = p.id;
     if (onlineMarkers[p.id]) {
-      // If socket is live, skip tick position updates (socket handles it smoothly)
-      if (!_socket?.connected) {
-        _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 800);
-      }
+      _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 800);
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
     } else {
