@@ -2399,7 +2399,7 @@ if (typeof h3 === 'undefined') {
   console.error('[app] H3 library failed to load!');
   document.getElementById('loading-text').textContent = 'Ошибка загрузки библиотеки. Обнови страницу.';
 } else {
-  console.log('[app] H3 loaded ok, version check:', typeof h3.latLngToCell);
+  // H3 loaded ok
 }
 
 // ─────────────────────────────────────────────
@@ -2565,6 +2565,23 @@ let state = {
   inventory: [],       // player's items from /api/player/init
 };
 
+// Passive income interpolation
+let _localCoins = 0;
+let _incomePerSecond = 0;
+let _lastTickTime = 0;
+let _coinTickInterval = null;
+
+function _startCoinTick() {
+  if (_coinTickInterval) return;
+  _coinTickInterval = setInterval(() => {
+    if (!_incomePerSecond || !_lastTickTime) return;
+    const elapsed = (Date.now() - _lastTickTime) / 1000;
+    const earned = _incomePerSecond * elapsed;
+    const display = Math.floor(_localCoins + earned);
+    document.getElementById('coin-display').textContent = formatCoins(display);
+  }, 1000);
+}
+
 // Map fetch state — declared here to avoid TDZ when loadVisibleBuildings is hoisted
 let _mapLoadPending  = false;
 let _lastMapCenter   = null;
@@ -2664,10 +2681,9 @@ function _calcBuildRadius(_lvl) { return SMALL_RADIUS; }
 
 let _levelUpTimer = null;
 function showLevelUp(level) {
-  console.log('[levelup] showLevelUp called, level:', level);
   const el      = document.getElementById('levelup-notify');
   const overlay = document.getElementById('levelup-overlay');
-  if (!el || !overlay) { console.warn('[levelup] elements not found'); return; }
+  if (!el || !overlay) return;
 
   document.getElementById('levelup-num').textContent = level;
   const attack = _calcAttack(level);
@@ -2694,7 +2710,6 @@ function showLevelUp(level) {
 window.testLevelUp = (level = 5) => showLevelUp(level);
 
 function handleXpResult(xp) {
-  console.log('[levelup] handleXpResult:', JSON.stringify(xp));
   if (!xp) return;
   if (xp.xpGained > 0) {
     showXpToast(xp.xpGained);
@@ -2709,7 +2724,6 @@ function handleXpResult(xp) {
     updateXpBar();
   }
   if (xp.leveledUp) {
-    console.log('[levelup] triggering showLevelUp for level', xp.newLevel);
     showLevelUp(xp.newLevel);
   }
 }
@@ -3220,6 +3234,47 @@ function updatePinButton(active) {
 }
 
 // Apply a position to the player marker, zone circle, and state.playerPos
+// Generic smooth marker animation (for online players etc.)
+function _animateMarkerTo(marker, toLat, toLng, duration) {
+  const from = marker.getLatLng();
+  if (Math.abs(from.lat - toLat) < 0.000001 && Math.abs(from.lng - toLng) < 0.000001) return;
+  const start = Date.now();
+  const key = '_gw_anim';
+  if (marker[key]) cancelAnimationFrame(marker[key]);
+  const step = () => {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const t = progress < 0.5
+      ? 2 * progress * progress
+      : -1 + (4 - 2 * progress) * progress;
+    marker.setLatLng([from.lat + (toLat - from.lat) * t, from.lng + (toLng - from.lng) * t]);
+    if (progress < 1) marker[key] = requestAnimationFrame(step);
+    else marker[key] = null;
+  };
+  marker[key] = requestAnimationFrame(step);
+}
+
+let _playerAnimFrame = null;
+function _animatePlayerMarker(toLat, toLng, duration = 1000) {
+  if (!playerMarker) return;
+  if (_playerAnimFrame) cancelAnimationFrame(_playerAnimFrame);
+  const from = playerMarker.getLatLng();
+  const start = Date.now();
+  const animate = () => {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const t = progress < 0.5
+      ? 2 * progress * progress
+      : -1 + (4 - 2 * progress) * progress;
+    const lat = from.lat + (toLat - from.lat) * t;
+    const lng = from.lng + (toLng - from.lng) * t;
+    playerMarker.setLatLng([lat, lng]);
+    if (progress < 1) _playerAnimFrame = requestAnimationFrame(animate);
+    else _playerAnimFrame = null;
+  };
+  _playerAnimFrame = requestAnimationFrame(animate);
+}
+
 function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
   // Send location to Socket.io server
@@ -3227,7 +3282,7 @@ function _applyPlayerPosition(lat, lng) {
     _socket.emit('player:location', { lat, lng });
   }
   if (playerMarker) {
-    playerMarker.setLatLng([lat, lng]);
+    _animatePlayerMarker(lat, lng, 1000);
   }
   if (playerZoneCircle) {
     playerZoneCircle.setLatLng([lat, lng]);
@@ -3567,7 +3622,7 @@ function renderBuildings() {
   for (const p of (state.mapBuildings.online_players || [])) {
     activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
-      onlineMarkers[p.id].setLatLng([p.last_lat, p.last_lng]);
+      _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 4500);
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
     } else {
@@ -3953,7 +4008,6 @@ async function doUpgradeHq() {
     if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
     updateCoinDisplay();
     showToast(`⚡ Штаб улучшен до уровня ${data.headquarters.level}!`);
-    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     // Optimistic: update HQ marker immediately
     const hqInMap = (state.mapBuildings.headquarters || []).find(h => h.id === data.headquarters.id);
@@ -4094,7 +4148,6 @@ async function doBuildHq(lat, lng) {
     }
     updateCoinDisplay();
     showToast('&#x26A1; Штаб построен!');
-    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     loadVisibleBuildings(true);
   } catch (err) {
@@ -4156,7 +4209,6 @@ async function doBuildMine(lat, lng) {
     mine_lat: lat,
     mine_lng: lng,
   };
-  console.log('Sending /api/buildings/mine:', payload);
 
   // Optimistic: add placeholder mine marker immediately
   const cellId = getCellId(lat, lng);
@@ -4178,7 +4230,6 @@ async function doBuildMine(lat, lng) {
       body: JSON.stringify(payload),
     });
     showToast('⛏️ Шахта построена!');
-    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     state.mines.push(data.mine);
     // Remove temp, add real mine
@@ -4217,7 +4268,6 @@ async function doCollect() {
     if (data.totalIncome != null) state.totalIncome = data.totalIncome;
     updateCoinDisplay();
     showToast(`💰 Собрано ${formatCoins(data.collected)} монет!`);
-    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     // Reset local mine last_collected timestamps
     const now = new Date().toISOString();
@@ -4259,7 +4309,6 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
     document.getElementById('hq-prompt').classList.remove('open');
     updateCoinDisplay();
     showToast('🏛️ Штаб установлен!');
-    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     loadVisibleBuildings(true);
   } catch (err) {
@@ -4273,10 +4322,6 @@ document.getElementById('player-level-display').addEventListener('click', showPr
 let _centerLockUntil = 0; // suppress GPS marker drift during flyTo
 document.getElementById('player-avatar-wrap').addEventListener('click', () => {
   const markerLL = playerMarker ? playerMarker.getLatLng() : null;
-  console.log('[avatar-tap] pinMode:', pinMode, 'joystick:', _joystickEnabled,
-    'markerLL:', markerLL ? `${markerLL.lat.toFixed(5)},${markerLL.lng.toFixed(5)}` : null,
-    'statePos:', state.playerPos ? `${state.playerPos.lat.toFixed(5)},${state.playerPos.lng.toFixed(5)}` : null,
-    'realGPS:', realPlayerPos ? `${realPlayerPos.lat.toFixed(5)},${realPlayerPos.lng.toFixed(5)}` : null);
   const pos = markerLL || state.playerPos || realPlayerPos;
   if (!pos) return;
   map.invalidateSize();
@@ -4335,7 +4380,6 @@ async function loadVisibleBuildings(force = false) {
     if (pos?.lng) params.set('lng', pos.lng);
 
     const data = await apiFetch(`/api/map?${params}`);
-    console.log('[map] loaded:', { hq: data.headquarters?.length, mines: data.mines?.length, bots: data.bots?.length, vases: data.vases?.length, couriers: data.couriers?.length, drops: data.courier_drops?.length, markets: data.markets?.length });
     state.mapBuildings = data;
     renderBuildings();
     renderBots(data.bots || []);
@@ -4404,7 +4448,7 @@ function initSocket() {
 
     _socket.on('connect', () => {
       clearTimeout(_socketTimeout);
-      console.log('[socket] Connected to game server');
+      // Connected to game server
       if (TG_ID && state.playerPos) {
         _socket.emit('player:init', {
           telegram_id: TG_ID,
@@ -4419,7 +4463,7 @@ function initSocket() {
     });
 
     _socket.on('disconnect', () => {
-      console.log('[socket] Disconnected from server');
+      // Disconnected from server
     });
   } catch (e) {
     console.warn('[socket] Init failed:', e.message);
@@ -4436,12 +4480,19 @@ function processTickData(data) {
   // Update player state
   if (data.player) {
     state.player = data.player;
+    // Sync passive income counter with server coins
+    _localCoins = Number(data.player.coins) || 0;
+    _lastTickTime = Date.now();
     if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
   }
   if (data.mines_own) {
     state.mines = data.mines_own;
   }
-  if (data.totalIncome != null) state.totalIncome = data.totalIncome;
+  if (data.totalIncome != null) {
+    state.totalIncome = data.totalIncome;
+    _incomePerSecond = data.totalIncome / 3600;
+    _startCoinTick();
+  }
   if (data.inventory) state.inventory = data.inventory;
 
   // Render map data
@@ -4943,15 +4994,22 @@ function _tickBotAnim(now) {
   for (const [id, ref] of Object.entries(botMarkers)) {
     const bot = botData[id];
     if (!bot || !ref.marker) continue;
-    if (bot.status === 'attacking') continue; // server snaps attacking bots to mine
+    if (bot.status === 'attacking') continue;
     const speed  = BOT_SPEED_DEG_PER_MS[bot.speed] ?? BOT_SPEED_DEG_PER_MS.medium;
     const dir    = bot.direction ?? 0;
     const pos    = ref.marker.getLatLng();
     const cosLat = Math.cos(pos.lat * Math.PI / 180) || 1;
-    ref.marker.setLatLng([
-      pos.lat + Math.cos(dir) * speed * dt,
-      pos.lng + Math.sin(dir) * speed * dt / cosLat,
-    ]);
+    let newLat = pos.lat + Math.cos(dir) * speed * dt;
+    let newLng = pos.lng + Math.sin(dir) * speed * dt / cosLat;
+    // Blend toward server correction position if available
+    if (ref.serverLat != null && ref.corrStart) {
+      const elapsed = now - ref.corrStart;
+      const blend = Math.min(elapsed / 4500, 1); // 4.5s blend
+      newLat = newLat + (ref.serverLat - newLat) * blend * 0.05;
+      newLng = newLng + (ref.serverLng - newLng) * blend * 0.05;
+      if (blend >= 1) { ref.serverLat = null; ref.serverLng = null; ref.corrStart = null; }
+    }
+    ref.marker.setLatLng([newLat, newLng]);
   }
   _botAnimId = requestAnimationFrame(_tickBotAnim);
 }
@@ -4983,7 +5041,16 @@ function renderBots(bots) {
       // Snap to server position only if bot jumped far (respawn/warp) or is attacking
       const pos  = ref.marker.getLatLng();
       const far  = Math.abs(pos.lat - bot.lat) > 0.002 || Math.abs(pos.lng - bot.lng) > 0.002;
-      if (far || bot.status === 'attacking') ref.marker.setLatLng([bot.lat, bot.lng]);
+      if (far || bot.status === 'attacking') {
+        ref.marker.setLatLng([bot.lat, bot.lng]);
+      } else {
+        // Smoothly correct drift toward server position over 4.5s
+        ref.serverLat = bot.lat;
+        ref.serverLng = bot.lng;
+        ref.corrStart = Date.now();
+        ref.corrFromLat = pos.lat;
+        ref.corrFromLng = pos.lng;
+      }
       // Refresh icon in case status changed (attacking animation)
       ref.marker.setIcon(botIcon(bot));
     } else {
@@ -5180,8 +5247,7 @@ async function doAttackBot(botId) {
         updateCoinDisplay();
         toastMsg += ` +${data.reward} монет`;
       }
-      console.log('[levelup] response xp:', JSON.stringify(data.xp));
-    handleXpResult(data.xp);
+      handleXpResult(data.xp);
       closePopup();
       showToast(toastMsg);
 
@@ -5257,7 +5323,6 @@ async function doLureBot(botId) {
     if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
     updateCoinDisplay();
     showToast(`💰 +${data.reward} монет от ${data.emoji}!`);
-    console.log('[levelup] response xp:', JSON.stringify(data.xp));
     handleXpResult(data.xp);
     // Remove from local state
     if (botMarkers[botId]) {
@@ -5297,13 +5362,11 @@ async function tickBotMove() {
 async function tickBotSpawn() {
   if (!TG_ID || !state.playerPos) return;
   const pos = state.playerPos;
-  console.log('[frontend] calling spawn... pos:', pos.lat.toFixed(4), pos.lng.toFixed(4));
   try {
     const data = await apiFetch('/api/bots', {
       method: 'POST',
       body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
     });
-    console.log('[frontend] spawn result: spawned', data.spawned, 'bots');
     if (data.bots?.length) renderBots([...Object.values(botData), ...data.bots]);
   } catch (e) {
     console.warn('[bots/spawn] error:', e.message);
