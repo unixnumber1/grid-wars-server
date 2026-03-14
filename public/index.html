@@ -2588,6 +2588,7 @@ let _lastMapFetchTime = 0;
 
 // ── Optimistic marker helpers ───────────────────────────────────────────────
 function _addOrUpdateMineMarker(mine) {
+  if (!mine || mine.lat == null || mine.lng == null) return;
   const playerId = state.player?.id;
   const isOwn    = mine.is_mine ?? (mine.owner_id === playerId);
   const iconSt   = isOwn ? 'own' : 'other';
@@ -2607,8 +2608,9 @@ function _addOrUpdateMineMarker(mine) {
     const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconSt), zIndexOffset: 450 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, false));
-    marker._gw_level  = mine.level;
-    marker._gw_iconSt = iconSt;
+    marker._gw_level   = mine.level;
+    marker._gw_iconSt  = iconSt;
+    marker._gw_created = Date.now();
     buildingMarkers[key] = marker;
   }
 }
@@ -3600,10 +3602,13 @@ function renderBuildings() {
     _addOrUpdateMineMarker(mine);
   }
 
-  // Remove stale building markers no longer in viewport
+  // Remove stale building markers no longer in viewport (protect recent builds for 10s)
+  const now = Date.now();
   for (const key of Object.keys(buildingMarkers)) {
     if (!activeKeys.has(key)) {
-      map.removeLayer(buildingMarkers[key]);
+      const marker = buildingMarkers[key];
+      if (marker._gw_created && now - marker._gw_created < 10000) continue; // protect recent
+      map.removeLayer(marker);
       delete buildingMarkers[key];
     }
   }
@@ -4294,14 +4299,17 @@ async function doBuildMine(lat, lng) {
     });
     showToast('⛏️ Шахта построена!');
     handleXpResult(data.xp);
-    state.mines.push(data.mine);
-    // Remove temp, add real mine
+    // Remove temp marker
     const tempKey = `mine_${tempId}`;
     if (buildingMarkers[tempKey]) { map.removeLayer(buildingMarkers[tempKey]); delete buildingMarkers[tempKey]; }
     state.mapBuildings.mines = (state.mapBuildings.mines || []).filter(m => m.id !== tempId);
-    const realMine = { ...data.mine, is_mine: true, can_capture: false };
-    state.mapBuildings.mines.push(realMine);
-    _addOrUpdateMineMarker(realMine);
+    // Add real mine if valid
+    if (data.mine && data.mine.lat != null && data.mine.lng != null) {
+      state.mines.push(data.mine);
+      const realMine = { ...data.mine, is_mine: true, can_capture: false };
+      state.mapBuildings.mines.push(realMine);
+      _addOrUpdateMineMarker(realMine);
+    }
     updateHexGrid();
     loadVisibleBuildings(true);
   } catch (err) {
