@@ -5003,30 +5003,19 @@ function botIcon(bot) {
   );
 }
 
-const GOBLIN_SPEED = { roaming: 0.00008, aggro: 0.00015, fleeing: 0.00012 };
 let _botAnimId = null;
-let _botAnimLast = null;
 
 function _tickBotAnim(now) {
-  const dt = _botAnimLast ? Math.min(now - _botAnimLast, 200) : 16;
-  _botAnimLast = now;
   for (const [id, ref] of Object.entries(botMarkers)) {
-    const bot = botData[id];
-    if (!bot || !ref.marker) continue;
-    const state = bot.state || 'roaming';
-    const speed = GOBLIN_SPEED[state] || GOBLIN_SPEED.roaming;
-    const dir = bot.direction ?? 0;
-    const pos = ref.marker.getLatLng();
-    let newLat = pos.lat + Math.cos(dir) * speed * dt * 0.06;
-    let newLng = pos.lng + Math.sin(dir) * speed * dt * 0.06;
-    if (ref.serverLat != null && ref.corrStart) {
-      const elapsed = now - ref.corrStart;
-      const blend = Math.min(elapsed / 4500, 1);
-      newLat = newLat + (ref.serverLat - newLat) * blend * 0.05;
-      newLng = newLng + (ref.serverLng - newLng) * blend * 0.05;
-      if (blend >= 1) { ref.serverLat = null; ref.serverLng = null; ref.corrStart = null; }
-    }
-    ref.marker.setLatLng([newLat, newLng]);
+    if (!ref.marker || ref.serverLat == null || !ref.corrStart) continue;
+    // Smooth interpolation from old position to server position over 4.5s
+    const elapsed = now - ref.corrStart;
+    const t = Math.min(elapsed / 4500, 1);
+    const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    const lat = ref.corrFromLat + (ref.serverLat - ref.corrFromLat) * ease;
+    const lng = ref.corrFromLng + (ref.serverLng - ref.corrFromLng) * ease;
+    ref.marker.setLatLng([lat, lng]);
+    if (t >= 1) { ref.serverLat = null; ref.serverLng = null; ref.corrStart = null; }
   }
   _botAnimId = requestAnimationFrame(_tickBotAnim);
 }
@@ -5051,7 +5040,12 @@ function renderBots(bots) {
       const pos = ref.marker.getLatLng();
       const far = Math.abs(pos.lat - bot.lat) > 0.002 || Math.abs(pos.lng - bot.lng) > 0.002;
       if (far) { ref.marker.setLatLng([bot.lat, bot.lng]); }
-      else { ref.serverLat = bot.lat; ref.serverLng = bot.lng; ref.corrStart = Date.now(); }
+      else {
+        const cur = ref.marker.getLatLng();
+        ref.corrFromLat = cur.lat; ref.corrFromLng = cur.lng;
+        ref.serverLat = bot.lat; ref.serverLng = bot.lng;
+        ref.corrStart = performance.now();
+      }
       ref.marker.setIcon(botIcon(bot));
     } else {
       const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
