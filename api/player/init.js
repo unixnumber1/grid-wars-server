@@ -463,7 +463,7 @@ export default async function handler(req, res) {
   }
   console.log('[init] step 4 done');
 
-  const totalIncome = await calcTotalIncomeWithClanBonus(mines || [], getMineIncome, player.clan_id, supabase);
+  const { total: totalIncome } = await calcTotalIncomeWithClanBonus(mines || [], getMineIncome, player.clan_id, supabase);
 
   const needUsername = !player.game_username;
 

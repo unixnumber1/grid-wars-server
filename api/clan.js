@@ -1,5 +1,5 @@
 import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification } from '../lib/supabase.js';
-import { getClanLevel, CLAN_LEVELS, CLAN_HQ_COST, CLAN_LEAVE_COOLDOWN, ALLOWED_CLAN_COLORS } from '../lib/clans.js';
+import { getClanLevel, CLAN_LEVELS, CLAN_HQ_COST, CLAN_LEAVE_COOLDOWN, ALLOWED_CLAN_COLORS, BOOST_DURATION_MS } from '../lib/clans.js';
 import { getCellId } from '../lib/grid.js';
 import { cellToLatLng } from 'h3-js';
 
@@ -410,6 +410,65 @@ async function handleSellHq(req, res) {
   return res.json({ success: true, refund, player_coins: newCoins });
 }
 
+// ── BOOST ────────────────────────────────────────────────────
+async function handleBoost(req, res) {
+  try {
+    const { telegram_id } = req.body;
+    const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
+    if (pErr) return res.status(500).json({ error: typeof pErr === 'string' ? pErr : pErr.message });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
+    if (player.clan_role !== 'leader' && player.clan_role !== 'officer') {
+      return res.status(403).json({ error: 'Только лидер или офицер' });
+    }
+
+    const { data: clan } = await supabase.from('clans').select('id, level, treasury, boost_expires_at').eq('id', player.clan_id).single();
+    if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+
+    // Check if boost already active
+    if (clan.boost_expires_at && new Date(clan.boost_expires_at) > new Date()) {
+      const remaining = Math.ceil((new Date(clan.boost_expires_at) - Date.now()) / 60000);
+      return res.status(400).json({ error: `Буст уже активен (осталось ${remaining} мин)` });
+    }
+
+    const config = getClanLevel(clan.level);
+    const cost = config.boostCost;
+    const multiplier = config.boostMul;
+    const treasury = Number(clan.treasury ?? 0);
+
+    if (treasury < cost) return res.status(400).json({ error: `Нужно ${cost} 💎 в казне (сейчас ${treasury})` });
+
+    const newTreasury = treasury - cost;
+    const expiresAt = new Date(Date.now() + BOOST_DURATION_MS).toISOString();
+
+    const { error: upErr } = await supabase.from('clans').update({
+      treasury: newTreasury,
+      boost_started_at: new Date().toISOString(),
+      boost_expires_at: expiresAt,
+      boost_multiplier: multiplier,
+    }).eq('id', clan.id).eq('treasury', treasury); // optimistic lock
+
+    if (upErr) return res.status(500).json({ error: upErr.message });
+
+    // Notify members
+    supabase.from('clan_members').select('player_id').eq('clan_id', clan.id).is('left_at', null)
+      .then(({ data: mems }) => {
+        if (mems?.length) {
+          const notifs = mems.map(m => ({
+            player_id: m.player_id, type: 'clan_boost',
+            message: `🚀 Буст дохода x${multiplier} активирован на 24ч!`,
+          }));
+          supabase.from('notifications').insert(notifs).catch(() => {});
+        }
+      }).catch(() => {});
+
+    return res.json({ success: true, boost_expires_at: expiresAt, boost_multiplier: multiplier, treasury: newTreasury });
+  } catch (err) {
+    console.error('[boost] crash:', err);
+    return res.status(500).json({ error: err.message || 'Internal error' });
+  }
+}
+
 // ── DISBAND CLAN ─────────────────────────────────────────────
 async function handleDisband(req, res) {
   try {
@@ -477,6 +536,7 @@ export default async function handler(req, res) {
       case 'transfer':  return handleTransfer(req, res);
       case 'sell-hq':   return handleSellHq(req, res);
       case 'disband':   return handleDisband(req, res);
+      case 'boost':     return handleBoost(req, res);
       default:          return res.status(400).json({ error: 'Unknown action' });
     }
   }

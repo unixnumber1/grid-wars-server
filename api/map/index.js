@@ -469,6 +469,7 @@ async function handleTick(req, res) {
   let playerMines = [];
   let inventory = [];
   let totalIncome = 0;
+  let _clanBoost = null;
   try {
     const [{ data: pm }, { data: inv }] = await Promise.all([
       supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected,hp,max_hp,last_hp_update,status,burning_started_at,attacker_id,attack_ends_at').eq('owner_id', currentPlayerId),
@@ -482,7 +483,11 @@ async function handleTick(req, res) {
       return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph };
     });
     inventory = inv || [];
-    totalIncome = await calcTotalIncomeWithClanBonus(playerMines, getMineIncome, player.clan_id, supabase);
+    const incResult = await calcTotalIncomeWithClanBonus(playerMines, getMineIncome, player.clan_id, supabase);
+    totalIncome = incResult.total;
+    if (incResult.boostExpiresAt) {
+      _clanBoost = { expires_at: incResult.boostExpiresAt, multiplier: incResult.boostMultiplier };
+    }
   } catch (_) {}
 
   // ── 10. Periodic DB cleanup (every 60 ticks ≈ 5 min) ──
@@ -589,6 +594,7 @@ async function handleTick(req, res) {
     player: playerData,
     mines_own: playerMines,
     totalIncome,
+    clanBoost: _clanBoost,
     inventory,
     notifications,
     completedUpgrades,

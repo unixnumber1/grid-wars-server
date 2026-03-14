@@ -37,15 +37,19 @@ async function handleCollect(req, res) {
   // Clan income bonus
   let clanIncomeBonus = 0;
   let clanHqs = [];
+  let boostMul = 1;
   if (player.clan_id) {
     const [{ data: clan }, { data: hqs }] = await Promise.all([
-      supabase.from('clans').select('level').eq('id', player.clan_id).single(),
+      supabase.from('clans').select('level, boost_expires_at, boost_multiplier').eq('id', player.clan_id).single(),
       supabase.from('clan_headquarters').select('lat,lng').eq('clan_id', player.clan_id),
     ]);
     if (clan) {
       const config = getClanLevel(clan.level);
       clanIncomeBonus = config.income;
       clanHqs = (hqs || []).map(h => ({ lat: h.lat, lng: h.lng, radius: config.radius }));
+      if (clan.boost_expires_at && new Date(clan.boost_expires_at) > new Date()) {
+        boostMul = clan.boost_multiplier || 1;
+      }
     }
   }
 
@@ -56,7 +60,10 @@ async function handleCollect(req, res) {
       const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
       const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
       const inZone = clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius);
-      if (inZone) acc = Math.round(acc * (1 + clanIncomeBonus / 100));
+      if (inZone) {
+        acc = Math.round(acc * (1 + clanIncomeBonus / 100));
+        if (boostMul > 1) acc = Math.round(acc * boostMul);
+      }
     }
     totalCoins += acc;
   }
@@ -81,7 +88,10 @@ async function handleCollect(req, res) {
         let inc = getMineIncome(m.level);
         const mLat = m.lat ?? getCellCenter(m.cell_id)[0];
         const mLng = m.lng ?? getCellCenter(m.cell_id)[1];
-        if (clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius)) inc *= (1 + clanIncomeBonus / 100);
+        if (clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius)) {
+          inc *= (1 + clanIncomeBonus / 100);
+          if (boostMul > 1) inc *= boostMul;
+        }
         return sum + inc;
       }, 0)
     : allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);

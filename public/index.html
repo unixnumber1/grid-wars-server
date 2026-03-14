@@ -4620,6 +4620,7 @@ function processTickData(data) {
     _startCoinTick();
   }
   if (data.inventory) state.inventory = data.inventory;
+  if (data.clanBoost) state.clanBoost = data.clanBoost; else state.clanBoost = null;
 
   // Render map data
   state.mapBuildings = data;
@@ -8342,16 +8343,16 @@ async function sellSelectedItems() {
 //  Clan system
 // ─────────────────────────────────────────────
 const CLAN_LEVELS = [
-  { level:1,  radius:75,  income:5,  defense:10, maxMembers:10,  cost:0 },
-  { level:2,  radius:100, income:8,  defense:15, maxMembers:15,  cost:5000 },
-  { level:3,  radius:125, income:11, defense:20, maxMembers:20,  cost:15000 },
-  { level:4,  radius:150, income:14, defense:26, maxMembers:27,  cost:40000 },
-  { level:5,  radius:175, income:17, defense:32, maxMembers:35,  cost:100000 },
-  { level:6,  radius:200, income:20, defense:38, maxMembers:45,  cost:250000 },
-  { level:7,  radius:225, income:23, defense:45, maxMembers:57,  cost:600000 },
-  { level:8,  radius:250, income:26, defense:52, maxMembers:72,  cost:1500000 },
-  { level:9,  radius:275, income:28, defense:62, maxMembers:90,  cost:4000000 },
-  { level:10, radius:300, income:30, defense:75, maxMembers:120, cost:10000000 },
+  { level:1,  radius:75,  income:5,  defense:10, maxMembers:10,  cost:0,        boostCost:500,  boostMul:2.0 },
+  { level:2,  radius:100, income:8,  defense:15, maxMembers:15,  cost:5000,     boostCost:1000, boostMul:2.1 },
+  { level:3,  radius:125, income:11, defense:20, maxMembers:20,  cost:15000,    boostCost:1500, boostMul:2.2 },
+  { level:4,  radius:150, income:14, defense:26, maxMembers:27,  cost:40000,    boostCost:2000, boostMul:2.3 },
+  { level:5,  radius:175, income:17, defense:32, maxMembers:35,  cost:100000,   boostCost:2500, boostMul:2.4 },
+  { level:6,  radius:200, income:20, defense:38, maxMembers:45,  cost:250000,   boostCost:3000, boostMul:2.5 },
+  { level:7,  radius:225, income:23, defense:45, maxMembers:57,  cost:600000,   boostCost:3500, boostMul:2.6 },
+  { level:8,  radius:250, income:26, defense:52, maxMembers:72,  cost:1500000,  boostCost:4000, boostMul:2.7 },
+  { level:9,  radius:275, income:28, defense:62, maxMembers:90,  cost:4000000,  boostCost:4500, boostMul:2.8 },
+  { level:10, radius:300, income:30, defense:75, maxMembers:120, cost:10000000, boostCost:5000, boostMul:2.9 },
 ];
 const CLAN_HQ_COST = 10000000;
 const ALLOWED_CLAN_COLORS = [
@@ -8491,6 +8492,17 @@ async function showOwnClanPopup(ch) {
         })()
       : `<div style="font-size:11px;color:#00ff88;margin-top:2px">МАКС УРОВЕНЬ</div>`;
 
+    // Boost status
+    const boostActive = clan.boost_expires_at && new Date(clan.boost_expires_at) > new Date();
+    const boostHtml = boostActive
+      ? (() => {
+          const remaining = Math.max(0, new Date(clan.boost_expires_at) - Date.now());
+          const hrs = Math.floor(remaining / 3600000);
+          const mins = Math.floor((remaining % 3600000) / 60000);
+          return `<span style="color:#00ff88">x${clan.boost_multiplier} — ${hrs}ч ${mins}мин</span>`;
+        })()
+      : `<span style="color:#666">Неактивен</span>`;
+
     openPopup(
       `🏰 ${clan.symbol} ${clan.name}`,
       `Уровень клана: ${clan.level}`,
@@ -8498,6 +8510,7 @@ async function showOwnClanPopup(ch) {
         ['📍 Зона', `${config.radius}м радиус`],
         ['⚡ Буст дохода', `+${config.income}%`],
         ['🛡️ Защита построек', `+${config.defense}%`],
+        ['🚀 Буст', boostHtml],
         ['💎 Казна', treasuryBar],
         ['👥 Участников', `${clan.member_count}/${config.maxMembers}`],
       ],
@@ -8511,6 +8524,14 @@ async function showOwnClanPopup(ch) {
           label: `⬆️ Улучшить клан (${nextCost} 💎)`,
           cls: 'yellow',
           action: () => doClanUpgrade(),
+        }] : []),
+        ...((isLeader || isOfficer) ? [{
+          label: boostActive
+            ? `🚀 Буст активен`
+            : `🚀 Буст x${config.boostMul} (${config.boostCost} 💎)`,
+          cls: boostActive ? '' : 'yellow',
+          disabled: boostActive,
+          action: () => doClanBoost(config),
         }] : []),
         { label: '👥 Участники', cls: '', action: () => openClanMembers(ch.clan_id) },
         ...(!isLeader ? [{
@@ -8606,6 +8627,26 @@ async function doClanLeave() {
       try {
         await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'leave' }) });
         showToast('🚪 Вы покинули клан');
+        refreshAll();
+      } catch (err) { showToast(err.message); }
+    }},
+    { label: 'Отмена', isClose: true },
+  ]);
+}
+
+async function doClanBoost(config) {
+  closePopup();
+  openPopup('🚀 Активировать буст?', `x${config.boostMul} доход на 24 часа для всех шахт в зоне клана`, [
+    ['Стоимость', `${config.boostCost} 💎 из казны`],
+  ], [
+    { label: `🚀 Активировать (${config.boostCost} 💎)`, cls: 'yellow', action: async () => {
+      closePopup();
+      try {
+        const data = await apiFetch('/api/clan', {
+          method: 'POST',
+          body: JSON.stringify({ telegram_id: TG_ID, action: 'boost' }),
+        });
+        showToast(`🚀 Буст x${data.boost_multiplier} активирован на 24ч!`);
         refreshAll();
       } catch (err) { showToast(err.message); }
     }},
