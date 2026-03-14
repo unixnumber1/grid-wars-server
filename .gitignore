@@ -7,3 +7,4 @@ supabase/.temp/
 .claude/
 
 .env*.local
+.vercel

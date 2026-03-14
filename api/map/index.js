@@ -364,7 +364,7 @@ async function handleTick(req, res) {
   if (currentHp > maxHp) currentHp = maxHp;
 
   // ── 7. Fetch map data (same as GET) ────────────────────
-  let mapData = { headquarters: [], mines: [], online_players: [], bots: [], vases: [], couriers: [], courier_drops: [], markets: [] };
+  let mapData = { headquarters: [], mines: [], online_players: [], bots: [], vases: [], couriers: [], courier_drops: [], markets: [], clan_hqs: [] };
   if (hasBbox) {
     let playerRange = null;
     if (hasPos) playerRange = getCellsInRange(pLat, pLng);
@@ -375,6 +375,7 @@ async function handleTick(req, res) {
       { data: allHQ },     { data: allMines },  { data: allOnline },
       { data: allBots },   { data: allVases },
       { data: allCouriers }, { data: allDrops }, { data: allMarkets },
+      { data: allClanHqs },
     ] = await Promise.all([
       supabase.from('headquarters')
         .select('id,lat,lng,level,player_id,players(username,game_username,avatar,last_seen,level)')
@@ -403,12 +404,24 @@ async function handleTick(req, res) {
         .gte('lat', s).lte('lat', n).gte('lng', w).lte('lng', e).limit(100),
       supabase.from('markets').select('id,lat,lng,name')
         .gte('lat', s).lte('lat', n).gte('lng', w).lte('lng', e).limit(50),
+      supabase.from('clan_headquarters')
+        .select('id,lat,lng,player_id,clan_id,clans(name,symbol,color,level)')
+        .gte('lat', s).lte('lat', n).gte('lng', w).lte('lng', e).limit(200),
     ]);
 
     const ONLINE_MS = 3 * 60 * 1000;
     mapData.headquarters = (allHQ || []).map(hq => ({
       ...hq, is_mine: hq.player_id === currentPlayerId,
       is_online: hq.players?.last_seen ? (nowMs - new Date(hq.players.last_seen).getTime()) < ONLINE_MS : false,
+    }));
+    mapData.clan_hqs = (allClanHqs || []).map(ch => ({
+      ...ch,
+      is_mine: ch.player_id === currentPlayerId,
+      is_active: !!ch.clan_id,
+      clan_name: ch.clans?.name || null,
+      symbol: ch.clans?.symbol || null,
+      color: ch.clans?.color || null,
+      clan_level: ch.clans?.level || 1,
     }));
     mapData.mines = (allMines || []).map(m => {
       if (m.status === 'destroyed') return null;
@@ -634,6 +647,7 @@ export default async function handler(req, res) {
     { data: allCouriers, error: couriersErr },
     { data: allDrops,    error: dropsErr },
     { data: allMarkets,  error: marketsErr },
+    { data: allClanHqs,  error: clanHqErr },
   ] = await Promise.all([
     supabase
       .from('headquarters')
@@ -698,6 +712,13 @@ export default async function handler(req, res) {
       .gte('lat', s).lte('lat', n)
       .gte('lng', w).lte('lng', e)
       .limit(50),
+
+    supabase
+      .from('clan_headquarters')
+      .select('id,lat,lng,player_id,clan_id,clans(name,symbol,color,level)')
+      .gte('lat', s).lte('lat', n)
+      .gte('lng', w).lte('lng', e)
+      .limit(200),
   ]);
 
   if (hqErr)       console.error('[map] hq error:', hqErr);
@@ -708,6 +729,7 @@ export default async function handler(req, res) {
   if (couriersErr) console.error('[map] couriers error:', couriersErr);
   if (dropsErr)    console.error('[map] drops error:', dropsErr);
   if (marketsErr)  console.error('[map] markets error:', marketsErr);
+  if (clanHqErr)   console.error('[map] clan_hq error:', clanHqErr);
 
   const ONLINE_MS = 3 * 60 * 1000;
 
@@ -752,8 +774,17 @@ export default async function handler(req, res) {
     drop_type: d.drop_type || ((d.expires_at && new Date(d.expires_at).getTime() - Date.now() > SEVEN_DAYS_MS) ? 'delivery' : 'loot'),
   }));
   const markets      = allMarkets  || [];
+  const clan_hqs = (allClanHqs || []).map(ch => ({
+    ...ch,
+    is_mine: currentPlayerId ? ch.player_id === currentPlayerId : false,
+    is_active: !!ch.clan_id,
+    clan_name: ch.clans?.name || null,
+    symbol: ch.clans?.symbol || null,
+    color: ch.clans?.color || null,
+    clan_level: ch.clans?.level || 1,
+  }));
 
-  const responseData = { headquarters, mines, online_players, bots, vases, couriers, courier_drops, markets };
+  const responseData = { headquarters, mines, online_players, bots, vases, couriers, courier_drops, markets, clan_hqs };
   console.log('[map] response size:', JSON.stringify(responseData).length, 'bytes, items:',
     { hq: headquarters.length, mines: mines.length, bots: bots.length, vases: vases.length, online: online_players.length, couriers: couriers.length, drops: courier_drops.length, markets: markets.length });
 
