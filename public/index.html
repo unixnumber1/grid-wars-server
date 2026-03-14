@@ -4335,19 +4335,23 @@ async function doCollect() {
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, action: 'collect', lat: pos?.lat, lng: pos?.lng }),
     });
-    _setPlayerCoins(data.player_coins);
+    if (data.player_coins != null) _setPlayerCoins(data.player_coins);
     if (data.totalIncome != null) state.totalIncome = data.totalIncome;
     updateCoinDisplay();
-    showToast(`💰 Собрано ${formatCoins(data.collected)} монет!`);
-    handleXpResult(data.xp);
-    // Reset local mine last_collected timestamps
-    const now = new Date().toISOString();
-    for (const mine of state.mines) mine.last_collected = now;
-    for (const mine of state.mapBuildings.mines) {
-      if (mine.owner_id === state.player?.id) mine.last_collected = now;
+    const collected = data.collected ?? 0;
+    if (collected > 0) {
+      showToast(`💰 Собрано ${formatCoins(collected)} монет!`);
+      if (data.xp) handleXpResult(data.xp);
+      const now = new Date().toISOString();
+      for (const mine of (state.mines || [])) mine.last_collected = now;
+      for (const mine of (state.mapBuildings.mines || [])) {
+        if (mine.owner_id === state.player?.id) mine.last_collected = now;
+      }
+    } else {
+      showToast('Нечего собирать');
     }
   } catch (err) {
-    showToast(`❌ ${err.message}`);
+    showToast(`❌ ${err.message || 'Ошибка сбора'}`);
   } finally {
     document.getElementById('btn-collect').disabled = false;
   }
