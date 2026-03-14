@@ -2015,16 +2015,25 @@
     .clan-member-info { flex: 1; }
     .clan-member-name { font-size: 13px; color: #fff; font-weight: 600; }
     .clan-member-meta { font-size: 11px; color: #888; }
-    .clan-member-actions { display: flex; gap: 4px; }
-    .clan-member-actions button {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      border: 1px solid #333;
-      background: #1a1a1a;
-      color: #aaa;
-      cursor: pointer;
+    .clan-member-actions { position: relative; }
+    .clan-member-dots {
+      font-size: 18px; color: #888; cursor: pointer; padding: 4px 8px;
+      border: 1px solid #333; border-radius: 6px; background: #1a1a1a;
+      line-height: 1;
     }
+    .clan-member-menu {
+      display: none; position: absolute; right: 0; top: 100%; z-index: 100;
+      background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+      min-width: 150px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,.5);
+    }
+    .clan-member-menu.open { display: block; }
+    .clan-member-menu-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; color: #ccc; font-size: 13px; cursor: pointer;
+      border: none; background: none; width: 100%; text-align: left;
+    }
+    .clan-member-menu-item:hover { background: #252525; }
+    .clan-member-menu-item .mi-icon { font-size: 14px; width: 20px; text-align: center; }
     /* Clan create form */
     .clan-form-field { margin-bottom: 14px; }
     .clan-form-field label {
@@ -8413,6 +8422,7 @@ function showClanHqPopup(ch) {
       [
         { label: '🔍 Найти клан', cls: 'primary', action: () => openClanList() },
         { label: '⚔️ Создать клан', cls: 'yellow', action: () => openClanCreate() },
+        { label: `🗑️ Продать (${formatCoins(CLAN_HQ_COST / 2)} монет)`, cls: 'danger', action: () => doSellClanHq() },
       ]
     );
   } else if (isOwn && isActive) {
@@ -8470,6 +8480,7 @@ async function showOwnClanPopup(ch) {
           cls: 'danger',
           action: () => doClanLeave(),
         }] : []),
+        { label: `🗑️ Продать штаб`, cls: '', disabled: true },
       ]
     );
   } catch (err) {
@@ -8601,6 +8612,26 @@ async function _executeDonate(amount, prevDiamonds) {
     updateDiamondDisplay();
     showToast(err.message);
   }
+}
+
+async function doSellClanHq() {
+  closePopup();
+  openPopup('🗑️ Продать штаб?', `Вернётся ${formatCoins(CLAN_HQ_COST / 2)} монет`, [], [
+    { label: '✅ Продать', cls: 'danger', action: async () => {
+      closePopup();
+      try {
+        const data = await apiFetch('/api/clan', {
+          method: 'POST',
+          body: JSON.stringify({ telegram_id: TG_ID, action: 'sell-hq' }),
+        });
+        if (state.player) state.player.coins = data.player_coins;
+        updateCoinDisplay();
+        showToast(`🏰 Штаб продан за ${formatCoins(data.refund)} монет`);
+        loadVisibleBuildings(true);
+      } catch (err) { showToast(err.message); }
+    }},
+    { label: 'Отмена', isClose: true },
+  ]);
 }
 
 async function doClanUpgrade() {
@@ -8784,8 +8815,14 @@ async function openClanMembers(clanId) {
         </div>
         ${isLeader && m.role !== 'leader' ? `
           <div class="clan-member-actions">
-            ${m.role === 'member' ? `<button onclick="doClanSetRole('${p.telegram_id}','officer')">⬆️</button>` : `<button onclick="doClanSetRole('${p.telegram_id}','member')">⬇️</button>`}
-            <button onclick="doClanKick('${p.telegram_id}')">👢</button>
+            <div class="clan-member-dots" onclick="this.nextElementSibling.classList.toggle('open');event.stopPropagation()">⋯</div>
+            <div class="clan-member-menu" onclick="this.classList.remove('open')">
+              <button class="clan-member-menu-item" onclick="showPlayerInfo('${p.telegram_id}')"><span class="mi-icon">ℹ️</span>Информация</button>
+              ${m.role === 'member'
+                ? `<button class="clan-member-menu-item" onclick="doClanSetRole('${p.telegram_id}','officer')"><span class="mi-icon">⬆️</span>Повысить</button>`
+                : `<button class="clan-member-menu-item" onclick="doClanSetRole('${p.telegram_id}','member')"><span class="mi-icon">⬇️</span>Понизить</button>`}
+              <button class="clan-member-menu-item" onclick="doClanKick('${p.telegram_id}')"><span class="mi-icon">🚫</span>Выгнать</button>
+            </div>
           </div>
         ` : ''}
       </div>`;
@@ -8794,6 +8831,22 @@ async function openClanMembers(clanId) {
   } catch (err) {
     document.getElementById('clan-screen-body').innerHTML = `<div style="color:red;padding:20px;">${err.message}</div>`;
   }
+}
+
+// Close any open member menus on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.clan-member-menu.open').forEach(m => m.classList.remove('open'));
+});
+
+async function showPlayerInfo(tgId) {
+  try {
+    const data = await apiFetch(`/api/player/init`, {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: parseInt(tgId), action: 'location', lat: 0, lng: 0 }),
+    });
+    // Fallback: just show basic info from the member list
+  } catch (_) {}
+  showToast(`ℹ️ Игрок #${tgId}`);
 }
 
 async function doClanSetRole(targetTgId, role) {
@@ -8809,16 +8862,21 @@ async function doClanSetRole(targetTgId, role) {
 }
 
 async function doClanKick(targetTgId) {
-  if (!confirm('Кикнуть этого игрока?')) return;
-  try {
-    await apiFetch('/api/clan', {
-      method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'kick', target_telegram_id: targetTgId }),
-    });
-    showToast('👢 Игрок исключён');
-    const clanId = state.player?.clan_id;
-    if (clanId) openClanMembers(clanId);
-  } catch (err) { showToast(err.message); }
+  openPopup('🚫 Исключить?', 'Игрок будет удалён из клана', [], [
+    { label: '🚫 Исключить', cls: 'danger', action: async () => {
+      closePopup();
+      try {
+        await apiFetch('/api/clan', {
+          method: 'POST',
+          body: JSON.stringify({ telegram_id: TG_ID, action: 'kick', target_telegram_id: targetTgId }),
+        });
+        showToast('🚫 Игрок исключён');
+        const clanId = state.player?.clan_id;
+        if (clanId) openClanMembers(clanId);
+      } catch (err) { showToast(err.message); }
+    }},
+    { label: 'Отмена', isClose: true },
+  ]);
 }
 
 // ─────────────────────────────────────────────

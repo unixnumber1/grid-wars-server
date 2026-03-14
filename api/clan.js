@@ -207,41 +207,50 @@ async function handleLeave(req, res) {
 
 // ── DONATE ──────────────────────────────────────────────────
 async function handleDonate(req, res) {
-  const { telegram_id, amount } = req.body;
-  const donateAmount = parseInt(amount);
-  if (isNaN(donateAmount) || donateAmount <= 0) return res.status(400).json({ error: 'Некорректная сумма' });
+  try {
+    const { telegram_id, amount } = req.body;
+    const donateAmount = parseInt(amount);
+    if (isNaN(donateAmount) || donateAmount <= 0) return res.status(400).json({ error: 'Некорректная сумма' });
 
-  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, diamonds, game_username, username');
-  if (pErr) return res.status(500).json({ error: pErr });
-  if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
+    const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, diamonds, game_username, username');
+    if (pErr) return res.status(500).json({ error: typeof pErr === 'string' ? pErr : pErr.message || 'DB error' });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
 
-  const currentDiamonds = player.diamonds ?? 0;
-  if (currentDiamonds < donateAmount) return res.status(400).json({ error: 'Недостаточно алмазов' });
+    const currentDiamonds = player.diamonds ?? 0;
+    if (currentDiamonds < donateAmount) return res.status(400).json({ error: 'Недостаточно алмазов' });
 
-  const { data: clan } = await supabase.from('clans').select('id, treasury').eq('id', player.clan_id).single();
-  if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+    const { data: clan, error: clanErr } = await supabase.from('clans').select('id, treasury').eq('id', player.clan_id).single();
+    if (clanErr || !clan) return res.status(500).json({ error: 'Клан не найден' });
 
-  const newDiamonds = currentDiamonds - donateAmount;
-  const newTreasury = (clan.treasury ?? 0) + donateAmount;
+    const newDiamonds = currentDiamonds - donateAmount;
+    const newTreasury = Number(clan.treasury ?? 0) + donateAmount;
 
-  const [{ data: dOk }, { error: tErr }] = await Promise.all([
-    supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', currentDiamonds).select('id').maybeSingle(),
-    supabase.from('clans').update({ treasury: newTreasury }).eq('id', clan.id),
-  ]);
-  if (!dOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
-  if (tErr) return res.status(500).json({ error: tErr.message });
+    const { data: dOk, error: dErr } = await supabase.from('players')
+      .update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', currentDiamonds).select('id').maybeSingle();
+    if (dErr) return res.status(500).json({ error: dErr.message });
+    if (!dOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
 
-  const name = player.game_username || player.username || 'Игрок';
-  const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', player.clan_id).is('left_at', null);
-  if (mems?.length) {
-    const notifs = mems.filter(m => m.player_id !== player.id).map(m => ({
-      player_id: m.player_id, type: 'clan_donate', message: `💎 ${name} пополнил казну на ${donateAmount} алмазов`,
-    }));
-    if (notifs.length) supabase.from('notifications').insert(notifs).catch(() => {});
+    const { error: tErr } = await supabase.from('clans')
+      .update({ treasury: newTreasury }).eq('id', clan.id);
+    if (tErr) return res.status(500).json({ error: tErr.message });
+
+    const name = player.game_username || player.username || 'Игрок';
+    supabase.from('clan_members').select('player_id').eq('clan_id', player.clan_id).is('left_at', null)
+      .then(({ data: mems }) => {
+        if (mems?.length) {
+          const notifs = mems.filter(m => m.player_id !== player.id).map(m => ({
+            player_id: m.player_id, type: 'clan_donate', message: `💎 ${name} пополнил казну на ${donateAmount} алмазов`,
+          }));
+          if (notifs.length) supabase.from('notifications').insert(notifs).catch(() => {});
+        }
+      }).catch(() => {});
+
+    return res.json({ success: true, treasury: newTreasury, player_diamonds: newDiamonds });
+  } catch (err) {
+    console.error('[donate] crash:', err);
+    return res.status(500).json({ error: err.message || 'Internal error' });
   }
-
-  return res.json({ success: true, treasury: newTreasury, player_diamonds: newDiamonds });
 }
 
 // ── UPGRADE CLAN ────────────────────────────────────────────
@@ -369,6 +378,30 @@ async function handleInfo(req, res) {
   });
 }
 
+// ── SELL HQ ──────────────────────────────────────────────────
+async function handleSellHq(req, res) {
+  const { telegram_id } = req.body;
+  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, coins');
+  if (pErr) return res.status(500).json({ error: typeof pErr === 'string' ? pErr : pErr.message });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (player.clan_id) return res.status(400).json({ error: 'Сначала покиньте клан' });
+
+  const { data: hq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
+  if (!hq) return res.status(404).json({ error: 'Штаб клана не найден' });
+
+  const refund = Math.round(CLAN_HQ_COST * 0.5);
+  const newCoins = (player.coins ?? 0) + refund;
+
+  const [{ error: delErr }, { data: coinsOk }] = await Promise.all([
+    supabase.from('clan_headquarters').delete().eq('id', hq.id),
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', player.coins ?? 0).select('id').maybeSingle(),
+  ]);
+  if (delErr) return res.status(500).json({ error: delErr.message });
+  if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+
+  return res.json({ success: true, refund, player_coins: newCoins });
+}
+
 // ── HANDLER ──────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -392,6 +425,7 @@ export default async function handler(req, res) {
       case 'set-role':  return handleSetRole(req, res);
       case 'kick':      return handleKick(req, res);
       case 'transfer':  return handleTransfer(req, res);
+      case 'sell-hq':   return handleSellHq(req, res);
       default:          return res.status(400).json({ error: 'Unknown action' });
     }
   }
