@@ -2422,7 +2422,7 @@ let TG_NAME = tgUser?.username || 'unknown';
 // ─────────────────────────────────────────────
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
-const VPS_URL = 'http://93.123.30.179:3000';  // Socket.io direct
+const VPS_URL = 'https://overthrow.ru:8443';  // Socket.io direct
 const MINE_MAX_LEVEL    = 250;
 const HQ_MAX_LEVEL      = 10;
 const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
@@ -4432,7 +4432,7 @@ function initSocket() {
   if (_socket) return;
   try {
     _socket = io(VPS_URL, {
-      transports: ['polling'],
+      transports: ['websocket', 'polling'],
       timeout: 3000,
       reconnectionAttempts: 3,
     });
