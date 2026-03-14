@@ -110,12 +110,14 @@ vercel.json  CLAUDE.md
 - Создание клана: бесплатно, нужен штаб клана
 - 10 уровней клана: бусты дохода (5-30%), защиты (10-75%), радиус (75-300м)
 - Апгрейд за алмазы из казны клана
-- Роли: leader, officer, member; лидер может менять роли и кикать
+- Буст дохода: x2.0-x6.5 на 24ч из казны (500-5000💎), boostCost/boostMul в CLAN_LEVELS
+- DB колонки: boost_started_at, boost_expires_at, boost_multiplier на таблице clans
+- Роли: leader, officer, member; лидер может менять роли, кикать, распустить клан
 - Автопередача лидерства при 7 днях неактивности лидера
-- Кулдаун 72ч при выходе из клана
-- Шахты в зоне штаба клана получают income_bonus и defense_bonus
-- Единый эндпоинт: POST /api/clan action:(build-hq/create/join/leave/donate/upgrade/set-role/kick/transfer)
+- Шахты в зоне штаба клана получают income_bonus, defense_bonus и boost_multiplier
+- POST /api/clan action:(build-hq/create/join/leave/donate/upgrade/boost/set-role/kick/transfer/sell-hq/disband)
 - GET /api/clan?view=list — список кланов; GET /api/clan?view=info&clan_id=... — инфо
+- UI: fullscreen экран с вкладками (Штаб/Участники/Кланы), попап на карте минимальный
 
 ### Unified Tick
 - POST /api/map action:tick каждые 5с — заменяет 7+ polling-запросов
