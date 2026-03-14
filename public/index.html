@@ -2620,6 +2620,16 @@ let _localCoins = 0;
 let _incomePerSecond = 0;
 let _lastTickTime = 0;
 let _coinTickInterval = null;
+let _coinActionTime = 0; // timestamp of last action that changed coins — suppresses tick overwrites
+
+function _setPlayerCoins(coins) {
+  if (state.player && coins != null) {
+    state.player.coins = coins;
+    _localCoins = Number(coins) || 0;
+    _coinActionTime = Date.now();
+    updateCoinDisplay();
+  }
+}
 
 function _startCoinTick() {
   if (_coinTickInterval) return;
@@ -4095,8 +4105,7 @@ async function doUpgradeHq() {
       body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }),
     });
     state.hq = data.headquarters;
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
-    updateCoinDisplay();
+    _setPlayerCoins(data.player_coins);
     showToast(`⚡ Штаб улучшен до уровня ${data.headquarters.level}!`);
     handleXpResult(data.xp);
     // Optimistic: update HQ marker immediately
@@ -4125,8 +4134,7 @@ async function doUpgrade(mineId, targetLevel) {
         targetLevel,
       }),
     });
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
-    updateCoinDisplay();
+    _setPlayerCoins(data.player_coins);
     if (data.upgrading) {
       showToast(`⏳ Улучшение запущено → Ур.${data.pendingLevel} (${data.secondsLeft} сек)`);
       // Optimistic: update mine pending state immediately
@@ -4200,8 +4208,7 @@ async function doSellMine(mineId) {
       method: 'POST',
       body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
     });
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
-    updateCoinDisplay();
+    _setPlayerCoins(data.player_coins);
     showToast(`✅ Шахта продана! +${formatCoins(data.total)} монет`);
     state.mines = state.mines.filter(m => m.id !== mineId);
     loadVisibleBuildings(true);
@@ -4221,7 +4228,7 @@ async function doBuildHq(lat, lng) {
       body: JSON.stringify({ telegram_id: TG_ID, lat, lng }),
     });
     state.hq = data.headquarters;
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
+    _setPlayerCoins(data.player_coins);
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -4354,7 +4361,7 @@ async function doCollect() {
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, action: 'collect', lat: pos?.lat, lng: pos?.lng }),
     });
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
+    _setPlayerCoins(data.player_coins);
     if (data.totalIncome != null) state.totalIncome = data.totalIncome;
     updateCoinDisplay();
     showToast(`💰 Собрано ${formatCoins(data.collected)} монет!`);
@@ -4384,7 +4391,7 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
       body: JSON.stringify({ telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
     });
     state.hq = data.headquarters;
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
+    _setPlayerCoins(data.player_coins);
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -4569,9 +4576,17 @@ function processTickData(data) {
 
   // Update player state
   if (data.player) {
-    state.player = data.player;
+    const coinCooldown = Date.now() - _coinActionTime < 8000;
+    if (coinCooldown) {
+      // Preserve local coins during cooldown after a spending action
+      const savedCoins = state.player?.coins;
+      state.player = data.player;
+      if (savedCoins != null) state.player.coins = savedCoins;
+    } else {
+      state.player = data.player;
+    }
     // Sync passive income counter with server coins
-    _localCoins = Number(data.player.coins) || 0;
+    _localCoins = Number(state.player.coins) || 0;
     _lastTickTime = Date.now();
     if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
   }
@@ -5329,7 +5344,7 @@ async function doAttackBot(botId) {
       let toastMsg = `💀 Побеждён!`;
       if (data.xp?.xpGained) toastMsg += ` +${data.xp.xpGained} XP`;
       if (data.reward) {
-        if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
+        _setPlayerCoins(data.player_coins);
         updateCoinDisplay();
         toastMsg += ` +${data.reward} монет`;
       }
@@ -5406,8 +5421,7 @@ async function doLureBot(botId) {
       method: 'POST',
       body: JSON.stringify({ action: 'lure', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
     });
-    if (state.player && data.player_coins != null) state.player.coins = data.player_coins;
-    updateCoinDisplay();
+    _setPlayerCoins(data.player_coins);
     showToast(`💰 +${data.reward} монет от ${data.emoji}!`);
     handleXpResult(data.xp);
     // Remove from local state
@@ -7780,13 +7794,12 @@ async function initiatePvp(defenderTelegramId) {
     // Update coins
     if (state.player) {
       if (data.winner === 'attacker') {
-        state.player.coins = (state.player.coins || 0) + data.coinsWon;
+        _setPlayerCoins((state.player.coins || 0) + data.coinsWon);
       } else {
-        state.player.coins = Math.max(0, (state.player.coins || 0) - data.coinsLost);
+        _setPlayerCoins(Math.max(0, (state.player.coins || 0) - data.coinsLost));
         state.player.shield_until = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       }
     }
-    updateCoinDisplay();
     handleXpResult(data.xp);
     await playBattleAnimation(data);
   } catch (err) {
@@ -7801,7 +7814,7 @@ async function fleePvp(attackerTelegramId) {
       method: 'POST',
       body: JSON.stringify({ action: 'pvp-flee', telegram_id: TG_ID, attacker_telegram_id: attackerTelegramId }),
     });
-    if (state.player) state.player.coins = data.coinsLeft;
+    _setPlayerCoins(data.coinsLeft);
     updateCoinDisplay();
     showToast(`🏃 Вы сбежали! -${formatCoins(data.fleeCost)} монет`);
   } catch (err) {
@@ -8529,7 +8542,7 @@ async function doBuildClanHq(lat, lng) {
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, action: 'build-hq', lat, lng }),
     });
-    if (state.player) state.player.coins = data.player_coins;
+    _setPlayerCoins(data.player_coins);
     updateCoinDisplay();
     showToast('🏰 Штаб клана построен!');
     loadVisibleBuildings(true);
@@ -8634,7 +8647,7 @@ async function doSellClanHq() {
           method: 'POST',
           body: JSON.stringify({ telegram_id: TG_ID, action: 'sell-hq' }),
         });
-        if (state.player) state.player.coins = data.player_coins;
+        _setPlayerCoins(data.player_coins);
         updateCoinDisplay();
         showToast(`🏰 Штаб продан за ${formatCoins(data.refund)} монет`);
         loadVisibleBuildings(true);
