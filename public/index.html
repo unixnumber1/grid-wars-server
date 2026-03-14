@@ -3604,14 +3604,16 @@ function renderBuildings() {
     _addOrUpdateMineMarker(mine);
   }
 
-  // Remove stale building markers no longer in viewport (protect recent builds for 10s)
-  const now = Date.now();
-  for (const key of Object.keys(buildingMarkers)) {
-    if (!activeKeys.has(key)) {
-      const marker = buildingMarkers[key];
-      if (marker._gw_created && now - marker._gw_created < 10000) continue; // protect recent
-      map.removeLayer(marker);
-      delete buildingMarkers[key];
+  // Remove markers only if far from player (>5km) — prevents viewport flicker
+  if (state.playerPos) {
+    const pLat = state.playerPos.lat, pLng = state.playerPos.lng;
+    for (const key of Object.keys(buildingMarkers)) {
+      if (activeKeys.has(key)) continue;
+      const pos = buildingMarkers[key].getLatLng();
+      if (haversine(pLat, pLng, pos.lat, pos.lng) > 5000) {
+        map.removeLayer(buildingMarkers[key]);
+        delete buildingMarkers[key];
+      }
     }
   }
 
@@ -4458,7 +4460,10 @@ async function loadVisibleBuildings(force = false) {
     if (pos?.lng) params.set('lng', pos.lng);
 
     const data = await apiFetch(`/api/map?${params}`);
-    state.mapBuildings = data;
+    if (data.headquarters) state.mapBuildings.headquarters = data.headquarters;
+    if (data.mines) state.mapBuildings.mines = data.mines;
+    if (data.online_players) state.mapBuildings.online_players = data.online_players;
+    if (data.clan_hqs) state.mapBuildings.clan_hqs = data.clan_hqs;
     renderBuildings();
     renderBots(data.bots || []);
     renderVases(data.vases || []);
