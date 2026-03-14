@@ -410,6 +410,48 @@ async function handleSellHq(req, res) {
   return res.json({ success: true, refund, player_coins: newCoins });
 }
 
+// ── DISBAND CLAN ─────────────────────────────────────────────
+async function handleDisband(req, res) {
+  try {
+    const { telegram_id } = req.body;
+    const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
+    if (pErr) return res.status(500).json({ error: typeof pErr === 'string' ? pErr : pErr.message });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
+    if (player.clan_role !== 'leader') return res.status(403).json({ error: 'Только лидер может распустить клан' });
+
+    const clanId = player.clan_id;
+    const nowISO = new Date().toISOString();
+
+    // Get all members
+    const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', clanId).is('left_at', null);
+
+    // Reset all members: clear clan_id, set left_at
+    const memberIds = (mems || []).map(m => m.player_id);
+    await Promise.all([
+      supabase.from('clan_members').update({ left_at: nowISO }).eq('clan_id', clanId).is('left_at', null),
+      memberIds.length > 0
+        ? supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).in('id', memberIds)
+        : Promise.resolve(),
+      supabase.from('clan_headquarters').update({ clan_id: null }).eq('clan_id', clanId),
+      supabase.from('clans').delete().eq('id', clanId),
+    ]);
+
+    // Notify members
+    if (memberIds.length > 1) {
+      const notifs = memberIds.filter(id => id !== player.id).map(id => ({
+        player_id: id, type: 'clan_disband', message: '⚔️ Клан был распущен лидером',
+      }));
+      supabase.from('notifications').insert(notifs).catch(() => {});
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[disband] crash:', err);
+    return res.status(500).json({ error: err.message || 'Internal error' });
+  }
+}
+
 // ── HANDLER ──────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -434,6 +476,7 @@ export default async function handler(req, res) {
       case 'kick':      return handleKick(req, res);
       case 'transfer':  return handleTransfer(req, res);
       case 'sell-hq':   return handleSellHq(req, res);
+      case 'disband':   return handleDisband(req, res);
       default:          return res.status(400).json({ error: 'Unknown action' });
     }
   }
