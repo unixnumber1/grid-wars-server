@@ -4510,29 +4510,25 @@ function initSocket() {
   try {
     _socket = io(VPS_URL, {
       transports: ['websocket', 'polling'],
-      timeout: 3000,
-      reconnectionAttempts: 3,
+      timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
-    // If not connected within 3s, give up silently (REST fallback works)
-    const _socketTimeout = setTimeout(() => {
-      if (!_socket.connected) {
-        console.warn('[socket] Connection timeout — falling back to REST polling');
-        _socket.close();
-        _socket = null;
-      }
-    }, 3000);
-
     _socket.on('connect', () => {
-      clearTimeout(_socketTimeout);
-      // Connected to game server
-      if (TG_ID && state.playerPos) {
+      console.log('[socket] Connected:', _socket.id);
+      if (TG_ID) {
         _socket.emit('player:init', {
           telegram_id: TG_ID,
-          lat: state.playerPos.lat,
-          lng: state.playerPos.lng,
+          lat: state.playerPos?.lat,
+          lng: state.playerPos?.lng,
         });
       }
+    });
+
+    _socket.on('connect_error', (err) => {
+      console.warn('[socket] Error:', err.message);
     });
 
     _socket.on('tick', (data) => {
