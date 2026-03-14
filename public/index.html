@@ -3959,11 +3959,19 @@ function showMinePopup(mine, isOwn, canCapture) {
         ...(isUpgrading
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
           : [
-              ['Доход', `${formatCoins(rate)}/ч${clanBonusInfo ? ` <span style="color:#D500F9">+${clanBonusInfo.income}% 🏰</span>` : ''}`],
+              ['Доход', clanBonusInfo
+                ? `${formatCoins(Math.round(rate * (1 + clanBonusInfo.income / 100)))}/ч <span style="color:#D500F9">(+${clanBonusInfo.income}% 🏰)</span>`
+                : `${formatCoins(rate)}/ч`],
               ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
-              ...(clanBonusInfo ? [['🛡️ Защита клана', `<span style="color:#D500F9">+${clanBonusInfo.defense}% HP</span>`]] : []),
             ]),
         ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? formatCoins(nextCost) : 'МАКС']] : []),
+        ...(mine.level > 0 && mine.hp != null && mine.max_hp ? [['❤️ HP', (() => {
+          const hp = Math.round(mine.hp); const mhp = mine.max_hp;
+          const boostedHp = clanBonusInfo ? Math.round(mhp * (1 + clanBonusInfo.defense / 100)) : mhp;
+          const pct = Math.min(100, Math.round(hp / boostedHp * 100));
+          const barColor = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+          return `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(hp)}/${formatNumber(boostedHp)}</span></div>${clanBonusInfo ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${clanBonusInfo.defense}% защита клана</div>` : ''}`;
+        })()]] : []),
         ['Монеты', formatCoins(playerCoins)],
       ],
       mine.status === 'burning' ? [
@@ -8323,7 +8331,7 @@ function clanHqIcon(ch) {
   const isActive = ch.is_active && ch.color;
   const glow = isActive ? `filter: drop-shadow(0 0 8px ${ch.color});` : 'filter: grayscale(1); opacity:0.6;';
   return L.divIcon({
-    html: `<div style="font-size:28px;line-height:1;${glow}pointer-events:auto;">🏰</div>`,
+    html: `<div style="font-size:28px;line-height:1;${glow}pointer-events:auto;display:flex;align-items:center;justify-content:center;width:40px;height:40px;">🏰</div>`,
     iconSize: [40, 40],
     iconAnchor: [20, 20],
     className: '',
@@ -8557,16 +8565,26 @@ async function doClanLeave() {
 async function doClanDonate() {
   closePopup();
   const amount = prompt('Сколько алмазов пожертвовать в казну?');
-  if (!amount || isNaN(amount) || parseInt(amount) <= 0) return;
+  const parsed = parseInt(amount);
+  if (!amount || isNaN(parsed) || parsed <= 0) return;
+  const currentDiamonds = state.player?.diamonds ?? 0;
+  if (parsed > currentDiamonds) { showToast('❌ Недостаточно алмазов'); return; }
+  // Optimistic UI update
+  if (state.player) state.player.diamonds = currentDiamonds - parsed;
+  updateDiamondDisplay();
+  showToast(`💎 Отправляем ${parsed} алмазов в казну...`);
   try {
     const data = await apiFetch('/api/clan', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'donate', amount: parseInt(amount) }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'donate', amount: parsed }),
     });
     if (state.player) state.player.diamonds = data.player_diamonds;
     updateDiamondDisplay();
-    showToast(`💎 Пожертвовано ${amount} алмазов! Казна: ${data.treasury}`);
+    showToast(`💎 Пожертвовано ${parsed} алмазов! Казна: ${data.treasury}`);
   } catch (err) {
+    // Rollback on error
+    if (state.player) state.player.diamonds = currentDiamonds;
+    updateDiamondDisplay();
     showToast(err.message);
   }
 }
