@@ -506,6 +506,66 @@ async function handleDisband(req, res) {
   }
 }
 
+// ── EDIT CLAN ────────────────────────────────────────────────
+async function handleEdit(req, res) {
+  try {
+    const { telegram_id, name, symbol, color, min_level, description } = req.body;
+    const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role, diamonds');
+    if (pErr) return res.status(500).json({ error: typeof pErr === 'string' ? pErr : pErr.message });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
+    if (player.clan_role !== 'leader') return res.status(403).json({ error: 'Только лидер может редактировать' });
+
+    const { data: clan } = await supabase.from('clans').select('*').eq('id', player.clan_id).single();
+    if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+
+    const updates = {};
+    let diamondsCost = 0;
+
+    // Paid changes
+    const trimName = (name || '').trim();
+    if (trimName && trimName !== clan.name) {
+      if (trimName.length < 3 || trimName.length > 20) return res.status(400).json({ error: 'Название: 3-20 символов' });
+      const { data: dup } = await supabase.from('clans').select('id').eq('name', trimName).neq('id', clan.id).maybeSingle();
+      if (dup) return res.status(409).json({ error: 'Название уже занято' });
+      updates.name = trimName;
+      diamondsCost += 100;
+    }
+    if (symbol && symbol !== clan.symbol) {
+      updates.symbol = symbol;
+      diamondsCost += 100;
+    }
+
+    // Check diamonds
+    const currentDiamonds = player.diamonds ?? 0;
+    if (diamondsCost > 0 && currentDiamonds < diamondsCost) {
+      return res.status(400).json({ error: `Нужно ${diamondsCost} 💎 (у вас ${currentDiamonds})` });
+    }
+
+    // Free changes
+    if (color && ALLOWED_CLAN_COLORS.includes(color) && color !== clan.color) updates.color = color;
+    if (min_level != null) updates.min_level = Math.max(1, Math.min(100, parseInt(min_level) || 1));
+    if (description != null) updates.description = (description || '').slice(0, 100);
+
+    if (Object.keys(updates).length === 0) return res.json({ success: true, clan, diamonds_spent: 0 });
+
+    // Apply
+    const { error: upErr } = await supabase.from('clans').update(updates).eq('id', clan.id);
+    if (upErr) return res.status(500).json({ error: upErr.message });
+
+    // Deduct diamonds
+    if (diamondsCost > 0) {
+      await supabase.from('players').update({ diamonds: currentDiamonds - diamondsCost }).eq('id', player.id).eq('diamonds', currentDiamonds);
+    }
+
+    const { data: updatedClan } = await supabase.from('clans').select('*').eq('id', clan.id).single();
+    return res.json({ success: true, clan: updatedClan, diamonds_spent: diamondsCost });
+  } catch (err) {
+    console.error('[edit] crash:', err);
+    return res.status(500).json({ error: err.message || 'Internal error' });
+  }
+}
+
 // ── HANDLER ──────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -532,6 +592,7 @@ export default async function handler(req, res) {
       case 'sell-hq':   return handleSellHq(req, res);
       case 'disband':   return handleDisband(req, res);
       case 'boost':     return handleBoost(req, res);
+      case 'edit':      return handleEdit(req, res);
       default:          return res.status(400).json({ error: 'Unknown action' });
     }
   }

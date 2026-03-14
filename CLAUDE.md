@@ -115,7 +115,8 @@ vercel.json  CLAUDE.md
 - Роли: leader, officer, member; лидер может менять роли, кикать, распустить клан
 - Автопередача лидерства при 7 днях неактивности лидера
 - Шахты в зоне штаба клана получают income_bonus, defense_bonus и boost_multiplier
-- POST /api/clan action:(build-hq/create/join/leave/donate/upgrade/boost/set-role/kick/transfer/sell-hq/disband)
+- Редактирование клана: лидер может менять цвет/описание/мин.уровень бесплатно, название/символ за 100💎 каждое
+- POST /api/clan action:(build-hq/create/join/leave/donate/upgrade/boost/set-role/kick/transfer/sell-hq/disband/edit)
 - GET /api/clan?view=list — список кланов; GET /api/clan?view=info&clan_id=... — инфо
 - UI: fullscreen экран с вкладками (Штаб/Участники/Кланы), попап на карте минимальный
 

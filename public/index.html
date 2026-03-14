@@ -8402,16 +8402,27 @@ function showClanHqPopup(ch) {
     openPopup('🏰 Штаб Клана', 'Не активен', [], [
       { label: '🔍 Найти клан', cls: 'primary', action: () => openClanScreen(null, 'browse') },
       { label: '⚔️ Создать клан', cls: 'yellow', action: () => openClanScreen(null, 'create') },
-      { label: `🗑️ Продать (${formatCoins(CLAN_HQ_COST / 2)})`, cls: 'danger', action: () => doSellClanHq() },
+      { label: `🏚️ Снести штаб (+${formatCoins(CLAN_HQ_COST / 2)})`, cls: 'danger', action: () => doSellClanHq() },
     ]);
   } else if (isOwn && isActive) {
-    const config = getClanLevelConfig(ch.clan_level);
+    const inClan = !!state.player?.clan_id;
     openPopup(
       `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
       `Уровень ${ch.clan_level}`,
       [],
-      [{ label: '⚔️ Войти в штаб', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') }]
+      [
+        { label: '⚔️ Войти в штаб', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') },
+        inClan
+          ? { label: '🏚️ Снести штаб', cls: '', disabled: true }
+          : { label: `🏚️ Снести штаб (+${formatCoins(CLAN_HQ_COST / 2)})`, cls: 'danger', action: () => doSellClanHq() },
+      ]
     );
+    if (inClan) {
+      setTimeout(() => {
+        const btns = document.querySelectorAll('#popup-actions .btn[disabled]');
+        btns.forEach(b => { if (b.textContent.includes('Снести')) { b.insertAdjacentHTML('afterend', '<div style="font-size:11px;color:#666;text-align:center;margin-top:2px;">Покиньте клан чтобы снести штаб</div>'); }});
+      }, 50);
+    }
   } else if (isActive) {
     openPopup(
       `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
@@ -8475,6 +8486,7 @@ function _renderClanTabs() {
       { id: 'hq', label: '🏰 Штаб' },
       { id: 'members', label: '👥 Участники' },
       { id: 'browse', label: '🔍 Кланы' },
+      ...(_clanScreenTab === 'edit' ? [{ id: 'edit', label: '✏️ Редактирование' }] : []),
     ];
   } else {
     tabList = [
@@ -8505,6 +8517,7 @@ function _renderClanTab() {
     case 'members': _renderMembersTab(body); break;
     case 'browse': _renderBrowseTab(body); break;
     case 'create': _renderCreateTab(body); break;
+    case 'edit': _renderEditTab(body); break;
   }
 }
 
@@ -8601,6 +8614,11 @@ function _renderHqTab(body) {
     }
   }
 
+  // Edit button for leader
+  if (isOwn && isLeader) {
+    actionsEl.appendChild(_makeBtn('✏️ Редактировать клан', '', () => { _clanScreenTab = 'edit'; _renderClanTabs(); _renderClanTab(); }));
+  }
+
   // Danger zone
   const dangerEl = document.getElementById('cs-danger');
   if (dangerEl && isOwn) {
@@ -8609,8 +8627,6 @@ function _renderHqTab(body) {
     } else {
       dangerEl.appendChild(_makeBtn('🚪 Покинуть', 'danger', () => doClanLeave()));
     }
-    const sellBtn = _makeBtn('🏚️ Продать штаб', '', null); sellBtn.disabled = true;
-    dangerEl.appendChild(sellBtn);
   }
 }
 
@@ -8720,6 +8736,134 @@ function _filterAndRenderClans(query) {
 }
 
 // ── Create Tab ──
+function _renderEditTab(body) {
+  if (!_clanScreenData?.clan) { body.innerHTML = '<div style="color:#888;padding:20px;text-align:center;">Нет данных</div>'; return; }
+  const clan = _clanScreenData.clan;
+  let selectedSymbol = clan.symbol || CLAN_SYMBOLS[0];
+  let selectedColor = clan.color || ALLOWED_CLAN_COLORS[0];
+  let minLevel = clan.min_level || 1;
+  let newName = clan.name || '';
+  let newDesc = clan.description || '';
+  const origSymbol = selectedSymbol;
+  const origName = clan.name;
+
+  body.innerHTML = `
+    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:16px;">✏️ Редактировать клан</div>
+    <div class="cs-form-field">
+      <label>Символ клана <span style="color:#D500F9">💎 100 за смену</span></label>
+      <div class="cs-emoji-grid" id="cs-edit-symbol-grid"></div>
+    </div>
+    <div class="cs-form-field">
+      <label>Название <span style="color:#D500F9">💎 100 за смену</span></label>
+      <input id="cs-edit-name" maxlength="20" value="${clan.name}">
+    </div>
+    <div class="cs-form-field">
+      <label>Цвет клана</label>
+      <div class="cs-color-grid" id="cs-edit-color-grid"></div>
+    </div>
+    <div class="cs-form-field">
+      <label>Мин. уровень для вступления</label>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn" id="cs-edit-lvl-dec" style="width:40px;padding:8px;">−</button>
+        <span id="cs-edit-lvl-val" style="font-size:18px;font-weight:700;color:#fff;width:40px;text-align:center;">${minLevel}</span>
+        <button class="btn" id="cs-edit-lvl-inc" style="width:40px;padding:8px;">+</button>
+      </div>
+    </div>
+    <div class="cs-form-field">
+      <label>Описание (до 100 символов)</label>
+      <textarea id="cs-edit-desc" maxlength="100">${clan.description || ''}</textarea>
+    </div>
+    <div id="cs-edit-cost" style="text-align:center;color:#D500F9;font-size:13px;margin-bottom:8px;"></div>
+    <button class="btn yellow" id="cs-edit-save" style="width:100%;padding:12px;font-size:15px;">💾 Сохранить изменения</button>
+  `;
+
+  // Symbol grid
+  const sg = document.getElementById('cs-edit-symbol-grid');
+  CLAN_SYMBOLS.forEach(s => {
+    const cell = document.createElement('div');
+    cell.className = `eg-cell${s === selectedSymbol ? ' selected' : ''}`;
+    cell.textContent = s;
+    cell.addEventListener('click', () => {
+      sg.querySelectorAll('.eg-cell').forEach(c => c.classList.remove('selected'));
+      cell.classList.add('selected');
+      selectedSymbol = s;
+      _updateEditCost();
+    });
+    sg.appendChild(cell);
+  });
+
+  // Color grid
+  const cg = document.getElementById('cs-edit-color-grid');
+  ALLOWED_CLAN_COLORS.forEach(c => {
+    const cell = document.createElement('div');
+    cell.className = `cg-cell${c === selectedColor ? ' selected' : ''}`;
+    cell.style.background = c;
+    cell.addEventListener('click', () => {
+      cg.querySelectorAll('.cg-cell').forEach(x => x.classList.remove('selected'));
+      cell.classList.add('selected');
+      selectedColor = c;
+    });
+    cg.appendChild(cell);
+  });
+
+  // Level
+  document.getElementById('cs-edit-lvl-dec').addEventListener('click', () => { if (minLevel > 1) { minLevel--; document.getElementById('cs-edit-lvl-val').textContent = minLevel; } });
+  document.getElementById('cs-edit-lvl-inc').addEventListener('click', () => { if (minLevel < 100) { minLevel++; document.getElementById('cs-edit-lvl-val').textContent = minLevel; } });
+
+  // Name change tracking
+  document.getElementById('cs-edit-name').addEventListener('input', (e) => { newName = e.target.value.trim(); _updateEditCost(); });
+
+  function _updateEditCost() {
+    let cost = 0;
+    if (newName !== origName) cost += 100;
+    if (selectedSymbol !== origSymbol) cost += 100;
+    const el = document.getElementById('cs-edit-cost');
+    el.textContent = cost > 0 ? `Будет списано: ${cost} 💎` : '';
+  }
+
+  // Save
+  document.getElementById('cs-edit-save').addEventListener('click', async () => {
+    const nameVal = document.getElementById('cs-edit-name').value.trim();
+    const descVal = document.getElementById('cs-edit-desc').value.trim();
+    const nameChanged = nameVal !== origName;
+    const symbolChanged = selectedSymbol !== origSymbol;
+    const diamondCost = (nameChanged ? 100 : 0) + (symbolChanged ? 100 : 0);
+
+    if (diamondCost > 0) {
+      closeClanScreen();
+      openPopup('💎 Подтвердите изменения', `Будет списано ${diamondCost} 💎`, [
+        ...(nameChanged ? [['Новое название', nameVal]] : []),
+        ...(symbolChanged ? [['Новый символ', selectedSymbol]] : []),
+      ], [
+        { label: `✅ Подтвердить (${diamondCost} 💎)`, cls: 'yellow', action: async () => {
+          closePopup();
+          await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal);
+        }},
+        { label: 'Отмена', isClose: true },
+      ]);
+    } else {
+      await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal);
+    }
+  });
+}
+
+async function _saveEdit(name, symbol, color, min_level, description) {
+  try {
+    const data = await apiFetch('/api/clan', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'edit', name, symbol, color, min_level, description }),
+    });
+    if (data.diamonds_spent > 0) {
+      if (state.player) state.player.diamonds -= data.diamonds_spent;
+      updateDiamondDisplay();
+    }
+    showToast('✅ Клан обновлён!');
+    if (_clanScreenId) openClanScreen(_clanScreenId, 'hq');
+    else closeClanScreen();
+    refreshAll();
+  } catch (err) { showToast(err.message); }
+}
+
 function _renderCreateTab(body) {
   let selectedSymbol = CLAN_SYMBOLS[0];
   let selectedColor = ALLOWED_CLAN_COLORS[0];
