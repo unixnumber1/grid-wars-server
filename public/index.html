@@ -271,7 +271,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.7);
-      z-index: 2000;
+      z-index: 7000;
       align-items: flex-end;
       justify-content: center;
     }
@@ -8820,7 +8820,7 @@ async function doBuildClanHq(lat, lng) {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
-async function doClanJoin(clanId) {
+window.doClanJoin = async function doClanJoin(clanId) {
   closeClanScreen(); closePopup();
   try {
     await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'join', clan_id: clanId }) });
