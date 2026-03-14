@@ -8639,20 +8639,23 @@ async function _renderMembersTab(body) {
     const avatar = p.avatar || '🐺';
     const roleLabel = m.role === 'leader' ? 'Лидер' : m.role === 'officer' ? 'Офицер' : 'Участник';
     const roleIcon = m.role === 'leader' ? '👑' : m.role === 'officer' ? '⭐' : '';
+    const canManage = isLeader && m.role !== 'leader';
+    const escapedName = name.replace(/'/g, "\\'");
     html += `
-      <div class="cs-member-row" ${isLeader && m.role !== 'leader' ? `onclick="_showMemberActions('${p.telegram_id}','${m.role}','${name}')"` : ''}>
+      <div class="cs-member-row">
         <div class="cs-member-avatar">${avatar}</div>
         <div class="cs-member-info">
           <div class="cs-member-name">${name}</div>
           <div class="cs-member-meta">Ур.${p.level || 1} · ⛏️ ${m.mine_count} шахт</div>
         </div>
         <div class="cs-member-role">${roleIcon} ${roleLabel}</div>
+        ${canManage ? `<button style="font-size:18px;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;cursor:pointer;line-height:1;" onclick="event.stopPropagation();_showMemberActions('${p.telegram_id}','${m.role}','${escapedName}')">⋯</button>` : ''}
       </div>`;
   }
   body.innerHTML = html || '<div style="color:#888;padding:20px;text-align:center;">Нет участников</div>';
 }
 
-function _showMemberActions(tgId, currentRole, name) {
+window._showMemberActions = function(tgId, currentRole, name) {
   openPopup(`👤 ${name}`, '', [], [
     currentRole === 'member'
       ? { label: '⬆️ Повысить до офицера', cls: 'primary', action: () => { closePopup(); doClanSetRole(tgId, 'officer'); } }
