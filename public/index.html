@@ -8521,11 +8521,11 @@ async function showOwnClanPopup(ch) {
         ['👥 Участников', `${clan.member_count}/${config.maxMembers}`],
       ],
       [
-        ...(isLeader || isOfficer ? [{
+        {
           label: '💎 Пополнить казну',
           cls: 'primary',
           action: () => doClanDonate(),
-        }] : []),
+        },
         ...(canUpgrade && nextCost != null ? [{
           label: `⬆️ Улучшить клан (${nextCost} 💎)`,
           cls: 'yellow',
