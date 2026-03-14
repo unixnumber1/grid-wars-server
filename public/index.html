@@ -3282,7 +3282,7 @@ function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
   // Send location to Socket.io server
   if (_socket?.connected) {
-    _socket.emit('player:location', { lat, lng });
+    _socket.emit('player:location', { telegram_id: TG_ID, lat, lng });
   }
   if (playerMarker) {
     _animatePlayerMarker(lat, lng, 1000);
@@ -3626,7 +3626,7 @@ function renderBuildings() {
   for (const p of (state.mapBuildings.online_players || [])) {
     activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
-      _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 4500);
+      _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 1500);
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
     } else {
@@ -4531,6 +4531,29 @@ function initSocket() {
 
     _socket.on('tick', (data) => {
       processTickData(data);
+    });
+
+    _socket.on('player:moved', (data) => {
+      if (!data?.telegram_id || !data.lat || !data.lng) return;
+      // Find online marker by telegram_id
+      const p = (state.mapBuildings.online_players || []).find(op => String(op.telegram_id) === String(data.telegram_id));
+      const markerId = p?.id;
+      if (!markerId || !onlineMarkers[markerId]) return;
+      const marker = onlineMarkers[markerId];
+      const from = marker.getLatLng();
+      const dist = haversine(from.lat, from.lng, data.lat, data.lng);
+      if (dist < 2) return;
+      if (dist < 10) {
+        marker.setLatLng([data.lat, data.lng]);
+      } else if (dist < 50) {
+        _animateMarkerTo(marker, data.lat, data.lng, 300);
+      } else if (dist < 200) {
+        _animateMarkerTo(marker, data.lat, data.lng, 800);
+      } else {
+        marker.setLatLng([data.lat, data.lng]);
+      }
+      // Update cached position
+      if (p) { p.last_lat = data.lat; p.last_lng = data.lng; }
     });
 
     _socket.on('disconnect', () => {
