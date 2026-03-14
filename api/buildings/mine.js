@@ -40,7 +40,7 @@ async function handleCollect(req, res) {
   let boostMul = 1;
   if (player.clan_id) {
     const [{ data: clan }, { data: hqs }] = await Promise.all([
-      supabase.from('clans').select('level, boost_expires_at, boost_multiplier').eq('id', player.clan_id).single(),
+      supabase.from('clans').select('*').eq('id', player.clan_id).single(),
       supabase.from('clan_headquarters').select('lat,lng').eq('clan_id', player.clan_id),
     ]);
     if (clan) {

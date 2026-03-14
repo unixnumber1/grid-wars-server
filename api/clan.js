@@ -422,8 +422,8 @@ async function handleBoost(req, res) {
       return res.status(403).json({ error: 'Только лидер или офицер' });
     }
 
-    const { data: clan } = await supabase.from('clans').select('id, level, treasury, boost_expires_at').eq('id', player.clan_id).single();
-    if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+    const { data: clan, error: cErr } = await supabase.from('clans').select('*').eq('id', player.clan_id).single();
+    if (cErr || !clan) return res.status(500).json({ error: cErr?.message || 'Клан не найден' });
 
     // Check if boost already active
     if (clan.boost_expires_at && new Date(clan.boost_expires_at) > new Date()) {
