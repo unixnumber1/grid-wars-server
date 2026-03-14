@@ -3701,6 +3701,7 @@ function openPopup(title, subtitle, stats, actions) {
 }
 
 let _upgradeCountdownTimer = null;
+let _accumulatedCoinsTimer = null;
 
 function _startUpgradeCountdown(finishAtStr) {
   const finishAt = new Date(finishAtStr);
@@ -3759,6 +3760,10 @@ function closePopup() {
   if (_upgradeCountdownTimer) {
     clearInterval(_upgradeCountdownTimer);
     _upgradeCountdownTimer = null;
+  }
+  if (_accumulatedCoinsTimer) {
+    clearInterval(_accumulatedCoinsTimer);
+    _accumulatedCoinsTimer = null;
   }
   _currentPopupEntityId = null;
   _selectMarker(null);
@@ -3899,7 +3904,7 @@ function showMinePopup(mine, isOwn, canCapture) {
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
           : [
               ['Доход', `${formatCoins(rate)}/ч`],
-              ...(mine.level > 0 ? [['Накоплено', `${formatCoins(accumulated)} / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
+              ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
             ]),
         ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? formatCoins(nextCost) : 'МАКС']] : []),
         ['Монеты', formatCoins(playerCoins)],
@@ -3943,6 +3948,19 @@ function showMinePopup(mine, isOwn, canCapture) {
     // Upgrading countdown UI
     if (isUpgrading) {
       _startUpgradeCountdown(mine.upgrade_finish_at);
+    }
+
+    // Live accumulated coins update every second
+    if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+    if (mine.level > 0 && !isUpgrading) {
+      _accumulatedCoinsTimer = setInterval(() => {
+        const el = document.getElementById('accumulated-coins-val');
+        if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
+        const acc = calcAccumulated(mine.level, mine.last_collected);
+        const full = acc >= capacity;
+        el.textContent = formatCoins(acc);
+        el.style.color = full ? '#ff4444' : '';
+      }, 1000);
     }
   } else {
     const owner = displayName(mine.players);
