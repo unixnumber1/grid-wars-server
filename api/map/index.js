@@ -1,17 +1,10 @@
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getCellsInRange } from '../../lib/grid.js';
-import { BOT_TYPES, getRandomBotType, getRandomReward } from '../../lib/bots.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS } from '../../lib/formulas.js';
 import { calcTotalIncomeWithClanBonus } from '../../lib/clans.js';
-
-// ── Bot constants ────────────────────────────────────────────
-const BOTS_PER_ZONE    = 10;
-const BOT_TTL_MS       = 5 * 60 * 1000;
-const GLOBAL_BOT_CAP   = 20;
-const SPEED_METERS     = { slow: 15, medium: 30, fast: 55, very_fast: 90 };
-const DRAIN_LIMITS     = { spirit: 50, goblin: 150, werewolf: 400, demon: 1000, dragon: 3000, boss: 10000 };
+import { ensureGoblinsNearPlayer, tickGoblins } from '../../lib/goblins.js';
 
 // ── Tick counter for periodic cleanup ────────────────────────
 let _tickCount = 0;
@@ -91,185 +84,26 @@ async function handleTick(req, res) {
       .then(() => {}).catch(() => {});
   }
 
-  // ── 2. Bot spawn (inline, with global cap) ──────────────
+  // ── 2. Goblin spawn ──────────────────────────────────────
   let spawnedBots = [];
   if (hasPos) {
-    try {
-      const PAD_DEG = 0.025;
-      const [{ data: nearbyRows }, { count: globalCount }] = await Promise.all([
-        supabase.from('bots').select('id,lat,lng')
-          .gt('expires_at', nowISO)
-          .gte('lat', pLat - PAD_DEG).lte('lat', pLat + PAD_DEG)
-          .gte('lng', pLng - PAD_DEG).lte('lng', pLng + PAD_DEG),
-        supabase.from('bots').select('*', { count: 'exact', head: true })
-          .gt('expires_at', nowISO),
-      ]);
-      const botsInZone = (nearbyRows || []).filter(
-        b => haversine(pLat, pLng, b.lat, b.lng) <= 2000
-      );
-      const needed = Math.max(0, BOTS_PER_ZONE - botsInZone.length);
-      const canSpawn = Math.max(0, GLOBAL_BOT_CAP - (globalCount || 0));
-      const toSpawn = Math.min(needed, canSpawn);
-
-      if (toSpawn > 0) {
-        const cosLat = Math.cos(pLat * Math.PI / 180);
-        const expiresAt = new Date(nowMs + BOT_TTL_MS).toISOString();
-        const newBots = [];
-        for (let i = 0; i < toSpawn; i++) {
-          const type = getRandomBotType();
-          const cfg  = BOT_TYPES[type];
-          const angle = Math.random() * 2 * Math.PI;
-          const distM = 500 + Math.random() * 1500;
-          const distLat = distM / 111000;
-          const distLng = distM / (111000 * (cosLat || 1));
-          const botLat = pLat + Math.cos(angle) * distLat;
-          const botLng = pLng + Math.sin(angle) * distLng;
-          newBots.push({
-            type, category: cfg.category, emoji: cfg.emoji,
-            lat: botLat, lng: botLng, spawn_lat: botLat, spawn_lng: botLng,
-            direction: Math.random() * 2 * Math.PI,
-            status: 'roaming', drained_amount: 0,
-            drain_limit: DRAIN_LIMITS[type] || 0,
-            spawned_for_player_id: currentPlayerId,
-            target_mine_id: null,
-            reward_min: cfg.reward_min, reward_max: cfg.reward_max,
-            drain_per_sec: cfg.drain_per_sec, speed: cfg.speed,
-            hp: cfg.hp, max_hp: cfg.hp, attack: cfg.attack, size: cfg.size,
-            expires_at: expiresAt,
-          });
-        }
-        const { data: inserted } = await supabase.from('bots').insert(newBots).select(
-          'id,type,emoji,category,lat,lng,coins_drained,drain_per_sec,reward_min,reward_max,speed,hp,max_hp,attack,size,status,target_mine_id,drained_amount,direction'
-        );
-        spawnedBots = inserted || [];
-      }
-    } catch (e) { console.error('[tick] spawn error:', e.message); }
+    try { spawnedBots = await ensureGoblinsNearPlayer(supabase, pLat, pLng); }
+    catch (e) { console.error('[tick] goblin spawn error:', e.message); }
   }
 
-  // ── 3. Bot move (with global lock) ──────────────────────
+  // ── 3. Goblin AI tick ────────────────────────────────────
   let movedBots = null;
   try {
-    const { data: moveSetting } = await supabase
-      .from('app_settings').select('value').eq('key', 'last_bots_move').single();
-    const lastMove = parseInt(moveSetting?.value || '0');
-    if (nowMs - lastMove >= 8000) {
-      await supabase.from('app_settings')
-        .update({ value: nowMs.toString() }).eq('key', 'last_bots_move');
-
-      const { data: allBots } = await supabase
-        .from('bots')
-        .select('id,type,category,lat,lng,spawn_lat,spawn_lng,direction,status,target_mine_id,drained_amount,drain_limit,drain_per_sec,speed,hp,max_hp,attack,size,emoji,coins_drained,reward_min,reward_max,expires_at')
-        .gt('expires_at', nowISO);
-
-      if (allBots?.length) {
-        const { data: allMines } = await supabase.from('mines').select('id,lat,lng,owner_id');
-        const mineMap = {};
-        for (const m of (allMines || [])) mineMap[m.id] = m;
-
-        const updates = [];
-        const minesToDrain = new Map();
-
-        for (const bot of allBots) {
-          const cfg = BOT_TYPES[bot.type] || {};
-          const speedM = SPEED_METERS[cfg.speed || bot.speed] || 30;
-          const cosLat = Math.cos(bot.lat * Math.PI / 180);
-          const stepLat = speedM / 111000;
-          const stepLng = speedM / (111000 * (cosLat || 1));
-          const spawnLat = bot.spawn_lat ?? bot.lat;
-          const spawnLng = bot.spawn_lng ?? bot.lng;
-
-          let newLat = bot.lat, newLng = bot.lng;
-          let newDir = bot.direction ?? Math.random() * Math.PI * 2;
-          let newStatus = bot.status || 'roaming';
-          let newTarget = bot.target_mine_id;
-          let newDrained = bot.drained_amount || 0;
-          const isUndead = bot.category === 'undead';
-
-          function smoothStep(dir) {
-            const shouldTurn = Math.random() < 0.05;
-            const turnAmount = (Math.random() - 0.5) * 0.3;
-            const d = shouldTurn ? dir + turnAmount : dir;
-            return { lat: bot.lat + Math.cos(d) * stepLat, lng: bot.lng + Math.sin(d) * stepLng, dir: d };
-          }
-
-          if (isUndead && newStatus === 'attacking' && newTarget) {
-            const target = mineMap[newTarget];
-            if (!target) {
-              newStatus = 'roaming'; newTarget = null;
-              const ss = smoothStep(newDir); newLat = ss.lat; newLng = ss.lng; newDir = ss.dir;
-            } else {
-              const dLat = target.lat - bot.lat, dLng = target.lng - bot.lng;
-              const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-              newDir = Math.atan2(dLng, dLat);
-              if (dist < 0.0005) {
-                if (Math.random() < 0.2) {
-                  const drainAmt = (bot.drain_per_sec || cfg.drain_per_sec || 0) * 3;
-                  newDrained += drainAmt;
-                  if (drainAmt > 0) minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
-                }
-                newLat = bot.lat + (Math.random() - 0.5) * stepLat * 0.3;
-                newLng = bot.lng + (Math.random() - 0.5) * stepLng * 0.3;
-                if ((bot.drain_limit || 0) > 0 && newDrained >= bot.drain_limit) {
-                  newStatus = 'leaving'; newTarget = null;
-                }
-              } else {
-                newLat = bot.lat + Math.cos(newDir) * stepLat;
-                newLng = bot.lng + Math.sin(newDir) * stepLng;
-              }
-            }
-          } else if (isUndead && newStatus === 'leaving') {
-            const ss = smoothStep(newDir); newLat = ss.lat; newLng = ss.lng; newDir = ss.dir;
-            if (Math.random() < 0.09) newStatus = 'roaming';
-          } else {
-            const ss = smoothStep(newDir); newLat = ss.lat; newLng = ss.lng; newDir = ss.dir;
-            if (isUndead && allMines?.length > 0 && Math.random() < 0.15) {
-              const target = allMines[Math.floor(Math.random() * allMines.length)];
-              newStatus = 'attacking'; newTarget = target.id; newDrained = 0;
-              newDir = Math.atan2(target.lng - bot.lng, target.lat - bot.lat);
-            }
-          }
-
-          const distFromSpawn = haversine(spawnLat, spawnLng, newLat, newLng);
-          if (distFromSpawn > 3000) {
-            const backAngle = Math.atan2(spawnLng - bot.lng, spawnLat - bot.lat) + (Math.random() - 0.5) * 0.5;
-            newLat = bot.lat + Math.cos(backAngle) * stepLat;
-            newLng = bot.lng + Math.sin(backAngle) * stepLng;
-            newDir = backAngle;
-          }
-
-          updates.push({ id: bot.id, lat: newLat, lng: newLng, direction: newDir,
-            status: newStatus, target_mine_id: newTarget, drained_amount: newDrained });
-        }
-
-        // Batch update bots
-        await Promise.all(updates.map(u =>
-          supabase.from('bots')
-            .update({ lat: u.lat, lng: u.lng, direction: u.direction, status: u.status, target_mine_id: u.target_mine_id, drained_amount: u.drained_amount })
-            .eq('id', u.id)
-        ));
-
-        if (minesToDrain.size > 0) {
-          await Promise.all([...minesToDrain.keys()].map(mineId =>
-            supabase.from('mines').update({ last_collected: nowISO }).eq('id', mineId)
-          ));
-        }
-
-        // Build updated bot list for response
-        movedBots = allBots.map((bot, i) => ({
-          id: bot.id, type: bot.type, emoji: bot.emoji, category: bot.category,
-          lat: updates[i].lat, lng: updates[i].lng,
-          coins_drained: bot.coins_drained, drain_per_sec: bot.drain_per_sec,
-          reward_min: bot.reward_min, reward_max: bot.reward_max,
-          speed: bot.speed, hp: bot.hp, max_hp: bot.max_hp, attack: bot.attack, size: bot.size,
-          status: updates[i].status, target_mine_id: updates[i].target_mine_id,
-          drained_amount: updates[i].drained_amount, direction: updates[i].direction,
-        }));
-      }
-
-      // Purge expired bots
-      supabase.from('bots').delete().lt('expires_at', nowISO).then(() => {}).catch(() => {});
+    const { data: allGoblins } = await supabase.from('bots').select('*').eq('status', 'alive');
+    const { data: allMinesForBots } = await supabase.from('mines').select('id,lat,lng,level,status,owner_id');
+    if (allGoblins?.length) {
+      await tickGoblins(supabase, allGoblins, allMinesForBots || [], nowISO);
+      const { data: updated } = await supabase.from('bots').select('*').eq('status', 'alive');
+      movedBots = updated;
     }
-  } catch (e) { console.error('[tick] bot move error:', e.message); }
+    // Purge expired
+    supabase.from('bots').delete().lt('expires_at', nowISO).then(() => {}).catch(() => {});
+  } catch (e) { console.error('[tick] goblin tick error:', e.message); }
 
   // ── 4. Move couriers ────────────────────────────────────
   let courierResult = null;

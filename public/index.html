@@ -4724,24 +4724,12 @@ function onGpsError(err) {
 // ─────────────────────────────────────────────
 //  Bot system
 // ─────────────────────────────────────────────
-const BOT_NAMES = {
-  spirit: 'Дух', goblin: 'Гоблин', werewolf: 'Оборотень',
-  demon: 'Демон', dragon: 'Дракон', boss: 'БОСС',
-};
-
-// Mirror of lib/bots.js — keep in sync
+const BOT_NAMES = { goblin: 'Гоблин' };
 const BOT_CLIENT_TYPES = {
-  spirit:   { emoji:'🌫️', category:'neutral', size:'S',  markerSize:32, attackChance:0 },
-  goblin:   { emoji:'👺', category:'undead',  size:'S',  markerSize:32, attackChance:0.3 },
-  werewolf: { emoji:'🐺', category:'undead',  size:'M',  markerSize:38, attackChance:0.5 },
-  demon:    { emoji:'👹', category:'undead',  size:'L',  markerSize:44, attackChance:0.6 },
-  dragon:   { emoji:'🐲', category:'neutral', size:'L',  markerSize:50, attackChance:0.4 },
-  boss:     { emoji:'💀', category:'undead',  size:'XL', markerSize:60, attackChance:0.8 },
+  goblin: { emoji: '👺', category: 'evil', markerSize: 36, attackChance: 0.3 },
 };
-
-const botMarkers    = {}; // id → { marker }
-let   botData       = {}; // id → bot object
-const drainIntervals = {}; // botId → interval
+const botMarkers = {};
+let botData = {};
 
 // ─────────────────────────────────────────────
 //  Vase layer
@@ -4968,40 +4956,11 @@ function animateDrain(mineLatLng, botLatLng) {
   document.body.appendChild(coin);
   requestAnimationFrame(() => {
     coin.style.transition = 'all 0.8s ease-in';
-    coin.style.left       = botPos.x + 'px';
-    coin.style.top        = botPos.y + 'px';
-    coin.style.opacity    = '0';
-    coin.style.fontSize   = '10px';
+    coin.style.left = botPos.x + 'px';
+    coin.style.top = botPos.y + 'px';
+    coin.style.opacity = '0';
   });
   setTimeout(() => coin.remove(), 900);
-}
-
-function startDrainAnimation(botId, mineId) {
-  if (drainIntervals[botId]) return;
-  drainIntervals[botId] = setInterval(() => {
-    const mineMarker = buildingMarkers[`mine_${mineId}`];
-    const botRef     = botMarkers[botId];
-    if (mineMarker && botRef) {
-      const mineLL = mineMarker.getLatLng();
-      const botLL  = botRef.marker.getLatLng();
-      animateDrain(mineLL, botLL);
-      setTimeout(() => animateDrain(mineLL, botLL), 300);
-      setTimeout(() => animateDrain(mineLL, botLL), 600);
-    }
-  }, 1500);
-}
-
-function stopDrainAnimation(botId) {
-  if (drainIntervals[botId]) { clearInterval(drainIntervals[botId]); delete drainIntervals[botId]; }
-}
-
-function showDrainText(latLng, amount) {
-  const pos = map.latLngToContainerPoint(latLng);
-  const el  = document.createElement('div');
-  el.textContent = `-${formatNumber(amount)} 💸`;
-  el.style.cssText = `position:fixed;left:${pos.x}px;top:${pos.y}px;color:#ff4444;font-size:14px;font-weight:bold;pointer-events:none;z-index:9999;animation:floatUp 1.5s ease-out forwards;`;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1500);
 }
 
 function updateMineAttackStatus() {
@@ -5028,40 +4987,24 @@ function updateMineAttackStatus() {
 }
 
 function botIcon(bot) {
-  const cfg  = BOT_CLIENT_TYPES[bot.type] || {};
-  const ms   = cfg.markerSize || 32;
-  const size = cfg.size || 'S';
-
-  let glow;
-  if (size === 'XL') {
-    glow = ''; // handled by CSS animation on wrapper
-  } else if (size === 'L') {
-    glow = 'filter:drop-shadow(0 0 10px rgba(200,50,255,0.9))';
-  } else if (size === 'M') {
-    glow = 'filter:drop-shadow(0 0 7px rgba(255,150,0,0.85))';
-  } else {
-    glow = bot.category === 'undead'
-      ? 'filter:drop-shadow(0 0 5px rgba(255,50,50,0.8))'
-      : 'filter:drop-shadow(0 0 5px rgba(50,255,100,0.8))';
+  const ms = 36;
+  const state = bot.state || 'roaming';
+  let emoji = bot.emoji || '👺';
+  if (state === 'fleeing' && (bot.stolen_coins || 0) > 0) {
+    const s = bot.stolen_coins;
+    emoji = s > 100000 ? '👺💰💰💰' : s > 50000 ? '👺💰💰' : s > 0 ? '👺💰' : '👺';
   }
-
-  const bossClass     = bot.type === 'boss' ? ' bot-boss-pulse' : '';
-  const attackingClass = bot.status === 'attacking' ? ' bot-attacking' : '';
+  let glow = 'filter:drop-shadow(0 0 5px rgba(255,50,50,0.8))';
+  if (state === 'aggro') glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
+  if (state === 'fleeing') glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
   return makeMarkerIcon(
-    `<div class="marker-wrap${bossClass}${attackingClass}"><span style="font-size:${ms}px;${glow}">${bot.emoji}</span></div>`,
+    `<div class="marker-wrap"><span style="font-size:${ms}px;${glow}">${emoji}</span></div>`,
     ms + 12
   );
 }
 
-// Degrees per millisecond for each speed tier
-// Server moves bots N metres per 10 s tick → N / (10000 ms * 111000 m/deg)
-const BOT_SPEED_DEG_PER_MS = {
-  slow:      15 / (10000 * 111000),
-  medium:    30 / (10000 * 111000),
-  fast:      55 / (10000 * 111000),
-  very_fast: 90 / (10000 * 111000),
-};
-let _botAnimId   = null;
+const GOBLIN_SPEED = { roaming: 0.00008, aggro: 0.00015, fleeing: 0.00012 };
+let _botAnimId = null;
 let _botAnimLast = null;
 
 function _tickBotAnim(now) {
@@ -5070,17 +5013,15 @@ function _tickBotAnim(now) {
   for (const [id, ref] of Object.entries(botMarkers)) {
     const bot = botData[id];
     if (!bot || !ref.marker) continue;
-    if (bot.status === 'attacking') continue;
-    const speed  = BOT_SPEED_DEG_PER_MS[bot.speed] ?? BOT_SPEED_DEG_PER_MS.medium;
-    const dir    = bot.direction ?? 0;
-    const pos    = ref.marker.getLatLng();
-    const cosLat = Math.cos(pos.lat * Math.PI / 180) || 1;
-    let newLat = pos.lat + Math.cos(dir) * speed * dt;
-    let newLng = pos.lng + Math.sin(dir) * speed * dt / cosLat;
-    // Blend toward server correction position if available
+    const state = bot.state || 'roaming';
+    const speed = GOBLIN_SPEED[state] || GOBLIN_SPEED.roaming;
+    const dir = bot.direction ?? 0;
+    const pos = ref.marker.getLatLng();
+    let newLat = pos.lat + Math.cos(dir) * speed * dt * 0.06;
+    let newLng = pos.lng + Math.sin(dir) * speed * dt * 0.06;
     if (ref.serverLat != null && ref.corrStart) {
       const elapsed = now - ref.corrStart;
-      const blend = Math.min(elapsed / 4500, 1); // 4.5s blend
+      const blend = Math.min(elapsed / 4500, 1);
       newLat = newLat + (ref.serverLat - newLat) * blend * 0.05;
       newLng = newLng + (ref.serverLng - newLng) * blend * 0.05;
       if (blend >= 1) { ref.serverLat = null; ref.serverLng = null; ref.corrStart = null; }
@@ -5096,38 +5037,21 @@ function startBotAnimation() {
 
 function renderBots(bots) {
   const activeIds = new Set(bots.map(b => b.id));
-
-  // Remove gone bots
   for (const id of Object.keys(botMarkers)) {
     if (!activeIds.has(id)) {
       botLayer.removeLayer(botMarkers[id].marker);
-      delete botMarkers[id];
-      delete botData[id];
-      stopDrainAnimation(id);
+      delete botMarkers[id]; delete botData[id];
     }
   }
-
   for (const bot of bots) {
-    // Preserve HP from latest combat data
     const existing = botData[bot.id];
     botData[bot.id] = existing ? { ...bot, hp: existing.hp ?? bot.hp, max_hp: existing.max_hp ?? bot.max_hp } : bot;
-
     if (botMarkers[bot.id]) {
       const ref = botMarkers[bot.id];
-      // Snap to server position only if bot jumped far (respawn/warp) or is attacking
-      const pos  = ref.marker.getLatLng();
-      const far  = Math.abs(pos.lat - bot.lat) > 0.002 || Math.abs(pos.lng - bot.lng) > 0.002;
-      if (far || bot.status === 'attacking') {
-        ref.marker.setLatLng([bot.lat, bot.lng]);
-      } else {
-        // Smoothly correct drift toward server position over 4.5s
-        ref.serverLat = bot.lat;
-        ref.serverLng = bot.lng;
-        ref.corrStart = Date.now();
-        ref.corrFromLat = pos.lat;
-        ref.corrFromLng = pos.lng;
-      }
-      // Refresh icon in case status changed (attacking animation)
+      const pos = ref.marker.getLatLng();
+      const far = Math.abs(pos.lat - bot.lat) > 0.002 || Math.abs(pos.lng - bot.lng) > 0.002;
+      if (far) { ref.marker.setLatLng([bot.lat, bot.lng]); }
+      else { ref.serverLat = bot.lat; ref.serverLng = bot.lng; ref.corrStart = Date.now(); }
       ref.marker.setIcon(botIcon(bot));
     } else {
       const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
@@ -5135,317 +5059,110 @@ function renderBots(bots) {
       marker.addTo(botLayer);
       botMarkers[bot.id] = { marker };
     }
-
-    // Drain animation + text for attacking bots
-    if (bot.status === 'attacking' && bot.target_mine_id) {
-      startDrainAnimation(bot.id, bot.target_mine_id);
-      // Show drain damage text above the mine
+    // Drain animation for aggro goblins
+    if (bot.state === 'aggro' && bot.target_mine_id) {
       const mineMarker = buildingMarkers[`mine_${bot.target_mine_id}`];
-      if (mineMarker) {
-        showDrainText(mineMarker.getLatLng(), (bot.drain_per_sec || 0) * 3);
-      }
-    } else {
-      stopDrainAnimation(bot.id);
+      const botRef = botMarkers[bot.id];
+      if (mineMarker && botRef) animateDrain(mineMarker.getLatLng(), botRef.marker.getLatLng());
     }
   }
-
-  updateMineAttackStatus();
 }
 
 function showBotPopup(botId) {
   const bot = botData[botId];
   if (!bot) return;
-  const pos         = state.playerPos;
-  const dist        = pos ? haversine(pos.lat, pos.lng, bot.lat, bot.lng) : Infinity;
-  const near        = dist <= LARGE_RADIUS;
-  const name        = BOT_NAMES[bot.type] || bot.type;
+  const pos = state.playerPos;
+  const dist = (pos && bot.lat != null) ? haversine(pos.lat, pos.lng, bot.lat, bot.lng) : null;
+  const inRange = dist !== null && dist <= LARGE_RADIUS;
+  const botHp = bot.hp ?? 50;
+  const botMaxHp = bot.max_hp ?? 50;
+  const pHp = state.player?.hp ?? 100;
+  const pMaxHp = state.player?.max_hp ?? 100;
+  const hpPct = Math.round(botHp / botMaxHp * 100);
+  const pHpPct = Math.round(pHp / pMaxHp * 100);
+  const stateLabel = bot.state === 'aggro' ? '⚠️ Агрессивный' : bot.state === 'fleeing' ? '💰 Убегает с добычей' : '😴 Бродит';
 
-  const botHp    = bot.hp    ?? BOT_CLIENT_TYPES[bot.type]?.markerSize ?? 50;
-  const botMaxHp = bot.max_hp ?? botHp;
-  const pHp      = state.player?.hp    ?? 100;
-  const pMaxHp   = state.player?.max_hp ?? 100;
-  const botHpPct = Math.round(Math.max(0, botHp / botMaxHp) * 100);
-  const pHpPct   = Math.round(Math.max(0, pHp  / pMaxHp)   * 100);
-
-  document.getElementById('popup-title').innerHTML = `${bot.emoji} ${name}`;
-  document.getElementById('popup-subtitle').textContent =
-    bot.type === 'boss' ? '⚠️ ГЛОБАЛЬНЫЙ БОСС' :
-    bot.category === 'undead' ? 'Нежить — дренирует шахты' : 'Нейтральное существо';
-
-  const statsEl = document.getElementById('popup-stats');
-  statsEl.innerHTML = `
-    <div class="combat-section">
-      <div class="combat-fighter">
-        <div class="combat-emoji">${bot.emoji}</div>
-        <div class="combat-name">${name}</div>
-        <div class="hp-bar-container"><div class="hp-bar-fill bot" id="bot-hp-bar" style="width:${botHpPct}%"></div></div>
-        <div class="hp-label" id="bot-hp-label">${botHp} / ${botMaxHp} HP</div>
-      </div>
-      <div class="combat-vs">⚔️</div>
-      <div class="combat-fighter">
-        <div class="combat-emoji">${state.player?.avatar || '🐺'}</div>
-        <div class="combat-name">${displayName(state.player)}</div>
-        <div class="hp-bar-container"><div class="hp-bar-fill player" id="player-hp-bar" style="width:${pHpPct}%"></div></div>
-        <div class="hp-label" id="player-hp-label">${pHp} / ${pMaxHp} HP</div>
-      </div>
-    </div>
-    ${bot.category === 'undead' ? `<div class="popup-stat"><span>💸 Украдено</span><span class="val">${formatNumber(bot.coins_drained || 0)} монет</span></div>` : ''}
-    ${bot.reward_max > 0 ? `<div class="popup-stat"><span>💰 Награда за победу</span><span class="val">${formatNumber(bot.reward_min)}–${formatNumber(bot.reward_max)} монет</span></div>` : ''}
-  `;
-
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-
-  const atkBtn = document.createElement('button');
-  atkBtn.className = 'btn danger';
-  atkBtn.style.flex = '1 0 100%';
-  const respawnActive = _respawnUntil && Date.now() < _respawnUntil;
-  const respawnSecs   = respawnActive ? Math.ceil((_respawnUntil - Date.now()) / 1000) : 0;
-  if (!near) {
-    atkBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
-    atkBtn.disabled = true;
-  } else if (respawnActive) {
-    atkBtn.innerHTML = `💀 Возрождение через ${respawnSecs} сек`;
-    atkBtn.disabled = true;
-    atkBtn.dataset.respawn = '1';
-  } else {
-    atkBtn.innerHTML = '⚔️ Атаковать';
-    atkBtn.disabled = false;
+  const stats = [
+    ['Состояние', stateLabel],
+    ['HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#e06060;border-radius:4px"></div></div>${botHp}/${botMaxHp}</div>`],
+    ['Твои HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pHpPct}%;background:#4caf50;border-radius:4px"></div></div>${pHp}/${pMaxHp}</div>`],
+  ];
+  if (bot.state === 'fleeing' && (bot.stolen_coins || 0) > 0) {
+    stats.push(['💰 Несёт', `${formatNumber(bot.stolen_coins)} монет`]);
   }
-  atkBtn.addEventListener('click', () => doAttackBot(botId));
-  actEl.appendChild(atkBtn);
 
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
+  const actions = [];
+  if (inRange) {
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doAttackBot(botId) });
+  } else {
+    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+  }
 
-  document.getElementById('popup-overlay').classList.add('open');
+  openPopup(`👺 Гоблин`, dist ? `📍 ${Math.round(dist)}м` : '', stats, actions);
 }
 
-function showFloatingText(text, latlng, color) {
-  const pt = map.latLngToContainerPoint(latlng);
+function showFloatingText(latLng, text, color) {
+  const pt = map.latLngToContainerPoint(latLng);
   const el = document.createElement('div');
-  el.className = 'float-dmg';
-  el.style.left  = pt.x + 'px';
-  el.style.top   = pt.y + 'px';
-  el.style.color = color || '#ff4444';
   el.textContent = text;
+  el.style.cssText = `position:fixed;left:${pt.x}px;top:${pt.y}px;color:${color};font-size:16px;font-weight:bold;pointer-events:none;z-index:9999;animation:floatUp 1.5s ease-out forwards;`;
   document.body.appendChild(el);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    el.style.transform = 'translateY(-70px)';
-    el.style.opacity   = '0';
-  }));
-  setTimeout(() => el.remove(), 1200);
+  setTimeout(() => el.remove(), 1500);
 }
 
 function screenShake() {
-  const mapEl = document.getElementById('map');
-  mapEl.classList.add('screen-shake');
-  setTimeout(() => mapEl.classList.remove('screen-shake'), 450);
+  document.body.style.transform = 'translateX(4px)';
+  setTimeout(() => { document.body.style.transform = 'translateX(-4px)'; }, 50);
+  setTimeout(() => { document.body.style.transform = ''; }, 100);
 }
 
-// ── Respawn system ───────────────────────────────────────────────────────
-let _respawnUntil = null; // timestamp ms
 let _respawnTimer = null;
-
 function startRespawnCountdown(untilISO) {
-  _respawnUntil = new Date(untilISO).getTime();
+  const until = new Date(untilISO).getTime();
   if (_respawnTimer) clearInterval(_respawnTimer);
-
-  function tick() {
-    const secsLeft = Math.ceil((_respawnUntil - Date.now()) / 1000);
-    const atkBtn   = document.querySelector('#popup-actions .btn.danger[data-respawn]');
-    if (secsLeft <= 0) {
-      clearInterval(_respawnTimer);
-      _respawnTimer = null;
-      _respawnUntil = null;
-      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; delete atkBtn.dataset.respawn; }
-      return;
-    }
-    if (atkBtn) atkBtn.innerHTML = `💀 Возрождение через ${secsLeft} сек`;
-  }
-
-  tick();
-  _respawnTimer = setInterval(tick, 1000);
+  _respawnTimer = setInterval(() => {
+    const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+    if (left <= 0) { clearInterval(_respawnTimer); _respawnTimer = null; return; }
+  }, 1000);
 }
 
 async function doAttackBot(botId) {
-  const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
   const bot = botData[botId];
-  if (!bot) { closePopup(); return; }
-
-  // Respawn check
-  if (_respawnUntil && Date.now() < _respawnUntil) {
-    const secsLeft = Math.ceil((_respawnUntil - Date.now()) / 1000);
-    showToast(`💀 Возрождение через ${secsLeft} сек`);
-    return;
-  }
-
-  const atkBtn = document.querySelector('#popup-actions .btn.danger');
-  if (atkBtn) { atkBtn.disabled = true; atkBtn.textContent = '⏳ Атака...'; }
-
+  if (!bot) return;
+  const pos = state.playerPos;
   try {
     const data = await apiFetch('/api/bots', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
     });
-
-    const botLatlng = botMarkers[botId]?.marker?.getLatLng() || { lat: bot.lat, lng: bot.lng };
-
-    // Floating damage on bot
-    const critText = data.isCrit ? ' КРИТ!' : '';
-    showFloatingText(`-${data.damage}${critText}`, botLatlng, data.isCrit ? '#FFD700' : '#ff4444');
-
-    // Update player HP in state
-    if (data.playerHp != null) {
-      if (state.player) { state.player.hp = data.playerHp; state.player.max_hp = data.playerMaxHp; }
+    // Floating damage
+    const ref = botMarkers[botId];
+    if (ref?.marker) {
+      const ll = ref.marker.getLatLng();
+      showFloatingText(ll, `${data.isCrit ? '💥 ' : ''}-${data.damage}`, data.isCrit ? '#FFD700' : '#ff4444');
     }
-
+    if (data.counterDamage > 0) {
+      screenShake();
+      if (state.player) state.player.hp = data.playerHp;
+    }
+    if (data.playerDied) {
+      showToast('💀 Ты погиб! Возрождение через 10 сек...');
+      startRespawnCountdown(new Date(Date.now() + 10000).toISOString());
+    }
     if (data.botDefeated) {
-      // Boss shake
-      if (bot.type === 'boss') screenShake();
-
-      // Remove bot marker
-      if (botMarkers[botId]) {
-        botLayer.removeLayer(botMarkers[botId].marker);
-        delete botMarkers[botId];
-      }
-      delete botData[botId];
-
-      // Rewards
-      let toastMsg = `💀 Побеждён!`;
-      if (data.xp?.xpGained) toastMsg += ` +${data.xp.xpGained} XP`;
-      if (data.reward) {
-        _setPlayerCoins(data.player_coins);
-        updateCoinDisplay();
-        toastMsg += ` +${data.reward} монет`;
-      }
-      handleXpResult(data.xp);
+      if (ref?.marker) { botLayer.removeLayer(ref.marker); delete botMarkers[botId]; delete botData[botId]; }
       closePopup();
-      showToast(toastMsg);
-
-      if (data.playerDied) {
-        if (bot.type === 'boss') screenShake();
-        showToast('☠️ Вы погибли! Возрождение...');
-        if (data.respawnUntil) startRespawnCountdown(data.respawnUntil);
-      }
+      let msg = `⚔️ Гоблин убит! +${data.reward?.xp || 0} XP +${data.reward?.diamonds || 0} 💎`;
+      if (data.reward?.coinsDropped > 0) msg += ` +${formatNumber(data.reward.coinsDropped)} монет`;
+      showToast(msg);
+      if (state.player && data.reward?.diamonds) state.player.diamonds += data.reward.diamonds;
+      updateDiamondDisplay();
     } else {
-      // Bot survived — counterattack feedback
-      if (data.counterDamage > 0) {
-        const pPos = playerMarker?.getLatLng() || botLatlng;
-        showFloatingText(`-${data.counterDamage}`, pPos, '#ff9900');
-        if (data.playerDied) {
-          if (bot.type === 'boss') screenShake();
-          showToast('☠️ Вы погибли! Возрождение...');
-          if (data.respawnUntil) startRespawnCountdown(data.respawnUntil);
-        }
-      }
-
-      // Update popup with new HP values
-      if (data.botHp != null) {
-        botData[botId] = { ...bot, hp: data.botHp, max_hp: data.botMaxHp };
-      }
-      const botHpPct = Math.round(Math.max(0, (data.botHp ?? 0) / (data.botMaxHp ?? 1)) * 100);
-      const pHpPct   = Math.round(Math.max(0, (data.playerHp ?? 100) / (data.playerMaxHp ?? 100)) * 100);
-      const botBar   = document.getElementById('bot-hp-bar');
-      const pBar     = document.getElementById('player-hp-bar');
-      const botLbl   = document.getElementById('bot-hp-label');
-      const pLbl     = document.getElementById('player-hp-label');
-      if (botBar) botBar.style.width = botHpPct + '%';
-      if (pBar)   pBar.style.width   = pHpPct   + '%';
-      if (botLbl) botLbl.textContent = `${data.botHp} / ${data.botMaxHp} HP`;
-      if (pLbl)   pLbl.textContent   = `${data.playerHp} / ${data.playerMaxHp} HP`;
-
-      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+      // Update bot HP in popup
+      if (botData[botId]) { botData[botId].hp = data.botHp; botData[botId].max_hp = data.botMaxHp; }
+      showBotPopup(botId);
     }
-  } catch (err) {
-    showToast(`❌ ${err.message}`);
-    if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
-  }
-}
-
-async function doRepelBot(botId) {
-  const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
-  try {
-    const data = await apiFetch('/api/bots', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'repel', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
-    });
-    showToast(`🔥 Прогнан! Успел украсть ${formatNumber(data.coins_drained)} монет`);
-    // Remove from local state
-    if (botMarkers[botId]) {
-      if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
-      botLayer.removeLayer(botMarkers[botId].marker);
-      delete botMarkers[botId];
-    }
-    delete botData[botId];
-  } catch (err) {
-    showToast(`❌ ${err.message}`);
-  }
-}
-
-async function doLureBot(botId) {
-  const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
-  try {
-    const data = await apiFetch('/api/bots', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'lure', telegram_id: TG_ID, bot_id: botId, lat: pos.lat, lng: pos.lng }),
-    });
-    _setPlayerCoins(data.player_coins);
-    showToast(`💰 +${data.reward} монет от ${data.emoji}!`);
-    handleXpResult(data.xp);
-    // Remove from local state
-    if (botMarkers[botId]) {
-      if (botMarkers[botId].animTimer) clearInterval(botMarkers[botId].animTimer);
-      botLayer.removeLayer(botMarkers[botId].marker);
-      delete botMarkers[botId];
-    }
-    delete botData[botId];
-  } catch (err) {
-    showToast(`❌ ${err.message}`);
-  }
-}
-
-async function tickBotMove() {
-  if (!TG_ID || !state.playerPos) return;
-  const pos    = state.playerPos;
-  const bounds = map.getBounds();
-  const n = bounds.getNorth(), s = bounds.getSouth();
-  const e = bounds.getEast(),  w = bounds.getWest();
-  const latPad = (n - s) * 0.2;
-  const lngPad = (e - w) * 0.2;
-  try {
-    const data = await apiFetch('/api/bots', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'move', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng,
-        north: n + latPad, south: s - latPad,
-        east:  e + lngPad, west:  w - lngPad,
-      }),
-    });
-    if (!data.skipped && data.bots) renderBots(data.bots);
-  } catch (e) {
-    console.warn('[bots/move] error:', e.message);
-  }
-}
-
-async function tickBotSpawn() {
-  if (!TG_ID || !state.playerPos) return;
-  const pos = state.playerPos;
-  try {
-    const data = await apiFetch('/api/bots', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
-    });
-    if (data.bots?.length) renderBots([...Object.values(botData), ...data.bots]);
-  } catch (e) {
-    console.warn('[bots/spawn] error:', e.message);
-  }
+  } catch (err) { showToast(err.message); }
 }
 
 // ─────────────────────────────────────────────
