@@ -3329,6 +3329,8 @@ function _animatePlayerMarker(toLat, toLng, duration = 1000) {
     const lat = from.lat + (toLat - from.lat) * t;
     const lng = from.lng + (toLng - from.lng) * t;
     playerMarker.setLatLng([lat, lng]);
+    if (playerZoneCircle) playerZoneCircle.setLatLng([lat, lng]);
+    if (playerCombatCircle) playerCombatCircle.setLatLng([lat, lng]);
     if (progress < 1) _playerAnimFrame = requestAnimationFrame(animate);
     else _playerAnimFrame = null;
   };
@@ -3343,14 +3345,10 @@ function _applyPlayerPosition(lat, lng) {
   }
   if (playerMarker) {
     _animatePlayerMarker(lat, lng, 1000);
-  }
-  if (playerZoneCircle) {
-    playerZoneCircle.setLatLng([lat, lng]);
-    playerZoneCircle.setRadius(SMALL_RADIUS);
-  }
-  if (playerCombatCircle) {
-    playerCombatCircle.setLatLng([lat, lng]);
-    playerCombatCircle.setRadius(LARGE_RADIUS);
+  } else {
+    // No marker yet — set circles directly (first call before marker creation)
+    if (playerZoneCircle) playerZoneCircle.setLatLng([lat, lng]);
+    if (playerCombatCircle) playerCombatCircle.setLatLng([lat, lng]);
   }
   updateHexGrid();
   // Trigger building load when player moves (respects 2s throttle)
@@ -4689,9 +4687,17 @@ function startUnifiedTick() {
 // ─────────────────────────────────────────────
 let _lastLocationReport = 0;
 
+const GPS_MIN_DISTANCE = 5; // metres — ignore GPS jitter below this threshold
+
 function onPosition(pos) {
   const { latitude: lat, longitude: lng } = pos.coords;
   const isFirstFix = state.playerPos === null;
+
+  // Ignore GPS jitter below threshold (except first fix)
+  if (!isFirstFix && realPlayerPos) {
+    const drift = haversine(realPlayerPos.lat, realPlayerPos.lng, lat, lng);
+    if (drift < GPS_MIN_DISTANCE) return;
+  }
 
   // Always save real GPS coords
   realPlayerPos = { lat, lng };
