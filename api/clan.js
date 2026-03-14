@@ -255,30 +255,38 @@ async function handleDonate(req, res) {
 
 // ── UPGRADE CLAN ────────────────────────────────────────────
 async function handleUpgrade(req, res) {
-  const { telegram_id } = req.body;
-  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
-  if (pErr) return res.status(500).json({ error: pErr });
-  if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
-  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: 'Только лидер или офицер' });
+  try {
+    const { telegram_id } = req.body;
+    const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
+    if (pErr) return res.status(500).json({ error: typeof pErr === 'string' ? pErr : pErr.message || 'DB error' });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
+    if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: 'Только лидер или офицер' });
 
-  const { data: clan } = await supabase.from('clans').select('id, level, treasury').eq('id', player.clan_id).single();
-  if (!clan) return res.status(500).json({ error: 'Клан не найден' });
-  if (clan.level >= 10) return res.status(400).json({ error: 'Максимальный уровень' });
+    const { data: clan } = await supabase.from('clans').select('id, level, treasury').eq('id', player.clan_id).single();
+    if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+    if (clan.level >= 10) return res.status(400).json({ error: 'Максимальный уровень' });
 
-  const nextConfig = getClanLevel(clan.level + 1);
-  if ((clan.treasury ?? 0) < nextConfig.cost) return res.status(400).json({ error: `Нужно ${nextConfig.cost} алмазов в казне` });
+    const nextConfig = getClanLevel(clan.level + 1);
+    const treasury = Number(clan.treasury ?? 0);
+    if (treasury < nextConfig.cost) return res.status(400).json({ error: `Нужно ${nextConfig.cost} алмазов в казне` });
 
-  const newTreasury = (clan.treasury ?? 0) - nextConfig.cost;
-  await supabase.from('clans').update({ level: clan.level + 1, treasury: newTreasury }).eq('id', clan.id);
+    const newTreasury = treasury - nextConfig.cost;
+    await supabase.from('clans').update({ level: clan.level + 1, treasury: newTreasury }).eq('id', clan.id);
 
-  const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', clan.id).is('left_at', null);
-  if (mems?.length) {
-    const notifs = mems.map(m => ({ player_id: m.player_id, type: 'clan_upgrade', message: `🎉 Клан достиг уровня ${clan.level + 1}! Новые бонусы активны` }));
-    supabase.from('notifications').insert(notifs).catch(() => {});
+    supabase.from('clan_members').select('player_id').eq('clan_id', clan.id).is('left_at', null)
+      .then(({ data: mems }) => {
+        if (mems?.length) {
+          const notifs = mems.map(m => ({ player_id: m.player_id, type: 'clan_upgrade', message: `🎉 Клан достиг уровня ${clan.level + 1}! Новые бонусы активны` }));
+          supabase.from('notifications').insert(notifs).catch(() => {});
+        }
+      }).catch(() => {});
+
+    return res.json({ success: true, clan: { ...clan, level: clan.level + 1, treasury: newTreasury }, config: nextConfig });
+  } catch (err) {
+    console.error('[upgrade] crash:', err);
+    return res.status(500).json({ error: err.message || 'Internal error' });
   }
-
-  return res.json({ success: true, clan: { ...clan, level: clan.level + 1, treasury: newTreasury }, config: nextConfig });
 }
 
 // ── SET ROLE ────────────────────────────────────────────────

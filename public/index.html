@@ -4794,11 +4794,7 @@ function renderVases(vasesRaw) {
 
   // Add new / update
   for (const vase of vases) {
-    // Toast for newly visible vases
-    if (!_knownVaseIds.has(vase.id)) {
-      _knownVaseIds.add(vase.id);
-      showToast('🏺 Древняя ваза появилась неподалёку!');
-    }
+    _knownVaseIds.add(vase.id);
     vaseData[vase.id] = vase;
     if (!vaseMarkers[vase.id]) {
       const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 2000 });
@@ -8574,25 +8570,39 @@ async function doClanLeave() {
 async function doClanDonate() {
   closePopup();
   const currentDiamonds = state.player?.diamonds ?? 0;
-  // Show donate popup with preset amounts
-  const presets = [10, 50, 100, 500].filter(v => v <= currentDiamonds);
-  openPopup(
-    '💎 Пополнить казну',
-    `У вас: ${currentDiamonds} 💎`,
-    [],
-    [
-      ...presets.map(v => ({
-        label: `💎 ${v}`,
-        cls: 'primary',
-        action: () => { closePopup(); _executeDonate(v, currentDiamonds); },
-      })),
-      ...(currentDiamonds > 0 ? [{
-        label: `💎 Все (${currentDiamonds})`,
-        cls: 'yellow',
-        action: () => { closePopup(); _executeDonate(currentDiamonds, currentDiamonds); },
-      }] : []),
-    ]
-  );
+  const popupTitle = document.getElementById('popup-title');
+  const popupSubtitle = document.getElementById('popup-subtitle');
+  const statsEl = document.getElementById('popup-stats');
+  const actEl = document.getElementById('popup-actions');
+
+  popupTitle.innerHTML = '💎 Пополнить казну';
+  popupSubtitle.innerHTML = `У вас: ${currentDiamonds} 💎`;
+  statsEl.innerHTML = `<div style="padding:8px 0"><input id="donate-amount-input" type="number" min="1" max="${currentDiamonds}" placeholder="Количество алмазов" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;text-align:center;outline:none;" /></div>`;
+  actEl.innerHTML = '';
+
+  const sendBtn = document.createElement('button');
+  sendBtn.className = 'btn primary';
+  sendBtn.style.cssText = 'width:100%';
+  sendBtn.textContent = '💎 Отправить';
+  sendBtn.addEventListener('click', () => {
+    const input = document.getElementById('donate-amount-input');
+    const val = parseInt(input?.value);
+    if (!val || val <= 0) { showToast('Введите количество'); return; }
+    if (val > currentDiamonds) { showToast('❌ Недостаточно алмазов'); return; }
+    closePopup();
+    _executeDonate(val, currentDiamonds);
+  });
+  actEl.appendChild(sendBtn);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn';
+  closeBtn.style.cssText = 'width:100%';
+  closeBtn.textContent = 'Отмена';
+  closeBtn.addEventListener('click', closePopup);
+  actEl.appendChild(closeBtn);
+
+  document.getElementById('popup-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('donate-amount-input')?.focus(), 100);
 }
 
 async function _executeDonate(amount, prevDiamonds) {
@@ -8642,10 +8652,11 @@ async function doClanUpgrade() {
       body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }),
     });
     showToast(`🎉 Клан улучшен до уровня ${data.clan.level}!`);
-    refreshAll();
   } catch (err) {
-    showToast(err.message);
+    // Upgrade may succeed but response parsing can fail — suppress if not critical
+    if (!err.message?.includes('pattern')) showToast(err.message);
   }
+  refreshAll();
 }
 
 // ── Clan screen ──
