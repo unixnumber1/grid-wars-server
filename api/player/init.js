@@ -2,6 +2,7 @@ import { supabase, getPlayerByTelegramId, parseTgId, rateLimit, sendTelegramNoti
 import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS } from '../../lib/formulas.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
+import { calcTotalIncomeWithClanBonus } from '../../lib/clans.js';
 
 // ── SET USERNAME ─────────────────────────────────────────────────────────────
 const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
@@ -371,7 +372,7 @@ export default async function handler(req, res) {
           { telegram_id: tgId, username: username || null },
           { onConflict: 'telegram_id', ignoreDuplicates: false }
         )
-        .select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until')
+        .select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role')
         .single()
     );
     if (playerError) throw new Error(playerError.message);
@@ -462,7 +463,7 @@ export default async function handler(req, res) {
   }
   console.log('[init] step 4 done');
 
-  const totalIncome = (mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
+  const totalIncome = await calcTotalIncomeWithClanBonus(mines || [], getMineIncome, player.clan_id, supabase);
 
   const needUsername = !player.game_username;
 

@@ -2,6 +2,7 @@ import { supabase, getPlayerByTelegramId, rateLimit, sendTelegramNotification } 
 import { LARGE_RADIUS, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, calcAccumulatedCoins } from '../../lib/formulas.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
+import { getClanLevel } from '../../lib/clans.js';
 
 // ── Start attack ──────────────────────────────────────────────────────────────
 async function handleStart(req, res) {
@@ -44,7 +45,22 @@ async function handleStart(req, res) {
   const critChance = weapon?.type === 'sword' ? (weapon.crit_chance || 0) : 0;
   const avgDamage = (baseAttack + weaponAttack) * (1 + critChance / 100);
 
-  const computedMaxHp = getMineHp(mine.level);
+  let computedMaxHp = getMineHp(mine.level);
+
+  // Clan defense bonus — boost mine HP if mine is inside a clan zone
+  const { data: mineOwner } = await supabase.from('players').select('clan_id').eq('id', mine.owner_id).maybeSingle();
+  if (mineOwner?.clan_id) {
+    const [{ data: clan }, { data: clanHqs }] = await Promise.all([
+      supabase.from('clans').select('level').eq('id', mineOwner.clan_id).single(),
+      supabase.from('clan_headquarters').select('lat,lng').eq('clan_id', mineOwner.clan_id),
+    ]);
+    if (clan && clanHqs?.length) {
+      const config = getClanLevel(clan.level);
+      const inZone = clanHqs.some(h => haversine(mine.lat, mine.lng, h.lat, h.lng) <= config.radius);
+      if (inZone) computedMaxHp = Math.round(computedMaxHp * (1 + config.defense / 100));
+    }
+  }
+
   const regenPerHour = getMineHpRegen(mine.level);
   const rawHp = Math.min(mine.hp ?? computedMaxHp, computedMaxHp);
   const currentHp = calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, mine.last_hp_update);

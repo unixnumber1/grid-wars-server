@@ -4,6 +4,7 @@ import { BOT_TYPES, getRandomBotType, getRandomReward } from '../../lib/bots.js'
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS } from '../../lib/formulas.js';
+import { calcTotalIncomeWithClanBonus } from '../../lib/clans.js';
 
 // ── Bot constants ────────────────────────────────────────────
 const BOTS_PER_ZONE    = 10;
@@ -72,7 +73,7 @@ async function handleTick(req, res) {
 
   const { player, error: pErr } = await getPlayerByTelegramId(
     telegram_id,
-    'id,telegram_id,username,game_username,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,last_hp_regen,shield_until'
+    'id,telegram_id,username,game_username,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,last_hp_regen,shield_until,clan_id,clan_role'
   );
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -481,7 +482,7 @@ async function handleTick(req, res) {
       return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph };
     });
     inventory = inv || [];
-    totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+    totalIncome = await calcTotalIncomeWithClanBonus(playerMines, getMineIncome, player.clan_id, supabase);
   } catch (_) {}
 
   // ── 10. Periodic DB cleanup (every 60 ticks ≈ 5 min) ──
@@ -547,6 +548,31 @@ async function handleTick(req, res) {
           }).catch(() => {});
         }
       }).catch(() => {});
+
+    // ── Inactive clan leader auto-transfer ──
+    supabase.from('clan_members').select('clan_id,player_id,players(last_seen)')
+      .eq('role', 'leader').is('left_at', null).limit(20)
+      .then(async ({ data: leaders }) => {
+        if (!leaders?.length) return;
+        const sevenDaysAgo = new Date(nowMs - 7 * 24 * 60 * 60 * 1000);
+        for (const lm of leaders) {
+          const lastSeen = lm.players?.last_seen ? new Date(lm.players.last_seen) : null;
+          if (!lastSeen || lastSeen >= sevenDaysAgo) continue;
+          // Find senior officer
+          const { data: officers } = await supabase.from('clan_members')
+            .select('player_id').eq('clan_id', lm.clan_id).eq('role', 'officer').is('left_at', null)
+            .order('joined_at', { ascending: true }).limit(1);
+          const newLeader = officers?.[0];
+          if (!newLeader) continue;
+          await Promise.all([
+            supabase.from('clan_members').update({ role: 'member' }).eq('player_id', lm.player_id).eq('clan_id', lm.clan_id),
+            supabase.from('players').update({ clan_role: 'member' }).eq('id', lm.player_id),
+            supabase.from('clan_members').update({ role: 'leader' }).eq('player_id', newLeader.player_id).eq('clan_id', lm.clan_id),
+            supabase.from('players').update({ clan_role: 'leader' }).eq('id', newLeader.player_id),
+            supabase.from('clans').update({ leader_id: newLeader.player_id }).eq('id', lm.clan_id),
+          ]);
+        }
+      }).catch(e => console.error('[tick] clan leader transfer error:', e.message));
   }
 
   // ── Build response ─────────────────────────────────────

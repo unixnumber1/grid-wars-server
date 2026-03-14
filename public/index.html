@@ -3565,20 +3565,22 @@ function showBuildMenu(cellLat, cellLng) {
   mineCard.appendChild(mineBtn);
   statsEl.appendChild(mineCard);
 
-  // Clan HQ card — only if player has no clan HQ and coins >= 10M
+  // Clan HQ card — only if player has no clan HQ yet
   const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine);
   const playerCoins = state.player?.coins ?? 0;
-  if (!hasClanHq && playerCoins >= 10000000) {
+  if (!hasClanHq) {
+    const canAfford = playerCoins >= CLAN_HQ_COST;
     const chqCard = document.createElement('div');
     chqCard.className = 'build-card';
     chqCard.innerHTML = `
       <div class="build-card-header"><span>&#x1F3F0;</span><span>Штаб Клана</span></div>
       <div class="build-card-desc">Зона клана &bull; Бусты для участников</div>
-      <div class="build-card-meta">10 000 000 монет</div>
+      <div class="build-card-meta">${formatCoins(CLAN_HQ_COST)} монет${!canAfford ? ` (нужно ещё ${formatCoins(CLAN_HQ_COST - playerCoins)})` : ''}</div>
     `;
     const chqBtn = document.createElement('button');
     chqBtn.className = 'btn primary';
     chqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
+    if (!canAfford) { chqBtn.disabled = true; chqBtn.style.opacity = '0.5'; }
     chqBtn.innerHTML = '&#x1F3F0; Построить штаб клана';
     chqBtn.addEventListener('click', () => { closePopup(); doBuildClanHq(cellLat, cellLng); });
     chqCard.appendChild(chqBtn);
@@ -3909,6 +3911,19 @@ function showMinePopup(mine, isOwn, canCapture) {
     b => b.status === 'attacking' && b.target_mine_id === mine.id
   );
 
+  // Check if mine is in a clan zone
+  let clanBonusInfo = null;
+  if (state.player?.clan_id && mine.lat != null && mine.lng != null) {
+    const myClanHqs = (state.mapBuildings.clan_hqs || []).filter(ch => ch.is_active && ch.clan_id === state.player.clan_id);
+    for (const ch of myClanHqs) {
+      const cfg = getClanLevelConfig(ch.clan_level);
+      if (haversine(mine.lat, mine.lng, ch.lat, ch.lng) <= cfg.radius) {
+        clanBonusInfo = { income: cfg.income, defense: cfg.defense };
+        break;
+      }
+    }
+  }
+
   if (isOwn) {
     const playerCoins = state.player?.coins ?? 0;
     const refund   = calcSellRefund(mine.level);
@@ -3944,8 +3959,9 @@ function showMinePopup(mine, isOwn, canCapture) {
         ...(isUpgrading
           ? [['Улучшается до', `Ур. ${pendingLevel}`]]
           : [
-              ['Доход', `${formatCoins(rate)}/ч`],
+              ['Доход', `${formatCoins(rate)}/ч${clanBonusInfo ? ` <span style="color:#D500F9">+${clanBonusInfo.income}% 🏰</span>` : ''}`],
               ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
+              ...(clanBonusInfo ? [['🛡️ Защита клана', `<span style="color:#D500F9">+${clanBonusInfo.defense}% HP</span>`]] : []),
             ]),
         ...(!isUpgrading ? [['Стоимость апгрейда', nextCost !== null ? formatCoins(nextCost) : 'МАКС']] : []),
         ['Монеты', formatCoins(playerCoins)],
@@ -8412,6 +8428,15 @@ async function showOwnClanPopup(ch) {
     const canUpgrade = (isLeader || isOfficer) && clan.level < 10 && (clan.treasury ?? 0) >= getClanLevelConfig(clan.level + 1).cost;
     const nextCost = clan.level < 10 ? getClanLevelConfig(clan.level + 1).cost : null;
 
+    const treasury = clan.treasury ?? 0;
+    const treasuryBar = clan.level < 10
+      ? (() => {
+          const nc = getClanLevelConfig(clan.level + 1).cost;
+          const pct = Math.min(100, Math.round(treasury / nc * 100));
+          return `<div style="margin-top:4px;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#651FFF,#D500F9);border-radius:4px;transition:width .3s"></div></div><div style="font-size:11px;color:#888;margin-top:2px">${formatNumber(treasury)} / ${formatNumber(nc)} 💎 (${pct}%)</div>`;
+        })()
+      : `<div style="font-size:11px;color:#00ff88;margin-top:2px">МАКС УРОВЕНЬ</div>`;
+
     openPopup(
       `🏰 ${clan.symbol} ${clan.name}`,
       `Уровень клана: ${clan.level}`,
@@ -8419,7 +8444,7 @@ async function showOwnClanPopup(ch) {
         ['📍 Зона', `${config.radius}м радиус`],
         ['⚡ Буст дохода', `+${config.income}%`],
         ['🛡️ Защита построек', `+${config.defense}%`],
-        ['💎 Казна', `${clan.treasury ?? 0} алмазов`],
+        ['💎 Казна', treasuryBar],
         ['👥 Участников', `${clan.member_count}/${config.maxMembers}`],
       ],
       [

@@ -76,7 +76,16 @@ async function handleCollect(req, res) {
   let xpResult = null;
   if (xpGained > 0) { try { xpResult = await addXp(player.id, xpGained); } catch (e) {} }
 
-  const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+  const totalIncome = clanIncomeBonus > 0 && clanHqs.length > 0
+    ? allMines.reduce((sum, m) => {
+        let inc = getMineIncome(m.level);
+        const mLat = m.lat ?? getCellCenter(m.cell_id)[0];
+        const mLng = m.lng ?? getCellCenter(m.cell_id)[1];
+        if (clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius)) inc *= (1 + clanIncomeBonus / 100);
+        return sum + inc;
+      }, 0)
+    : allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+
   return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, totalIncome });
 }
 
@@ -133,6 +142,7 @@ async function handleBuild(req, res) {
   return res.status(201).json({ mine, xp: xpResult });
 }
 
+// ── ROUTER ──────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
