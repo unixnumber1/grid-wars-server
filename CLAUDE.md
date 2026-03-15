@@ -152,10 +152,16 @@ vercel.json  CLAUDE.md
 - Тёмная тема (#0d0d0d), Segoe UI / system-ui
 - Inline CSS в index.html (единый `<style>` блок)
 - Эмодзи маркеры на Leaflet карте
+- **Навигация**:
+  - Верхняя пилюля по центру: 💰 монеты · ⚡ доход/ч · 💎 алмазы
+  - Правая вертикальная панель: 📍 телепорт на штаб, 🛒 магазин, 🎪 рынок, 🏆 лидерборд, ⚙️ настройки
+  - Нижняя панель: аватар (тап = центрировать камеру) + ник/уровень/XP бар + кнопка Собрать
+  - Телепорт: POST /api/player/init action:location с координатами штаба
 - PvP: fullscreen battle animation с HP барами и floating damage
 - Mine attack: projectile animation + countdown overlay
 - Shop: daily diamonds countdown + Stars purchase via Telegram.WebApp.openInvoice
 - Mass sell: multi-select mode в инвентаре
+- Клан: экран редактирования с карточками-секциями, кнопка ✏️ в хедере
 
 ## Admin
 - ADMIN_TG_ID: 560013667
