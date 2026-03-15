@@ -6740,9 +6740,9 @@ let _buyTargetListing = null;
 function _marketIcon() {
   return L.divIcon({
     className: '',
-    html: '<div class="marker-wrap" style="font-size:36px;line-height:1;filter:drop-shadow(0 0 6px rgba(255,215,0,0.5));">🎪</div>',
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    html: '<div class="marker-wrap" style="font-size:44px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,215,0,0.5));pointer-events:auto;">🎪</div>',
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
   });
 }
 
@@ -6798,25 +6798,15 @@ function renderMarkets(markets) {
 }
 
 function _showMarketPopup(m) {
-  document.getElementById('popup-title').innerHTML = '🎪';
-  document.getElementById('popup-subtitle').textContent = m.name || 'Городской рынок';
-  document.getElementById('popup-stats').innerHTML =
-    '<div style="font-size:13px;color:#aaa;text-align:center;margin:8px 0;">Здесь торгуют игроки<br>со всего мира</div>';
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  const enterBtn = document.createElement('button');
-  enterBtn.className = 'btn primary';
-  enterBtn.style.cssText = 'width:100%;margin-bottom:8px;';
-  enterBtn.innerHTML = '🛒 Войти на рынок';
-  enterBtn.addEventListener('click', () => { closePopup(); openMarket(); });
-  actEl.appendChild(enterBtn);
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
-  document.getElementById('popup-overlay').classList.add('open');
+  openPopup(
+    `🎪 ${m.name || 'Городской рынок'}`,
+    'Торговая площадка игроков',
+    [],
+    [
+      { label: '🛒 Войти на рынок', cls: 'primary', action: () => { closePopup(); openMarket(); } },
+      { label: 'Закрыть', isClose: true },
+    ]
+  );
 }
 
 // ── Render couriers on map (with client-side interpolation) ──
@@ -7190,6 +7180,8 @@ function _renderMarketCards(listings, grid, isMine) {
 
     const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
     const isGrad = rarColor.startsWith('linear');
+    const borderCol = isGrad ? 'rgba(255,215,0,0.25)' : (rarColor + '40');
+    card.style.borderColor = borderCol;
     const glowStyle = `filter:drop-shadow(0 0 12px ${isGrad ? '#FFD700' : rarColor})`;
 
     let statusHtml = '';
@@ -7202,14 +7194,14 @@ function _renderMarketCards(listings, grid, isMine) {
           <div style="font-size:12px;color:#00cfff;">+${received} 💎</div>`;
       } else if (l.status === 'pending') {
         statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>`;
-        btnHtml = `<button class="btn" data-cancel="${l.id}" style="font-size:12px;">Отменить</button>`;
+        btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Отменить</button>`;
       } else if (l.status === 'active') {
         const msLeft = new Date(l.expires_at) - Date.now();
         const daysLeft = Math.floor(msLeft / 86400000);
         const hrsLeft = Math.floor((msLeft % 86400000) / 3600000);
         statusHtml = `<div class="market-card-status" style="color:#00cc44;">✅ Активен</div>
           <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>`;
-        btnHtml = `<button class="btn" data-cancel="${l.id}" style="font-size:12px;">Снять</button>`;
+        btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Снять</button>`;
       } else if (l.status === 'intercepted') {
         statusHtml = `<div class="market-card-status" style="color:#ff6b6b;">⚔️ Перехвачен</div>`;
       } else {
@@ -7218,7 +7210,7 @@ function _renderMarketCards(listings, grid, isMine) {
     } else {
       const isSelf = l.seller?.id === state.player?.id;
       if (!isSelf) {
-        btnHtml = `<button class="btn primary" data-buy="${l.id}" data-private="${l.is_private ? '1' : '0'}">Купить</button>`;
+        btnHtml = `<button class="market-buy-btn" data-buy="${l.id}" data-private="${l.is_private ? '1' : '0'}">💎 Купить</button>`;
       }
     }
 
