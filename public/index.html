@@ -3237,10 +3237,10 @@ const map = L.map('map', {
 // Map style from localStorage — apply saved style on load
 (function() {
   const INIT_STYLES = {
-    standard:    { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(1.2)' },
+    standard:    { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) hue-rotate(180deg) brightness(1.3) contrast(1.1)' },
     light:       { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: null },
     total_black: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: null },
-    neon:        { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) brightness(0.9) hue-rotate(220deg) saturate(3)' },
+    neon:        { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) hue-rotate(180deg) brightness(1.1) saturate(4) hue-rotate(40deg)' },
     blood:       { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) brightness(0.85) hue-rotate(160deg) saturate(4)' },
   };
   const saved = localStorage.getItem('mapStyle') || 'total_black';
@@ -5998,7 +5998,7 @@ function _updateSettingsAdminTab() {
 const MAP_STYLES = [
   { id: 'standard', name: 'Стандарт', desc: 'Тёмный с цветными деталями',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    filter: 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(1.2)',
+    filter: 'invert(1) hue-rotate(180deg) brightness(1.3) contrast(1.1)',
     bgColor: '#1a1a2e', roadColor: '#4a4a6a', waterColor: '#1e3a5f', parkColor: '#1a3a1a' },
   { id: 'light', name: 'Светлый', desc: 'Светло-серый фон, синяя вода',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: null,
@@ -6008,7 +6008,7 @@ const MAP_STYLES = [
     bgColor: '#000000', roadColor: '#333333', waterColor: null, parkColor: null },
   { id: 'neon', name: 'Неон', desc: 'Киберпанк с неоновыми улицами',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    filter: 'invert(1) brightness(0.9) hue-rotate(220deg) saturate(3)',
+    filter: 'invert(1) hue-rotate(180deg) brightness(1.1) saturate(4) hue-rotate(40deg)',
     bgColor: '#050510', roadColor: '#0066ff', waterColor: '#003399', parkColor: null },
   { id: 'blood', name: 'Кровавый', desc: 'Тёмный с красными улицами',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
