@@ -183,7 +183,7 @@ async function handleTick(req, res) {
           .eq('id', mine.id).select().single();
         if (upErr) continue;
         let xpResult = null;
-        try { xpResult = await addXp(currentPlayerId, XP_REWARDS.UPGRADE_MINE(mine.pending_level)); } catch (_) {}
+        try { xpResult = await addXp(currentPlayerId, XP_REWARDS.UPGRADE_MINE(mine.level, mine.pending_level)); } catch (_) {}
         completedUpgrades.push({ ...updated, xp: xpResult });
       }
     }

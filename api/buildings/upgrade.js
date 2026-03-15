@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       if (upErr) { console.error('[upgrade GET] update error:', upErr); continue; }
 
       let xpResult = null;
-      try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(mine.pending_level)); }
+      try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(mine.level, mine.pending_level)); }
       catch (e) { console.error('[upgrade GET] XP error:', e.message); }
 
       completed.push({ ...updated, xp: xpResult });
