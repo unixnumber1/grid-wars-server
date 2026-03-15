@@ -161,7 +161,8 @@ vercel.json  CLAUDE.md
 - Статы игрока фиксированы: attack=10, max_hp=100 (не зависят от уровня), крит только от экипированного меча
 - PvP: fullscreen battle animation с HP барами и floating damage
 - Mine attack: projectile animation + countdown overlay
-- Shop: daily diamonds countdown + Stars purchase via Telegram.WebApp.openInvoice
+- Shop: 3 вкладки (Боксы/Stars/Бонус), 6 паков алмазов (100-15000💎), шансы боксов inline
+- Маркет: единый стиль хедера, карточки 16px с зелёной кнопкой Купить, FAB sticky
 - Mass sell: multi-select mode в инвентаре
 - Клан: экран редактирования с карточками-секциями, кнопка ✏️ в хедере
 - Настройки: fullscreen экран с вкладками (Профиль/Карта/Админ)
