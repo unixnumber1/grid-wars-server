@@ -3233,22 +3233,22 @@ const map = L.map('map', {
   maxZoom: 19,
 }).setView([55.75, 37.61], 16);
 
-// Map style from localStorage
+// Map style from localStorage — apply saved style on load
 (function() {
-  const MAP_STYLE_URLS = {
-    dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    voyager: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    midnight: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
-    terrain: 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png',
-    neon: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  const INIT_STYLES = {
+    standard:    { url: 'https://{s}.basemaps.cartocdn.com/dark_matter_lite/{z}/{x}/{y}{r}.png', filter: null },
+    light:       { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: null },
+    total_black: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: null },
+    neon:        { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: 'hue-rotate(200deg) saturate(3) brightness(0.9)' },
+    blood:       { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: 'hue-rotate(320deg) saturate(2) brightness(0.8)' },
   };
-  const saved = localStorage.getItem('mapStyle') || 'dark';
-  const url = MAP_STYLE_URLS[saved] || MAP_STYLE_URLS.dark;
-  L.tileLayer(url, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
-  if (saved === 'neon') {
+  const saved = localStorage.getItem('mapStyle') || 'total_black';
+  const s = INIT_STYLES[saved] || INIT_STYLES.total_black;
+  L.tileLayer(s.url, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+  if (s.filter) {
     setTimeout(() => {
       const tp = document.querySelector('.leaflet-tile-pane');
-      if (tp) tp.style.filter = 'hue-rotate(180deg) saturate(2)';
+      if (tp) tp.style.filter = s.filter;
     }, 100);
   }
 })();
@@ -5995,42 +5995,60 @@ function _updateSettingsAdminTab() {
 }
 
 const MAP_STYLES = [
-  { id: 'dark', name: '\u0422\u043E\u0442\u0430\u043B \u0411\u043B\u044D\u043A', desc: '\u0422\u0451\u043C\u043D\u044B\u0439 \u043A\u0430\u043A \u0431\u0435\u0437\u0434\u043D\u0430', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', preview: '#0a0a0a', filter: null },
-  { id: 'voyager', name: '\u0421\u0442\u0430\u043D\u0434\u0430\u0440\u0442', desc: '\u041A\u043B\u0430\u0441\u0441\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0433\u043E\u0440\u043E\u0434\u0441\u043A\u043E\u0439', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', preview: '#c8c8c8', filter: null },
-  { id: 'midnight', name: '\u041F\u043E\u043B\u043D\u043E\u0447\u044C', desc: '\u0422\u0451\u043C\u043D\u044B\u0439 \u0431\u0435\u0437 \u043F\u043E\u0434\u043F\u0438\u0441\u0435\u0439', url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', preview: '#1a1a3e', filter: null },
-  { id: 'terrain', name: '\u041F\u0443\u0441\u0442\u044B\u043D\u044F', desc: '\u0420\u0435\u043B\u044C\u0435\u0444\u043D\u0430\u044F \u043C\u0435\u0441\u0442\u043D\u043E\u0441\u0442\u044C', url: 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}{r}.png', preview: '#c4a882', filter: null },
-  { id: 'neon', name: '\u041D\u0435\u043E\u043D', desc: '\u041A\u0438\u0431\u0435\u0440\u043F\u0430\u043D\u043A \u0433\u043E\u0440\u043E\u0434', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', preview: '#0a0a2e', filter: 'hue-rotate(180deg) saturate(2)' },
+  { id: 'standard', name: 'Стандарт', desc: 'Тёмный с синей водой и зелёными парками',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_matter_lite/{z}/{x}/{y}{r}.png', filter: null,
+    bgColor: '#1a1a2e', roadColor: '#4a4a6a', waterColor: '#1e3a5f', parkColor: '#1a3a1a' },
+  { id: 'light', name: 'Светлый', desc: 'Светло-серый фон, синяя вода',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: null,
+    bgColor: '#e8e8e0', roadColor: '#ffffff', waterColor: '#b8d4e8', parkColor: '#c8e0c0' },
+  { id: 'total_black', name: 'Тотал Блэк', desc: 'Полностью чёрный без цветов',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: null,
+    bgColor: '#000000', roadColor: '#333333', waterColor: null, parkColor: null },
+  { id: 'neon', name: 'Неон', desc: 'Киберпанк с неоновыми улицами',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    filter: 'hue-rotate(200deg) saturate(3) brightness(0.9)',
+    bgColor: '#050510', roadColor: '#0066ff', waterColor: '#003399', parkColor: null },
+  { id: 'blood', name: 'Кровавый', desc: 'Тёмный с красными улицами',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    filter: 'hue-rotate(320deg) saturate(2) brightness(0.8)',
+    bgColor: '#0a0005', roadColor: '#cc0033', waterColor: null, parkColor: null },
 ];
 
-let _currentMapStyle = localStorage.getItem('mapStyle') || 'dark';
+let _currentMapStyle = localStorage.getItem('mapStyle') || 'total_black';
+
+function _createMapPreview(style) {
+  const c = document.createElement('canvas');
+  c.width = 60; c.height = 60;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = style.bgColor;
+  ctx.fillRect(0, 0, 60, 60);
+  ctx.strokeStyle = style.roadColor;
+  ctx.lineWidth = 1.5;
+  [15, 30, 45].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(60, y); ctx.stroke(); });
+  [20, 40].forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 60); ctx.stroke(); });
+  if (style.waterColor) { ctx.fillStyle = style.waterColor; ctx.fillRect(0, 40, 25, 20); }
+  if (style.parkColor) { ctx.fillStyle = style.parkColor; ctx.fillRect(30, 5, 20, 15); }
+  return c.toDataURL();
+}
 
 function _renderMapStyles() {
   const list = document.getElementById('map-style-list');
   if (!list) return;
   list.innerHTML = MAP_STYLES.map(s => {
     const isActive = s.id === _currentMapStyle;
-    const previewGrad = s.id === 'neon'
-      ? 'linear-gradient(135deg, #0a0a2e, #0044ff)'
-      : s.id === 'terrain'
-        ? 'linear-gradient(135deg, #c4a882, #8a7a5a)'
-        : s.id === 'voyager'
-          ? 'linear-gradient(135deg, #e8e8e8, #88aabb)'
-          : s.id === 'midnight'
-            ? 'linear-gradient(135deg, #1a1a3e, #2a2a5e)'
-            : 'linear-gradient(135deg, #0a0a0a, #1a1a1a)';
+    const preview = _createMapPreview(s);
     return `<div class="map-style-card${isActive ? ' active' : ''}" data-style="${s.id}">
-      <div class="map-style-preview" style="background:${previewGrad};"></div>
+      <img class="map-style-preview" src="${preview}" style="border-radius:10px;">
       <div class="map-style-info">
         <div class="map-style-name">${s.name}</div>
         <div class="map-style-desc">${s.desc}</div>
       </div>
-      <div class="map-style-check">${isActive ? '\u2713' : ''}</div>
+      <div class="map-style-check">${isActive ? '✓' : ''}</div>
     </div>`;
   }).join('');
   list.querySelectorAll('.map-style-card').forEach(card => {
     card.addEventListener('click', () => {
-      const styleId = card.dataset.style;
-      _applyMapStyle(styleId);
+      _applyMapStyle(card.dataset.style);
       _renderMapStyles();
     });
   });
@@ -6041,18 +6059,11 @@ function _applyMapStyle(styleId) {
   if (!style) return;
   _currentMapStyle = styleId;
   localStorage.setItem('mapStyle', styleId);
-  // Remove existing tile layers
-  map.eachLayer(layer => {
-    if (layer instanceof L.TileLayer) map.removeLayer(layer);
-  });
-  // Add new tile layer
+  map.eachLayer(layer => { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
   L.tileLayer(style.url, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
-  // Apply/remove CSS filter for neon
   const tilePane = document.querySelector('.leaflet-tile-pane');
-  if (tilePane) {
-    tilePane.style.filter = style.filter || '';
-  }
-  showToast('\uD83D\uDDFA\uFE0F \u0421\u0442\u0438\u043B\u044C \u043A\u0430\u0440\u0442\u044B \u0438\u0437\u043C\u0435\u043D\u0451\u043D');
+  if (tilePane) tilePane.style.filter = style.filter || '';
+  showToast('🗺️ Стиль карты изменён');
 }
 
 // ─────────────────────────────────────────────
