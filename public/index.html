@@ -29,111 +29,72 @@
       overflow: hidden;
     }
 
-    /* Floating currency island */
-    #hud-currency {
+    /* Top currency pill */
+    #hud-top-pill {
       position: fixed;
-      top: calc(8px + env(safe-area-inset-top));
-      left: 8px;
+      top: calc(env(safe-area-inset-top, 0px) + 8px);
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 1000;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 8px 14px;
-      min-width: 130px;
-    }
-    #hud-coins-row {
+      background: rgba(8,8,18,0.88);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 6px 16px;
       display: flex;
-      align-items: baseline;
-      gap: 5px;
-    }
-    #hud-coins-icon { font-size: 18px; line-height: 1; }
-    #coin-display {
-      font-size: 18px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -0.5px;
-    }
-    #income-display {
-      font-size: 11px;
-      color: #00ff88;
-      margin-top: 1px;
-      min-height: 14px;
-    }
-    #hud-divider {
-      height: 1px;
-      background: rgba(255,255,255,0.1);
-      margin: 5px 0;
-    }
-    #diamond-balance {
-      display: none;
       align-items: center;
-      gap: 5px;
+      gap: 12px;
+      white-space: nowrap;
     }
-    #diamond-balance-icon { font-size: 15px; line-height: 1; }
-    #diamond-display {
-      font-size: 15px;
-      font-weight: 700;
-      color: #00cfff;
-    }
-    #hud-currency-buttons {
-      display: flex;
-      gap: 6px;
-      margin-top: 6px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      padding-top: 6px;
-    }
-    #hud-currency-buttons button {
-      flex: 1;
-      height: 32px;
-      border-radius: 8px;
-      font-size: 13px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: white;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.2s;
-    }
-    #hud-currency-buttons button:active {
-      background: rgba(255,255,255,0.18);
-    }
-    #btn-market-hud {
-      background: rgba(255,215,0,0.1);
-      border-color: rgba(255,215,0,0.3);
-    }
+    #hud-top-pill .pill-coins { font-size: 15px; font-weight: 700; color: #FFD700; }
+    #hud-top-pill .pill-income { font-size: 12px; color: #00E676; }
+    #hud-top-pill .pill-diamonds { font-size: 15px; font-weight: 700; color: #64B5F6; }
+    #hud-top-pill .pill-sep { color: rgba(255,255,255,0.2); font-size: 12px; }
 
-    /* Floating buttons island */
-    #hud-buttons {
+    /* Right vertical panel */
+    #hud-right-panel {
       position: fixed;
-      top: calc(8px + env(safe-area-inset-top));
-      right: 8px;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
       z-index: 1000;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 6px 8px;
       display: flex;
-      gap: 4px;
+      flex-direction: column;
+      gap: 8px;
     }
-    #hud-buttons button {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid transparent;
-      font-size: 18px;
+    .hud-right-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: rgba(8,8,18,0.88);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 20px;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.2s, border-color 0.2s;
+      transition: all 0.2s;
+      position: relative;
+      color: #fff;
     }
-    #btn-pin { transition: all 0.2s; }
+    .hud-right-btn:active {
+      background: rgba(255,215,0,0.12);
+      border-color: rgba(255,215,0,0.3);
+    }
+    .hud-right-btn .notif-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f44336;
+      display: none;
+    }
 
     #map {
       position: fixed;
@@ -145,72 +106,92 @@
     /* Bottom panel */
     #bottom-panel {
       position: fixed;
-      bottom: calc(10px + env(safe-area-inset-bottom));
-      left: 8px;
-      right: 8px;
+      bottom: 0;
+      left: 0;
+      right: 0;
       z-index: 1000;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 10px 14px;
+      background: rgba(5,5,10,0.95);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 10px 16px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       display: flex;
       align-items: center;
-      justify-content: space-between;
-    }
-
-    #player-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     #player-avatar-wrap {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
+      border: 2px solid rgba(255,215,0,0.4);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
+      font-size: 26px;
       flex-shrink: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #player-info {
+      flex: 1;
+      min-width: 0;
     }
 
     #player-name-display {
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 15px;
+      font-weight: 600;
       color: #fff;
       line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     #player-level-display {
-      font-size: 11px;
-      color: #888;
+      font-size: 12px;
+      color: #FFD700;
       margin-top: 1px;
     }
 
     #player-xp-bar-wrap {
-      margin-top: 4px;
-      width: 120px;
+      margin-top: 3px;
     }
 
     #player-xp-bar-bg {
-      height: 4px;
-      background: #333;
+      height: 3px;
+      background: rgba(255,255,255,0.1);
       border-radius: 2px;
       overflow: hidden;
     }
 
     #player-xp-bar-fill {
       height: 100%;
-      background: #FFD700;
+      background: linear-gradient(90deg, #FFD700, #FFA000);
       border-radius: 2px;
       width: 0%;
       transition: width 0.4s ease;
     }
+
+    #btn-collect {
+      flex-shrink: 0;
+      background: rgba(0,230,118,0.12);
+      border: 1px solid rgba(0,230,118,0.35);
+      border-radius: 14px;
+      color: #00E676;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 10px 20px;
+      white-space: nowrap;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.2s;
+    }
+    #btn-collect:active { background: rgba(0,230,118,0.25); }
+    #btn-collect:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* XP toast chips */
     #xp-toasts {
@@ -337,7 +318,7 @@
     /* Toast container */
     #toast-container {
       position: fixed;
-      top: 60px;
+      top: calc(env(safe-area-inset-top, 0px) + 50px);
       left: 50%;
       transform: translateX(-50%);
       z-index: 9999;
@@ -2203,29 +2184,22 @@
   <div id="leaderboard-current"></div>
 </div>
 
-<!-- Currency island -->
-<div id="hud-currency">
-  <div id="hud-coins-row">
-    <span id="hud-coins-icon">💰</span>
-    <span id="coin-display">—</span>
-  </div>
-  <div id="income-display"></div>
-  <div id="hud-divider" style="display:none;"></div>
-  <div id="diamond-balance">
-    <span id="diamond-balance-icon">💎</span>
-    <span id="diamond-display">0</span>
-  </div>
-  <div id="hud-currency-buttons">
-    <button id="btn-shop-hud" title="Магазин">🛒 Магазин</button>
-    <button id="btn-market-hud" title="Рынок">🎪 Рынок</button>
-  </div>
+<!-- Top currency pill -->
+<div id="hud-top-pill">
+  <span class="pill-coins">💰 <span id="coin-display">—</span></span>
+  <span class="pill-sep">·</span>
+  <span class="pill-income" id="income-display"></span>
+  <span class="pill-sep">·</span>
+  <span class="pill-diamonds">💎 <span id="diamond-display">0</span></span>
 </div>
 
-<!-- Buttons island -->
-<div id="hud-buttons">
-  <button id="btn-pin" title="Закрепить на штабе">📍</button>
-  <button id="btn-leaderboard" title="Таблица лидеров">🏆</button>
-  <button id="btn-settings">⚙️</button>
+<!-- Right vertical panel -->
+<div id="hud-right-panel">
+  <button class="hud-right-btn" id="btn-teleport" title="Телепорт на штаб">📍</button>
+  <button class="hud-right-btn" id="btn-shop-hud" title="Магазин">🛒</button>
+  <button class="hud-right-btn" id="btn-market-hud" title="Рынок">🎪</button>
+  <button class="hud-right-btn" id="btn-leaderboard" title="Лидерборд">🏆</button>
+  <button class="hud-right-btn" id="btn-settings" title="Настройки">⚙️<span class="notif-badge" id="settings-badge"></span></button>
 </div>
 
 <!-- Map -->
@@ -2235,19 +2209,16 @@
 <div id="xp-toasts"></div>
 
 <div id="bottom-panel">
+  <div id="player-avatar-wrap"><span id="player-avatar-emoji">🐺</span></div>
   <div id="player-info">
-    <div id="player-avatar-wrap"><span id="player-avatar-emoji">&#x1F43A;</span></div>
-    <div>
-      <div id="player-name-display">—</div>
-      <div id="player-level-display">&#x423;&#x440;. 1</div>
-      <div id="shield-timer-display"></div>
-      <div id="player-xp-bar-wrap">
-        <div id="player-xp-bar-bg"><div id="player-xp-bar-fill"></div></div>
-      </div>
+    <div id="player-name-display">—</div>
+    <div id="player-level-display">Ур. 1</div>
+    <div id="shield-timer-display"></div>
+    <div id="player-xp-bar-wrap">
+      <div id="player-xp-bar-bg"><div id="player-xp-bar-fill"></div></div>
     </div>
   </div>
-  <div></div>
-  <button class="btn primary" id="btn-collect" disabled>&#x1F4B0; Собрать</button>
+  <button id="btn-collect" disabled>💰 Собрать</button>
 </div>
 
 <!-- Joystick (admin only) -->
@@ -3230,16 +3201,24 @@ let hqLng = null;
 let realPlayerPos = null; // true GPS coords while PIN is active
 
 function updatePinButton(active) {
-  const btn = document.getElementById('btn-pin');
-  if (active) {
-    btn.textContent = '📌';
-    btn.style.background = 'rgba(255,215,0,0.2)';
-    btn.style.borderColor = '#FFD700';
-  } else {
-    btn.textContent = '📍';
-    btn.style.background = 'rgba(255,255,255,0.05)';
-    btn.style.borderColor = 'transparent';
+  // Legacy — no longer used
+}
+
+async function doTeleportToHq() {
+  if (!hqLat || !hqLng) {
+    showToast('Сначала постройте штаб');
+    return;
   }
+  try {
+    await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
+    });
+  } catch (e) { /* ignore */ }
+  _applyPlayerPosition(hqLat, hqLng);
+  map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
+  loadVisibleBuildings();
+  showToast('📍 Телепорт на штаб');
 }
 
 // Apply a position to the player marker, zone circle, and state.playerPos
@@ -4432,7 +4411,7 @@ function updateCoinDisplay() {
   const inc = state.totalIncome;
   const incEl = document.getElementById('income-display');
   if (incEl) {
-    incEl.textContent = inc > 0 ? `⚡+${formatCoins(Math.round(inc * 3600))}/ч` : '';
+    incEl.textContent = inc > 0 ? `⚡ +${formatCoins(Math.round(inc * 3600))}/ч` : '';
   }
 }
 
@@ -5009,14 +4988,8 @@ function _showVaseDropPopup(item, diamonds) {
 
 function updateDiamondDisplay() {
   const diamonds = state.player?.diamonds ?? 0;
-  const el = document.getElementById('diamond-balance');
-  if (el) {
-    el.style.display = diamonds > 0 ? 'flex' : 'none';
-    document.getElementById('diamond-display').textContent = diamonds;
-  }
-  // Also hide/show divider
-  const divider = document.getElementById('hud-divider');
-  if (divider) divider.style.display = diamonds > 0 ? 'block' : 'none';
+  const el = document.getElementById('diamond-display');
+  if (el) el.textContent = diamonds;
 }
 
 function animateDrain(mineLatLng, botLatLng) {
@@ -5871,7 +5844,13 @@ async function selectAvatar(avatar) {
   }
 }
 
-document.getElementById('btn-pin').addEventListener('click', togglePin);
+document.getElementById('btn-teleport').addEventListener('click', doTeleportToHq);
+
+document.getElementById('player-avatar-wrap').addEventListener('click', () => {
+  if (state.playerPos) {
+    map.flyTo([state.playerPos.lat, state.playerPos.lng], map.getZoom(), { animate: true, duration: 0.3 });
+  }
+});
 
 document.getElementById('btn-settings').addEventListener('click', () => {
   if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
@@ -8542,6 +8521,22 @@ function _filterAndRenderClans(query) {
 function _renderEditTab(body) {
   if (!_clanScreenData?.clan) { body.innerHTML = '<div style="color:#888;padding:20px;text-align:center;">Нет данных</div>'; return; }
   const clan = _clanScreenData.clan;
+
+  // Hide normal tabs, show edit header
+  const tabsEl = document.getElementById('cs-tabs');
+  tabsEl.innerHTML = `<div style="display:flex;align-items:center;width:100%;padding:4px 0;">
+    <button id="cs-edit-back" style="background:none;border:none;color:#888;font-size:14px;cursor:pointer;padding:8px 12px;display:flex;align-items:center;gap:4px;">
+      <span style="font-size:18px;">←</span> Назад
+    </button>
+    <div style="flex:1;text-align:center;font-size:14px;font-weight:700;color:#fff;">✏️ Редактировать клан</div>
+    <div style="width:70px;"></div>
+  </div>`;
+  document.getElementById('cs-edit-back').addEventListener('click', () => {
+    _clanScreenTab = 'hq';
+    _renderClanTabs();
+    _renderClanTab();
+  });
+
   let selectedSymbol = clan.symbol || CLAN_SYMBOLS[0];
   let selectedColor = clan.color || ALLOWED_CLAN_COLORS[0];
   let minLevel = clan.min_level || 1;
@@ -8550,34 +8545,37 @@ function _renderEditTab(body) {
   const origSymbol = selectedSymbol;
   const origName = clan.name;
 
+  const badgeHtml = `<span style="background:rgba(100,181,246,0.12);border:1px solid rgba(100,181,246,0.25);border-radius:20px;padding:2px 8px;font-size:11px;color:#64B5F6;margin-left:auto;">💎 100</span>`;
+  const sectionLabelStyle = `font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;`;
+  const cardStyle = `background:rgba(255,255,255,0.05);border-radius:16px;padding:16px;margin-bottom:12px;`;
+
   body.innerHTML = `
-    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:16px;">✏️ Редактировать клан</div>
-    <div class="cs-form-field">
-      <label>Символ клана <span style="color:#D500F9">💎 100 за смену</span></label>
+    <div style="${cardStyle}">
+      <div style="${sectionLabelStyle}"><span>СИМВОЛ КЛАНА</span>${badgeHtml}</div>
       <div class="cs-emoji-grid" id="cs-edit-symbol-grid"></div>
     </div>
-    <div class="cs-form-field">
-      <label>Название <span style="color:#D500F9">💎 100 за смену</span></label>
-      <input id="cs-edit-name" maxlength="20" value="${clan.name}">
+    <div style="${cardStyle}">
+      <div style="${sectionLabelStyle}"><span>НАЗВАНИЕ</span>${badgeHtml}</div>
+      <input id="cs-edit-name" maxlength="20" value="${clan.name}" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;outline:none;">
     </div>
-    <div class="cs-form-field">
-      <label>Цвет клана</label>
+    <div style="${cardStyle}">
+      <div style="${sectionLabelStyle}">ЦВЕТ КЛАНА</div>
       <div class="cs-color-grid" id="cs-edit-color-grid"></div>
     </div>
-    <div class="cs-form-field">
-      <label>Мин. уровень для вступления</label>
+    <div style="${cardStyle}">
+      <div style="${sectionLabelStyle}">МИН. УРОВЕНЬ</div>
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="btn" id="cs-edit-lvl-dec" style="width:40px;padding:8px;">−</button>
         <span id="cs-edit-lvl-val" style="font-size:18px;font-weight:700;color:#fff;width:40px;text-align:center;">${minLevel}</span>
         <button class="btn" id="cs-edit-lvl-inc" style="width:40px;padding:8px;">+</button>
       </div>
     </div>
-    <div class="cs-form-field">
-      <label>Описание (до 100 символов)</label>
-      <textarea id="cs-edit-desc" maxlength="100">${clan.description || ''}</textarea>
+    <div style="${cardStyle}">
+      <div style="${sectionLabelStyle}">ОПИСАНИЕ</div>
+      <textarea id="cs-edit-desc" maxlength="100" style="width:100%;min-height:60px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;resize:vertical;outline:none;">${clan.description || ''}</textarea>
     </div>
-    <div id="cs-edit-cost" style="text-align:center;color:#D500F9;font-size:13px;margin-bottom:8px;"></div>
-    <button class="btn yellow" id="cs-edit-save" style="width:100%;padding:12px;font-size:15px;">💾 Сохранить изменения</button>
+    <div id="cs-edit-cost" style="text-align:center;color:#64B5F6;font-size:13px;margin-bottom:8px;"></div>
+    <button id="cs-edit-save" style="position:sticky;bottom:16px;width:100%;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.35);border-radius:14px;color:#00E676;padding:14px;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">💾 Сохранить</button>
   `;
 
   // Symbol grid
