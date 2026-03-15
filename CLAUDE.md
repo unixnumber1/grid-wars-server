@@ -40,7 +40,7 @@ BOT_TOKEN=
   /clan.js                 — build-hq/create/list/join/leave/donate/upgrade/set-role/kick/transfer/info
   /admin/maintenance.js    — reward/ban/unban/generate-markets/maintenance-start/end/fix-hq/setup-webhook
 /lib
-  supabase.js  grid.js  haversine.js  income.js  formulas.js  items.js  bots.js  vases.js  xp.js  clans.js
+  supabase.js  grid.js  haversine.js  income.js  formulas.js  items.js  bots.js  vases.js  xp.js  clans.js  markets.js
 /public
   index.html
 vercel.json  CLAUDE.md
@@ -108,7 +108,12 @@ vercel.json  CLAUDE.md
 
 ### Маркет
 - Торговля предметами за алмазы, 10% комиссия
-- Физические точки рынка (OSM), курьеры на карте, PvP перехват курьеров
+- Автоспаун рынков: при входе игрока проверяется наличие рынка в 5км, если нет — спаунится
+- Overpass API: поиск пересечений крупных дорог (primary/secondary/trunk) для реалистичного размещения
+- Fallback: случайная точка 1-3км от игрока, если Overpass недоступен
+- lib/markets.js: ensureMarketNearPlayer(), вызывается из api/player/init.js (fire-and-forget)
+- Мин 500м между рынками
+- Курьеры на карте, PvP перехват курьеров
 - Макс 10 листингов, цена 1-100K💎, TTL 48ч
 
 ### Кланы
