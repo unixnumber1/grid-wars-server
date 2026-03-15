@@ -164,7 +164,7 @@ vercel.json  CLAUDE.md
 - Клан: экран редактирования с карточками-секциями, кнопка ✏️ в хедере
 - Настройки: fullscreen экран с вкладками (Профиль/Карта/Админ)
   - Профиль: аватар 60px + смена ника, card-секции
-  - Карта: 5 стилей (dark/voyager/midnight/terrain/neon), сохранение в localStorage
+  - Карта: 5 стилей (standard/light/total_black/neon/blood), canvas-превью, localStorage
   - Админ: только для ADMIN_TG_ID, кнопки с цветовой кодировкой
 
 ## Admin
