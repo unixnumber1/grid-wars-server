@@ -2592,23 +2592,26 @@ function _addOrUpdateMineMarker(mine) {
   const playerId = state.player?.id;
   const isOwn    = mine.is_mine ?? (mine.owner_id === playerId);
   const iconSt   = isOwn ? 'own' : 'other';
+  // Show pending level appearance while upgrading
+  const displayLevel = (mine.pending_level && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date())
+    ? mine.pending_level : mine.level;
   const key      = `mine_${mine.id}`;
   const existing = buildingMarkers[key];
   if (existing) {
     // Only recreate icon if level or ownership changed (expensive DOM op)
-    if (existing._gw_level !== mine.level || existing._gw_iconSt !== iconSt) {
-      existing.setIcon(mineIcon(mine.level, iconSt));
-      existing._gw_level  = mine.level;
+    if (existing._gw_level !== displayLevel || existing._gw_iconSt !== iconSt) {
+      existing.setIcon(mineIcon(displayLevel, iconSt));
+      existing._gw_level  = displayLevel;
       existing._gw_iconSt = iconSt;
     }
     // Rebind click so popup shows fresh data
     existing.off('click');
     existing.on('click', () => showMinePopup(mine, isOwn, false));
   } else {
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(mine.level, iconSt), zIndexOffset: 450 })
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt), zIndexOffset: 450 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, false));
-    marker._gw_level   = mine.level;
+    marker._gw_level   = displayLevel;
     marker._gw_iconSt  = iconSt;
     marker._gw_created = Date.now();
     buildingMarkers[key] = marker;
@@ -8181,7 +8184,10 @@ function showClanHqPopup(ch) {
     openPopup('🏰 Штаб Клана', 'Не активен', [], [
       { label: '🔍 Найти клан', cls: 'primary', action: () => openClanScreen(null, 'browse') },
       { label: '⚔️ Создать клан', cls: 'yellow', action: () => openClanScreen(null, 'create') },
-      { label: `🏚️ Снести штаб (+${formatCoins(CLAN_HQ_COST / 2)})`, cls: 'danger', action: () => doSellClanHq() },
+      [
+        { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
+        { label: 'Закрыть', isClose: true },
+      ],
     ]);
   } else if (isOwn && isActive) {
     const inClan = !!state.player?.clan_id;
@@ -8191,9 +8197,12 @@ function showClanHqPopup(ch) {
       [],
       [
         { label: '⚔️ Войти в штаб', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') },
-        inClan
-          ? { label: '🏚️ Снести штаб', cls: '', disabled: true }
-          : { label: `🏚️ Снести штаб (+${formatCoins(CLAN_HQ_COST / 2)})`, cls: 'danger', action: () => doSellClanHq() },
+        [
+          inClan
+            ? { label: '🗑️ Снести', cls: '', disabled: true }
+            : { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
+          { label: 'Закрыть', isClose: true },
+        ],
       ]
     );
     if (inClan) {
