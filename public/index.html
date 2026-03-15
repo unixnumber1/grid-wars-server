@@ -2361,10 +2361,11 @@
 <div id="clan-screen">
   <div class="cs-header">
     <button class="cs-close" id="clan-close">✕</button>
-    <div>
+    <div style="flex:1;">
       <div class="cs-clan-name" id="cs-clan-name">Клан</div>
       <div class="cs-clan-sub" id="cs-clan-sub"></div>
     </div>
+    <button id="cs-edit-btn" style="display:none;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;">✏️</button>
   </div>
   <div class="cs-tabs" id="cs-tabs"></div>
   <div class="cs-body" id="cs-body"></div>
@@ -8259,6 +8260,17 @@ async function openClanScreen(clanId, tab) {
     document.getElementById('cs-clan-sub').textContent = '';
   }
 
+  // Show edit button in header for leader of own clan
+  const editBtn = document.getElementById('cs-edit-btn');
+  const isOwnClan = _clanScreenId === state.player?.clan_id;
+  const isLeaderForEdit = state.player?.clan_role === 'leader';
+  if (isOwnClan && isLeaderForEdit) {
+    editBtn.style.display = '';
+    editBtn.onclick = () => { _clanScreenTab = 'edit'; _renderClanTabs(); _renderClanTab(); };
+  } else {
+    editBtn.style.display = 'none';
+  }
+
   _renderClanTabs();
   _renderClanTab();
 }
@@ -8402,10 +8414,6 @@ function _renderHqTab(body) {
     }
   }
 
-  // Edit button for leader
-  if (isOwn && isLeader) {
-    actionsEl.appendChild(_makeBtn('✏️ Редактировать клан', '', () => { _clanScreenTab = 'edit'; _renderClanTabs(); _renderClanTab(); }));
-  }
 
   // Danger zone
   const dangerEl = document.getElementById('cs-danger');
