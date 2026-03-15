@@ -1350,56 +1350,95 @@
       position: fixed;
       inset: 0;
       z-index: 3500;
-      background: #0d0d1a;
+      background: #0d0d0d;
       flex-direction: column;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
     }
     #shop-modal.open { display: flex; }
     #shop-header {
-      position: sticky; top: 0; z-index: 1;
-      background: rgba(0,0,0,0.8);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      padding: 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      background: #111;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
     }
-    #shop-header-top { display: flex; justify-content: space-between; align-items: center; }
-    #shop-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
-    #shop-header-balances { display: flex; gap: 14px; margin-top: 6px; font-size: 14px; }
+    #shop-header-top { display: flex; align-items: center; gap: 10px; }
+    #shop-header h2 { font-size: 16px; font-weight: 800; margin: 0; flex: 1; }
+    #shop-header-balances { display: flex; gap: 14px; margin-top: 4px; font-size: 14px; }
     #shop-close {
-      background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
-      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-      border-radius: 50%; background: rgba(255,255,255,0.08);
+      background: none; border: none; color: #888; font-size: 20px; cursor: pointer; padding: 4px;
+      -webkit-tap-highlight-color: transparent;
     }
-    #shop-body { padding: 16px; flex: 1; }
+    #shop-tabs {
+      display: flex;
+      background: #111;
+      border-bottom: 1px solid #222;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .shop-tab {
+      flex: 1; background: none; border: none; border-bottom: 2px solid transparent;
+      color: #666; font-size: 13px; font-weight: 600; padding: 10px 0; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: color 0.15s, border-color 0.15s;
+    }
+    .shop-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+    .shop-tab-content { display: none; }
+    .shop-tab-content.active { display: block; }
+    #shop-body { padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .shop-section-title {
-      font-size: 15px; font-weight: 700; margin: 0 0 12px; color: #eee; letter-spacing: 0.5px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: rgba(255,255,255,0.35);
+      text-transform: uppercase; margin-bottom: 12px;
     }
     .shop-boxes-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .shop-box-card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
-      border: 1px solid;
-      padding: 16px;
-      text-align: center;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      border-radius: 16px; border: 1px solid; padding: 14px;
+      text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
     }
-    .shop-box-icon {
-      font-size: 64px; line-height: 1;
-      animation: boxFloat 3s ease-in-out infinite;
-    }
+    .shop-box-icon { font-size: 48px; line-height: 1; animation: boxFloat 3s ease-in-out infinite; }
     @keyframes boxFloat {
       0%,100% { transform: translateY(0px) rotate(-3deg); }
       50%     { transform: translateY(-8px) rotate(3deg); }
     }
-    .shop-box-name { font-size: 14px; font-weight: 700; }
-    .shop-box-price { font-size: 13px; color: #00cfff; margin: 4px 0; }
-    .shop-box-btns { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
-    .shop-box-btns .btn { flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 10px; }
-    .shop-box-btns .btn.info-btn {
-      background: rgba(255,255,255,0.08); color: #aaa;
+    .shop-box-name { font-size: 14px; font-weight: 700; color: #fff; }
+    .shop-box-odds { font-size: 10px; color: rgba(255,255,255,0.4); line-height: 1.6; width: 100%; text-align: left; }
+    .shop-box-odds span { float: right; color: rgba(255,255,255,0.6); }
+    .shop-box-price { font-size: 13px; color: #64B5F6; margin: 4px 0; font-weight: 600; }
+    .shop-box-open-btn {
+      width: 100%; background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.3);
+      color: #FFD700; border-radius: 10px; padding: 10px; font-weight: 700; font-size: 14px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.2s;
     }
+    .shop-box-open-btn:active { background: rgba(255,215,0,0.25); }
+    .shop-box-open-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .shop-star-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px; padding: 14px; text-align: center; position: relative; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: all 0.2s;
+    }
+    .shop-star-card:active { transform: scale(0.97); }
+    .shop-star-card .star-badge {
+      position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+    }
+    .shop-star-diamonds { font-size: 22px; font-weight: 800; color: #64B5F6; }
+    .shop-star-price { font-size: 14px; color: #FFD700; margin-top: 4px; }
+    .shop-star-buy-btn {
+      margin-top: 8px; width: 100%; background: linear-gradient(135deg, #FFD700, #FF8C00);
+      color: #000; border: none; border-radius: 10px; padding: 8px; font-size: 13px; font-weight: 700;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .shop-daily-card {
+      background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.2);
+      border-radius: 16px; padding: 20px;
+    }
+    .shop-daily-claim-btn {
+      width: 100%; background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.35);
+      color: #00E676; border-radius: 12px; padding: 12px; font-size: 15px; font-weight: 700;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.2s;
+    }
+    .shop-daily-claim-btn:active { background: rgba(0,230,118,0.25); }
+    .shop-daily-claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* Box open overlay */
     #box-open-overlay {
@@ -1443,67 +1482,76 @@
       position: fixed;
       inset: 0;
       z-index: 3500;
-      background: #0d0d1a;
+      background: #0d0d0d;
       flex-direction: column;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
     }
     #market-modal.open { display: flex; }
     #market-header {
-      position: sticky; top: 0; z-index: 1;
-      background: rgba(0,0,0,0.8);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      padding: 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      background: #111;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
     }
-    #market-header-top { display: flex; justify-content: space-between; align-items: center; }
-    #market-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
-    #market-header-balances { display: flex; gap: 14px; margin-top: 6px; font-size: 14px; }
+    #market-header-top { display: flex; align-items: center; gap: 10px; }
+    #market-header h2 { font-size: 16px; font-weight: 800; margin: 0; flex: 1; }
+    #market-header-balances { display: flex; gap: 14px; margin-top: 4px; font-size: 14px; }
     #market-close {
-      background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
-      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-      border-radius: 50%; background: rgba(255,255,255,0.08);
+      background: none; border: none; color: #888; font-size: 20px; cursor: pointer; padding: 4px;
+      -webkit-tap-highlight-color: transparent;
     }
     #market-tabs {
-      display: flex; gap: 0; margin: 12px 16px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      background: #111;
+      border-bottom: 1px solid #222;
+      padding: 0 16px;
+      flex-shrink: 0;
     }
     .market-tab {
-      flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600;
-      background: none; border: none; color: #888; cursor: pointer;
+      flex: 1; padding: 10px 0; text-align: center; font-size: 13px; font-weight: 600;
+      background: none; border: none; color: #666; cursor: pointer;
       border-bottom: 2px solid transparent; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .market-tab.active { color: #fff; border-bottom-color: #FFD700; }
+    .market-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
     #market-sort-row {
       display: flex; gap: 6px; padding: 10px 16px;
     }
     .market-sort-btn {
-      flex: 1; padding: 6px 4px; font-size: 12px; border-radius: 8px;
+      flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 10px;
       background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-      color: #aaa; cursor: pointer; text-align: center;
+      color: #aaa; cursor: pointer; text-align: center; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .market-sort-btn.active { background: rgba(255,215,0,0.15); border-color: #FFD700; color: #FFD700; }
-    #market-body { padding: 0 16px 100px; flex: 1; }
+    .market-sort-btn.active { background: rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.4); color: #FFD700; }
+    #market-body { padding: 0 16px 100px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     #market-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
     }
     .market-card {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 12px;
       text-align: center;
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
       position: relative;
     }
-    .market-card-emoji { font-size: 56px; line-height: 1; margin: 8px 0; }
-    .market-card-name { font-size: 13px; font-weight: 700; }
-    .market-card-rarity { font-size: 11px; }
-    .market-card-stat { font-size: 11px; color: #f5c518; }
-    .market-card-price { font-size: 18px; font-weight: 800; color: #00cfff; margin: 6px 0 2px; }
+    .market-card-emoji { font-size: 48px; line-height: 1; margin: 6px 0; }
+    .market-card-name { font-size: 13px; font-weight: 600; color: #fff; }
+    .market-card-rarity { font-size: 10px; }
+    .market-card-stat { font-size: 11px; color: rgba(255,255,255,0.5); }
+    .market-card-price { font-size: 18px; font-weight: 800; color: #64B5F6; margin: 4px 0 2px; }
     .market-card-seller { font-size: 10px; color: #888; }
-    .market-card .btn { width: 100%; margin-top: 6px; padding: 8px; font-size: 13px; border-radius: 10px; }
+    .market-card .market-buy-btn {
+      width: 100%; margin-top: 4px; padding: 8px; font-size: 13px; font-weight: 600;
+      border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.3); color: #00E676;
+      transition: background 0.2s;
+    }
+    .market-card .market-buy-btn:active { background: rgba(0,230,118,0.25); }
+    .market-card .btn { width: 100%; margin-top: 4px; padding: 8px; font-size: 13px; border-radius: 8px; }
     .market-card-lock {
       position: absolute; top: 8px; right: 8px; font-size: 14px;
     }
@@ -1521,12 +1569,12 @@
       color: #aaa; cursor: pointer;
     }
     #market-fab {
-      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-      z-index: 3501; padding: 12px 28px; border-radius: 30px;
+      position: sticky; bottom: 16px;
+      z-index: 3501; padding: 14px 24px; border-radius: 999px;
       background: linear-gradient(135deg, #FFD700, #FF8C00); color: #000;
-      font-size: 15px; font-weight: 800; border: none; cursor: pointer;
-      box-shadow: 0 4px 20px rgba(255,215,0,0.4);
-      display: none;
+      font-size: 15px; font-weight: 700; border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(255,215,0,0.3);
+      display: none; width: auto; margin: 0 auto;
     }
 
     /* Market buy/private modals */
@@ -1570,11 +1618,11 @@
     }
     #market-list-overlay.open { display: flex; }
     #market-list-header {
-      position: sticky; top: 0; z-index: 1;
-      background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.08);
-      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      background: #111; border-bottom: 1px solid #222;
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
     }
     #market-list-header h2 { font-size: 16px; font-weight: 800; margin: 0; }
     #market-list-body { padding: 16px; flex: 1; }
@@ -1828,36 +1876,6 @@
     .projectile-glow-epic      { filter: drop-shadow(0 0 8px #ff00aa) drop-shadow(0 0 16px #ff00aa88); }
     .projectile-glow-mythic    { filter: drop-shadow(0 0 10px #8b0000) drop-shadow(0 0 20px #8b000088); }
     .projectile-glow-legendary { filter: drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FF8C00aa) drop-shadow(0 0 30px #FFD70066); }
-
-    /* ── Daily diamonds section in shop ── */
-    .shop-daily-section {
-      margin-top: 20px; padding: 16px; border-radius: 14px;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(0,207,255,0.15);
-    }
-    .shop-daily-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .shop-daily-info { flex: 1; }
-    .shop-daily-title { font-size: 15px; font-weight: 700; color: #00cfff; }
-    .shop-daily-desc { font-size: 12px; color: #888; margin-top: 2px; }
-    .shop-daily-btn {
-      padding: 10px 16px; border-radius: 10px; border: none;
-      font-size: 14px; font-weight: 700; cursor: pointer;
-      background: linear-gradient(135deg, #00cfff, #0088cc); color: #000;
-      white-space: nowrap;
-    }
-    .shop-daily-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .shop-daily-timer { font-size: 13px; color: #ffaa00; font-weight: 700; }
-
-    /* ── Stars purchase section ── */
-    .shop-stars-section {
-      margin-top: 14px; padding: 16px; border-radius: 14px;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,215,0,0.15);
-    }
-    .shop-stars-btn {
-      width: 100%; padding: 12px; border-radius: 10px; border: none;
-      font-size: 14px; font-weight: 700; cursor: pointer;
-      background: linear-gradient(135deg, #FFD700, #FFA000); color: #000;
-    }
-    .shop-stars-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* ── Mass selection mode ── */
     .inv-cell.selectable { cursor: pointer; }
@@ -2239,56 +2257,64 @@
 <div id="shop-modal">
   <div id="shop-header">
     <div id="shop-header-top">
+      <button id="shop-close">✕</button>
       <h2>🛒 МАГАЗИН</h2>
-      <button id="shop-close">&#x2715;</button>
     </div>
     <div id="shop-header-balances">
       <span>💰 <span id="shop-coins">0</span></span>
       <span>💎 <span id="shop-diamonds">0</span></span>
     </div>
   </div>
+  <div id="shop-tabs">
+    <button class="shop-tab active" data-tab="boxes">📦 Боксы</button>
+    <button class="shop-tab" data-tab="stars">⭐ Stars</button>
+    <button class="shop-tab" data-tab="bonus">🎁 Бонус</button>
+  </div>
   <div id="shop-body">
-    <div class="shop-section-title">📦 БОКСЫ</div>
-    <div class="shop-boxes-row">
-      <div class="shop-box-card" style="border-color:#00c853;box-shadow:0 0 20px rgba(0,200,83,0.3);">
-        <div class="shop-box-icon">📦</div>
-        <div class="shop-box-name">Редкий бокс</div>
-        <div class="shop-box-price">💎 5 алмазов</div>
-        <div class="shop-box-btns">
-          <button class="btn yellow shop-open-btn" data-box="rare">Открыть</button>
-          <button class="btn info-btn shop-info-btn" data-box="rare">Инфо</button>
+    <!-- Boxes tab -->
+    <div id="shop-tab-boxes" class="shop-tab-content active">
+      <div class="shop-boxes-row">
+        <div class="shop-box-card" style="border-color:rgba(0,200,83,0.3);background:rgba(0,200,83,0.05);box-shadow:0 0 20px rgba(0,200,83,0.1);">
+          <div class="shop-box-icon">📦</div>
+          <div class="shop-box-name">Редкий бокс</div>
+          <div class="shop-box-odds">
+            <div>common <span>40%</span></div>
+            <div>uncommon <span>35%</span></div>
+            <div>rare <span>20%</span></div>
+            <div>epic <span>4%</span></div>
+            <div>mythic <span>1%</span></div>
+          </div>
+          <div class="shop-box-price">💎 5 алмазов</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="rare">Открыть</button>
         </div>
-      </div>
-      <div class="shop-box-card" style="border-color:#f50057;box-shadow:0 0 20px rgba(245,0,87,0.3);">
-        <div class="shop-box-icon">🎁</div>
-        <div class="shop-box-name">Эпический бокс</div>
-        <div class="shop-box-price">💎 30 алмазов</div>
-        <div class="shop-box-btns">
-          <button class="btn yellow shop-open-btn" data-box="epic">Открыть</button>
-          <button class="btn info-btn shop-info-btn" data-box="epic">Инфо</button>
+        <div class="shop-box-card" style="border-color:rgba(245,0,87,0.3);background:rgba(245,0,87,0.05);box-shadow:0 0 20px rgba(245,0,87,0.1);">
+          <div class="shop-box-icon">🎁</div>
+          <div class="shop-box-name">Эпический бокс</div>
+          <div class="shop-box-odds">
+            <div>uncommon <span>35%</span></div>
+            <div>rare <span>35%</span></div>
+            <div>epic <span>20%</span></div>
+            <div>mythic <span>10%</span></div>
+          </div>
+          <div class="shop-box-price">💎 30 алмазов</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="epic">Открыть</button>
         </div>
       </div>
     </div>
-
-    <!-- Daily diamonds -->
-    <div class="shop-daily-section">
-      <div class="shop-daily-row">
-        <div class="shop-daily-info">
-          <div class="shop-daily-title">💎 Ежедневный бонус</div>
-          <div class="shop-daily-desc">5 алмазов каждый день</div>
-          <div class="shop-daily-timer" id="daily-timer"></div>
-        </div>
-        <button class="shop-daily-btn" id="btn-daily-diamonds" onclick="claimDailyDiamonds()">Забрать 5 💎</button>
-      </div>
+    <!-- Stars tab -->
+    <div id="shop-tab-stars" class="shop-tab-content">
+      <div class="shop-section-title">ПОПОЛНИТЬ АЛМАЗЫ</div>
+      <div class="shop-stars-grid" id="shop-stars-grid"></div>
     </div>
-
-    <!-- Stars purchase -->
-    <div class="shop-stars-section">
-      <div style="text-align:center;margin-bottom:10px;">
-        <div style="font-size:15px;font-weight:700;color:#FFD700;">⭐ Купить алмазы</div>
-        <div style="font-size:12px;color:#888;margin-top:2px;">100 алмазов за 15 Telegram Stars</div>
+    <!-- Bonus tab -->
+    <div id="shop-tab-bonus" class="shop-tab-content">
+      <div class="shop-daily-card">
+        <div style="font-size:40px;text-align:center;margin-bottom:8px;">💎</div>
+        <div style="font-size:16px;font-weight:700;color:#fff;text-align:center;">Ежедневный бонус</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.5);text-align:center;margin-top:4px;">5 алмазов каждый день</div>
+        <div id="daily-timer" style="font-size:12px;color:#888;text-align:center;margin-top:6px;"></div>
+        <button class="shop-daily-claim-btn" id="btn-daily-diamonds" onclick="claimDailyDiamonds()" style="margin-top:12px;">Забрать 5 💎</button>
       </div>
-      <button class="shop-stars-btn" id="btn-buy-stars" onclick="buyStars()">⭐ Купить 100 💎 за 15 Stars</button>
     </div>
   </div>
 </div>
@@ -6070,6 +6096,31 @@ function openShop() {
   _updateShopButtons();
   document.getElementById('shop-modal').classList.add('open');
   checkDailyDiamonds();
+  _renderStarsPacks();
+}
+
+const STAR_PACKS = [
+  { diamonds: 100, stars: 15 },
+  { diamonds: 550, stars: 75 },
+  { diamonds: 1200, stars: 150 },
+  { diamonds: 2500, stars: 300, badge: 'ПОПУЛЯРНЫЙ', badgeColor: '#FFD700', borderColor: 'rgba(255,215,0,0.5)' },
+  { diamonds: 6500, stars: 750 },
+  { diamonds: 15000, stars: 1500, badge: 'ВЫГОДНО 👑', badgeColor: '#9C27B0', borderColor: 'rgba(123,47,190,0.5)' },
+];
+
+function _renderStarsPacks() {
+  const grid = document.getElementById('shop-stars-grid');
+  if (!grid) return;
+  grid.innerHTML = STAR_PACKS.map(p => {
+    const borderStyle = p.borderColor ? `border-color:${p.borderColor};` : '';
+    const badgeHtml = p.badge ? `<div class="star-badge" style="background:${p.badgeColor};color:#000;">${p.badge}</div>` : '';
+    return `<div class="shop-star-card" style="${borderStyle}" onclick="buyStars(${p.diamonds}, ${p.stars})">
+      ${badgeHtml}
+      <div class="shop-star-diamonds">💎 ${p.diamonds.toLocaleString()}</div>
+      <div class="shop-star-price">⭐ ${p.stars} Stars</div>
+      <button class="shop-star-buy-btn">Купить</button>
+    </div>`;
+  }).join('');
 }
 
 function closeShop() {
@@ -6200,6 +6251,14 @@ function _animateBoxOpen(boxType, item) {
 
 document.getElementById('btn-shop-hud').addEventListener('click', openShop);
 document.getElementById('shop-close').addEventListener('click', closeShop);
+document.querySelectorAll('.shop-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.shop-tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('shop-tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
 document.getElementById('box-odds-close').addEventListener('click', () => {
   document.getElementById('box-odds-popup').classList.remove('open');
 });
@@ -8086,15 +8145,12 @@ async function claimDailyDiamonds() {
   }
 }
 
-async function buyStars() {
-  const btn = document.getElementById('btn-buy-stars');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+async function buyStars(diamonds = 100, stars = 15) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'stars-invoice', telegram_id: TG_ID }),
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'stars-invoice', diamonds, stars }),
     });
-    if (btn) { btn.disabled = false; btn.textContent = '⭐ Купить 100 💎 за 15 Stars'; }
     if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
       window.Telegram.WebApp.openInvoice(data.invoiceLink, (status) => {
         if (status === 'paid') {
@@ -8122,7 +8178,6 @@ async function buyStars() {
     }
   } catch (err) {
     showToast(`❌ ${err.message}`);
-    if (btn) { btn.disabled = false; btn.textContent = '⭐ Купить 100 💎 за 15 Stars'; }
   }
 }
 
@@ -9261,8 +9316,8 @@ async function doClanKick(targetTgId) {
 <div id="market-modal">
   <div id="market-header">
     <div id="market-header-top">
+      <button id="market-close">✕</button>
       <h2>🎪 РЫНОК</h2>
-      <button id="market-close">&#x2715;</button>
     </div>
     <div id="market-header-balances">
       <span>💰 <span id="market-coins">0</span></span>

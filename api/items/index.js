@@ -179,7 +179,7 @@ async function handleDailyDiamonds(req, res) {
 }
 
 async function handleStarsInvoice(req, res) {
-  const { telegram_id } = req.body || {};
+  const { telegram_id, diamonds = 100, stars = 15 } = req.body || {};
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
   const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -191,12 +191,12 @@ async function handleStarsInvoice(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: '💎 100 алмазов',
-        description: 'Grid Wars — 100 алмазов для игры',
-        payload: JSON.stringify({ telegram_id, product: 'diamonds_100' }),
+        title: `💎 ${diamonds} алмазов`,
+        description: `Grid Wars — ${diamonds} алмазов для игры`,
+        payload: JSON.stringify({ telegram_id, product: 'diamonds_purchase', diamonds }),
         provider_token: '',
         currency: 'XTR',
-        prices: [{ label: '100 алмазов', amount: 15 }],
+        prices: [{ label: `${diamonds} алмазов`, amount: stars }],
       }),
     }
   );
@@ -225,14 +225,15 @@ async function handleStarsWebhook(req, res) {
       return res.json({ ok: true });
     }
 
-    if (payload.product === 'diamonds_100') {
+    if (payload.product === 'diamonds_100' || payload.product === 'diamonds_purchase') {
+      const diamondsAmount = payload.diamonds || 100;
       const { data: player } = await supabase
         .from('players').select('id, diamonds')
         .eq('telegram_id', String(payload.telegram_id)).single();
 
       if (player) {
         await supabase.from('players')
-          .update({ diamonds: (player.diamonds ?? 0) + 100 })
+          .update({ diamonds: (player.diamonds ?? 0) + diamondsAmount })
           .eq('id', player.id);
 
         const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -242,7 +243,7 @@ async function handleStarsWebhook(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: payload.telegram_id,
-            text: '💎 100 алмазов зачислено!\nСпасибо за поддержку Grid Wars ⚔️',
+            text: `💎 ${diamondsAmount} алмазов зачислено!\nСпасибо за поддержку Grid Wars ⚔️`,
           }),
         }).catch(e => console.error('[stars] buyer notify error:', e.message));
         if (buyerRes && !buyerRes.ok) console.error('[stars] buyer notify fail:', await buyerRes.text().catch(() => ''));
@@ -255,7 +256,7 @@ async function handleStarsWebhook(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: ADMIN_TG_ID,
-            text: `💰 Покупка!\n👤 ${buyerName} (${payload.telegram_id})\n⭐ ${payment.total_amount} Stars\n💎 100 алмазов`,
+            text: `💰 Покупка!\n👤 ${buyerName} (${payload.telegram_id})\n⭐ ${payment.total_amount} Stars\n💎 ${diamondsAmount} алмазов`,
           }),
         }).catch(e => console.error('[stars] admin notify error:', e.message));
       }
