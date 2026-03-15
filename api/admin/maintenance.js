@@ -238,6 +238,10 @@ export default async function handler(req, res) {
 
     // ── generate-markets: clear all markets (they auto-respawn via ensureMarketNearPlayer on player init) ──
     if (action === 'generate-markets') {
+      // Clear foreign key references first
+      await supabase.from('items').update({ held_by_market: null }).not('held_by_market', 'is', null);
+      await supabase.from('market_listings').update({ status: 'cancelled' }).eq('status', 'active');
+      await supabase.from('market_listings').update({ status: 'cancelled' }).eq('status', 'pending');
       const { error: delErr } = await supabase.from('markets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (delErr) return res.status(500).json({ error: delErr.message });
       return res.json({ success: true, message: 'Все рынки удалены. Новые заспавнятся автоматически при входе игроков.' });
