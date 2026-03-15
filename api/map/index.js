@@ -5,9 +5,11 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS } from '../../lib/formulas.js';
 import { calcTotalIncomeWithClanBonus } from '../../lib/clans.js';
 import { ensureGoblinsNearPlayer, tickGoblins } from '../../lib/goblins.js';
+import { spawnVasesForAllHQs } from '../../lib/vases.js';
 
 // ── Tick counter for periodic cleanup ────────────────────────
 let _tickCount = 0;
+let _lastVaseSpawnDate = null; // tracks last MSK date vases were spawned
 
 async function handleLeaderboard(req, res) {
   const { telegram_id } = req.query;
@@ -387,6 +389,29 @@ async function handleTick(req, res) {
           }).catch(() => {});
         }
       }).catch(() => {});
+
+    // ── Midnight MSK vase auto-spawn ──
+    try {
+      const mskNow = new Date(nowMs + 3 * 3600000); // UTC+3
+      const mskDate = mskNow.toISOString().slice(0, 10); // "YYYY-MM-DD"
+      if (_lastVaseSpawnDate !== mskDate) {
+        // Check app_settings for last spawn date
+        const { data: setting } = await supabase
+          .from('app_settings').select('value').eq('key', 'last_vases_spawn').maybeSingle();
+        const lastMs = setting?.value ? parseInt(setting.value, 10) : 0;
+        const lastMsk = new Date(lastMs + 3 * 3600000);
+        const lastDate = lastMsk.toISOString().slice(0, 10);
+        if (lastDate !== mskDate) {
+          // New MSK day — spawn vases
+          await supabase.from('vases').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          const spawned = await spawnVasesForAllHQs(supabase);
+          await supabase.from('app_settings')
+            .upsert({ key: 'last_vases_spawn', value: nowMs.toString() }, { onConflict: 'key' });
+          console.log(`[tick] midnight vase spawn: ${spawned} vases`);
+        }
+        _lastVaseSpawnDate = mskDate;
+      }
+    } catch (e) { console.error('[tick] vase spawn error:', e.message); }
 
     // ── Inactive clan leader auto-transfer ──
     supabase.from('clan_members').select('clan_id,player_id,players(last_seen)')

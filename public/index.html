@@ -4962,7 +4962,7 @@ function showVasePopup(vaseId) {
   if (!vase) return;
   const pos  = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, vase.lat, vase.lng) : Infinity;
-  const near = dist <= 100;
+  const near = dist <= SMALL_RADIUS;
 
   document.getElementById('popup-title').innerHTML = '🏺 Древняя ваза';
   document.getElementById('popup-subtitle').textContent = near
