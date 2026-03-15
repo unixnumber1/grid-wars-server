@@ -269,11 +269,21 @@ async function handleUpgrade(req, res) {
     const newTreasury = treasury - nextConfig.cost;
     await supabase.from('clans').update({ level: clan.level + 1, treasury: newTreasury }).eq('id', clan.id);
 
+    // Notify all members — in-app + Telegram bot
+    const newLevel = clan.level + 1;
+    const msg = `🎉 Клан достиг уровня ${newLevel}! Новые бонусы активны:\n📍 Зона: ${nextConfig.radius}м\n⚡ Доход: +${nextConfig.income}%\n🛡️ Защита: +${nextConfig.defense}%\n👥 Макс участников: ${nextConfig.maxMembers}\n🚀 Буст: x${nextConfig.boostMul}`;
     supabase.from('clan_members').select('player_id').eq('clan_id', clan.id).is('left_at', null)
-      .then(({ data: mems }) => {
-        if (mems?.length) {
-          const notifs = mems.map(m => ({ player_id: m.player_id, type: 'clan_upgrade', message: `🎉 Клан достиг уровня ${clan.level + 1}! Новые бонусы активны` }));
-          supabase.from('notifications').insert(notifs).catch(() => {});
+      .then(async ({ data: mems }) => {
+        if (!mems?.length) return;
+        const notifs = mems.map(m => ({ player_id: m.player_id, type: 'clan_upgrade', message: `🎉 Клан достиг уровня ${newLevel}! Новые бонусы активны` }));
+        supabase.from('notifications').insert(notifs).catch(() => {});
+        // Send Telegram bot messages to all members except the upgrader
+        const memberIds = mems.filter(m => m.player_id !== player.id).map(m => m.player_id);
+        if (memberIds.length > 0) {
+          const { data: players } = await supabase.from('players').select('telegram_id').in('id', memberIds);
+          for (const p of (players || [])) {
+            if (p.telegram_id) sendTelegramNotification(p.telegram_id, msg);
+          }
         }
       }).catch(() => {});
 

@@ -8244,7 +8244,7 @@ function _renderClanTabs() {
   if (inClan && isOwn) {
     tabList = [
       { id: 'hq', label: '🏰 Штаб' },
-      { id: 'members', label: '👥 Участники' },
+      { id: 'members', label: `👥 Участники${_clanScreenData?.clan ? ` (${_clanScreenData.clan.member_count}/${_clanScreenData.clan.maxMembers})` : ''}` },
       { id: 'browse', label: '🔍 Кланы' },
       ...(_clanScreenTab === 'edit' ? [{ id: 'edit', label: '✏️ Редактирование' }] : []),
     ];
@@ -8408,6 +8408,11 @@ async function _renderMembersTab(body) {
   const members = _clanScreenData.members;
   const isLeader = state.player?.clan_role === 'leader';
 
+  // Build set of online telegram_ids for status dots
+  const onlineTgIds = new Set((state.mapBuildings.online_players || []).map(p => String(p.telegram_id)));
+  // Current player is always online
+  if (TG_ID) onlineTgIds.add(String(TG_ID));
+
   let html = '';
   for (const m of members) {
     const p = m.players || {};
@@ -8417,11 +8422,13 @@ async function _renderMembersTab(body) {
     const roleIcon = m.role === 'leader' ? '👑' : m.role === 'officer' ? '⭐' : '';
     const canManage = isLeader && m.role !== 'leader';
     const escapedName = name.replace(/'/g, "\\'");
+    const isOnline = p.telegram_id && onlineTgIds.has(String(p.telegram_id));
+    const onlineDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isOnline ? '#00ff88' : '#ff4444'};margin-right:6px;flex-shrink:0;"></span>`;
     html += `
       <div class="cs-member-row">
         <div class="cs-member-avatar">${avatar}</div>
         <div class="cs-member-info">
-          <div class="cs-member-name">${name}</div>
+          <div class="cs-member-name" style="display:flex;align-items:center;">${onlineDot}${name}</div>
           <div class="cs-member-meta">Ур.${p.level || 1} · ⛏️ ${m.mine_count} шахт</div>
         </div>
         <div class="cs-member-role">${roleIcon} ${roleLabel}</div>
@@ -8839,14 +8846,46 @@ async function doSellClanHq() {
 }
 
 async function doClanUpgrade() {
-  closeClanScreen();
   try {
     const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }) });
-    showToast(`🎉 Клан улучшен до уровня ${data.clan.level}!`);
+    const newLevel = data.clan.level;
+    const oldConfig = getClanLevelConfig(newLevel - 1);
+    const newConfig = getClanLevelConfig(newLevel);
+    closeClanScreen();
+    _showClanLevelUpScreen(newLevel, oldConfig, newConfig);
   } catch (err) {
     if (!err.message?.includes('pattern')) showToast(err.message);
   }
   refreshAll();
+}
+
+function _showClanLevelUpScreen(level, oldCfg, newCfg) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;';
+  const diff = (label, icon, oldVal, newVal, suffix = '') => {
+    const changed = oldVal !== newVal;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+      <span style="color:#aaa;">${icon} ${label}</span>
+      <span style="font-weight:700;${changed ? 'color:#00ff88' : 'color:#888'}">${changed ? `${oldVal}${suffix} → ${newVal}${suffix}` : `${newVal}${suffix}`}</span>
+    </div>`;
+  };
+  overlay.innerHTML = `
+    <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:28px 24px;max-width:340px;width:90%;text-align:center;">
+      <div style="font-size:48px;margin-bottom:8px;">🎉</div>
+      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px;">Клан достиг уровня ${level}!</div>
+      <div style="color:#888;font-size:13px;margin-bottom:20px;">Новые бонусы активны</div>
+      <div style="text-align:left;margin-bottom:20px;">
+        ${diff('Зона', '📍', oldCfg.radius, newCfg.radius, 'м')}
+        ${diff('Доход', '⚡', oldCfg.income, newCfg.income, '%')}
+        ${diff('Защита', '🛡️', oldCfg.defense, newCfg.defense, '%')}
+        ${diff('Участники', '👥', oldCfg.maxMembers, newCfg.maxMembers)}
+        ${diff('Буст', '🚀', 'x' + oldCfg.boostMul, 'x' + newCfg.boostMul, '')}
+      </div>
+      <button class="btn primary" style="width:100%;padding:12px;font-size:15px;" id="clan-lvlup-close">Отлично!</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#clan-lvlup-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
 async function doClanSetRole(targetTgId, role) {
