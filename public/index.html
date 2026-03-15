@@ -3241,7 +3241,7 @@ const map = L.map('map', {
     light:       { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: null },
     total_black: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: null },
     neon:        { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) brightness(0.9) hue-rotate(220deg) saturate(3)' },
-    blood:       { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) brightness(0.85) hue-rotate(330deg) saturate(3)' },
+    blood:       { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: 'invert(1) brightness(0.85) hue-rotate(160deg) saturate(4)' },
   };
   const saved = localStorage.getItem('mapStyle') || 'total_black';
   const s = INIT_STYLES[saved] || INIT_STYLES.total_black;
@@ -6012,7 +6012,7 @@ const MAP_STYLES = [
     bgColor: '#050510', roadColor: '#0066ff', waterColor: '#003399', parkColor: null },
   { id: 'blood', name: 'Кровавый', desc: 'Тёмный с красными улицами',
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    filter: 'invert(1) brightness(0.85) hue-rotate(330deg) saturate(3)',
+    filter: 'invert(1) brightness(0.85) hue-rotate(160deg) saturate(4)',
     bgColor: '#0a0005', roadColor: '#cc0033', waterColor: null, parkColor: null },
 ];
 
