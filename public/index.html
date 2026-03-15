@@ -1026,7 +1026,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: #0d0d1a;
+      background: #0d0d0d;
       z-index: 3000;
       flex-direction: column;
       overflow-y: auto;
@@ -1034,86 +1034,93 @@
     #profile-modal.open { display: flex; }
 
     #profile-modal-header {
-      padding: 16px 16px 0;
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
       gap: 12px;
+      background: #111;
+      border-bottom: 1px solid #222;
       flex-shrink: 0;
     }
-    #profile-modal-avatar { font-size: 48px; line-height: 1; }
-    #profile-modal-name { font-size: 18px; font-weight: 700; }
-    #profile-modal-level { font-size: 13px; color: #aaa; }
-    #profile-modal-xp-wrap {
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
-      margin-top: 6px;
+    #profile-modal-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,215,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      background: rgba(255,255,255,0.05);
+      flex-shrink: 0;
     }
-    #profile-modal-xp-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #FFD700, #ff9900);
-      border-radius: 3px;
-      transition: width 0.4s;
-    }
+    #profile-modal-name { font-size: 16px; font-weight: 700; color: #fff; }
+    #profile-modal-level { font-size: 12px; color: #FFD700; }
     #profile-modal-close {
       margin-left: auto;
       background: none;
       border: none;
-      font-size: 22px;
-      color: #aaa;
+      font-size: 20px;
+      color: #888;
       cursor: pointer;
-      padding: 4px 8px;
-      line-height: 1;
+      padding: 4px;
+      -webkit-tap-highlight-color: transparent;
+      order: -1;
     }
 
     .profile-section {
-      margin: 16px 16px 0;
+      margin: 12px 16px 0;
       background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 14px;
-      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 16px;
     }
     .profile-section-title {
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #666;
-      margin-bottom: 10px;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 12px;
     }
     .profile-stat-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 13px;
-      padding: 5px 0;
+      font-size: 14px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
+    .profile-stat-row:last-child { border-bottom: none; }
+    .profile-stat-row .stat-label { color: rgba(255,255,255,0.6); }
+    .profile-stat-row .stat-value { color: #fff; font-weight: 600; }
     .profile-stat-row .bonus { color: #888; font-size: 11px; margin-left: 4px; }
 
-    /* Equipment slots */
     .equip-slots { display: flex; gap: 12px; }
     .equip-slot {
       flex: 1;
-      height: 100px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      border: 2px dashed rgba(255,255,255,0.2);
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.04);
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,0.15);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 4px;
       cursor: pointer;
       transition: border-color 0.2s;
       position: relative;
       overflow: hidden;
     }
     .equip-slot:active { opacity: 0.7; }
-    .equip-slot .slot-emoji { font-size: 28px; line-height: 1; }
-    .equip-slot .slot-name  { font-size: 11px; color: #ccc; margin-top: 4px; text-align: center; padding: 0 4px; }
-    .equip-slot .slot-stat  { font-size: 10px; color: #aaa; margin-top: 2px; }
-    .equip-slot .slot-empty { font-size: 12px; color: #555; }
-    .equip-slot .slot-label { font-size: 10px; color: #555; margin-top: 4px; }
+    .equip-slot .slot-emoji { font-size: 36px; line-height: 1; }
+    .equip-slot .slot-name  { font-size: 11px; color: #ccc; text-align: center; padding: 0 4px; }
+    .equip-slot .slot-stat  { font-size: 10px; color: #aaa; }
+    .equip-slot .slot-rarity { font-size: 10px; }
+    .equip-slot .slot-empty { color: rgba(255,255,255,0.2); font-size: 24px; }
+    .equip-slot .slot-label { font-size: 10px; color: rgba(255,255,255,0.3); }
 
-    /* Inventory grid */
     .inventory-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -1132,7 +1139,6 @@
       cursor: pointer;
       position: relative;
       transition: opacity 0.2s;
-      font-size: 26px;
     }
     .inv-cell:active { opacity: 0.7; }
     .inv-cell.equipped::after {
@@ -2782,40 +2788,52 @@ function showProfilePopup() {
   document.getElementById('profile-modal-avatar').textContent = p.avatar || '🐺';
   document.getElementById('profile-modal-name').textContent   = displayName(p);
   document.getElementById('profile-modal-level').textContent  = `Уровень ${level}`;
-  document.getElementById('profile-modal-xp-fill').style.width = xpPct + '%';
 
   // Stats
   const hp     = p.hp     ?? p.max_hp ?? 100;
   const maxHp  = p.max_hp ?? 100;
   const hpPct  = Math.round(Math.max(0, hp / maxHp) * 100);
-  const baseAtk  = p.attack ?? (10 + (level - 1) * 2);
+  const baseAtk  = p.attack ?? 10;
   const bonusAtk = p.bonus_attack ?? 0;
   const bonusCrit = p.bonus_crit ?? 0;
   const bonusHp  = p.bonus_hp    ?? 0;
 
+  // Check if sword is equipped for crit
+  const inv = (state.inventory || []).filter(i => !i.on_market);
+  const equippedSword = inv.find(i => i.type === 'sword' && i.equipped);
+  const critChance = equippedSword ? (equippedSword.crit_chance || 0) + bonusCrit : 0;
+
   const statsEl = document.getElementById('profile-stat-rows');
+  const barColor = hpPct > 60 ? '#00E676' : hpPct > 30 ? '#ff9800' : '#f44336';
   statsEl.innerHTML = `
-    <div style="margin-bottom:8px;">
-      <div class="hp-bar-container"><div class="hp-bar-fill player" style="width:${hpPct}%"></div></div>
-      <div class="hp-label" style="text-align:center;margin-top:3px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` <span style="color:#888;font-size:10px;">(+${bonusHp} от щита)</span>` : ''}</div>
+    <div style="margin-bottom:12px;">
+      <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` (+${bonusHp} от щита)` : ''}</div>
     </div>
   `;
 
-  const critTotal = 20 + bonusCrit;
   const rows = [
     ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
-    ['🎯 Крит', bonusCrit > 0 ? `${critTotal}% <span class="bonus">(+${bonusCrit}%)</span>` : `${critTotal}%`],
-    ['📍 Зоны', `🔵 ${SMALL_RADIUS}м / 🔴 ${LARGE_RADIUS}м`],
-    ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
-    ['⭐ XP уровня', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`],
-    ['💎 Алмазы', formatNumber(p.diamonds ?? 0)],
   ];
+  if (critChance > 0) {
+    rows.push(['🎯 Крит', `${critChance}%`]);
+  }
+  rows.push(['⭐ XP', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`]);
+
   for (const [label, val] of rows) {
     const row = document.createElement('div');
     row.className = 'profile-stat-row';
-    row.innerHTML = `<span>${label}</span><span>${val}</span>`;
+    row.innerHTML = `<span class="stat-label">${label}</span><span class="stat-value">${val}</span>`;
     statsEl.appendChild(row);
   }
+
+  // XP progress bar
+  const xpBarDiv = document.createElement('div');
+  xpBarDiv.style.cssText = 'margin-top:8px;';
+  xpBarDiv.innerHTML = `<div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,#FFD700,#FFA000);border-radius:2px;transition:width 0.4s;"></div></div>`;
+  statsEl.appendChild(xpBarDiv);
 
   // Equipment slots
   _renderEquipSlots();
@@ -2844,7 +2862,7 @@ function _renderEquipSlots() {
     `;
   } else {
     weaponSlot.className = 'equip-slot';
-    weaponSlot.innerHTML = `<span class="slot-empty" style="font-size:28px">⚔️</span><span class="slot-label">Оружие</span>`;
+    weaponSlot.innerHTML = `<span class="slot-empty">+</span><span class="slot-label">Нет оружия</span>`;
   }
 
   if (shield) {
@@ -2857,7 +2875,7 @@ function _renderEquipSlots() {
     `;
   } else {
     shieldSlot.className = 'equip-slot';
-    shieldSlot.innerHTML = `<span class="slot-empty" style="font-size:28px">🛡️</span><span class="slot-label">Щит</span>`;
+    shieldSlot.innerHTML = `<span class="slot-empty">+</span><span class="slot-label">Нет щита</span>`;
   }
 }
 
@@ -3052,42 +3070,54 @@ async function doUnequipItem(itemId) {
 }
 
 function _refreshProfileStats() {
-  // Re-render the stats section without closing the modal
   const p = state.player;
   if (!p) return;
   const level    = p.level ?? 1;
   const hp       = p.hp     ?? p.max_hp ?? 100;
   const maxHp    = p.max_hp ?? 100;
   const hpPct    = Math.round(Math.max(0, hp / maxHp) * 100);
-  const baseAtk  = p.attack ?? (10 + (level - 1) * 2);
+  const baseAtk  = p.attack ?? 10;
   const bonusAtk = p.bonus_attack ?? 0;
+  const bonusCrit = p.bonus_crit ?? 0;
   const bonusHp  = p.bonus_hp    ?? 0;
   const xp       = p.xp ?? 0;
   let xpAccum = 0;
   for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
   const xpThisLevel = xp - xpAccum;
   const xpNext = xpForLevel(level);
+  const xpPct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
 
+  const inv = (state.inventory || []).filter(i => !i.on_market);
+  const equippedSword = inv.find(i => i.type === 'sword' && i.equipped);
+  const critChance = equippedSword ? (equippedSword.crit_chance || 0) + bonusCrit : 0;
+
+  const barColor = hpPct > 60 ? '#00E676' : hpPct > 30 ? '#ff9800' : '#f44336';
   const statsEl = document.getElementById('profile-stat-rows');
   statsEl.innerHTML = `
-    <div style="margin-bottom:8px;">
-      <div class="hp-bar-container"><div class="hp-bar-fill player" style="width:${hpPct}%"></div></div>
-      <div class="hp-label" style="text-align:center;margin-top:3px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` <span style="color:#888;font-size:10px;">(+${bonusHp} от щита)</span>` : ''}</div>
+    <div style="margin-bottom:12px;">
+      <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` (+${bonusHp} от щита)` : ''}</div>
     </div>
   `;
   const rows = [
     ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
-    ['📍 Зоны', `🔵 ${SMALL_RADIUS}м / 🔴 ${LARGE_RADIUS}м`],
-    ['☠️ Убито / Смертей', `${p.kills ?? 0} / ${p.deaths ?? 0}`],
-    ['⭐ XP уровня', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`],
-    ['💎 Алмазы', formatNumber(p.diamonds ?? 0)],
   ];
+  if (critChance > 0) {
+    rows.push(['🎯 Крит', `${critChance}%`]);
+  }
+  rows.push(['⭐ XP', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`]);
   for (const [label, val] of rows) {
     const row = document.createElement('div');
     row.className = 'profile-stat-row';
-    row.innerHTML = `<span>${label}</span><span>${val}</span>`;
+    row.innerHTML = `<span class="stat-label">${label}</span><span class="stat-value">${val}</span>`;
     statsEl.appendChild(row);
   }
+  const xpBarDiv = document.createElement('div');
+  xpBarDiv.style.cssText = 'margin-top:8px;';
+  xpBarDiv.innerHTML = `<div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,#FFD700,#FFA000);border-radius:2px;transition:width 0.4s;"></div></div>`;
+  statsEl.appendChild(xpBarDiv);
 }
 
 function calcSellRefund(level) {
@@ -9121,46 +9151,42 @@ async function doClanKick(targetTgId) {
 <!-- Profile modal (fullscreen) -->
 <div id="profile-modal">
   <div id="profile-modal-header">
+    <button id="profile-modal-close">✕</button>
     <div id="profile-modal-avatar">🐺</div>
     <div style="flex:1;min-width:0;">
       <div id="profile-modal-name">—</div>
       <div id="profile-modal-level">Уровень 1</div>
-      <div id="profile-modal-xp-wrap"><div id="profile-modal-xp-fill" style="width:0%"></div></div>
     </div>
-    <button id="profile-modal-close">✕</button>
   </div>
 
-  <!-- Stats -->
   <div class="profile-section" id="profile-stats-section">
     <div class="profile-section-title">Характеристики</div>
     <div id="profile-stat-rows"></div>
   </div>
 
-  <!-- Equipment -->
   <div class="profile-section">
     <div class="profile-section-title">Экипировка</div>
     <div class="equip-slots">
       <div class="equip-slot" id="equip-slot-sword" onclick="openEquipSlot('sword')">
-        <span class="slot-empty">⚔️</span>
-        <span class="slot-label">Оружие</span>
+        <span class="slot-empty">+</span>
+        <span class="slot-label">Нет оружия</span>
       </div>
       <div class="equip-slot" id="equip-slot-shield" onclick="openEquipSlot('shield')">
-        <span class="slot-empty">🛡️</span>
-        <span class="slot-label">Щит</span>
+        <span class="slot-empty">+</span>
+        <span class="slot-label">Нет щита</span>
       </div>
     </div>
   </div>
 
-  <!-- Inventory -->
   <div class="profile-section" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div class="profile-section-title" id="inventory-title">Инвентарь (0 предметов)</div>
+      <div class="profile-section-title" id="inventory-title" style="margin-bottom:0;">Инвентарь (0 предметов)</div>
       <div style="display:flex;gap:6px;">
         <button id="btn-mass-sell" onclick="enterSelectionMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
         <button id="btn-craft" onclick="openCraftScreen()" style="background:linear-gradient(135deg,#f5c518,#ff8c00);color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">⚒️ Крафт</button>
       </div>
     </div>
-    <div class="inventory-grid" id="inventory-grid"></div>
+    <div class="inventory-grid" id="inventory-grid" style="margin-top:12px;"></div>
   </div>
 </div>
 
