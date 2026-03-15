@@ -3149,6 +3149,10 @@ function showXpToast(amount) {
 
 function showToast(msg, duration = 2500) {
   const container = document.getElementById('toast-container');
+  // Limit max visible toasts — remove oldest if too many
+  while (container.children.length >= 4) {
+    container.firstChild.remove();
+  }
   const el = document.createElement('div');
   el.className = 'toast-item';
   el.innerHTML = msg;
@@ -3714,39 +3718,26 @@ let _accumulatedCoinsTimer = null;
 
 function _startUpgradeCountdown(finishAtStr) {
   const finishAt = new Date(finishAtStr);
-  const totalSec = Math.max(1, Math.round((finishAt - Date.now()) / 1000));
+  const secsLeft = Math.max(0, Math.ceil((finishAt - Date.now()) / 1000));
 
-  // Inject progress bar into popup-stats
+  // Inject ⏳ countdown into popup-stats
   const statsEl = document.getElementById('popup-stats');
-  const wrap = document.createElement('div');
-  wrap.className = 'upgrade-progress-wrap';
-  wrap.id = 'upgrade-progress-wrap';
-  const bar = document.createElement('div');
-  bar.className = 'upgrade-progress-bar';
-  bar.id = 'upgrade-progress-bar';
-  bar.style.width = '100%';
-  wrap.appendChild(bar);
-  statsEl.appendChild(wrap);
-
   const countRow = document.createElement('div');
   countRow.className = 'popup-stat';
   countRow.id = 'upgrade-countdown-row';
-  countRow.innerHTML = `<span>Осталось</span><span class="val" id="upgrade-countdown-val">${totalSec} сек</span>`;
+  countRow.innerHTML = `<span>⏳ Осталось</span><span class="val" id="upgrade-countdown-val" style="color:#FFD700;font-weight:800;">${secsLeft} сек</span>`;
   statsEl.appendChild(countRow);
 
   if (_upgradeCountdownTimer) clearInterval(_upgradeCountdownTimer);
   _upgradeCountdownTimer = setInterval(() => {
-    const secsLeft = Math.max(0, Math.ceil((finishAt - Date.now()) / 1000));
-    const pct = (secsLeft / totalSec) * 100;
-    const barEl = document.getElementById('upgrade-progress-bar');
+    const left = Math.max(0, Math.ceil((finishAt - Date.now()) / 1000));
     const valEl = document.getElementById('upgrade-countdown-val');
-    if (barEl) barEl.style.width = `${pct}%`;
-    if (valEl) valEl.textContent = `${secsLeft} сек`;
-    if (secsLeft <= 0) {
+    if (valEl) valEl.textContent = `${left} сек`;
+    if (left <= 0) {
       clearInterval(_upgradeCountdownTimer);
       _upgradeCountdownTimer = null;
     }
-  }, 500);
+  }, 1000);
 }
 
 // Tracks which building is currently shown in the popup (key = 'mine_ID' | 'hq_ID')
@@ -3950,10 +3941,10 @@ function showMinePopup(mine, isOwn, canCapture) {
           cls: 'primary',
           action: () => doExtinguish(mine.id),
         },
-        {
-          label: 'Закрыть',
-          isClose: true,
-        },
+        [
+          { label: '🗑️ Снести', cls: 'danger', action: () => doSellMine(mine.id) },
+          { label: 'Закрыть', isClose: true },
+        ],
       ] : [
         ...(nextCost !== null ? [{
           label: upgradeLabel,
@@ -3967,16 +3958,10 @@ function showMinePopup(mine, isOwn, canCapture) {
           disabled: !canBulk,
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
-        {
-          label: `🔥 Продать (+${formatCoins(sellTotal)} монет)`,
-          cls: 'danger',
-          disabled: false,
-          action: () => doSellMine(mine.id),
-        },
-        {
-          label: 'Закрыть',
-          isClose: true,
-        },
+        [
+          { label: '🗑️ Снести', cls: 'danger', action: () => doSellMine(mine.id) },
+          { label: 'Закрыть', isClose: true },
+        ],
       ]
     );
 
@@ -4118,6 +4103,12 @@ async function doUpgrade(mineId, targetLevel) {
       if (mine) {
         mine.pending_level = data.pendingLevel;
         mine.upgrade_finish_at = data.finishAt;
+        // Instantly update marker to show new level appearance
+        const key = `mine_${mineId}`;
+        if (buildingMarkers[key]) {
+          buildingMarkers[key].setIcon(mineIcon(data.pendingLevel, 'own'));
+          buildingMarkers[key]._gw_level = data.pendingLevel;
+        }
       }
       // Re-open popup with timer only if user is still viewing this same mine
       const freshMine = state.mapBuildings.mines.find(m => m.id === mineId);
@@ -4140,14 +4131,16 @@ async function pollCompleteUpgrades() {
   try {
     const data = await apiFetch(`/api/buildings/upgrade?telegram_id=${TG_ID}`);
     if (!data.completed || data.completed.length === 0) return;
+    const evolutions = [];
+    const normals = [];
     for (const mine of data.completed) {
       const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
       const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
       const newApp = getMineAppearance(mine.level);
       if (prevName && newApp.name !== prevName) {
-        showToast(`✅ Ур.${mine.level}! ✨ Эволюция → ${newApp.emoji} ${newApp.name}`);
+        evolutions.push(`${newApp.emoji} ${newApp.name} (Ур.${mine.level})`);
       } else {
-        showToast(`✅ Постройка улучшена до уровня ${mine.level}!`);
+        normals.push(mine.level);
       }
       handleXpResult(mine.xp);
       // Optimistic: update marker immediately with new level
@@ -4163,6 +4156,16 @@ async function pollCompleteUpgrades() {
         ownMine.pending_level = null;
         ownMine.upgrade_finish_at = null;
       }
+    }
+    if (evolutions.length === 1) {
+      showToast(`✅ ✨ Эволюция → ${evolutions[0]}`);
+    } else if (evolutions.length > 1) {
+      showToast(`✅ ✨ ${evolutions.length} эволюций: ${evolutions.join(', ')}`);
+    }
+    if (normals.length === 1) {
+      showToast(`✅ Постройка улучшена до уровня ${normals[0]}!`);
+    } else if (normals.length > 1) {
+      showToast(`✅ ${normals.length} шахт улучшено!`);
     }
     // Recalculate total income
     state.totalIncome = (state.mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
@@ -4630,25 +4633,41 @@ function processTickData(data) {
   updatePlayerDisplay();
   updateShieldDisplay();
 
-  // Handle completed upgrades
+  // Handle completed upgrades — group into a single toast to avoid spam
   if (data.completedUpgrades?.length) {
+    const evolutions = [];
+    const normals = [];
     for (const mine of data.completedUpgrades) {
       const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
       const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
       const newApp = getMineAppearance(mine.level);
       if (prevName && newApp.name !== prevName) {
-        showToast(`✅ Ур.${mine.level}! ✨ Эволюция → ${newApp.emoji} ${newApp.name}`);
+        evolutions.push(`${newApp.emoji} ${newApp.name} (Ур.${mine.level})`);
       } else {
-        showToast(`✅ Постройка улучшена до уровня ${mine.level}!`);
+        normals.push(mine.level);
       }
       handleXpResult(mine.xp);
     }
+    if (evolutions.length === 1) {
+      showToast(`✅ ✨ Эволюция → ${evolutions[0]}`);
+    } else if (evolutions.length > 1) {
+      showToast(`✅ ✨ ${evolutions.length} эволюций: ${evolutions.join(', ')}`);
+    }
+    if (normals.length === 1) {
+      showToast(`✅ Постройка улучшена до уровня ${normals[0]}!`);
+    } else if (normals.length > 1) {
+      showToast(`✅ ${normals.length} шахт улучшено!`);
+    }
   }
 
-  // Show notifications as toasts
+  // Show notifications as toasts — limit to 3 to avoid screen flood
   if (data.notifications?.length) {
-    for (const n of data.notifications.slice(0, 5)) {
+    const notifs = data.notifications.slice(0, 3);
+    for (const n of notifs) {
       showToast(n.message, 4000);
+    }
+    if (data.notifications.length > 3) {
+      showToast(`... и ещё ${data.notifications.length - 3} уведомлений`, 3000);
     }
   }
 }
