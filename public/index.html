@@ -2539,6 +2539,23 @@ let _mapLoadPending  = false;
 let _lastMapCenter   = null;
 let _lastMapFetchTime = 0;
 
+// Merge server mines with local upgrade state to prevent marker flicker
+function _mergeMines(serverMines) {
+  const oldMap = {};
+  for (const m of (state.mapBuildings.mines || [])) oldMap[m.id] = m;
+  return serverMines.map(m => {
+    const old = oldMap[m.id];
+    // Preserve local pending_level if server doesn't have it but local timer is still valid
+    if (old && old.pending_level && old.upgrade_finish_at && new Date(old.upgrade_finish_at) > new Date()) {
+      if (!m.pending_level) {
+        m.pending_level = old.pending_level;
+        m.upgrade_finish_at = old.upgrade_finish_at;
+      }
+    }
+    return m;
+  });
+}
+
 // ── Optimistic marker helpers ───────────────────────────────────────────────
 function _addOrUpdateMineMarker(mine) {
   if (!mine || mine.lat == null || mine.lng == null) return;
@@ -4509,7 +4526,7 @@ async function loadVisibleBuildings(force = false) {
 
     const data = await apiFetch(`/api/map?${params}`);
     if (data.headquarters) state.mapBuildings.headquarters = data.headquarters;
-    if (data.mines) state.mapBuildings.mines = data.mines;
+    if (data.mines) state.mapBuildings.mines = _mergeMines(data.mines);
     if (data.online_players) state.mapBuildings.online_players = data.online_players;
     if (data.clan_hqs) state.mapBuildings.clan_hqs = data.clan_hqs;
     renderBuildings();
@@ -4663,7 +4680,7 @@ function processTickData(data) {
 
   // Render map data — merge only map-specific arrays, preserve existing if missing
   if (data.headquarters) state.mapBuildings.headquarters = data.headquarters;
-  if (data.mines) state.mapBuildings.mines = data.mines;
+  if (data.mines) state.mapBuildings.mines = _mergeMines(data.mines);
   if (data.online_players) state.mapBuildings.online_players = data.online_players;
   if (data.clan_hqs) state.mapBuildings.clan_hqs = data.clan_hqs;
   renderBuildings();
