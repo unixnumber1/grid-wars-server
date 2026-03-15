@@ -154,9 +154,9 @@ vercel.json  CLAUDE.md
 - Эмодзи маркеры на Leaflet карте
 - **Навигация**:
   - Верхняя пилюля по центру: 💰 монеты · ⚡ доход/ч · 💎 алмазы
-  - Правая вертикальная панель: 📍 телепорт на штаб, 🛒 магазин, 🎪 рынок, 🏆 лидерборд, ⚙️ настройки
+  - Правая вертикальная панель: 📍/🏰 PIN-переключатель (реальная позиция ↔ штаб), 🛒 магазин, 🎪 рынок, 🏆 лидерборд, ⚙️ настройки
   - Нижняя панель: аватар (тап = центрировать камеру) + ник/уровень/XP бар + кнопка Собрать
-  - Телепорт: POST /api/player/init action:location с координатами штаба
+  - PIN-кнопка: toggle 📍↔🏰, POST /api/player/init action:location, золотая подсветка в активном режиме, GPS watchPosition блокируется при pinMode=true
 - PvP: fullscreen battle animation с HP барами и floating damage
 - Mine attack: projectile animation + countdown overlay
 - Shop: daily diamonds countdown + Stars purchase via Telegram.WebApp.openInvoice
