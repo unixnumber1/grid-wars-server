@@ -714,68 +714,10 @@
     }
 
     /* Level-up overlay */
-    #levelup-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 5999;
-    }
-    #levelup-overlay.show { display: block; }
-
-    /* Level-up notification */
-    @keyframes levelUpAppear {
-      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-      60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    }
-    #levelup-notify {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(1);
-      width: 300px;
-      height: 160px;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      border: 2px solid #FFD700;
-      border-radius: 16px;
-      box-shadow: 0 0 40px rgba(255,215,0,0.4), 0 0 80px rgba(255,215,0,0.15);
-      z-index: 6000;
-      pointer-events: none;
-      text-align: center;
-      padding: 18px 20px;
-      box-sizing: border-box;
-    }
-    #levelup-notify.show {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      animation: levelUpAppear 0.4s ease-out;
-    }
-    #levelup-notify.hide {
-      opacity: 0;
-      transition: opacity 0.5s ease;
-    }
-    #levelup-title {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      color: #FFD700;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    #levelup-num {
-      font-size: 64px;
-      font-weight: 900;
-      color: #fff;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-    #levelup-stats {
-      font-size: 12px;
-      color: #aaa;
+    /* Level-up particle animation */
+    @keyframes particleFloat {
+      0%   { transform: translate(0,0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--px), -50px) scale(0); opacity: 0; }
     }
 
     /* Player level badge — clickable */
@@ -2305,13 +2247,7 @@
   </div>
 </div>
 
-<!-- Level-up overlay + notification -->
-<div id="levelup-overlay"></div>
-<div id="levelup-notify">
-  <div id="levelup-title">✦ НОВЫЙ УРОВЕНЬ ✦</div>
-  <div id="levelup-num"></div>
-  <div id="levelup-stats"></div>
-</div>
+<!-- Level-up toast (created dynamically) -->
 
 <!-- Toast container -->
 <div id="toast-container"></div>
@@ -2713,39 +2649,51 @@ function calcAccumulated(level, lastCollectedISO) {
 function xpForLevel(level) { return Math.floor(100 * Math.pow(level, 1.9)); }
 
 // Inline mirrors of lib/formulas.js (frontend has no imports)
-function _calcMaxHp(level)      { return 100 + (level - 1) * 10; }
-function _calcAttack(level)     { return 10  + (level - 1) * 2;  }
-function _calcBuildRadius(_lvl) { return SMALL_RADIUS; }
+function _calcMaxHp(_level)      { return 100; }
+function _calcAttack(_level)     { return 10; }
+function _calcBuildRadius(_lvl)  { return SMALL_RADIUS; }
 
-let _levelUpTimer = null;
-function showLevelUp(level) {
-  const el      = document.getElementById('levelup-notify');
-  const overlay = document.getElementById('levelup-overlay');
-  if (!el || !overlay) return;
-
-  document.getElementById('levelup-num').textContent = level;
-  const attack = _calcAttack(level);
-  const hp     = _calcMaxHp(level);
-  document.getElementById('levelup-stats').textContent = `⚔️ ${attack}  ❤️ ${hp}`;
-
-  // Force animation replay: reset display and reflow
-  el.classList.remove('show', 'hide');
-  el.style.display = 'none';
-  void el.offsetWidth; // reflow
-  el.style.display = '';
-  el.classList.add('show');
-  overlay.classList.add('show');
-
-  if (_levelUpTimer) clearTimeout(_levelUpTimer);
-  _levelUpTimer = setTimeout(() => {
-    el.classList.add('hide');
-    overlay.classList.remove('show');
-    setTimeout(() => el.classList.remove('show', 'hide'), 600);
-  }, 3500);
+function _spawnLevelUpParticles(x, y) {
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('div');
+    p.textContent = '✨';
+    const px = Math.round((Math.random() - 0.5) * 60);
+    p.style.cssText = `position:fixed;left:${x}px;top:${y}px;font-size:14px;pointer-events:none;z-index:10000;opacity:0;--px:${px}px;animation:particleFloat 1s ease forwards;animation-delay:${i * 0.1}s;`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1200);
+  }
 }
 
-// Тест из консоли браузера: window.testLevelUp(5)
-window.testLevelUp = (level = 5) => showLevelUp(level);
+function showLevelUp(level, xpGained) {
+  const existing = document.getElementById('levelup-toast');
+  if (existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'levelup-toast';
+  el.style.cssText = `position:fixed;top:calc(env(safe-area-inset-top,0px) + 70px);left:12px;z-index:9999;background:rgba(8,8,18,0.92);border:1px solid rgba(255,215,0,0.4);border-radius:16px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:10px 14px;box-shadow:0 0 20px rgba(255,215,0,0.15),0 4px 20px rgba(0,0,0,0.6);display:flex;align-items:center;gap:10px;min-width:180px;max-width:240px;transform:translateX(-120%);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s cubic-bezier(0.34,1.56,0.64,1);`;
+  const xpText = xpGained ? `+${xpGained} опыта` : '';
+  el.innerHTML = `<div style="font-size:28px;">⭐</div><div><div style="font-size:13px;font-weight:700;color:#FFD700;letter-spacing:1px;">УРОВЕНЬ ${level}</div>${xpText ? `<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;">${xpText}</div>` : ''}</div>`;
+  document.body.appendChild(el);
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.transform = 'translateX(0)';
+    el.style.opacity = '1';
+  }));
+
+  setTimeout(() => {
+    const rect = el.getBoundingClientRect();
+    _spawnLevelUpParticles(rect.right, rect.top);
+  }, 400);
+
+  setTimeout(() => {
+    el.style.transition = 'transform 0.3s ease-in, opacity 0.3s ease-in';
+    el.style.transform = 'translateX(-120%)';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+window.testLevelUp = (level = 5) => showLevelUp(level, 250);
 
 function handleXpResult(xp) {
   if (!xp) return;
@@ -2762,7 +2710,7 @@ function handleXpResult(xp) {
     updateXpBar();
   }
   if (xp.leveledUp) {
-    showLevelUp(xp.newLevel);
+    showLevelUp(xp.newLevel, xp.xpGained);
   }
 }
 
