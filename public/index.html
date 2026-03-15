@@ -3269,25 +3269,78 @@ let hqLat = null;
 let hqLng = null;
 let realPlayerPos = null; // true GPS coords while PIN is active
 
-function updatePinButton(active) {
-  // Legacy — no longer used
+function updatePinButton() {
+  const btn = document.getElementById('btn-teleport');
+  if (!btn) return;
+  if (pinMode) {
+    btn.textContent = '🏰';
+    btn.title = 'Вы на штабе';
+    btn.style.background = 'rgba(255,215,0,0.15)';
+    btn.style.borderColor = 'rgba(255,215,0,0.4)';
+    btn.style.boxShadow = '0 0 12px rgba(255,215,0,0.2)';
+  } else {
+    btn.textContent = '📍';
+    btn.title = 'Вы на реальной позиции';
+    btn.style.background = 'rgba(8,8,18,0.88)';
+    btn.style.borderColor = 'rgba(255,255,255,0.08)';
+    btn.style.boxShadow = 'none';
+  }
 }
 
 async function doTeleportToHq() {
-  if (!hqLat || !hqLng) {
-    showToast('Сначала постройте штаб');
-    return;
-  }
-  try {
-    await apiFetch('/api/player/init', {
+  if (!pinMode) {
+    // Teleport TO headquarters
+    if (!hqLat || !hqLng) {
+      showToast('🏰 Сначала постройте штаб');
+      return;
+    }
+    realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
+    pinMode = true;
+    _applyPlayerPosition(hqLat, hqLng);
+    map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
+    apiFetch('/api/player/init', {
       method: 'POST',
       body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
-    });
-  } catch (e) { /* ignore */ }
-  _applyPlayerPosition(hqLat, hqLng);
-  map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
-  loadVisibleBuildings();
-  showToast('📍 Телепорт на штаб');
+    }).catch(() => {});
+    loadVisibleBuildings();
+    updatePinButton();
+    showToast('🏰 Телепорт на штаб');
+  } else {
+    // Return to real GPS position
+    pinMode = false;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        realPlayerPos = { lat, lng };
+        _applyPlayerPosition(lat, lng);
+        map.flyTo([lat, lng], map.getZoom(), { animate: true, duration: 0.3 });
+        apiFetch('/api/player/init', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat, lng }),
+        }).catch(() => {});
+        loadVisibleBuildings();
+        updatePinButton();
+        showToast('📍 Возврат на реальную позицию');
+      },
+      () => {
+        // Fallback to saved realPlayerPos
+        const target = realPlayerPos || state.playerPos;
+        if (target) {
+          _applyPlayerPosition(target.lat, target.lng);
+          map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
+          apiFetch('/api/player/init', {
+            method: 'POST',
+            body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng }),
+          }).catch(() => {});
+        }
+        loadVisibleBuildings();
+        updatePinButton();
+        showToast('📍 Возврат на реальную позицию');
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }
 }
 
 // Apply a position to the player marker, zone circle, and state.playerPos
@@ -3353,39 +3406,8 @@ function _applyPlayerPosition(lat, lng) {
 }
 
 function togglePin() {
-  if (!hqLat || !hqLng) {
-    showToast('❌ Сначала поставь штаб');
-    return;
-  }
-  pinMode = !pinMode;
-  map.invalidateSize();
-  if (pinMode) {
-    realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
-    _applyPlayerPosition(hqLat, hqLng);
-    map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
-    updatePinButton(true);
-    loadVisibleBuildings();
-    if (TG_ID) apiFetch('/api/player/init', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
-    }).catch(() => {});
-    showToast('📌 Телепорт на штаб');
-  } else {
-    // Joystick: stay where joystick left us (state.playerPos is HQ here, but realPlayerPos was saved at PIN-on)
-    // No joystick: restore to latest real GPS
-    const target = realPlayerPos || state.playerPos;
-    if (target) {
-      _applyPlayerPosition(target.lat, target.lng);
-      map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
-      if (TG_ID) apiFetch('/api/player/init', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng }),
-      }).catch(() => {});
-    }
-    updatePinButton(false);
-    loadVisibleBuildings();
-    showToast('📍 Возврат к реальной позиции');
-  }
+  // Legacy wrapper — delegates to doTeleportToHq
+  doTeleportToHq();
 }
 
 const hexLayer  = L.layerGroup().addTo(map);
