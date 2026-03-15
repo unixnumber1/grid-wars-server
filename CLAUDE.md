@@ -162,6 +162,10 @@ vercel.json  CLAUDE.md
 - Shop: daily diamonds countdown + Stars purchase via Telegram.WebApp.openInvoice
 - Mass sell: multi-select mode в инвентаре
 - Клан: экран редактирования с карточками-секциями, кнопка ✏️ в хедере
+- Настройки: fullscreen экран с вкладками (Профиль/Карта/Админ)
+  - Профиль: аватар 60px + смена ника, card-секции
+  - Карта: 5 стилей (dark/voyager/midnight/terrain/neon), сохранение в localStorage
+  - Админ: только для ADMIN_TG_ID, кнопки с цветовой кодировкой
 
 ## Admin
 - ADMIN_TG_ID: 560013667
