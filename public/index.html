@@ -1533,23 +1533,23 @@
     .market-sort-btn.active { background: rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.4); color: #FFD700; }
     #market-body { padding: 0 16px 100px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     #market-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
     }
     .market-card {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 12px;
+      border-radius: 14px;
+      padding: 10px 8px;
       text-align: center;
       display: flex; flex-direction: column; align-items: center; gap: 6px;
       position: relative;
     }
-    .market-card-emoji { font-size: 48px; line-height: 1; margin: 6px 0; }
-    .market-card-name { font-size: 13px; font-weight: 600; color: #fff; }
-    .market-card-rarity { font-size: 10px; }
-    .market-card-stat { font-size: 11px; color: rgba(255,255,255,0.5); }
-    .market-card-price { font-size: 18px; font-weight: 800; color: #64B5F6; margin: 4px 0 2px; }
-    .market-card-seller { font-size: 10px; color: #888; }
+    .market-card-emoji { font-size: 36px; line-height: 1; margin: 4px 0; }
+    .market-card-name { font-size: 11px; font-weight: 600; color: #fff; line-height: 1.2; }
+    .market-card-rarity { font-size: 9px; }
+    .market-card-stat { font-size: 10px; color: rgba(255,255,255,0.5); }
+    .market-card-price { font-size: 15px; font-weight: 800; color: #64B5F6; margin: 2px 0; }
+    .market-card-seller { font-size: 9px; color: #888; }
     .market-card .market-buy-btn {
       width: 100%; margin-top: 4px; padding: 8px; font-size: 13px; font-weight: 600;
       border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -6740,9 +6740,9 @@ let _buyTargetListing = null;
 function _marketIcon() {
   return L.divIcon({
     className: '',
-    html: '<div class="marker-wrap" style="font-size:44px;line-height:1;filter:drop-shadow(0 0 8px rgba(255,215,0,0.5));pointer-events:auto;">🎪</div>',
-    iconSize: [52, 52],
-    iconAnchor: [26, 26],
+    html: '<div class="marker-wrap" style="font-size:56px;line-height:1;filter:drop-shadow(0 0 10px rgba(255,215,0,0.6));pointer-events:auto;">🎪</div>',
+    iconSize: [64, 64],
+    iconAnchor: [32, 32],
   });
 }
 
