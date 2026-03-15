@@ -158,7 +158,7 @@ vercel.json  CLAUDE.md
   - Нижняя панель: аватар (тап = центрировать камеру) + ник/уровень/XP бар + кнопка Собрать
   - PIN-кнопка: toggle 📍↔🏰, POST /api/player/init action:location, золотая подсветка в активном режиме, GPS watchPosition блокируется при pinMode=true
 - Level-up: компактный тост слева под валютами, ⭐ УРОВЕНЬ X + XP, золотые частицы, слайд-анимация
-- Статы игрока фиксированы: attack=10, max_hp=100 (не зависят от уровня)
+- Статы игрока фиксированы: attack=10, max_hp=100 (не зависят от уровня), крит только от экипированного меча
 - PvP: fullscreen battle animation с HP барами и floating damage
 - Mine attack: projectile animation + countdown overlay
 - Shop: daily diamonds countdown + Stars purchase via Telegram.WebApp.openInvoice
