@@ -1967,6 +1967,38 @@
       border-radius: 2px;
       transition: width 0.3s;
     }
+    /* ── Ore node markers ── */
+    .ore-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(255,215,0,0.25), transparent 70%);
+      border-radius: 50%;
+      position: relative;
+      filter: drop-shadow(0 0 8px rgba(255,215,0,0.6));
+      animation: orePulse 2s infinite;
+    }
+    .ore-marker.free {
+      background: radial-gradient(circle, rgba(0,255,136,0.25), transparent 70%);
+      filter: drop-shadow(0 0 10px rgba(0,255,136,0.6));
+      animation: orePulseFree 1.2s infinite;
+    }
+    .ore-marker.mine-owned {
+      filter: drop-shadow(0 0 8px rgba(0,150,255,0.6));
+    }
+    .ore-level { font-size: 10px; color: #FFD700; font-weight: bold; text-shadow: 0 0 4px black; margin-top: -2px; }
+    .ore-owner { font-size: 9px; color: #aaa; white-space: nowrap; text-shadow: 0 0 4px black; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+    .ore-hp-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 30px; height: 3px; background: #333; border-radius: 2px; overflow: hidden; }
+    .ore-hp-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+    @keyframes orePulse {
+      0%,100% { filter: drop-shadow(0 0 8px rgba(255,215,0,0.6)); }
+      50% { filter: drop-shadow(0 0 14px rgba(255,215,0,0.8)); }
+    }
+    @keyframes orePulseFree {
+      0%,100% { filter: drop-shadow(0 0 10px rgba(0,255,136,0.6)); }
+      50% { filter: drop-shadow(0 0 20px rgba(0,255,136,0.9)); }
+    }
     /* Player HP bar on map */
     .player-hp-overlay {
       position: absolute;
@@ -2357,6 +2389,7 @@
   </div>
   <div class="hud-row-2">
     <span class="hud-diamonds">💎 <span id="diamond-display">0</span></span>
+    <span id="crystal-display" style="color:#FFD700;font-size:13px;margin-left:6px;">✨ 0</span>
   </div>
 </div>
 
@@ -4637,6 +4670,8 @@ function updateCoinDisplay() {
   if (incEl) {
     incEl.textContent = inc > 0 ? `⚡ +${formatCoins(Math.round(inc * 3600))}/ч` : '';
   }
+  const crEl = document.getElementById('crystal-display');
+  if (crEl) crEl.textContent = `✨ ${state.player?.crystals || 0}`;
 }
 
 // ─────────────────────────────────────────────
@@ -4681,6 +4716,7 @@ async function loadVisibleBuildings(force = false) {
     renderClanHqs(data.clan_hqs || []);
     renderCouriers(data.couriers || []);
     renderDrops(data.courier_drops || []);
+    renderOreNodes(data.ore_nodes || []);
     updateHexGrid();
   } catch (err) {
     console.error('[map] fetch error:', err);
@@ -4789,6 +4825,25 @@ function initSocket() {
     _socket.on('mine:hp_update', (data) => {
       // data: {mine_id, cell_id, hp, max_hp, status}
       updateMineHpBar(data);
+    });
+
+    _socket.on('ore:captured', (data) => {
+      const ore = oreData[data.ore_node_id];
+      if (ore) {
+        ore.owner_id = data.new_owner;
+        ore.owner_name = data.new_owner_name;
+        ore.is_mine = data.new_owner === state.player?.id;
+        if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
+      }
+    });
+
+    _socket.on('ore:hp_update', (data) => {
+      const ore = oreData[data.ore_node_id];
+      if (ore) {
+        ore.hp = data.hp;
+        ore.max_hp = data.max_hp;
+        if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
+      }
     });
 
     _socket.on('pvp:hit', (data) => {
@@ -4906,6 +4961,7 @@ function processTickData(data) {
   renderClanHqs(data.clan_hqs || []);
   renderCouriers(data.couriers || []);
   renderDrops(data.courier_drops || []);
+  renderOreNodes(data.ore_nodes || []);
   updateHexGrid();
   updateCoinDisplay();
   updatePlayerDisplay();
@@ -8212,6 +8268,31 @@ async function doMineHit(mine) {
   }
 }
 
+async function doOreHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/ore', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    if (data.captured) {
+      stopCombat();
+      showToast('⛏️ Рудник захвачен!');
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    showToast(`❌ ${msg}`);
+    stopCombat();
+  }
+}
+
 function _startAttackAnimation(mineId, duration, endsAtISO) {
   _mineAttackMineId = mineId;
   const overlay = document.getElementById('mine-attack-overlay');
@@ -8418,7 +8499,7 @@ function showCombatHUD(target, mode) {
   hud.id = 'combat-hud';
   hud.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,20px) + 20px);left:50%;transform:translateX(-50%);z-index:5000;display:flex;gap:12px;align-items:center;';
 
-  const targetName = mode === 'pvp' ? displayName(target) : `Шахта Ур.${target.level}`;
+  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : `Шахта Ур.${target.level}`;
 
   hud.innerHTML = `
     <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
@@ -8437,6 +8518,7 @@ function showCombatHUD(target, mode) {
 
   const doHit = () => {
     if (mode === 'pvp') doPvpHit(target);
+    else if (mode === 'ore') doOreHit(target);
     else doMineHit(target);
   };
 
@@ -8897,6 +8979,143 @@ function renderClanHqs(clanHqs) {
       if (clanHqLabels[ch.id]) { map.removeLayer(clanHqLabels[ch.id]); delete clanHqLabels[ch.id]; }
     }
   }
+}
+
+// ── Ore nodes rendering ──
+const oreMarkers = {};
+const oreData = {};
+
+function oreIcon(ore) {
+  const size = 40 + (ore.level * 3);
+  const isOwned = !!ore.owner_id;
+  const isMine = ore.is_mine;
+  const cls = isMine ? 'mine-owned' : (isOwned ? '' : 'free');
+  const hpPct = ore.max_hp > 0 ? Math.round((ore.hp || ore.max_hp) / ore.max_hp * 100) : 100;
+  const showHp = hpPct < 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+
+  return L.divIcon({
+    html: `<div class="ore-marker ${cls}" style="width:${size}px;height:${size}px">
+      <span style="font-size:${size*0.55}px">⛏️</span>
+      <div class="ore-level">Ур.${ore.level}</div>
+      ${ore.owner_name ? `<div class="ore-owner">${ore.owner_name}</div>` : ''}
+      ${showHp ? `<div class="ore-hp-bar"><div class="ore-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
+    </div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
+}
+
+function renderOreNodes(ores) {
+  const activeIds = new Set((ores || []).map(o => o.id));
+  for (const id of Object.keys(oreMarkers)) {
+    if (!activeIds.has(id)) {
+      map.removeLayer(oreMarkers[id]);
+      delete oreMarkers[id];
+      delete oreData[id];
+    }
+  }
+  for (const ore of (ores || [])) {
+    oreData[ore.id] = ore;
+    if (oreMarkers[ore.id]) {
+      oreMarkers[ore.id].setIcon(oreIcon(ore));
+      oreMarkers[ore.id].setLatLng([ore.lat, ore.lng]);
+    } else {
+      const marker = L.marker([ore.lat, ore.lng], { icon: oreIcon(ore), zIndexOffset: 800 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOrePopup(ore.id); });
+      marker.addTo(map);
+      oreMarkers[ore.id] = marker;
+    }
+  }
+}
+
+function showOrePopup(oreId) {
+  const ore = oreData[oreId];
+  if (!ore) return;
+
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, ore.lat, ore.lng) : null;
+  const inRange = dist !== null && dist <= 200; // ORE_CAPTURE_RADIUS
+  const inAttackRange = dist !== null && dist <= LARGE_RADIUS;
+
+  const isOwned = !!ore.owner_id;
+  const isMine = ore.is_mine;
+  const ownerOnline = ore.owner_online;
+
+  const distLabel = dist !== null
+    ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
+    : '<span style="color:#888">📍 GPS...</span>';
+
+  const hpPct = ore.max_hp > 0 ? Math.round((ore.hp || ore.max_hp) / ore.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+
+  const expDate = new Date(ore.expires_at);
+  const expStr = `${expDate.getDate().toString().padStart(2,'0')}.${(expDate.getMonth()+1).toString().padStart(2,'0')}`;
+
+  const stats = [
+    ['Доход', `${ore.level}✨/ч`],
+    ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
+    ['Владелец', isOwned ? (ore.owner_name || 'Игрок') : '<span style="color:#00ff88">Свободен</span>'],
+    ['Истекает', expStr],
+  ];
+
+  const actions = [];
+  if (isMine) {
+    actions.push({ label: '✨ Мой рудник', cls: 'primary', disabled: true });
+  } else if (!isOwned && inRange) {
+    actions.push({ label: '✅ Захватить', cls: 'primary', action: () => captureOre(oreId) });
+  } else if (isOwned && inAttackRange) {
+    if (ownerOnline) {
+      actions.push({ label: '⚔️ Атаковать владельца', cls: 'danger', action: () => attackOreOwnerPvp(ore) });
+    } else {
+      actions.push({ label: '⚔️ Атаковать рудник', cls: 'danger', action: () => attackOreNode(ore) });
+    }
+  } else if (!inRange && !inAttackRange) {
+    actions.push({ label: '🔒 Подойди ближе', cls: '', disabled: true });
+  } else if (!isOwned && !inRange) {
+    actions.push({ label: '🔒 Подойди ближе (200м)', cls: '', disabled: true });
+  }
+
+  openPopup(`⛏️ Рудник Ур.${ore.level}`, distLabel, stats, actions);
+}
+
+async function captureOre(oreId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  try {
+    const data = await apiFetch('/api/ore', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'capture', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng }),
+    });
+    showToast('⛏️ Рудник захвачен!');
+    closePopup();
+  } catch (err) {
+    if (err.message?.includes('занят')) {
+      showToast('⚔️ Рудник занят — атакуй владельца!');
+    } else {
+      showToast(`❌ ${err.message}`);
+    }
+  }
+}
+
+function attackOreOwnerPvp(ore) {
+  const ownerPlayer = (state.mapBuildings.online_players || []).find(p =>
+    p.id === ore.owner_id || String(p.telegram_id) === String(ore.owner_id)
+  );
+  if (ownerPlayer) {
+    closePopup();
+    startPvpCombat(ownerPlayer);
+  } else {
+    showToast('❌ Владелец не найден на карте');
+  }
+}
+
+function attackOreNode(ore) {
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+  closePopup();
+  showCombatHUD(ore, 'ore');
 }
 
 // ── Clan HQ popup (minimal) ──
