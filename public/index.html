@@ -7502,19 +7502,23 @@ function _renderMarketCards(listings, grid, isMine) {
     let btnHtml = '';
 
     if (isMine) {
+      // Show private code for own private listings
+      const privateCodeHtml = (l.is_private && l.private_code)
+        ? `<div style="margin-top:4px;padding:4px 8px;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);border-radius:6px;font-size:12px;text-align:center;cursor:pointer;user-select:all;" onclick="navigator.clipboard?.writeText('${l.private_code}');this.textContent='✅ Скопировано';setTimeout(()=>this.textContent='🔒 ${l.private_code}',1500)" title="Нажми чтобы скопировать">🔒 ${l.private_code}</div>`
+        : '';
       if (l.status === 'sold') {
         const received = Math.floor(l.price_diamonds * 0.9);
         statusHtml = `<div class="market-card-status" style="color:#FFD700;">💰 Продан!</div>
           <div style="font-size:12px;color:#00cfff;">+${received} 💎</div>`;
       } else if (l.status === 'pending') {
-        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>`;
+        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>${privateCodeHtml}`;
         btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Отменить</button>`;
       } else if (l.status === 'active') {
         const msLeft = new Date(l.expires_at) - Date.now();
         const daysLeft = Math.floor(msLeft / 86400000);
         const hrsLeft = Math.floor((msLeft % 86400000) / 3600000);
         statusHtml = `<div class="market-card-status" style="color:#00cc44;">✅ Активен</div>
-          <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>`;
+          <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>${privateCodeHtml}`;
         btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Снять</button>`;
       } else if (l.status === 'intercepted') {
         statusHtml = `<div class="market-card-status" style="color:#ff6b6b;">⚔️ Перехвачен</div>`;
