@@ -2389,7 +2389,8 @@
   </div>
   <div class="hud-row-2">
     <span class="hud-diamonds">💎 <span id="diamond-display">0</span></span>
-    <span id="crystal-display" style="color:#FFD700;font-size:13px;margin-left:6px;">✨ 0</span>
+    <span id="crystal-display" style="color:#FFD700;font-size:13px;margin-left:6px;">🔮 0</span>
+    <span id="crystal-income-display" style="color:#aa88ff;font-size:11px;margin-left:2px;"></span>
   </div>
 </div>
 
@@ -4671,7 +4672,16 @@ function updateCoinDisplay() {
     incEl.textContent = inc > 0 ? `⚡ +${formatCoins(Math.round(inc * 3600))}/ч` : '';
   }
   const crEl = document.getElementById('crystal-display');
-  if (crEl) crEl.textContent = `✨ ${state.player?.crystals || 0}`;
+  if (crEl) crEl.textContent = `🔮 ${state.player?.crystals || 0}`;
+  // Calculate ore income per hour
+  const crIncEl = document.getElementById('crystal-income-display');
+  if (crIncEl) {
+    let oreIncome = 0;
+    for (const o of Object.values(oreData)) {
+      if (o.is_mine || o.owner_id === state.player?.id) oreIncome += o.level;
+    }
+    crIncEl.textContent = oreIncome > 0 ? `+${oreIncome}/ч` : '';
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -9008,7 +9018,8 @@ function oreIcon(ore) {
 }
 
 function renderOreNodes(ores) {
-  const activeIds = new Set((ores || []).map(o => o.id));
+  if (!ores || ores.length === 0) return; // Don't wipe markers on empty tick
+  const activeIds = new Set(ores.map(o => o.id));
   for (const id of Object.keys(oreMarkers)) {
     if (!activeIds.has(id)) {
       map.removeLayer(oreMarkers[id]);
@@ -9016,11 +9027,14 @@ function renderOreNodes(ores) {
       delete oreData[id];
     }
   }
-  for (const ore of (ores || [])) {
+  for (const ore of ores) {
+    const prev = oreData[ore.id];
     oreData[ore.id] = ore;
     if (oreMarkers[ore.id]) {
-      oreMarkers[ore.id].setIcon(oreIcon(ore));
-      oreMarkers[ore.id].setLatLng([ore.lat, ore.lng]);
+      // Only update icon if data changed
+      if (!prev || prev.hp !== ore.hp || prev.owner_id !== ore.owner_id || prev.owner_name !== ore.owner_name) {
+        oreMarkers[ore.id].setIcon(oreIcon(ore));
+      }
     } else {
       const marker = L.marker([ore.lat, ore.lng], { icon: oreIcon(ore), zIndexOffset: 800 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOrePopup(ore.id); });
@@ -9054,7 +9068,7 @@ function showOrePopup(oreId) {
   const expStr = `${expDate.getDate().toString().padStart(2,'0')}.${(expDate.getMonth()+1).toString().padStart(2,'0')}`;
 
   const stats = [
-    ['Доход', `${ore.level}✨/ч`],
+    ['Доход', `${ore.level} 🔮/ч`],
     ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
     ['Владелец', isOwned ? (ore.owner_name || 'Игрок') : '<span style="color:#00ff88">Свободен</span>'],
     ['Истекает', expStr],
@@ -9062,7 +9076,7 @@ function showOrePopup(oreId) {
 
   const actions = [];
   if (isMine) {
-    actions.push({ label: '✨ Мой рудник', cls: 'primary', disabled: true });
+    actions.push({ label: '🔮 Мой рудник', cls: 'primary', disabled: true });
   } else if (!isOwned && inRange) {
     actions.push({ label: '✅ Захватить', cls: 'primary', action: () => captureOre(oreId) });
   } else if (isOwned && inAttackRange) {
