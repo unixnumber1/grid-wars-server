@@ -2236,6 +2236,26 @@
     }
     .cs-color-grid .cg-cell.selected { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
     .cs-search { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; padding: 10px; font-size: 14px; margin-bottom: 12px; outline: none; }
+    .admin-monitor-card { background:#111; border-radius:12px; padding:12px; margin-bottom:12px; border:1px solid #333; }
+    .monitor-header { display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:15px; margin-bottom:12px; color:#fff; }
+    .monitor-header button { background:#222; border:1px solid #444; color:#fff; border-radius:8px; padding:4px 10px; cursor:pointer; font-size:16px; }
+    .monitor-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+    .monitor-section { background:#1a1a1a; border-radius:8px; padding:10px; margin-bottom:8px; }
+    .monitor-title { font-size:12px; color:#888; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+    .monitor-row { display:flex; justify-content:space-between; font-size:13px; color:#ccc; padding:3px 0; }
+    .monitor-row b { color:#fff; }
+    .monitor-bar { height:6px; background:#333; border-radius:3px; margin:4px 0 8px; overflow:hidden; }
+    .monitor-bar div { height:100%; border-radius:3px; transition:width 0.3s; }
+    .monitor-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+    .stat-chip { background:#222; border-radius:8px; padding:8px 4px; text-align:center; font-size:11px; color:#aaa; }
+    .stat-chip b { display:block; font-size:16px; color:#fff; margin-top:4px; }
+    .error-row { display:flex; gap:8px; font-size:12px; padding:4px 0; border-bottom:1px solid #222; }
+    .error-time { color:#666; min-width:45px; }
+    .error-msg { color:#f44336; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    .activity-row { display:flex; gap:8px; font-size:12px; padding:3px 0; }
+    .activity-time { color:#666; min-width:45px; }
+    .activity-player { color:#FFD700; min-width:70px; }
+    .activity-action { color:#aaa; flex:1; }
   </style>
 </head>
 <body>
@@ -2355,6 +2375,7 @@
     </div>
     <!-- Admin tab (hidden by default) -->
     <div id="settings-tab-admin" class="settings-tab-content">
+      <div id="admin-stats"></div>
       <div class="settings-card">
         <div class="settings-section-title">УПРАВЛЕНИЕ</div>
         <button id="btn-maintenance-toggle" class="settings-action-btn s-danger">&#x1F534; Включить тех перерыв</button>
@@ -6577,6 +6598,7 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 
 document.getElementById('btn-close-settings').addEventListener('click', () => {
   document.getElementById('settings-drawer').classList.remove('open');
+  if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
 });
 
 // Settings tabs
@@ -6587,6 +6609,7 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
     document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('settings-tab-' + tabId).classList.add('active');
+    if (tabId !== 'admin' && _adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
   });
 });
 
@@ -6605,12 +6628,81 @@ function _updateSettingsAdminTab() {
       document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
       adminTabBtn.classList.add('active');
       document.getElementById('settings-tab-admin').classList.add('active');
+      loadAdminStats();
+      if (_adminStatsInterval) clearInterval(_adminStatsInterval);
+      _adminStatsInterval = setInterval(loadAdminStats, 30000);
     });
     tabsEl.appendChild(adminTabBtn);
   }
   if (!isAdmin && adminTabBtn) {
     adminTabBtn.remove();
   }
+}
+
+let _adminStatsInterval = null;
+
+async function loadAdminStats() {
+  try {
+    const res = await fetch(VPS_URL + '/api/admin/stats?telegram_id=' + TG_ID);
+    if (!res.ok) return;
+    const s = await res.json();
+    renderAdminStats(s);
+  } catch (e) { console.error('[admin stats]', e.message); }
+}
+
+function renderAdminStats(s) {
+  const el = document.getElementById('admin-stats');
+  if (!el) return;
+  const upD = Math.floor(s.uptime_seconds / 86400);
+  const upH = Math.floor((s.uptime_seconds % 86400) / 3600);
+  const upM = Math.floor((s.uptime_seconds % 3600) / 60);
+  const uptime = upD + '\u0434 ' + upH + '\u0447 ' + upM + '\u043C';
+  const ramPct = Math.round(s.memory_used_mb / s.memory_total_mb * 100);
+  const ramColor = ramPct > 85 ? '#f44336' : ramPct > 60 ? '#ff9800' : '#4caf50';
+  const cpuColor = s.cpu_load < 1 ? '#4caf50' : s.cpu_load < 2 ? '#ff9800' : '#f44336';
+
+  el.innerHTML = '<div class="admin-monitor-card">' +
+    '<div class="monitor-header">\uD83D\uDCCA \u041C\u043E\u043D\u0438\u0442\u043E\u0440\u0438\u043D\u0433 <button onclick="loadAdminStats()">\u21BB</button></div>' +
+    '<div class="monitor-grid">' +
+      '<div class="monitor-section">' +
+        '<div class="monitor-title">\uD83D\uDFE2 \u0418\u0433\u0440\u043E\u043A\u0438</div>' +
+        '<div class="monitor-row"><span>\u041E\u043D\u043B\u0430\u0439\u043D</span><b>' + s.online_now + '</b></div>' +
+        '<div class="monitor-row"><span>\u0417\u0430 24\u0447</span><b>' + s.online_today + '</b></div>' +
+        '<div class="monitor-row"><span>\u0412\u0441\u0435\u0433\u043E</span><b>' + s.total_players + '</b></div>' +
+        '<div class="monitor-row"><span>\u041D\u043E\u0432\u044B\u0445</span><b style="color:#4caf50">+' + s.new_today + '</b></div>' +
+        '<div class="monitor-row"><span>\u0421\u043E\u043A\u0435\u0442\u044B</span><b>' + s.connected_sockets + '</b></div>' +
+      '</div>' +
+      '<div class="monitor-section">' +
+        '<div class="monitor-title">\uD83D\uDCBE \u0421\u0435\u0440\u0432\u0435\u0440</div>' +
+        '<div class="monitor-row"><span>RAM</span><b>' + s.memory_used_mb + '/' + s.memory_total_mb + ' MB</b></div>' +
+        '<div class="monitor-bar"><div style="width:' + ramPct + '%;background:' + ramColor + '"></div></div>' +
+        '<div class="monitor-row"><span>CPU</span><b style="color:' + cpuColor + '">' + s.cpu_load.toFixed(2) + '</b></div>' +
+        '<div class="monitor-row"><span>Uptime</span><b>' + uptime + '</b></div>' +
+        '<div class="monitor-row"><span>Node</span><b style="color:#888">' + s.node_version + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="monitor-section">' +
+      '<div class="monitor-title">\uD83D\uDDC4\uFE0F GameState</div>' +
+      '<div class="monitor-grid-4">' +
+        '<div class="stat-chip">\u26CF\uFE0F \u0428\u0430\u0445\u0442\u044B<br><b>' + s.mines_loaded + '</b></div>' +
+        '<div class="stat-chip">\uD83D\uDC7A \u0411\u043E\u0442\u044B<br><b>' + s.bots_loaded + '</b></div>' +
+        '<div class="stat-chip">\uD83D\uDC8E \u0420\u0443\u0434\u043D\u0438\u043A\u0438<br><b>' + s.ore_nodes_loaded + '</b></div>' +
+        '<div class="stat-chip">\uD83D\uDC65 \u0418\u0433\u0440\u043E\u043A\u0438<br><b>' + s.players_loaded + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    (s.recent_errors && s.recent_errors.length > 0 ?
+      '<div class="monitor-section">' +
+        '<div class="monitor-title" style="color:#f44336">\uD83D\uDD34 \u041E\u0448\u0438\u0431\u043A\u0438 (' + s.recent_errors.length + ')</div>' +
+        s.recent_errors.slice(0,5).map(function(e) { return '<div class="error-row"><span class="error-time">' + e.time + '</span><span class="error-msg">' + e.message + '</span></div>'; }).join('') +
+      '</div>'
+      : '<div class="monitor-section" style="color:#4caf50;text-align:center;padding:12px;">\u2705 \u041E\u0448\u0438\u0431\u043E\u043A \u043D\u0435\u0442</div>') +
+    '<div class="monitor-section">' +
+      '<div class="monitor-title">\uD83D\uDCCB \u041F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F</div>' +
+      ((s.recent_activity || []).length > 0 ?
+        (s.recent_activity || []).slice(0,8).map(function(a) { return '<div class="activity-row"><span class="activity-time">' + a.time + '</span><span class="activity-player">' + a.player + '</span><span class="activity-action">' + a.action + '</span></div>'; }).join('')
+        : '<div style="color:#666;font-size:12px;">\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445</div>') +
+    '</div>' +
+  '</div>';
 }
 
 const MAP_STYLES = [
