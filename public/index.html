@@ -2849,10 +2849,11 @@ function getBuildingInCell(cellId) {
   return null;
 }
 
-function calcAccumulated(level, lastCollectedISO) {
+function calcAccumulated(level, lastCollectedISO, customIncome) {
   if (level === 0) return 0;
   const elapsedSec = (Date.now() - new Date(lastCollectedISO).getTime()) / 1000;
-  const raw = mineRate(level) * Math.max(0, elapsedSec);
+  const rate = customIncome || mineRate(level);
+  const raw = rate * Math.max(0, elapsedSec);
   return Math.min(Math.round(raw), getMineCapacity(level));
 }
 
@@ -4086,7 +4087,7 @@ function showMinePopup(mine, isOwn, canCapture) {
   const ratePerSec  = mineRate(mine.level);
   const rate        = Math.round(ratePerSec * 3600);
   const capacity    = getMineCapacity(mine.level);
-  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected) : 0;
+  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected, mine.income) : 0;
   const isFull      = mine.level > 0 && accumulated >= capacity;
 
   // Distance check
@@ -4213,7 +4214,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       _accumulatedCoinsTimer = setInterval(() => {
         const el = document.getElementById('accumulated-coins-val');
         if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
-        const acc = calcAccumulated(mine.level, mine.last_collected);
+        const acc = calcAccumulated(mine.level, mine.last_collected, mine.income);
         const full = acc >= capacity;
         el.textContent = formatCoins(acc);
         el.style.color = full ? '#ff4444' : '';
