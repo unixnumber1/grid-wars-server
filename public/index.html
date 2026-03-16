@@ -5509,10 +5509,18 @@ async function doAttackBot(botId) {
     if (data.botDefeated) {
       if (ref?.marker) { botLayer.removeLayer(ref.marker); delete botMarkers[botId]; delete botData[botId]; }
       closePopup();
-      let msg = `⚔️ Гоблин убит! +${data.reward?.xp || 0} XP +${data.reward?.diamonds || 0} 💎`;
-      if (data.reward?.coinsDropped > 0) msg += ` +${formatNumber(data.reward.coinsDropped)} монет`;
+      const xpGained = data.xp?.xpGained || 0;
+      const diamonds = data.diamondReward || 0;
+      const coinDrop = data.coinDrop || 0;
+      const coinReward = data.reward || 0;
+      let msg = `⚔️ Убит!`;
+      if (xpGained > 0) msg += ` +${xpGained} XP`;
+      if (diamonds > 0) msg += ` +${diamonds} 💎`;
+      if (coinDrop > 0) msg += ` +${formatCoins(coinDrop)} монет (лут)`;
+      if (coinReward > 0) msg += ` +${formatCoins(coinReward)} монет`;
       showToast(msg);
-      if (state.player && data.reward?.diamonds) state.player.diamonds += data.reward.diamonds;
+      if (state.player && diamonds > 0) { state.player.diamonds = data.player_diamonds ?? ((state.player.diamonds || 0) + diamonds); }
+      if (state.player && (coinDrop > 0 || coinReward > 0)) { _setPlayerCoins(data.player_coins ?? (state.player.coins || 0)); }
       updateDiamondDisplay();
     } else {
       // Update bot HP in popup
