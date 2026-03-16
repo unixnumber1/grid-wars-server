@@ -4190,7 +4190,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const inCombatZone = dist !== null && dist <= LARGE_RADIUS;
     const isBurning = mine.status === 'burning';
     const isUnderAttack = mine.status === 'under_attack';
-    const canAttack = inCombatZone && mine.level > 0 && mine.status === 'normal';
+    const canAttack = inCombatZone && mine.level > 0 && (mine.status === 'normal' || mine.status === 'under_attack');
     const attackActions = [];
     if (canAttack) {
       attackActions.push({
