@@ -9853,10 +9853,8 @@ async function _renderMembersTab(body) {
   const members = _clanScreenData.members;
   const isLeader = state.player?.clan_role === 'leader';
 
-  // Build set of online telegram_ids for status dots
-  const onlineTgIds = new Set((state.mapBuildings.online_players || []).map(p => String(p.telegram_id)));
-  // Current player is always online
-  if (TG_ID) onlineTgIds.add(String(TG_ID));
+  const ONLINE_MS = 5 * 60 * 1000;
+  const nowMs = Date.now();
 
   let html = '';
   for (const m of members) {
@@ -9867,7 +9865,10 @@ async function _renderMembersTab(body) {
     const roleIcon = m.role === 'leader' ? '👑' : m.role === 'officer' ? '⭐' : '';
     const canManage = isLeader && m.role !== 'leader';
     const escapedName = name.replace(/'/g, "\\'");
-    const isOnline = p.telegram_id && onlineTgIds.has(String(p.telegram_id));
+    // Online check: use last_seen from member data (not viewport)
+    const lastSeen = p.last_seen ? new Date(p.last_seen).getTime() : 0;
+    const isSelf = String(p.telegram_id) === String(TG_ID);
+    const isOnline = isSelf || (lastSeen > 0 && (nowMs - lastSeen) < ONLINE_MS);
     const onlineDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isOnline ? '#00ff88' : '#ff4444'};margin-right:6px;flex-shrink:0;"></span>`;
     html += `
       <div class="cs-member-row">
