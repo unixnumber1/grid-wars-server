@@ -4673,14 +4673,10 @@ function updateCoinDisplay() {
   }
   const crEl = document.getElementById('crystal-display');
   if (crEl) crEl.textContent = `✨ ${state.player?.crystals || 0}`;
-  // Calculate ore income per hour
   const crIncEl = document.getElementById('crystal-income-display');
   if (crIncEl) {
-    let oreIncome = 0;
-    for (const o of Object.values(oreData)) {
-      if (o.is_mine || o.owner_id === state.player?.id) oreIncome += o.level;
-    }
-    crIncEl.textContent = oreIncome > 0 ? `+${oreIncome}/ч` : '';
+    const oi = state.oreIncome || 0;
+    crIncEl.textContent = oi > 0 ? `+${oi}/ч` : '';
   }
 }
 
@@ -4954,6 +4950,7 @@ function processTickData(data) {
     _incomePerSecond = data.totalIncome;
     _startCoinTick();
   }
+  if (data.oreIncome != null) state.oreIncome = data.oreIncome;
   if (data.inventory) state.inventory = data.inventory;
   if (data.clan_boost) state.clanBoost = data.clan_boost;
   else if (data.clanBoost) state.clanBoost = data.clanBoost;
