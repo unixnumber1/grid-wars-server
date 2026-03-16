@@ -4082,9 +4082,14 @@ function showHqPopup(hq, isOwn) {
 function showMinePopup(mine, isOwn, canCapture) {
   _currentPopupEntityId = `mine_${mine.id}`;
   _selectMarker(`mine_${mine.id}`);
+  // Merge boosted income from mines_own (server sends clan-boosted income there)
+  if (isOwn) {
+    const ownMine = (state.mines || []).find(m => m.id === mine.id);
+    if (ownMine?.income) mine.income = ownMine.income;
+  }
   const appearance  = getMineAppearance(mine.level);
   const { emoji, name } = appearance;
-  const ratePerSec  = mineRate(mine.level);
+  const ratePerSec  = mine.income || mineRate(mine.level);
   const rate        = Math.round(ratePerSec * 3600);
   const capacity    = getMineCapacity(mine.level);
   const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected, mine.income) : 0;
