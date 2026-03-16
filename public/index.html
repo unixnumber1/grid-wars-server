@@ -2669,27 +2669,16 @@ const H3_DISK_K         = 12;
 // Formulas (keep in sync with lib/formulas.js)
 function getMineUpgradeCost(level) {
   if (level <= 0) return 0;
-  if (level <= 100) {
-    const base = 1000 * Math.pow(1.12, level - 1);
-    const jumpLevels = [10,20,30,40,50,60,70,80,90,100];
-    const jumps = jumpLevels.filter(l => l <= level).length;
-    return Math.floor(base * Math.pow(4, jumps));
-  } else {
-    const base100 = getMineUpgradeCost(100);
-    return Math.floor(base100 * Math.pow(1.07, level - 100));
-  }
+  if (level <= 100) return Math.floor(998 * Math.pow(1.1301, level - 1));
+  const base100 = Math.floor(998 * Math.pow(1.1301, 99));
+  return Math.floor(base100 * Math.pow(1.1857, level - 100));
 }
 function getMineIncome(level) {
   if (level <= 0) return 0;
-  if (level <= 100) {
-    const base = 50 * Math.pow(1.095, level - 1);
-    const jumpLevels = [10,20,30,40,50,60,70,80,90,100];
-    const jumps = jumpLevels.filter(l => l <= level).length;
-    return Math.floor(base * Math.pow(1.3, jumps));
-  } else {
-    const base100 = getMineIncome(100);
-    return Math.floor(base100 * Math.pow(1.06, level - 100));
-  }
+  // Returns coins/sec. Targets: lv1=50/h, lv100=1.1M/h, lv200=5B/h
+  if (level <= 100) return 50 * Math.pow(1.1063, level - 1) / 3600;
+  const base100 = 50 * Math.pow(1.1063, 99) / 3600;
+  return base100 * Math.pow(1.0879, level - 100);
 }
 function getMineCapacity(level) {
   if (level <= 0) return 0;
