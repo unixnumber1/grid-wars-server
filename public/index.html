@@ -2026,6 +2026,16 @@
     #death-screen .death-text { font-size: 24px; font-weight: 900; color: #f44336; text-transform: uppercase; letter-spacing: 2px; }
     #death-screen .death-timer { font-size: 48px; font-weight: 900; color: #FFD700; font-variant-numeric: tabular-nums; }
     #death-screen .death-info { font-size: 14px; color: #888; }
+    /* Kill animation on map marker */
+    @keyframes killShrink {
+      0% { transform: scale(1); opacity: 1; }
+      30% { transform: scale(1.5); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .marker-killed .marker-wrap {
+      animation: killShrink 0.6s ease-in forwards !important;
+    }
+
     @keyframes deathPulse {
       0%,100% { transform: scale(1); opacity: 0.8; }
       50% { transform: scale(1.15); opacity: 1; }
@@ -4795,9 +4805,34 @@ function initSocket() {
 
     _socket.on('pvp:kill', (data) => {
       const myId = state.player?.id;
+
+      // Animate killed player's marker (for all observers)
+      const loserMarker = onlineMarkers[data.loser_id];
+      if (loserMarker?._icon) {
+        // Show skull explosion at death location
+        const pos = loserMarker.getLatLng();
+        const pt = map.latLngToContainerPoint(pos);
+        const skull = document.createElement('div');
+        skull.className = 'combat-hit-flash';
+        skull.textContent = '💀';
+        skull.style.cssText = `left:${pt.x}px;top:${pt.y}px;font-size:40px;`;
+        document.body.appendChild(skull);
+        setTimeout(() => skull.remove(), 600);
+
+        // Shrink + fade marker
+        loserMarker._icon.classList.add('marker-killed');
+        setTimeout(() => {
+          if (onlineMarkers[data.loser_id]) {
+            map.removeLayer(onlineMarkers[data.loser_id]);
+            delete onlineMarkers[data.loser_id];
+          }
+        }, 700);
+      }
+
       if (data.winner_id === myId) {
         showToast(`⚔️ Победа! +${formatCoins(data.coins_transferred)} монет`);
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
+        stopCombat();
       } else if (data.loser_id === myId) {
         // I died — show death screen
         stopCombat();
@@ -8441,7 +8476,7 @@ function showDeathScreen(killerName, coinsLost) {
   const screen = document.getElementById('death-screen');
   const timerEl = document.getElementById('death-timer');
   const infoEl = document.getElementById('death-info');
-  infoEl.textContent = `${killerName || 'Игрок'} убил вас · -${formatCoins(coinsLost)} монет · Щит 10 мин`;
+  infoEl.textContent = `${killerName || 'Игрок'} убил вас · -${formatCoins(coinsLost)} монет · Щит 2 мин`;
   screen.classList.add('open');
   let sec = 10;
   timerEl.textContent = sec;
