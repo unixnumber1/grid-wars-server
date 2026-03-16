@@ -1912,6 +1912,102 @@
     .projectile-glow-mythic    { filter: drop-shadow(0 0 10px #8b0000) drop-shadow(0 0 20px #8b000088); }
     .projectile-glow-legendary { filter: drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FF8C00aa) drop-shadow(0 0 30px #FFD70066); }
 
+    /* ── Combat projectile system ── */
+    .combat-projectile {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      font-size: 20px;
+      transform: translate(-50%, -50%);
+    }
+    .combat-hit-flash {
+      position: fixed;
+      z-index: 9998;
+      pointer-events: none;
+      font-size: 28px;
+      transform: translate(-50%, -50%);
+      animation: hitFlash 0.3s ease-out forwards;
+    }
+    @keyframes hitFlash {
+      0% { transform: translate(-50%,-50%) scale(1); opacity:1; }
+      50% { transform: translate(-50%,-50%) scale(2); opacity:0.8; }
+      100% { transform: translate(-50%,-50%) scale(0); opacity:0; }
+    }
+    .floating-damage {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      font-weight: 900;
+      font-size: 18px;
+      text-shadow: 0 0 6px rgba(0,0,0,0.8);
+      animation: combatFloatUp 1s ease-out forwards;
+    }
+    .floating-damage.crit {
+      font-size: 24px;
+      color: #FFD700 !important;
+    }
+    @keyframes combatFloatUp {
+      0% { opacity:1; transform: translate(-50%,0); }
+      100% { opacity:0; transform: translate(-50%,-60px); }
+    }
+    /* Mine HP bar overlay */
+    .mine-hp-bar {
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .mine-hp-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    /* Player HP bar on map */
+    .player-hp-overlay {
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .player-hp-fill {
+      height: 100%;
+      background: #4caf50;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    /* Attack CD button */
+    .atk-btn-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .atk-cd-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      border-radius: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .atk-cd-overlay.active { opacity: 1; }
+    .atk-btn-pulse {
+      animation: atkPulse 0.5s ease-in-out infinite;
+    }
+    @keyframes atkPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,23,68,0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(255,23,68,0); }
+    }
+
     /* ── Mass selection mode ── */
     .inv-cell.selectable { cursor: pointer; }
     .inv-cell.selected { border-color: #FFD700 !important; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
@@ -4650,6 +4746,40 @@ function initSocket() {
       // Update cached position
       const p = (state.mapBuildings.online_players || []).find(op => op.id === playerId);
       if (p) { p.last_lat = data.lat; p.last_lng = data.lng; }
+    });
+
+    _socket.on('projectile', (data) => {
+      // data: {from_lat, from_lng, to_lat, to_lng, damage, crit, target_type, target_id, attacker_id}
+      animateCombatProjectile(data);
+    });
+
+    _socket.on('mine:hp_update', (data) => {
+      // data: {mine_id, cell_id, hp, max_hp, status}
+      updateMineHpBar(data);
+    });
+
+    _socket.on('pvp:hit', (data) => {
+      // data: {attacker_id, attacker_name, damage, hp_left, max_hp}
+      if (state.player) {
+        state.player.hp = data.hp_left;
+        updatePlayerDisplay();
+      }
+      showToast(`💥 ${data.attacker_name} нанёс ${data.damage} урона!`);
+    });
+
+    _socket.on('pvp:kill', (data) => {
+      // data: {winner_id, loser_id, winner_name, loser_name, coins_transferred, shield_until}
+      const myId = state.player?.id;
+      if (data.winner_id === myId) {
+        showToast(`⚔️ Победа! +${formatCoins(data.coins_transferred)} монет`);
+        _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
+      } else if (data.loser_id === myId) {
+        showToast(`💀 Поражение! -${formatCoins(data.coins_transferred * 2)} монет. Щит 10 мин`);
+        _setPlayerCoins(Math.max(0, (state.player.coins || 0) - data.coins_transferred * 2));
+        state.player.shield_until = data.shield_until;
+        state.player.hp = state.player.max_hp || 100;
+        updateShieldDisplay();
+      }
     });
 
     _socket.on('disconnect', () => {
@@ -7740,7 +7870,7 @@ function showOtherPlayerPopup(p) {
     actions.push({
       label: '⚔️ Напасть',
       cls: 'danger',
-      action: () => showPvpPreview(p),
+      action: () => startPvpCombat(p),
     });
   } else if (hasShield) {
     actions.push({ label: '🛡️ Игрок под защитой', cls: '', disabled: true });
@@ -7962,19 +8092,51 @@ let _mineAttackMineId = null;
 let _projectileInterval = null;
 
 async function doAttackMine(mineId) {
-  const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
+  if (!mine) return showToast('❌ Шахта не найдена');
+
+  // Determine weapon CD
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 1500;
+
   closePopup();
+  showCombatHUD(mine, 'mine');
+}
+
+async function doMineHit(mine) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) {
+    cdOverlay.classList.add('active');
+    setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
+  }
 
   try {
     const data = await apiFetch('/api/buildings/attack', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({
+        action: 'hit',
+        telegram_id: TG_ID,
+        mine_id: mine.id,
+        lat: pos.lat,
+        lng: pos.lng
+      }),
     });
-    showToast(`⚔️ Атака начата! ${data.attackDuration}с`);
-    _startAttackAnimation(mineId, data.attackDuration, data.attackEndsAt);
+
+    if (data.burned) {
+      stopCombat();
+      showToast('🔥 Шахта горит!');
+    }
   } catch (err) {
+    if (err.message?.includes('429') || err.message?.includes('Слишком')) return;
     showToast(`❌ ${err.message}`);
+    stopCombat();
   }
 }
 
@@ -8065,6 +8227,216 @@ function fireProjectile(fromLatLng, toLatLng) {
     showFloatingText(toLatLng, '💥', '#FFD700');
     el.remove();
   }, durationMs + 50);
+}
+
+function animateCombatProjectile(data) {
+  const from = map.latLngToContainerPoint(L.latLng(data.from_lat, data.from_lng));
+  const to = map.latLngToContainerPoint(L.latLng(data.to_lat, data.to_lng));
+
+  const el = document.createElement('div');
+  el.className = 'combat-projectile';
+
+  // Determine projectile appearance by weapon type
+  const weaponType = data.weapon_type || 'fist';
+  if (weaponType === 'sword') {
+    const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
+    el.innerHTML = '🗡️';
+    el.style.transform = `translate(-50%,-50%) rotate(${angle - 135}deg)`;
+  } else if (weaponType === 'axe') {
+    el.innerHTML = '🪓';
+    el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
+  } else {
+    el.innerHTML = '👊';
+    el.style.fontSize = '16px';
+  }
+
+  el.style.left = from.x + 'px';
+  el.style.top = from.y + 'px';
+  document.body.appendChild(el);
+
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const dur = Math.min(600, Math.max(200, dist * 1.5));
+
+  const startTime = performance.now();
+  function anim(now) {
+    const t = Math.min((now - startTime) / dur, 1);
+    const ease = t * t; // easeIn
+    el.style.left = (from.x + dx * ease) + 'px';
+    el.style.top = (from.y + dy * ease) + 'px';
+    if (t < 1) requestAnimationFrame(anim);
+    else {
+      el.remove();
+      // Hit flash
+      const flash = document.createElement('div');
+      flash.className = 'combat-hit-flash';
+      flash.textContent = '💥';
+      flash.style.left = to.x + 'px';
+      flash.style.top = to.y + 'px';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 300);
+
+      // Floating damage
+      const dmgEl = document.createElement('div');
+      dmgEl.className = 'floating-damage' + (data.crit ? ' crit' : '');
+      dmgEl.style.left = to.x + 'px';
+      dmgEl.style.top = (to.y - 10) + 'px';
+      dmgEl.textContent = (data.crit ? '💥 КРИТ! ' : '') + '-' + data.damage;
+      dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
+      document.body.appendChild(dmgEl);
+      setTimeout(() => dmgEl.remove(), 1000);
+    }
+  }
+  requestAnimationFrame(anim);
+}
+
+function updateMineHpBar(data) {
+  // Update mine in local state
+  const mines = state.mapBuildings.mines || [];
+  const mine = mines.find(m => m.id === data.mine_id);
+  if (mine) {
+    mine.hp = data.hp;
+    mine.max_hp = data.max_hp;
+    mine.status = data.status;
+  }
+  // Update marker HP bar if visible
+  const key = 'mine_' + data.mine_id;
+  const marker = buildingMarkers[key];
+  if (marker?._icon) {
+    let bar = marker._icon.querySelector('.mine-hp-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'mine-hp-bar';
+      bar.innerHTML = '<div class="mine-hp-fill"></div>';
+      marker._icon.querySelector('.marker-wrap')?.appendChild(bar);
+    }
+    const fill = bar.querySelector('.mine-hp-fill');
+    const pct = data.max_hp > 0 ? Math.max(0, Math.min(100, data.hp / data.max_hp * 100)) : 0;
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+    // Auto-hide after 10s
+    bar.style.display = 'block';
+    clearTimeout(marker._hpBarTimeout);
+    marker._hpBarTimeout = setTimeout(() => { if (bar) bar.style.display = 'none'; }, 10000);
+  }
+}
+
+let _pvpAutoFire = null;
+let _pvpTarget = null;
+let _pvpCdMs = 1500;
+let _pvpLastHit = 0;
+
+function startPvpCombat(target) {
+  _pvpTarget = target;
+  closePopup();
+
+  // Determine weapon CD
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 1500;
+
+  // Show floating attack button
+  showCombatHUD(target, 'pvp');
+}
+
+function showCombatHUD(target, mode) {
+  let hud = document.getElementById('combat-hud');
+  if (hud) hud.remove();
+
+  hud = document.createElement('div');
+  hud.id = 'combat-hud';
+  hud.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,20px) + 20px);left:50%;transform:translateX(-50%);z-index:5000;display:flex;gap:12px;align-items:center;';
+
+  const targetName = mode === 'pvp' ? displayName(target) : `Шахта Ур.${target.level}`;
+
+  hud.innerHTML = `
+    <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
+      <span style="color:#aaa;font-size:13px;">${targetName}</span>
+      <div class="atk-btn-wrap">
+        <button id="combat-atk-btn" class="btn danger" style="padding:10px 20px;font-size:16px;border-radius:10px;">⚔️</button>
+        <div class="atk-cd-overlay" id="combat-cd-overlay"></div>
+      </div>
+      <button onclick="stopCombat()" class="btn" style="padding:8px 12px;font-size:13px;border-radius:8px;">✕</button>
+    </div>
+  `;
+  document.body.appendChild(hud);
+
+  const atkBtn = document.getElementById('combat-atk-btn');
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+
+  // Single tap
+  atkBtn.addEventListener('click', () => {
+    if (mode === 'pvp') doPvpHit(target);
+    else doMineHit(target);
+  });
+
+  // Auto-fire on hold
+  let holdTimer = null;
+  function startHold() {
+    atkBtn.classList.add('atk-btn-pulse');
+    holdTimer = setTimeout(() => {
+      // Start auto-fire
+      _pvpAutoFire = setInterval(() => {
+        if (mode === 'pvp') doPvpHit(target);
+        else doMineHit(target);
+      }, _pvpCdMs);
+    }, 500);
+  }
+  function stopHold() {
+    atkBtn.classList.remove('atk-btn-pulse');
+    clearTimeout(holdTimer);
+    if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+  }
+
+  atkBtn.addEventListener('pointerdown', startHold);
+  atkBtn.addEventListener('pointerup', stopHold);
+  atkBtn.addEventListener('pointerleave', stopHold);
+  atkBtn.addEventListener('pointercancel', stopHold);
+}
+
+function stopCombat() {
+  if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+  _pvpTarget = null;
+  const hud = document.getElementById('combat-hud');
+  if (hud) hud.remove();
+}
+
+async function doPvpHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  // Show CD on button
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) {
+    cdOverlay.classList.add('active');
+    setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
+  }
+
+  try {
+    const data = await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'pvp-attack',
+        telegram_id: TG_ID,
+        target_telegram_id: target.telegram_id,
+        lat: pos.lat,
+        lng: pos.lng
+      }),
+    });
+
+    if (data.killed) {
+      stopCombat();
+      showToast(`⚔️ Победа! +${formatCoins(data.coins_won)} монет`);
+      _setPlayerCoins((state.player.coins || 0) + data.coins_won);
+    }
+  } catch (err) {
+    if (err.message?.includes('429') || err.message?.includes('Слишком')) return; // Ignore CD errors
+    showToast(`❌ ${err.message}`);
+    stopCombat();
+  }
 }
 
 async function _finishAttack(mineId) {
