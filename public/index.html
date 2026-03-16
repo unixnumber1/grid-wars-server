@@ -2008,6 +2008,29 @@
       50% { box-shadow: 0 0 0 8px rgba(255,23,68,0); }
     }
 
+    /* ── Death screen ── */
+    #death-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 20000;
+      background: rgba(0,0,0,0.92);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #fff;
+    }
+    #death-screen.open { display: flex; }
+    #death-screen .death-skull { font-size: 80px; animation: deathPulse 2s ease-in-out infinite; }
+    #death-screen .death-text { font-size: 24px; font-weight: 900; color: #f44336; text-transform: uppercase; letter-spacing: 2px; }
+    #death-screen .death-timer { font-size: 48px; font-weight: 900; color: #FFD700; font-variant-numeric: tabular-nums; }
+    #death-screen .death-info { font-size: 14px; color: #888; }
+    @keyframes deathPulse {
+      0%,100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
     /* ── Mass selection mode ── */
     .inv-cell.selectable { cursor: pointer; }
     .inv-cell.selected { border-color: #FFD700 !important; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
@@ -4759,26 +4782,31 @@ function initSocket() {
     });
 
     _socket.on('pvp:hit', (data) => {
-      // data: {attacker_id, attacker_name, damage, hp_left, max_hp}
+      // data: {attacker_id, attacker_name, damage, hp_left, max_hp, killed}
       if (state.player) {
         state.player.hp = data.hp_left;
         updatePlayerDisplay();
       }
-      showToast(`💥 ${data.attacker_name} нанёс ${data.damage} урона!`);
+      if (!data.killed) {
+        showToast(`💥 ${data.attacker_name} нанёс ${data.damage} урона!`);
+      }
+      // Death is handled by pvp:kill event
     });
 
     _socket.on('pvp:kill', (data) => {
-      // data: {winner_id, loser_id, winner_name, loser_name, coins_transferred, shield_until}
       const myId = state.player?.id;
       if (data.winner_id === myId) {
         showToast(`⚔️ Победа! +${formatCoins(data.coins_transferred)} монет`);
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
       } else if (data.loser_id === myId) {
-        showToast(`💀 Поражение! -${formatCoins(data.coins_transferred * 2)} монет. Щит 10 мин`);
-        _setPlayerCoins(Math.max(0, (state.player.coins || 0) - data.coins_transferred * 2));
+        // I died — show death screen
+        stopCombat();
+        const coinsLost = Math.round(data.coins_transferred * 2);
+        _setPlayerCoins(Math.max(0, (state.player.coins || 0) - coinsLost));
         state.player.shield_until = data.shield_until;
         state.player.hp = state.player.max_hp || 100;
         updateShieldDisplay();
+        showDeathScreen(data.winner_name, coinsLost);
       }
     });
 
@@ -8097,7 +8125,7 @@ async function doAttackMine(mineId) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 1500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
 
   closePopup();
   showCombatHUD(mine, 'mine');
@@ -8332,7 +8360,7 @@ function startPvpCombat(target) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 1500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
 
   // Show floating attack button
   showCombatHUD(target, 'pvp');
@@ -8352,7 +8380,7 @@ function showCombatHUD(target, mode) {
     <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
       <span style="color:#aaa;font-size:13px;">${targetName}</span>
       <div class="atk-btn-wrap">
-        <button id="combat-atk-btn" class="btn danger" style="padding:10px 20px;font-size:16px;border-radius:10px;">⚔️</button>
+        <button id="combat-atk-btn" class="btn danger" style="padding:10px 20px;font-size:16px;border-radius:10px;user-select:none;-webkit-user-select:none;touch-action:none;">⚔️</button>
         <div class="atk-cd-overlay" id="combat-cd-overlay"></div>
       </div>
       <button onclick="stopCombat()" class="btn" style="padding:8px 12px;font-size:13px;border-radius:8px;">✕</button>
@@ -8387,10 +8415,13 @@ function showCombatHUD(target, mode) {
     if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
   }
 
-  atkBtn.addEventListener('pointerdown', startHold);
-  atkBtn.addEventListener('pointerup', stopHold);
-  atkBtn.addEventListener('pointerleave', stopHold);
-  atkBtn.addEventListener('pointercancel', stopHold);
+  atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
+  atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopHold(); }, { passive: false });
+  atkBtn.addEventListener('touchcancel', stopHold);
+  atkBtn.addEventListener('mousedown', startHold);
+  atkBtn.addEventListener('mouseup', stopHold);
+  atkBtn.addEventListener('mouseleave', stopHold);
+  atkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function stopCombat() {
@@ -8398,6 +8429,25 @@ function stopCombat() {
   _pvpTarget = null;
   const hud = document.getElementById('combat-hud');
   if (hud) hud.remove();
+}
+
+function showDeathScreen(killerName, coinsLost) {
+  const screen = document.getElementById('death-screen');
+  const timerEl = document.getElementById('death-timer');
+  const infoEl = document.getElementById('death-info');
+  infoEl.textContent = `${killerName || 'Игрок'} убил вас · -${formatCoins(coinsLost)} монет · Щит 10 мин`;
+  screen.classList.add('open');
+  let sec = 10;
+  timerEl.textContent = sec;
+  const iv = setInterval(() => {
+    sec--;
+    timerEl.textContent = sec;
+    if (sec <= 0) {
+      clearInterval(iv);
+      screen.classList.remove('open');
+      showToast('🔄 Возрождение!');
+    }
+  }, 1000);
 }
 
 async function doPvpHit(target) {
@@ -9819,6 +9869,14 @@ async function doClanKick(targetTgId) {
 
 <!-- PvP battle overlay -->
 <div id="pvp-overlay"></div>
+
+<!-- Death screen -->
+<div id="death-screen">
+  <div class="death-skull">💀</div>
+  <div class="death-text">Вы погибли</div>
+  <div class="death-timer" id="death-timer">10</div>
+  <div class="death-info" id="death-info"></div>
+</div>
 
 <!-- Mine attack countdown overlay -->
 <div id="mine-attack-overlay">
