@@ -3102,16 +3102,18 @@ function _renderEquipSlots() {
   const shieldSlot = document.getElementById('equip-slot-shield');
 
   if (weapon) {
+    const wl = weapon.upgrade_level || 0;
     weaponSlot.className = `char-equip-slot filled ${rarityClass(weapon.rarity)}`;
-    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span>`;
+    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span><span class="inv-lvl">${wl > 0 ? '+' + wl : 'Ур.0'}</span>`;
   } else {
     weaponSlot.className = 'char-equip-slot';
     weaponSlot.innerHTML = '<span class="slot-empty">⚔️</span>';
   }
 
   if (shield) {
+    const sl = shield.upgrade_level || 0;
     shieldSlot.className = `char-equip-slot filled ${rarityClass(shield.rarity)}`;
-    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span>`;
+    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span><span class="inv-lvl">${sl > 0 ? '+' + sl : 'Ур.0'}</span>`;
   } else {
     shieldSlot.className = 'char-equip-slot';
     shieldSlot.innerHTML = '<span class="slot-empty">🛡️</span>';
@@ -7738,7 +7740,7 @@ function _renderMarketCards(listings, grid, isMine) {
     card.innerHTML = `
       ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
       <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
-      <div class="market-card-name">${item.name}</div>
+      <div class="market-card-name">${item.name}${item.upgrade_level ? ` <span style="color:#FFD700;font-size:11px;">+${item.upgrade_level}</span>` : ''}</div>
       <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
       <div class="market-card-stat">${itemStatLabel(item)}</div>
       <div class="market-card-price">💎 ${l.price_diamonds}</div>
