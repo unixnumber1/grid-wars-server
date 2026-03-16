@@ -3132,7 +3132,7 @@ function _renderInventoryGrid() {
     const cell = document.createElement('div');
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
     const lvl = item.upgrade_level || 0;
-    cell.innerHTML = `<span>${item.emoji}</span>${lvl > 0 ? `<span class="inv-lvl">+${lvl}</span>` : ''}`;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${lvl > 0 ? '+' + lvl : 'Ур.0'}</span>`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -9051,7 +9051,7 @@ function _renderInventoryGridSelectable() {
     check.textContent = '✓';
     if (!canSelect) check.style.display = 'none';
     const slvl = item.upgrade_level || 0;
-    cell.innerHTML = `<span>${item.emoji}</span>${slvl > 0 ? `<span class="inv-lvl">+${slvl}</span>` : ''}`;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : 'Ур.0'}</span>`;
     cell.appendChild(check);
 
     if (canSelect) {
