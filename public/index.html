@@ -4672,10 +4672,23 @@ document.addEventListener('DOMContentLoaded', () => {
 function updateCoinDisplay() {
   document.getElementById('coin-display').textContent =
     state.player ? formatCoins(state.player.coins ?? 0) : '—';
-  const inc = state.totalIncome;
+  const inc = state.totalIncome || 0;
+  const base = state.baseIncome || 0;
   const incEl = document.getElementById('income-display');
   if (incEl) {
-    incEl.textContent = inc > 0 ? `⚡ +${formatCoins(Math.round(inc * 3600))}/ч` : '';
+    const basePerHour = Math.round(base * 3600);
+    const totalPerHour = Math.round(inc * 3600);
+    const bonus = totalPerHour - basePerHour;
+    if (inc > 0) {
+      let txt = `⚡ +${formatCoins(basePerHour)}/ч`;
+      if (bonus > 0) {
+        const color = state.clanColor || '#D500F9';
+        txt += ` <span style="color:${color}">(+${formatCoins(bonus)})</span>`;
+      }
+      incEl.innerHTML = txt;
+    } else {
+      incEl.textContent = '';
+    }
   }
   const crEl = document.getElementById('crystal-display');
   if (crEl) crEl.textContent = `✨ ${state.player?.crystals || 0}`;
@@ -4957,6 +4970,8 @@ function processTickData(data) {
     _startCoinTick();
   }
   if (data.oreIncome != null) state.oreIncome = data.oreIncome;
+  if (data.baseIncome != null) state.baseIncome = data.baseIncome;
+  if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
   if (data.clan_boost) state.clanBoost = data.clan_boost;
   else if (data.clanBoost) state.clanBoost = data.clanBoost;
