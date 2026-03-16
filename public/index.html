@@ -2657,51 +2657,50 @@ let TG_NAME = tgUser?.username || 'unknown';
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
 const VPS_URL = 'https://overthrow.ru:8443';  // Socket.io direct
-const MINE_MAX_LEVEL    = 250;
+const MINE_MAX_LEVEL    = 200;
 const HQ_MAX_LEVEL      = 10;
 const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
 function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
-const SMALL_RADIUS = 200;        // build / collect / upgrade zone (metres)
-const LARGE_RADIUS = 500;        // combat / vase zone (metres)
-const H3_RES            = 11;    // ~50m hex diameter
-const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
+const SMALL_RADIUS = 200;
+const LARGE_RADIUS = 500;
+const H3_RES            = 11;
+const H3_DISK_K         = 12;
 
 // Formulas (keep in sync with lib/formulas.js)
-function mineBaseCost(l) {
-  if (l <= 0)   return 100; // activation cost 0→1
-  if (l <= 50)  return 100 * Math.pow(1.21, l - 1);
-  const e1 = 100 * Math.pow(1.21, 49);
-  if (l <= 100) return e1 * 5 * Math.pow(1.15, l - 51);
-  const e2 = e1 * 5 * Math.pow(1.15, 49);
-  if (l <= 150) return e2 * 8 * Math.pow(1.13, l - 101);
-  const e3 = e2 * 8 * Math.pow(1.13, 49);
-  if (l <= 200) return e3 * 12 * Math.pow(1.12, l - 151);
-  const e4 = e3 * 12 * Math.pow(1.12, 49);
-  return e4 * 20 * Math.pow(1.11, l - 201);
-}
 function getMineUpgradeCost(level) {
-  let cost = mineBaseCost(level);
-  if (level >= 9 && level % 10 === 9) cost *= 4;
-  return Math.min(Math.round(cost), 9_000_000_000_000_000_000);
-}
-function getPayback(l) {
-  if (l <= 50)  return 3600 * Math.pow(6, (l - 1) / 49);
-  if (l <= 100) return 21600 * Math.pow(12, (l - 50) / 50);
-  if (l <= 150) return 259200 * Math.pow(4.67, (l - 100) / 50);
-  if (l <= 200) return 1209600 * Math.pow(4.29, (l - 150) / 50);
-  return 5184000 * Math.pow(6.08, (l - 200) / 50);
+  if (level <= 0) return 0;
+  if (level <= 100) {
+    const base = 1000 * Math.pow(1.12, level - 1);
+    const jumpLevels = [10,20,30,40,50,60,70,80,90,100];
+    const jumps = jumpLevels.filter(l => l <= level).length;
+    return Math.floor(base * Math.pow(4, jumps));
+  } else {
+    const base100 = getMineUpgradeCost(100);
+    return Math.floor(base100 * Math.pow(1.07, level - 100));
+  }
 }
 function getMineIncome(level) {
-  if (level === 0) return 0;
-  const cost = mineBaseCost(level);
-  return Math.max(1, Math.round(cost / getPayback(level)));
+  if (level <= 0) return 0;
+  if (level <= 100) {
+    const base = 50 * Math.pow(1.095, level - 1);
+    const jumpLevels = [10,20,30,40,50,60,70,80,90,100];
+    const jumps = jumpLevels.filter(l => l <= level).length;
+    return Math.floor(base * Math.pow(1.3, jumps));
+  } else {
+    const base100 = getMineIncome(100);
+    return Math.floor(base100 * Math.pow(1.06, level - 100));
+  }
 }
 function getMineCapacity(level) {
-  if (level === 0) return 0;
-  const days = level <= 100 ? 6 : level <= 150 ? 5 : level <= 200 ? 4 : 3;
-  return Math.round(getMineIncome(level) * days * 86400);
+  if (level <= 0) return 0;
+  const income = getMineIncome(level);
+  let hours;
+  if (level < 50) hours = 6;
+  else if (level < 100) hours = 168;
+  else if (level < 150) hours = 336;
+  else hours = 480;
+  return Math.floor(income * hours * 3600);
 }
-// Backward-compat aliases used elsewhere in this file
 const mineRate = getMineIncome;
 const mineUpgradeCost = getMineUpgradeCost;
 
@@ -2714,8 +2713,8 @@ const HQ_LEVELS = [
   { level:6,  maxMines:60,  maxMineLevel:150, upgradeCost:50_000_000 },
   { level:7,  maxMines:70,  maxMineLevel:175, upgradeCost:500_000_000 },
   { level:8,  maxMines:80,  maxMineLevel:200, upgradeCost:5_000_000_000 },
-  { level:9,  maxMines:90,  maxMineLevel:225, upgradeCost:50_000_000_000 },
-  { level:10, maxMines:100, maxMineLevel:250, upgradeCost:500_000_000_000 },
+  { level:9,  maxMines:90,  maxMineLevel:200, upgradeCost:50_000_000_000 },
+  { level:10, maxMines:100, maxMineLevel:200, upgradeCost:500_000_000_000 },
 ];
 function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
