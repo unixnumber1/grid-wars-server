@@ -8162,8 +8162,9 @@ async function doMineHit(mine) {
       showToast('🔥 Шахта горит!');
     }
   } catch (err) {
-    if (err.message?.includes('429') || err.message?.includes('Слишком')) return;
-    showToast(`❌ ${err.message}`);
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    showToast(`❌ ${msg}`);
     stopCombat();
   }
 }
@@ -8391,36 +8392,41 @@ function showCombatHUD(target, mode) {
   const atkBtn = document.getElementById('combat-atk-btn');
   const cdOverlay = document.getElementById('combat-cd-overlay');
 
-  // Single tap
-  atkBtn.addEventListener('click', () => {
+  const doHit = () => {
     if (mode === 'pvp') doPvpHit(target);
     else doMineHit(target);
-  });
+  };
 
-  // Auto-fire on hold
+  // Hold tracking
   let holdTimer = null;
+  let isHolding = false;
+
   function startHold() {
-    atkBtn.classList.add('atk-btn-pulse');
+    isHolding = false;
     holdTimer = setTimeout(() => {
-      // Start auto-fire
-      _pvpAutoFire = setInterval(() => {
-        if (mode === 'pvp') doPvpHit(target);
-        else doMineHit(target);
-      }, _pvpCdMs);
-    }, 500);
+      isHolding = true;
+      atkBtn.classList.add('atk-btn-pulse');
+      doHit(); // Fire first shot immediately on hold
+      _pvpAutoFire = setInterval(doHit, _pvpCdMs + 50); // +50ms buffer for server CD
+    }, 300);
   }
   function stopHold() {
+    const wasHolding = isHolding;
+    isHolding = false;
     atkBtn.classList.remove('atk-btn-pulse');
     clearTimeout(holdTimer);
+    holdTimer = null;
     if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+    // If it was a quick tap (not a hold), fire single shot
+    if (!wasHolding) doHit();
   }
 
   atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
   atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopHold(); }, { passive: false });
-  atkBtn.addEventListener('touchcancel', stopHold);
+  atkBtn.addEventListener('touchcancel', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('mousedown', startHold);
   atkBtn.addEventListener('mouseup', stopHold);
-  atkBtn.addEventListener('mouseleave', stopHold);
+  atkBtn.addEventListener('mouseleave', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
@@ -8483,8 +8489,10 @@ async function doPvpHit(target) {
       _setPlayerCoins((state.player.coins || 0) + data.coins_won);
     }
   } catch (err) {
-    if (err.message?.includes('429') || err.message?.includes('Слишком')) return; // Ignore CD errors
-    showToast(`❌ ${err.message}`);
+    const msg = err.message || '';
+    // Ignore cooldown / rate-limit errors silently
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    showToast(`❌ ${msg}`);
     stopCombat();
   }
 }
