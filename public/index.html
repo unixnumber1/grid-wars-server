@@ -1466,11 +1466,11 @@
     .shop-box-open-btn:active { background: rgba(255,215,0,0.25); }
     .shop-box-open-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .shop-mythic-card {
-      background:rgba(139,0,0,0.15); border:1px solid rgba(139,0,0,0.3);
+      background:#1a0a0a; border:1px solid rgba(255,109,0,0.3);
       border-radius:10px; padding:10px; text-align:center; cursor:pointer;
-      transition:all 0.2s;
+      transition:all 0.2s; box-shadow:0 0 12px rgba(255,109,0,0.06);
     }
-    .shop-mythic-card:active { transform:scale(0.95); background:rgba(139,0,0,0.25); }
+    .shop-mythic-card:active { transform:scale(0.95); background:rgba(255,109,0,0.12); }
     .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .shop-star-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -2501,43 +2501,38 @@
     <!-- Boxes tab -->
     <div id="shop-tab-boxes" class="shop-tab-content active">
       <div class="shop-boxes-row">
-        <div class="shop-box-card" style="border-color:rgba(0,200,83,0.3);background:rgba(0,200,83,0.05);box-shadow:0 0 20px rgba(0,200,83,0.1);position:relative;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();_showBoxInfo('rare')">i</button>
+        <div class="shop-box-card" style="border-color:rgba(76,175,80,0.35);background:#1a1a1a;box-shadow:0 0 24px rgba(76,175,80,0.08);position:relative;">
+          <button class="shop-box-info-btn shop-info-btn" data-box="rare" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
           <div class="shop-box-name">Редкий бокс</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;">⚔️ Меч · 🪓 Топор · 🛡️ Щит</div>
-          <div class="shop-box-price">💎 5 алмазов</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="rare">Открыть</button>
+          <div class="shop-box-price">💎 5</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(76,175,80,0.2),rgba(76,175,80,0.08));border-color:rgba(76,175,80,0.4);color:#4caf50;">Открыть</button>
         </div>
-        <div class="shop-box-card" style="border-color:rgba(245,0,87,0.3);background:rgba(245,0,87,0.05);box-shadow:0 0 20px rgba(245,0,87,0.1);position:relative;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();_showBoxInfo('epic')">i</button>
+        <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;box-shadow:0 0 24px rgba(156,39,176,0.08);position:relative;">
+          <button class="shop-box-info-btn shop-info-btn" data-box="epic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🎁</div>
           <div class="shop-box-name">Эпический бокс</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;">⚔️ Меч · 🪓 Топор · 🛡️ Щит</div>
-          <div class="shop-box-price">💎 30 алмазов</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="epic">Открыть</button>
+          <div class="shop-box-price">💎 30</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(156,39,176,0.08));border-color:rgba(156,39,176,0.4);color:#ce93d8;">Открыть</button>
         </div>
       </div>
-      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);">
-        <div style="font-size:15px;font-weight:700;color:#8b0000;margin-bottom:12px;">🔥 Мифическое снаряжение</div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;">🔥 Мифическое снаряжение</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
           <div class="shop-mythic-card" onclick="buyMythic('sword')">
             <div style="font-size:32px;">🗡️</div>
-            <div style="font-size:11px;font-weight:600;">Мифический меч</div>
-            <div style="font-size:10px;color:#aaa;">ATK 90 · Крит 13%</div>
-            <div style="font-size:12px;color:#00cfff;margin-top:4px;">💎 500</div>
+            <div style="font-size:11px;font-weight:600;color:#fff;">Меч</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
           </div>
           <div class="shop-mythic-card" onclick="buyMythic('axe')">
             <div style="font-size:32px;">🪓</div>
-            <div style="font-size:11px;font-weight:600;">Мифический топор</div>
-            <div style="font-size:10px;color:#aaa;">ATK 125</div>
-            <div style="font-size:12px;color:#00cfff;margin-top:4px;">💎 500</div>
+            <div style="font-size:11px;font-weight:600;color:#fff;">Топор</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
           </div>
           <div class="shop-mythic-card" onclick="buyMythic('shield')">
             <div style="font-size:32px;">🛡️</div>
-            <div style="font-size:11px;font-weight:600;">Мифический щит</div>
-            <div style="font-size:10px;color:#aaa;">DEF 790 · Блок 15%</div>
-            <div style="font-size:12px;color:#00cfff;margin-top:4px;">💎 500</div>
+            <div style="font-size:11px;font-weight:600;color:#fff;">Щит</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
           </div>
         </div>
       </div>
@@ -3025,6 +3020,86 @@ function rarityLabel(rarity) {
   const color = RARITY_COLORS_CLIENT[rarity] || '#888';
   if (rarity === 'legendary') return `<span class="legendary-text">${name}</span>`;
   return `<span style="color:${color}">${name}</span>`;
+}
+
+function showItemReveal(item, source) {
+  const REVEAL_COLORS = {common:'#9e9e9e',uncommon:'#4caf50',rare:'#2196f3',epic:'#9c27b0',mythic:'#ff6d00',legendary:'#ffd700'};
+  const color = REVEAL_COLORS[item.rarity] || '#888';
+
+  let bonusHtml = '';
+  if (item.rarity === 'mythic' || item.rarity === 'legendary') {
+    const prefix = item.rarity === 'mythic' ? '🔥 Мифический' : '👑 Легендарный';
+    let bonusText = '';
+    if (item.type === 'sword') bonusText = item.rarity === 'mythic' ? 'Крит множитель ×1.5 → ×2.2 при прокачке' : 'Крит множитель ×1.5 → ×3.0 при прокачке';
+    if (item.type === 'axe') bonusText = item.rarity === 'mythic' ? 'Казнь врага &lt; 50% HP — шанс 7-17%' : 'Казнь врага &lt; 50% HP — шанс 13-20%';
+    if (item.type === 'shield') bonusText = item.rarity === 'mythic' ? 'Блок удара — шанс 10-25%' : 'Блок удара — шанс 20-41%';
+    if (bonusText) {
+      bonusHtml = `<div style="margin-top:16px;padding:12px 16px;background:rgba(0,0,0,0.5);border:1px solid ${color}44;border-radius:12px;">
+        <div style="font-size:13px;color:${color};font-weight:600;">${prefix} бонус:</div>
+        <div style="font-size:12px;color:#ccc;margin-top:4px;">${bonusText}</div>
+      </div>`;
+    }
+  }
+
+  let statsHtml = '';
+  if (item.attack > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">⚔️ Атака</span><span style="font-weight:700;">${item.attack}</span></div>`;
+  if (item.crit_chance > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">💥 Крит</span><span style="font-weight:700;">${item.crit_chance}%</span></div>`;
+  if (item.defense > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">🛡️ Защита</span><span style="font-weight:700;">+${item.defense}</span></div>`;
+  if (item.block_chance > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">🔰 Блок</span><span style="font-weight:700;">${item.block_chance}%</span></div>`;
+
+  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity]||'';
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:15000;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
+
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  ov.appendChild(canvas);
+
+  const content = document.createElement('div');
+  content.style.cssText = 'position:relative;z-index:1;text-align:center;max-width:300px;width:100%;';
+  content.innerHTML = `
+    <div style="font-size:72px;filter:drop-shadow(0 0 20px ${color});margin-bottom:12px;">${item.emoji}</div>
+    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">${item.name}</div>
+    <div style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44;">${rarLabel}</div>
+    <div style="margin-top:16px;text-align:left;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
+      ${statsHtml}
+    </div>
+    ${bonusHtml}
+    <button onclick="this.closest('div[style*=fixed]').remove()" style="margin-top:20px;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;background:${color};color:#000;">Продолжить</button>
+  `;
+  ov.appendChild(content);
+  document.body.appendChild(ov);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const particles = Array.from({length:40}, () => ({
+    x: Math.random() * canvas.width,
+    y: canvas.height + Math.random() * 100,
+    speed: 0.3 + Math.random() * 0.7,
+    size: 1 + Math.random() * 3,
+    alpha: 0.3 + Math.random() * 0.5,
+  }));
+  function animParticles() {
+    if (!ov.parentNode) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of particles) {
+      p.y -= p.speed;
+      if (p.y < -10) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = color + Math.round(p.alpha * 255).toString(16).padStart(2,'0');
+      ctx.fill();
+    }
+    requestAnimationFrame(animParticles);
+  }
+  animParticles();
+
+  if (window.Telegram?.WebApp?.HapticFeedback) {
+    const impact = (item.rarity === 'legendary' || item.rarity === 'mythic') ? 'heavy' : 'medium';
+    window.Telegram.WebApp.HapticFeedback.impactOccurred(impact);
+  }
 }
 
 function showProfilePopup() {
@@ -6643,11 +6718,11 @@ async function buyMythic(weaponType) {
       method: 'POST',
       body: JSON.stringify({ action: 'buy-mythic', telegram_id: TG_ID, weapon_type: weaponType }),
     });
-    showToast(`🔥 Мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} получен!`);
     if (state.player) state.player.diamonds = data.diamondsLeft;
     if (data.item) state.inventory = [data.item, ...(state.inventory || [])];
     updateDiamondDisplay();
     _renderEquipSlots();
+    if (data.item) showItemReveal(data.item, 'mythic');
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -6734,31 +6809,12 @@ function _animateBoxOpen(boxType, item) {
       setTimeout(() => flash.remove(), 300);
     }, 900);
 
-    // Phase 4: Show item (after 1200ms)
+    // Phase 4: Show item reveal (after 1200ms)
     setTimeout(() => {
-      const statLabel = itemStatLabel(item);
-      const nameHtml = item.rarity === 'legendary'
-        ? `<span class="legendary-text">${item.name}</span>`
-        : item.name;
-      const glowStyle = `filter: drop-shadow(0 0 20px ${rarityColor.startsWith('linear') ? '#FFD700' : rarityColor})`;
-
-      overlay.innerHTML = `
-        <div class="box-result">
-          <div class="box-result-emoji" style="${glowStyle}">${item.emoji}</div>
-          <div class="box-result-name">${nameHtml}</div>
-          <div class="box-result-rarity">${rarityLabel(item.rarity)}</div>
-          <div class="box-result-stat">${statLabel}</div>
-          <div class="box-result-hint">Нажмите чтобы продолжить</div>
-        </div>
-      `;
-
-      // Phase 5: Click to close
-      overlay.addEventListener('click', function close() {
-        overlay.removeEventListener('click', close);
-        overlay.classList.remove('open');
-        overlay.innerHTML = '';
-        resolve();
-      });
+      overlay.classList.remove('open');
+      overlay.innerHTML = '';
+      showItemReveal(item, 'box');
+      resolve();
     }, 1200);
   });
 }
@@ -7050,43 +7106,13 @@ async function _playCraftAnimation(resultItem, sourceItems) {
   whiteout.style.transition = 'opacity 0.5s ease-out';
   await _craftSleep(500);
 
-  // Phase 5: result banner
-  ring.style.opacity = '0';
-  ring.style.transition = 'opacity 0.3s';
-
-  const rarityName = RARITY_NAMES_CLIENT[resultItem.rarity] || resultItem.rarity;
-  const isLegendary = resultItem.rarity === 'legendary';
-
-  const statsHtml = [
-    resultItem.attack ? `<span>⚔️ +${resultItem.attack}</span>` : '',
-    resultItem.crit_chance ? `<span>🎯 ${resultItem.crit_chance}%</span>` : '',
-    resultItem.defense ? `<span>🛡️ +${resultItem.defense}</span>` : '',
-  ].filter(Boolean).join('');
-
-  const banner = document.createElement('div');
-  banner.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;opacity:0;transition:opacity 0.6s ease;';
-  banner.innerHTML = `
-    <div style="font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚒️ СКРАФТЛЕНО</div>
-    <div style="font-size:96px;line-height:1;filter:drop-shadow(0 0 30px ${flashColor});animation:_craftItemAppear 0.5s cubic-bezier(0.34,1.56,0.64,1);">${resultItem.emoji}</div>
-    <div style="font-size:24px;font-weight:bold;${isLegendary ? 'background:linear-gradient(90deg,#FFD700,#FF8C00,#FFD700);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:legendaryShimmer 2s linear infinite;' : `color:${flashColor};`}">${resultItem.name}</div>
-    <div style="padding:4px 16px;border-radius:20px;font-size:13px;font-weight:bold;background:${flashColor}33;border:1px solid ${flashColor};color:${flashColor};">${rarityName}</div>
-    <div style="font-size:15px;color:rgba(255,255,255,0.7);display:flex;gap:16px;margin-top:4px;">${statsHtml}</div>
-    <div style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.3);letter-spacing:1px;">Нажмите чтобы продолжить</div>
-  `;
-  overlay.appendChild(banner);
-  await _craftSleep(50);
-  banner.style.opacity = '1';
-
-  // Click to close
-  await new Promise(resolve => {
-    overlay.addEventListener('click', resolve, { once: true });
-  });
-
+  // Phase 5: show item reveal
   overlay.style.transition = 'opacity 0.3s';
   overlay.style.opacity = '0';
   await _craftSleep(300);
   overlay.remove();
   craftStyle.remove();
+  showItemReveal(resultItem, 'craft');
 }
 
 // ─────────────────────────────────────────────
