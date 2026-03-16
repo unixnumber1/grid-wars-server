@@ -1145,6 +1145,12 @@
       transition: opacity 0.2s;
     }
     .inv-cell:active { opacity: 0.7; }
+    .inv-cell .inv-lvl {
+      position:absolute; bottom:2px; right:3px;
+      font-size:9px; font-weight:700; color:#FFD700;
+      text-shadow:0 0 3px rgba(0,0,0,0.9);
+      line-height:1;
+    }
     .inv-cell.equipped::after {
       content: '✓';
       position: absolute;
@@ -3125,7 +3131,8 @@ function _renderInventoryGrid() {
   for (const item of inv) {
     const cell = document.createElement('div');
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
-    cell.innerHTML = `<span>${item.emoji}</span>`;
+    const lvl = item.upgrade_level || 0;
+    cell.innerHTML = `<span>${item.emoji}</span>${lvl > 0 ? `<span class="inv-lvl">+${lvl}</span>` : ''}`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -9043,7 +9050,8 @@ function _renderInventoryGridSelectable() {
     check.className = 'select-check';
     check.textContent = '✓';
     if (!canSelect) check.style.display = 'none';
-    cell.innerHTML = `<span>${item.emoji}</span>`;
+    const slvl = item.upgrade_level || 0;
+    cell.innerHTML = `<span>${item.emoji}</span>${slvl > 0 ? `<span class="inv-lvl">+${slvl}</span>` : ''}`;
     cell.appendChild(check);
 
     if (canSelect) {
