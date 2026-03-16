@@ -43,8 +43,18 @@
       padding: 8px 12px;
       white-space: nowrap;
     }
-    .hud-row-1 { display: flex; align-items: center; gap: 8px; }
-    .hud-row-2 { margin-top: 2px; }
+    .hud-collapsed { display: flex; align-items: center; gap: 8px; }
+    .hud-toggle-btn {
+      background: none; border: none; color: rgba(255,255,255,0.4);
+      font-size: 10px; cursor: pointer; padding: 0 0 0 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hud-expanded {
+      max-height: 0; overflow: hidden;
+      transition: max-height 250ms ease-out;
+    }
+    .hud-expanded.open { max-height: 120px; }
+    .hud-exp-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
     .hud-coins { font-size: 16px; font-weight: 700; color: #FFD700; }
     .hud-income { font-size: 12px; color: #00E676; }
     .hud-diamonds { font-size: 14px; font-weight: 700; color: #64B5F6; }
@@ -1085,6 +1095,12 @@
       cursor: default; color: rgba(255,255,255,0.2);
     }
     .char-equip-slot .slot-empty { color: rgba(255,255,255,0.25); }
+    .char-equip-slot .inv-lvl {
+      position:absolute; bottom:1px; right:2px;
+      font-size:8px; font-weight:700; color:#FFD700;
+      text-shadow:0 0 3px rgba(0,0,0,0.9);
+      line-height:1;
+    }
 
     /* XP bar (full width) */
     .char-xp-bar {
@@ -2408,15 +2424,26 @@
 
 <!-- Top currency pill -->
 <div id="hud-top-pill">
-  <div class="hud-row-1">
+  <div class="hud-collapsed">
     <span class="hud-coins">💰 <span id="coin-display">—</span></span>
     <span class="hud-sep">·</span>
-    <span class="hud-income" id="income-display"></span>
-  </div>
-  <div class="hud-row-2">
+    <span class="hud-income" id="income-display-collapsed" style="font-size:12px;color:#00E676;"></span>
+    <span class="hud-sep">·</span>
     <span class="hud-diamonds">💎 <span id="diamond-display">0</span></span>
-    <span id="crystal-display" style="color:#FFD700;font-size:13px;margin-left:6px;">✨ 0</span>
-    <span id="crystal-income-display" style="color:#aa88ff;font-size:11px;margin-left:2px;"></span>
+    <button class="hud-toggle-btn" id="hud-toggle-btn" onclick="toggleHud()">▼</button>
+  </div>
+  <div class="hud-expanded" id="hud-expanded">
+    <div class="hud-exp-row" style="margin-top:6px;">
+      <span class="hud-coins">💰 <span id="coin-display-exp">—</span></span>
+      <span class="hud-income" id="income-display"></span>
+    </div>
+    <div class="hud-exp-row">
+      <span id="crystal-display" style="color:#FFD700;font-size:13px;">✨ 0</span>
+      <span id="crystal-income-display" style="color:#aa88ff;font-size:11px;margin-left:2px;"></span>
+    </div>
+    <div class="hud-exp-row">
+      <span class="hud-diamonds">💎 <span id="diamond-display-exp">0</span></span>
+    </div>
   </div>
 </div>
 
@@ -2519,17 +2546,20 @@
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;">🔥 Мифическое снаряжение</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          <div class="shop-mythic-card" onclick="buyMythic('sword')">
+          <div class="shop-mythic-card" onclick="buyMythic('sword')" style="position:relative;">
+            <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
             <div style="font-size:32px;">🗡️</div>
             <div style="font-size:11px;font-weight:600;color:#fff;">Меч</div>
             <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
           </div>
-          <div class="shop-mythic-card" onclick="buyMythic('axe')">
+          <div class="shop-mythic-card" onclick="buyMythic('axe')" style="position:relative;">
+            <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('axe')">i</button>
             <div style="font-size:32px;">🪓</div>
             <div style="font-size:11px;font-weight:600;color:#fff;">Топор</div>
             <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
           </div>
-          <div class="shop-mythic-card" onclick="buyMythic('shield')">
+          <div class="shop-mythic-card" onclick="buyMythic('shield')" style="position:relative;">
+            <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
             <div style="font-size:32px;">🛡️</div>
             <div style="font-size:11px;font-weight:600;color:#fff;">Щит</div>
             <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
@@ -2564,7 +2594,7 @@
     <h3 id="box-odds-title"></h3>
     <div id="box-odds-rows"></div>
     <div class="odds-footer">
-      Предметы: 🗡️ мечи, 🛡️ щиты<br>
+      Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты<br>
       Легендарные: недоступны
     </div>
     <button id="box-odds-close">Закрыть</button>
@@ -3142,8 +3172,8 @@ function showProfilePopup() {
   statsEl.innerHTML = '';
 
   const rows = [
-    ['❤️ HP', `${hp} / ${maxHp}${bonusHp ? ` <span class="bonus">(+${bonusHp})</span>` : ''}`],
-    ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk} <span class="bonus">+${bonusAtk} от ${equippedWeapon?.type === 'axe' ? 'топора' : 'меча'}</span>` : `${baseAtk}`],
+    ['❤️ HP', `${hp} / ${maxHp}`],
+    ['⚔️ Атака', `${baseAtk + bonusAtk}`],
     ['💥 Крит', `${critChance}%`],
     ['⭐ XP', formatNumber(xp)],
     ['🏆 Уровень', `${level}`],
@@ -3551,11 +3581,11 @@ function _refreshProfileStats() {
       <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
         <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
       </div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` (+${bonusHp} от щита)` : ''}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP</div>
     </div>
   `;
   const rows = [
-    ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
+    ['⚔️ Атака', `${baseAtk + bonusAtk}`],
   ];
   if (critChance > 0) {
     rows.push(['🎯 Крит', `${critChance}%`]);
@@ -4932,16 +4962,34 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─────────────────────────────────────────────
 //  Display updates
 // ─────────────────────────────────────────────
+function toggleHud() {
+  const exp = document.getElementById('hud-expanded');
+  const btn = document.getElementById('hud-toggle-btn');
+  exp.classList.toggle('open');
+  btn.textContent = exp.classList.contains('open') ? '▲' : '▼';
+}
+
 function updateCoinDisplay() {
-  document.getElementById('coin-display').textContent =
-    state.player ? formatCoins(state.player.coins ?? 0) : '—';
+  const coinText = state.player ? formatCoins(state.player.coins ?? 0) : '—';
+  document.getElementById('coin-display').textContent = coinText;
+  const coinExp = document.getElementById('coin-display-exp');
+  if (coinExp) coinExp.textContent = coinText;
+
   const inc = state.totalIncome || 0;
   const base = state.baseIncome || 0;
+  const basePerHour = Math.round(base * 3600);
+  const totalPerHour = Math.round(inc * 3600);
+  const bonus = totalPerHour - basePerHour;
+
+  // Collapsed income (short)
+  const incCollapsed = document.getElementById('income-display-collapsed');
+  if (incCollapsed) {
+    incCollapsed.textContent = inc > 0 ? `⚡ ${formatCoins(totalPerHour)}/ч` : '';
+  }
+
+  // Expanded income (full with clan boost)
   const incEl = document.getElementById('income-display');
   if (incEl) {
-    const basePerHour = Math.round(base * 3600);
-    const totalPerHour = Math.round(inc * 3600);
-    const bonus = totalPerHour - basePerHour;
     if (inc > 0) {
       let txt = `⚡ +${formatCoins(basePerHour)}/ч`;
       if (bonus > 0) {
@@ -4953,6 +5001,11 @@ function updateCoinDisplay() {
       incEl.textContent = '';
     }
   }
+
+  // Diamonds expanded
+  const diaExp = document.getElementById('diamond-display-exp');
+  if (diaExp) diaExp.textContent = state.player?.diamonds ?? 0;
+
   const crEl = document.getElementById('crystal-display');
   if (crEl) crEl.textContent = `✨ ${state.player?.crystals || 0}`;
   const crIncEl = document.getElementById('crystal-income-display');
@@ -5653,6 +5706,8 @@ function updateDiamondDisplay() {
   const diamonds = state.player?.diamonds ?? 0;
   const el = document.getElementById('diamond-display');
   if (el) el.textContent = diamonds;
+  const elExp = document.getElementById('diamond-display-exp');
+  if (elExp) elExp.textContent = diamonds;
 }
 
 function animateDrain(mineLatLng, botLatLng) {
@@ -6709,6 +6764,36 @@ function _showBoxInfo(boxType) {
   const stats = Object.entries(odds).map(([r, pct]) => [RARITY_NAMES_RU[r] || r, `${pct}%`]);
   stats.unshift(['Содержимое', '⚔️ Меч · 🪓 Топор · 🛡️ Щит']);
   openPopup(title, 'Случайный предмет одного из типов', stats, [{ label: 'Понятно', isClose: true }]);
+}
+
+function showMythicInfo(type) {
+  const info = {
+    sword: {
+      title: '🗡️ Мифический меч',
+      stats: [
+        ['⚔️ Атака', '90'],
+        ['💥 Крит шанс', '13%'],
+        ['🔥 Крит множитель', '×1.5 → ×2.2 при прокачке'],
+      ]
+    },
+    axe: {
+      title: '🪓 Мифический топор',
+      stats: [
+        ['⚔️ Атака', '125'],
+        ['💀 Казнь врага <50% HP', 'шанс 7% → 17% при прокачке'],
+      ]
+    },
+    shield: {
+      title: '🛡️ Мифический щит',
+      stats: [
+        ['🛡️ Защита', '+790'],
+        ['🔰 Блок удара', '15% → 25% при прокачке'],
+      ]
+    },
+  };
+  const i = info[type];
+  if (!i) return;
+  openPopup(i.title, 'Характеристики мифического предмета', i.stats, [{ label: 'Понятно', isClose: true }]);
 }
 
 async function buyMythic(weaponType) {
