@@ -2579,14 +2579,7 @@ function _setPlayerCoins(coins) {
 }
 
 function _startCoinTick() {
-  if (_coinTickInterval) return;
-  _coinTickInterval = setInterval(() => {
-    if (!_incomePerSecond || !_lastTickTime) return;
-    const elapsed = (Date.now() - _lastTickTime) / 1000;
-    const earned = _incomePerSecond * elapsed;
-    const display = Math.floor(_localCoins + earned);
-    document.getElementById('coin-display').textContent = formatCoins(display);
-  }, 1000);
+  // Disabled: coins only update from server on collect
 }
 
 // Map fetch state — declared here to avoid TDZ when loadVisibleBuildings is hoisted
