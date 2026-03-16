@@ -1183,41 +1183,55 @@
     }
 
     /* Item detail bottom sheet inside profile modal */
+    /* ── Item detail card ── */
     #item-detail-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 4000;
-      align-items: flex-end;
-      justify-content: center;
+      display:none; position:fixed; inset:0; z-index:8000;
+      background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);
+      flex-direction:column; align-items:center; justify-content:center;
     }
-    #item-detail-overlay.open { display: flex; }
-    #item-detail-card {
-      background: #1a1a2e;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px 16px 0 0;
-      width: 100%;
-      max-width: 480px;
-      padding: 20px;
-      animation: slideUp 0.2s ease-out;
+    #item-detail-overlay.open { display:flex; }
+    .item-detail-card {
+      background:#111; border-radius:16px; padding:20px; width:90%; max-width:340px;
+      border:2px solid rgba(255,255,255,0.1); position:relative;
     }
-    #item-detail-card h3 { font-size: 18px; margin-bottom: 4px; }
-    #item-detail-card .item-stat { font-size: 15px; margin: 12px 0; color: #f5c518; }
-    #item-detail-card .item-btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-    #item-detail-card .item-btn-row .btn { flex: 1; padding: 12px; font-size: 14px; }
+    .idc-header { text-align:center; margin-bottom:16px; }
+    .idc-emoji { font-size:56px; }
+    .idc-name { font-size:18px; font-weight:700; margin-top:8px; }
+    .idc-rarity { font-size:12px; margin-top:2px; }
+    .idc-level { font-size:13px; color:#FFD700; margin-top:4px; }
+    .idc-tabs { display:flex; gap:0; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    .idc-tab { flex:1; padding:8px; text-align:center; font-size:13px; color:#888; cursor:pointer; border-bottom:2px solid transparent; }
+    .idc-tab.active { color:#fff; border-bottom-color:#FFD700; }
+    .idc-tab-content { display:none; }
+    .idc-tab-content.active { display:block; }
+    .idc-stat-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:14px; }
+    .idc-stat-label { color:#aaa; }
+    .idc-stat-value { color:#fff; font-weight:600; }
+    .idc-upgrade-bar { height:6px; background:#222; border-radius:3px; margin:8px 0; overflow:hidden; }
+    .idc-upgrade-fill { height:100%; background:linear-gradient(90deg,#FFD700,#FF8C00); border-radius:3px; transition:width 0.3s; }
+    .idc-upgrade-btn {
+      width:100%; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:700;
+      cursor:pointer; margin-top:8px; transition:all 0.2s;
+    }
+    .idc-upgrade-btn.can-afford { background:linear-gradient(135deg,#FFD700,#FF8C00); color:#000; }
+    .idc-upgrade-btn.cant-afford { background:#333; color:#666; cursor:not-allowed; }
+    .idc-upgrade-btn.maxed { background:#222; color:#4caf50; cursor:default; }
+    .idc-feature { font-size:12px; color:#D500F9; margin-top:6px; padding:6px 8px; background:rgba(213,0,249,0.1); border-radius:6px; }
+    .idc-close { position:absolute; top:10px; right:14px; font-size:20px; color:#888; cursor:pointer; background:none; border:none; }
+    .idc-actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+    .idc-actions .btn { flex:1; padding:12px; font-size:14px; }
     .btn-sell-item {
-      width: 100%;
-      margin-top: 8px;
-      padding: 8px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.4);
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      cursor: pointer;
+      width:100%; margin-top:8px; padding:8px; font-size:12px;
+      color:rgba(255,255,255,0.4); background:transparent;
+      border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer;
     }
-    .btn-sell-item:active { opacity: 0.6; }
+    .btn-sell-item:active { opacity:0.6; }
+    @keyframes upgradeFlash {
+      0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.6); }
+      50% { box-shadow: 0 0 30px 10px rgba(255,215,0,0.3); }
+      100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); }
+    }
+    .upgrade-flash { animation: upgradeFlash 0.5s ease-out; }
 
     /* Sell confirm */
     #sell-confirm-overlay {
@@ -1445,6 +1459,12 @@
     }
     .shop-box-open-btn:active { background: rgba(255,215,0,0.25); }
     .shop-box-open-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .shop-mythic-card {
+      background:rgba(139,0,0,0.15); border:1px solid rgba(139,0,0,0.3);
+      border-radius:10px; padding:10px; text-align:center; cursor:pointer;
+      transition:all 0.2s;
+    }
+    .shop-mythic-card:active { transform:scale(0.95); background:rgba(139,0,0,0.25); }
     .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .shop-star-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -2492,6 +2512,29 @@
           <button class="shop-box-open-btn shop-open-btn" data-box="epic">Открыть</button>
         </div>
       </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);">
+        <div style="font-size:15px;font-weight:700;color:#8b0000;margin-bottom:12px;">🔥 Мифическое снаряжение</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div class="shop-mythic-card" onclick="buyMythic('sword')">
+            <div style="font-size:32px;">🗡️</div>
+            <div style="font-size:11px;font-weight:600;">Мифический меч</div>
+            <div style="font-size:10px;color:#aaa;">ATK 90 · Крит 13%</div>
+            <div style="font-size:12px;color:#00cfff;margin-top:4px;">💎 500</div>
+          </div>
+          <div class="shop-mythic-card" onclick="buyMythic('axe')">
+            <div style="font-size:32px;">🪓</div>
+            <div style="font-size:11px;font-weight:600;">Мифический топор</div>
+            <div style="font-size:10px;color:#aaa;">ATK 125</div>
+            <div style="font-size:12px;color:#00cfff;margin-top:4px;">💎 500</div>
+          </div>
+          <div class="shop-mythic-card" onclick="buyMythic('shield')">
+            <div style="font-size:32px;">🛡️</div>
+            <div style="font-size:11px;font-weight:600;">Мифический щит</div>
+            <div style="font-size:10px;color:#aaa;">DEF 790 · Блок 15%</div>
+            <div style="font-size:12px;color:#00cfff;margin-top:4px;">💎 500</div>
+          </div>
+        </div>
+      </div>
     </div>
     <!-- Stars tab -->
     <div id="shop-tab-stars" class="shop-tab-content">
@@ -3124,55 +3167,191 @@ function showItemDetail(itemId) {
   const item = (state.inventory || []).find(i => i.id === itemId);
   if (!item) return;
   _currentItemId = itemId;
+  openItemDetail(item);
+}
 
-  document.getElementById('item-detail-emoji').textContent  = item.emoji;
-  document.getElementById('item-detail-name').textContent   = item.name;
-  document.getElementById('item-detail-rarity').innerHTML   = rarityLabel(item.rarity);
-  document.getElementById('item-detail-stat').textContent   = itemStatLabel(item);
+// ── Item detail card ──
+function openItemDetail(item) {
+  const ov = document.getElementById('item-detail-overlay');
+  const card = document.getElementById('item-detail-card');
+  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+  const isGrad = rarColor.startsWith('linear');
+  const borderStyle = isGrad ? `border-image:${rarColor} 1` : `border-color:${rarColor}`;
 
-  const btns = document.getElementById('item-detail-btns');
-  btns.innerHTML = '';
+  const maxLvl = { common:10, uncommon:25, rare:50, epic:75, mythic:90, legendary:100 }[item.rarity] || 10;
+  const upgLvl = item.upgrade_level || 0;
+  const upgPct = Math.round(upgLvl / maxLvl * 100);
 
-  if (item.on_market) {
-    // Item is in transit (courier delivery) — no actions
-    const info = document.createElement('div');
-    info.style.cssText = 'text-align:center;color:#ffaa00;font-size:13px;margin:8px 0;';
-    info.textContent = '🚚 Предмет в пути (доставка курьером)';
-    btns.appendChild(info);
-  } else if (item.equipped) {
-    const unBtn = document.createElement('button');
-    unBtn.className = 'btn';
-    unBtn.textContent = 'Снять';
-    unBtn.onclick = () => doUnequipItem(itemId);
-    btns.appendChild(unBtn);
-  } else {
-    const eqBtn = document.createElement('button');
-    eqBtn.className = 'btn primary';
-    eqBtn.textContent = 'Надеть';
-    eqBtn.onclick = () => doEquipItem(itemId);
-    btns.appendChild(eqBtn);
+  // Upgrade cost
+  function getUpgCost(lvl) {
+    if (lvl <= 10) return 40;
+    if (lvl <= 25) return 120;
+    if (lvl <= 50) return 300;
+    if (lvl <= 75) return 800;
+    if (lvl <= 90) return 2000;
+    return 5000;
+  }
+  const nextCost = upgLvl < maxLvl ? getUpgCost(upgLvl + 1) : 0;
+  const crystals = state.player?.crystals || 0;
+  const canAfford = crystals >= nextCost;
+  const isMaxed = upgLvl >= maxLvl;
 
-    // Sell button — intentionally subdued
-    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
-    const sellBtn = document.createElement('button');
-    sellBtn.className = 'btn-sell-item';
-    sellBtn.textContent = `Продать за ${sellPrice} 💎`;
-    sellBtn.onclick = () => showSellConfirm(item, sellPrice);
-    btns.appendChild(sellBtn);
+  // Stats
+  let statsHtml = '';
+  if (item.type === 'sword' || item.type === 'axe') {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">⚔️ Атака</span><span class="idc-stat-value">${item.attack}</span></div>`;
+  }
+  if (item.type === 'sword') {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💥 Крит шанс</span><span class="idc-stat-value">${(item.crit_chance || 0).toFixed?.(1) || item.crit_chance}%</span></div>`;
+    if (item.crit_multiplier && item.crit_multiplier > 1.5) {
+      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">✨ Крит урон</span><span class="idc-stat-value">×${item.crit_multiplier.toFixed(2)}</span></div>`;
+    }
+  }
+  if (item.type === 'axe' && item.execution_chance > 0) {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💀 Казнь</span><span class="idc-stat-value">${item.execution_chance.toFixed(1)}%</span></div>`;
+  }
+  if (item.type === 'shield') {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🛡️ Защита HP</span><span class="idc-stat-value">+${item.defense}</span></div>`;
+    if (item.block_chance > 0) {
+      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🔰 Блок</span><span class="idc-stat-value">${item.block_chance.toFixed?.(1) || item.block_chance}%</span></div>`;
+    }
   }
 
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn';
-  cancelBtn.textContent = 'Закрыть';
-  cancelBtn.onclick = closeItemDetail;
-  btns.appendChild(cancelBtn);
+  // Features
+  let featHtml = '';
+  if (item.type === 'sword' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Крит множитель растёт до ×2.2 при прокачке</div>';
+  if (item.type === 'sword' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Крит множитель растёт до ×3.0 при прокачке</div>';
+  if (item.type === 'axe' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Казнь: мгновенное убийство врага &lt;50% HP (до 17%)</div>';
+  if (item.type === 'axe' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Казнь: мгновенное убийство врага &lt;50% HP (до 20%)</div>';
+  if (item.type === 'shield' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Блок удара растёт до ~25% при прокачке</div>';
+  if (item.type === 'shield' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Блок удара растёт до ~41% при прокачке</div>';
 
-  document.getElementById('item-detail-overlay').classList.add('open');
+  // Upgrade button
+  let upgBtnHtml = '';
+  if (isMaxed) {
+    upgBtnHtml = '<button class="idc-upgrade-btn maxed">✅ Максимальный уровень</button>';
+  } else if (canAfford) {
+    upgBtnHtml = `<button class="idc-upgrade-btn can-afford" id="idc-upg-btn" data-item-id="${item.id}">✨ Прокачать за ${nextCost} осколков</button>`;
+  } else {
+    upgBtnHtml = `<button class="idc-upgrade-btn cant-afford">✨ Нужно ${nextCost} осколков (есть ${crystals})</button>`;
+  }
+
+  // Action buttons (equip/unequip/sell)
+  let actionsHtml = '';
+  if (item.on_market) {
+    actionsHtml = '<div style="text-align:center;color:#ffaa00;font-size:13px;margin:8px 0;">🚚 Предмет в пути (доставка курьером)</div>';
+  } else if (item.equipped) {
+    actionsHtml = '<div class="idc-actions"><button class="btn" id="idc-unequip-btn">Снять</button></div>';
+  } else {
+    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    actionsHtml = `<div class="idc-actions"><button class="btn primary" id="idc-equip-btn">Надеть</button></div>
+    <button class="btn-sell-item" id="idc-sell-btn">Продать за ${sellPrice} 💎</button>`;
+  }
+
+  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity] || '';
+  const typeLabel = {sword:'Меч',axe:'Топор',shield:'Щит'}[item.type] || '';
+
+  // Cost table for info tab
+  const costTable = [
+    ['1-10', '40✨'], ['11-25', '120✨'], ['26-50', '300✨'],
+    ['51-75', '800✨'], ['76-90', '2000✨'], ['91-100', '5000✨']
+  ].filter(([range]) => {
+    const max = parseInt(range.split('-')[1]);
+    return max <= maxLvl;
+  }).map(([range, cost]) => `<div class="idc-stat-row"><span class="idc-stat-label">Ур. ${range}</span><span class="idc-stat-value">${cost}</span></div>`).join('');
+
+  card.style = isGrad ? `border-image:${rarColor} 1` : `border-color:${rarColor}`;
+  card.innerHTML = `
+    <button class="idc-close" onclick="closeItemDetail()">✕</button>
+    <div class="idc-header">
+      <div class="idc-emoji" style="${isGrad ? '' : `filter:drop-shadow(0 0 12px ${rarColor})`}">${item.emoji}</div>
+      <div class="idc-name">${item.name}</div>
+      <div class="idc-rarity" style="color:${isGrad ? '#FFD700' : rarColor}">${rarLabel} ${typeLabel}</div>
+      <div class="idc-level">Ур. ${upgLvl} / ${maxLvl}</div>
+      <div class="idc-upgrade-bar"><div class="idc-upgrade-fill" style="width:${upgPct}%"></div></div>
+    </div>
+    <div class="idc-tabs">
+      <div class="idc-tab active" data-tab="stats" onclick="switchItemTab('stats')">Статы</div>
+      <div class="idc-tab" data-tab="info" onclick="switchItemTab('info')">Инфо</div>
+    </div>
+    <div class="idc-tab-content active" id="idc-stats">
+      ${statsHtml}
+      ${featHtml}
+      ${upgBtnHtml}
+      ${actionsHtml}
+    </div>
+    <div class="idc-tab-content" id="idc-info">
+      <div style="font-size:13px;color:#aaa;margin-bottom:8px;">Стоимость прокачки:</div>
+      ${costTable}
+      <div style="font-size:13px;color:#aaa;margin-top:12px;">Макс. уровень: ${maxLvl}</div>
+    </div>
+  `;
+
+  // Bind upgrade button
+  const upgBtn = document.getElementById('idc-upg-btn');
+  if (upgBtn) {
+    upgBtn.addEventListener('click', () => doUpgradeItem(item));
+  }
+
+  // Bind equip/unequip/sell buttons
+  const equipBtn = document.getElementById('idc-equip-btn');
+  if (equipBtn) equipBtn.addEventListener('click', () => doEquipItem(item.id));
+  const unequipBtn = document.getElementById('idc-unequip-btn');
+  if (unequipBtn) unequipBtn.addEventListener('click', () => doUnequipItem(item.id));
+  const sellBtn = document.getElementById('idc-sell-btn');
+  if (sellBtn) {
+    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    sellBtn.addEventListener('click', () => showSellConfirm(item, sellPrice));
+  }
+
+  ov.classList.add('open');
 }
 
 function closeItemDetail() {
   document.getElementById('item-detail-overlay').classList.remove('open');
   _currentItemId = null;
+}
+
+function switchItemTab(tab) {
+  document.querySelectorAll('.idc-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('idc-stats').classList.toggle('active', tab === 'stats');
+  document.getElementById('idc-info').classList.toggle('active', tab === 'info');
+}
+
+async function doUpgradeItem(item) {
+  const btn = document.getElementById('idc-upg-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade-item', telegram_id: TG_ID, item_id: item.id }),
+    });
+    // Update local item
+    if (data.stats) Object.assign(item, data.stats);
+    item.upgrade_level = data.upgrade_level;
+    if (state.player) state.player.crystals = data.crystals_left;
+    // Update inventory
+    const inv = (state.inventory || []).find(i => i.id === item.id);
+    if (inv) Object.assign(inv, item);
+    // Flash animation
+    const card = document.getElementById('item-detail-card');
+    if (card) { card.classList.add('upgrade-flash'); setTimeout(() => card.classList.remove('upgrade-flash'), 500); }
+    // Haptic
+    if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+    showToast(`✨ Ур.${data.upgrade_level}! Атака: ${data.stats?.attack || item.attack}`);
+    // Reopen with updated data
+    openItemDetail(item);
+    updateCrystalDisplay();
+    _renderEquipSlots();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Прокачать'; }
+  }
+}
+
+function updateCrystalDisplay() {
+  const el = document.getElementById('crystal-display');
+  if (el) el.textContent = `✨ ${state.player?.crystals || 0}`;
 }
 
 function showSellConfirm(item, price) {
@@ -6448,6 +6627,23 @@ function _showBoxInfo(boxType) {
   openPopup(title, 'Случайный предмет одного из типов', stats, [{ label: 'Понятно', isClose: true }]);
 }
 
+async function buyMythic(weaponType) {
+  if (!confirm(`Купить мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} за 500 💎?`)) return;
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'buy-mythic', telegram_id: TG_ID, weapon_type: weaponType }),
+    });
+    showToast(`🔥 Мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} получен!`);
+    if (state.player) state.player.diamonds = data.diamondsLeft;
+    if (data.item) state.inventory = [data.item, ...(state.inventory || [])];
+    updateDiamondDisplay();
+    _renderEquipSlots();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
 function showBoxOdds(boxType) {
   const odds = SHOP_BOX_ODDS[boxType];
   const title = boxType === 'rare' ? '📦 Редкий бокс — содержимое' : '🎁 Эпический бокс — содержимое';
@@ -8455,7 +8651,12 @@ function animateCombatProjectile(data) {
       // Hit flash
       const flash = document.createElement('div');
       flash.className = 'combat-hit-flash';
-      flash.textContent = '💥';
+      if (data.blocked) {
+        flash.textContent = '🛡️';
+        flash.style.filter = 'drop-shadow(0 0 10px #4fc3f7)';
+      } else {
+        flash.textContent = '💥';
+      }
       flash.style.left = to.x + 'px';
       flash.style.top = to.y + 'px';
       document.body.appendChild(flash);
@@ -8466,8 +8667,17 @@ function animateCombatProjectile(data) {
       dmgEl.className = 'floating-damage' + (data.crit ? ' crit' : '');
       dmgEl.style.left = to.x + 'px';
       dmgEl.style.top = (to.y - 10) + 'px';
-      dmgEl.textContent = (data.crit ? '💥 КРИТ! ' : '') + '-' + data.damage;
-      dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
+      if (data.blocked) {
+        dmgEl.textContent = '🛡️ БЛОК!';
+        dmgEl.style.color = '#4fc3f7';
+      } else if (data.execution) {
+        dmgEl.textContent = '💀 КАЗНЬ!';
+        dmgEl.style.color = '#f44336';
+        dmgEl.style.fontSize = '28px';
+      } else {
+        dmgEl.textContent = (data.crit ? '💥 КРИТ! ' : '') + '-' + data.damage;
+        dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
+      }
       document.body.appendChild(dmgEl);
       setTimeout(() => dmgEl.remove(), 1000);
     }
@@ -10027,13 +10237,7 @@ async function doClanKick(targetTgId) {
 
 <!-- Item detail sheet -->
 <div id="item-detail-overlay" onclick="if(event.target===this)closeItemDetail()">
-  <div id="item-detail-card">
-    <div id="item-detail-emoji" style="font-size:48px;text-align:center;margin-bottom:8px;"></div>
-    <h3 id="item-detail-name" style="text-align:center;"></h3>
-    <div id="item-detail-rarity" style="text-align:center;font-size:12px;margin:4px 0;"></div>
-    <div class="item-stat" id="item-detail-stat" style="text-align:center;"></div>
-    <div class="item-btn-row" id="item-detail-btns"></div>
-  </div>
+  <div class="item-detail-card" id="item-detail-card"></div>
 </div>
 
 <!-- Sell confirm dialog -->
