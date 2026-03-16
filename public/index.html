@@ -3319,24 +3319,44 @@ function openItemDetail(item) {
   const canAfford = crystals >= nextCost;
   const isMaxed = upgLvl >= maxLvl;
 
+  // Compute dynamic stats (execution_chance, crit_multiplier — not stored in DB)
+  const mul = 1 + upgLvl * 0.01;
+  let computedCritMul = 1.5;
+  let computedExec = 0;
+  let computedBlock = item.block_chance || 0;
+  if (item.type === 'sword') {
+    if (item.rarity === 'mythic') computedCritMul = 1.5 + (upgLvl / 90) * 0.7;
+    else if (item.rarity === 'legendary') computedCritMul = 1.5 + (upgLvl / 100) * 1.5;
+  }
+  if (item.type === 'axe') {
+    if (item.rarity === 'mythic') computedExec = 7 + (upgLvl / 90) * 10;
+    else if (item.rarity === 'legendary') computedExec = 13 + (upgLvl / 100) * 7;
+  }
+  if (item.type === 'shield' && (item.rarity === 'mythic' || item.rarity === 'legendary')) {
+    const baseBlock = item.block_chance || 0;
+    if (item.rarity === 'mythic') computedBlock = baseBlock + (upgLvl / 90) * 5;
+    else computedBlock = baseBlock + (upgLvl / 100) * 6;
+  }
+
   // Stats
   let statsHtml = '';
   if (item.type === 'sword' || item.type === 'axe') {
     statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">⚔️ Атака</span><span class="idc-stat-value">${item.attack}</span></div>`;
   }
   if (item.type === 'sword') {
-    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💥 Крит шанс</span><span class="idc-stat-value">${(item.crit_chance || 0).toFixed?.(1) || item.crit_chance}%</span></div>`;
-    if (item.crit_multiplier && item.crit_multiplier > 1.5) {
-      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">✨ Крит урон</span><span class="idc-stat-value">×${item.crit_multiplier.toFixed(2)}</span></div>`;
+    const critVal = typeof item.crit_chance === 'number' ? item.crit_chance : 0;
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💥 Крит шанс</span><span class="idc-stat-value">${critVal.toFixed(1)}%</span></div>`;
+    if (computedCritMul > 1.5) {
+      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">✨ Крит урон</span><span class="idc-stat-value">×${computedCritMul.toFixed(2)}</span></div>`;
     }
   }
-  if (item.type === 'axe' && item.execution_chance > 0) {
-    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💀 Казнь</span><span class="idc-stat-value">${item.execution_chance.toFixed(1)}%</span></div>`;
+  if (item.type === 'axe' && computedExec > 0) {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💀 Казнь</span><span class="idc-stat-value">${computedExec.toFixed(1)}%</span></div>`;
   }
   if (item.type === 'shield') {
     statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🛡️ Защита HP</span><span class="idc-stat-value">+${item.defense}</span></div>`;
-    if (item.block_chance > 0) {
-      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🔰 Блок</span><span class="idc-stat-value">${item.block_chance.toFixed?.(1) || item.block_chance}%</span></div>`;
+    if (computedBlock > 0) {
+      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🔰 Блок</span><span class="idc-stat-value">${computedBlock.toFixed(1)}%</span></div>`;
     }
   }
 
