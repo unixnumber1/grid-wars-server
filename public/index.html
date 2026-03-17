@@ -2301,6 +2301,19 @@
     .loot-box-marker.mine { filter: drop-shadow(0 0 8px gold); }
     .loot-box-label { font-size:10px; color:white; text-shadow:0 0 4px black; white-space:nowrap; }
     .loot-box-sublabel { font-size:9px; color:#aaa; text-shadow:0 0 4px black; white-space:nowrap; }
+    /* HQ & Collector popup cards */
+    .hq-stat-card { display:flex; justify-content:space-between; align-items:center; background:#252538; border-radius:10px; padding:10px 12px; font-size:13px; color:#ccc; }
+    .hq-collector-card { background:#252538; border-radius:10px; padding:10px 12px; }
+    .hq-coll-btn { width:100%; margin-top:6px; padding:8px; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; }
+    .hq-coll-btn.active { background:linear-gradient(135deg,#4caf50,#2e7d32); color:#fff; }
+    .hq-coll-btn:disabled { background:#333; color:#666; cursor:not-allowed; }
+    .hq-btn { width:100%; padding:14px; border:none; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer; }
+    .hq-btn.blue { background:#2196f3; color:#fff; }
+    .hq-btn.blue:disabled { background:#333; color:#666; }
+    .hq-btn.red { background:#f44336; color:#fff; font-size:13px; padding:10px; }
+    .coll-progress { width:100%; height:6px; background:#222; border-radius:3px; overflow:hidden; margin-top:6px; }
+    .coll-progress div { height:100%; border-radius:3px; transition:width 0.3s; }
+
     /* Collector markers */
     .collector-marker { display:flex; flex-direction:column; align-items:center; position:relative; }
     .collector-bar { width:80%; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; margin-top:1px; }
@@ -4425,54 +4438,69 @@ function showHqPopup(hq, isOwn) {
   _currentPopupEntityId = `hq_${hq.id}`;
   _selectMarker(`hq_${hq.id}`);
   if (isOwn) {
-    const hqLvl   = hq.level ?? 1;
-    const mineCount = state.mines.length;
-    const nextCost  = hqUpgradeCost(hqLvl);
+    const hqLvl = hq.level ?? 1;
+    const mineCount = (state.mines || []).length;
+    const nextCost = hqUpgradeCost(hqLvl);
     const playerCoins = state.player?.coins ?? 0;
     const canUpgrade = nextCost !== null && playerCoins >= nextCost;
-    openPopup(
-      `&#x26A1; Headquarters Level ${hqLvl}`,
-      `Cell: ${hq.cell_id}`,
-      [
-        ['&#x1F4B0; Монеты', formatCoins(playerCoins)],
-        ['&#x26CF;&#xFE0F; Шахты', mineCount],
-        ['HQ upgrade cost', nextCost !== null ? formatCoins(nextCost) : 'MAX LEVEL'],
-      ],
-      [
-        ...(nextCost !== null ? [{
-          label: `⬆️ Улучшить штаб (${formatCoins(nextCost)})`,
-          cls: 'yellow',
-          disabled: !canUpgrade,
-          action: () => doUpgradeHq(),
-        }] : []),
-        // Collector delivery buttons — show ALL own collectors
-        ...(() => {
-          const btns = [];
-          for (const c of Object.values(collectorData)) {
-            if (!c.is_mine) continue;
-            const coins = c.stored_coins || 0;
-            if (coins > 0) {
-              const comm = Math.floor(coins * 0.10);
-              btns.push({ label: `📦 Lv.${c.level}: ${formatCoins(coins)} (−${formatCoins(comm)})`, cls: 'primary', action: () => doCollectorDeliver(c.id) });
-            } else {
-              btns.push({ label: `🧲 Lv.${c.level}: пусто`, cls: '', disabled: true });
-            }
-          }
-          return btns;
-        })(),
-        [
-          {
-            label: '🗑️ Снести',
-            cls: 'danger',
-            action: () => confirmSellHq(),
-          },
-          {
-            label: 'Закрыть',
-            isClose: true,
-          },
-        ],
-      ]
-    );
+    const playerName = displayName(state.player);
+    const playerAvatar = state.player?.avatar || '🏠';
+
+    // Collect own collectors
+    const myCollectors = Object.values(collectorData).filter(c => c.is_mine);
+    let collectorsHtml = '';
+    if (myCollectors.length > 0) {
+      let cardsHtml = '';
+      myCollectors.forEach((c, i) => {
+        const coins = c.stored_coins || 0;
+        const cap = c._capacity || 1;
+        const pct = cap > 0 ? Math.min(100, Math.round(coins / cap * 100)) : 0;
+        const hasCoins = coins > 0;
+        const comm = Math.floor(coins * 0.10);
+        cardsHtml += `<div class="hq-collector-card" data-cid="${c.id}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:600;color:#fff">🧲 #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
+            <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">📍 камера</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
+            <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
+          </div>
+          <button class="hq-coll-btn ${hasCoins ? 'active' : ''}" ${hasCoins ? '' : 'disabled'} onclick="event.stopPropagation();doCollectorDeliver('${c.id}')">
+            ${hasCoins ? `📦 Доставка −${formatCoins(comm)}` : 'Пусто'}
+          </button>
+        </div>`;
+      });
+      collectorsHtml = `<div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
+        <div style="font-size:13px;color:#888;margin-bottom:8px">🧲 Мои сборщики (${myCollectors.length})</div>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">${cardsHtml}</div>
+      </div>`;
+    }
+
+    // Build custom popup HTML
+    const card = document.getElementById('popup-card');
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:22px">${playerAvatar}</span>
+          <div>
+            <div style="font-size:16px;font-weight:600;color:#fff">🏠 Штаб ${playerName}</div>
+            <div style="font-size:12px;color:#888">Уровень ${hqLvl}</div>
+          </div>
+        </div>
+        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hq-stat-card"><span>💰 Монеты</span><span style="color:#FFD700;font-weight:600">${formatCoins(playerCoins)}</span></div>
+        <div class="hq-stat-card"><span>⛏️ Шахт</span><span style="font-weight:600">${mineCount}</span></div>
+      </div>
+      ${collectorsHtml}
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">⬆️ Улучшить штаб — ${formatCoins(nextCost)}</button>` : ''}
+        <button class="hq-btn red" onclick="closePopup();confirmSellHq()">🗑️ Снести</button>
+      </div>
+    `;
+    document.getElementById('popup-overlay').classList.add('open');
   } else {
     const owner = displayName(hq.players);
     let presenceText;
@@ -11143,6 +11171,14 @@ function renderCollectors(collectors) {
   }
 }
 
+function flyToCollector(collectorId) {
+  const c = collectorData[collectorId];
+  if (!c) return;
+  closePopup();
+  map.flyTo([c.lat, c.lng], 17, { duration: 1.0 });
+  setTimeout(() => showCollectorPopup(collectorId), 1200);
+}
+
 function updateCollectorMarker(collectorId) {
   const c = collectorData[collectorId];
   if (c && collectorMarkers[collectorId]) collectorMarkers[collectorId].setIcon(collectorIcon(c));
@@ -11153,53 +11189,67 @@ function showCollectorPopup(collectorId) {
   if (!c) return;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, c.lat, c.lng) : null;
-  const inRange = dist !== null && dist <= 200;
   const inAttackRange = dist !== null && dist <= 500;
   const capacity = c._capacity || 1;
-  const fillPct = capacity > 0 ? Math.min(100, Math.round((c.stored_coins || 0) / capacity * 100)) : 0;
+  const coins = c.stored_coins || 0;
+  const fillPct = capacity > 0 ? Math.min(100, Math.round(coins / capacity * 100)) : 0;
   const hpPct = c.max_hp > 0 ? Math.round(c.hp / c.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+  const barColor = fillPct < 70 ? '#4caf50' : fillPct < 90 ? '#ff9800' : '#f44336';
 
-  // Time until next auto-collect
   const lastCollect = c.last_collected_at ? new Date(c.last_collected_at).getTime() : Date.now();
-  const nextCollectMs = Math.max(0, (lastCollect + 3600000) - Date.now());
-  const nextMin = Math.ceil(nextCollectMs / 60000);
+  const nextMin = Math.ceil(Math.max(0, (lastCollect + 3600000) - Date.now()) / 60000);
+
+  // Index among own collectors
+  const myColls = Object.values(collectorData).filter(x => x.is_mine);
+  const idx = myColls.findIndex(x => x.id === c.id) + 1;
+
+  const card = document.getElementById('popup-card');
 
   if (c.is_mine) {
     const upgCostsDiamonds = [0,0,50,100,200,400,750,1200,2000,3500,6000];
     const nextCost = c.level < 10 ? upgCostsDiamonds[c.level + 1] : null;
     const canUpgrade = nextCost && (state.player?.diamonds || 0) >= nextCost;
 
-    const stats = [
-      ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#4caf50;border-radius:4px"></div></div>${c.hp}/${c.max_hp}</div>`],
-      ['💰 Накоплено', `${formatCoins(c.stored_coins || 0)} / ${formatCoins(capacity)} (${fillPct}%)`],
-      ['⏱️ Сбор', `через ${nextMin} мин`],
-    ];
-
-    const actions = [];
-    if ((c.stored_coins || 0) > 0) {
-      const commission = Math.floor((c.stored_coins || 0) * 0.10);
-      actions.push({ label: `📦 Доставка (−${formatCoins(commission)})`, cls: 'primary', action: () => doCollectorDeliver(collectorId) });
-    }
-    if (nextCost && c.level < 10) {
-      actions.push({ label: `⬆️ Ур.${c.level+1} за ${nextCost}💎`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCollectorUpgrade(collectorId) });
-    }
-    actions.push({ label: `💸 Продать за 37💎`, cls: 'danger', action: () => doCollectorSell(collectorId) });
-
-    openPopup(`🧲 Сборщик Lv.${c.level}`, '', stats, actions);
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:600;color:#fff">🧲 Сборщик #${idx} · Ур.${c.level}</div>
+        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hq-stat-card"><span>❤️ HP</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>
+        <div class="hq-stat-card"><span>💰 Накоплено</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>
+        <div class="hq-stat-card"><span>📊 Заполнен</span><span>${fillPct}%</span></div>
+        <div class="hq-stat-card"><span>⏱️ Сбор</span><span>через ${nextMin} мин</span></div>
+      </div>
+      <div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">⬆️ Улучшить — ${nextCost}💎</button>` : ''}
+        <button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">💸 Продать — 37💎</button>
+      </div>
+      <div style="font-size:11px;color:#555;margin-top:8px;text-align:center">Заказать доставку можно через штаб</div>
+    `;
   } else {
-    const approxCoins = Math.round((c.stored_coins || 0) / 1000) * 1000;
-    const stats = [
-      ['👤 Владелец', `${c.owner_avatar || ''} ${c.owner_name || '?'}`],
-      ['💰 Накоплено', `~${formatCoins(approxCoins)}`],
-    ];
-    const actions = [];
-    if (inAttackRange) {
-      actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartCollectorCombat(collectorId) });
-    } else {
-      actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
-    }
-    openPopup(`🧲 Чужой сборщик Lv.${c.level}`, '', stats, actions);
+    const approxCoins = Math.round(coins / 1000) * 1000;
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:600;color:#fff">🧲 Чужой сборщик · Ур.${c.level}</div>
+        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;color:#888">${c.owner_avatar || ''} ${c.owner_name || '?'}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hq-stat-card"><span>💰 Накоплено</span><span style="color:#FFD700">~${formatCoins(approxCoins)}</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        ${inAttackRange
+          ? `<button class="hq-btn red" onclick="closePopup();doStartCollectorCombat('${collectorId}')">⚔️ Атаковать</button>
+             <div style="font-size:11px;color:#888;text-align:center">При уничтожении получишь все накопленные монеты</div>`
+          : `<button class="hq-btn" disabled style="background:#333;color:#666">${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}</button>`
+        }
+      </div>
+    `;
   }
+  document.getElementById('popup-overlay').classList.add('open');
 }
 
 function doStartCollectorCombat(collectorId) {
