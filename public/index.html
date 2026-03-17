@@ -9568,7 +9568,8 @@ function renderClanHqs(clanHqs) {
       }
       // Label above marker
       if (!clanHqLabels[ch.id]) {
-        const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${ch.symbol || '🏰'} ${ch.clan_name || ''}</div>`;
+        const labelText = ch.clan_name ? `${ch.symbol || '🏰'} ${ch.clan_name}` : 'Без клана';
+        const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${labelText}</div>`;
         clanHqLabels[ch.id] = L.marker([ch.lat, ch.lng], {
           icon: L.divIcon({
             html: labelHtml,
@@ -9745,7 +9746,7 @@ function showClanHqPopup(ch) {
   } else if (isOwn && isActive) {
     const inClan = !!state.player?.clan_id;
     openPopup(
-      `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
+      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
       `Уровень ${ch.clan_level}`,
       [],
       [
@@ -9766,7 +9767,7 @@ function showClanHqPopup(ch) {
     }
   } else if (isActive) {
     openPopup(
-      `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
+      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
       `Уровень ${ch.clan_level}`,
       [],
       [{ label: '🔍 Посмотреть клан', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') }]
