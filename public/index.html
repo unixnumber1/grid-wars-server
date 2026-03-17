@@ -2259,13 +2259,41 @@
 
     /* ── Monument markers ── */
     .monument-marker { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
-    .monument-marker.shield { filter: drop-shadow(0 0 10px #4488ff); }
-    .monument-marker.open { filter: drop-shadow(0 0 10px #ff4444); animation: raid-pulse 0.5s infinite; }
+    .monument-marker.open { animation: raid-pulse 0.5s infinite; }
     .monument-marker.defeated { filter: grayscale(1) opacity(0.5); }
-    .monument-level { font-size:11px; color:gold; font-weight:bold; text-shadow:0 0 4px black; }
-    .monument-phase { font-size:14px; margin-top:-4px; }
-    .monument-hp-bar { width:100%; height:4px; background:#333; border-radius:2px; margin-top:2px; overflow:hidden; }
-    .monument-hp-bar div { height:100%; transition:width 0.3s; border-radius:2px; }
+
+    /* Dome shield — semi-transparent blue hemisphere */
+    .monument-dome {
+      position:absolute; inset:0; border-radius:50%;
+      background: radial-gradient(ellipse at 35% 30%, rgba(120,180,255,0.35), rgba(60,120,255,0.12) 60%, rgba(40,80,220,0.06));
+      border: 1.5px solid rgba(100,170,255,0.45);
+      box-shadow: 0 0 14px 4px rgba(80,150,255,0.25), inset 0 0 20px 2px rgba(120,180,255,0.10);
+      pointer-events:none;
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    /* Shimmer highlight on dome */
+    .monument-dome::after {
+      content:''; position:absolute; top:12%; left:18%; width:30%; height:22%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.45), transparent 70%);
+      border-radius:50%; pointer-events:none;
+    }
+    /* Shield break animation */
+    .monument-dome.breaking {
+      animation: dome-shatter 0.6s ease-out forwards;
+    }
+    @keyframes dome-shatter {
+      0%   { opacity:1; transform:scale(1); border-color:rgba(100,170,255,0.45); }
+      30%  { opacity:0.8; transform:scale(1.15); border-color:rgba(255,120,60,0.7); box-shadow:0 0 30px 8px rgba(255,100,40,0.4); }
+      100% { opacity:0; transform:scale(1.5); border-color:transparent; box-shadow:none; }
+    }
+
+    /* Progress bars under emoji */
+    .monument-bars { width:100%; display:flex; flex-direction:column; gap:2px; margin-top:1px; }
+    .monument-bar-wrap { width:100%; height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+    .monument-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
+    .monument-bar-fill.bar-shield { background:linear-gradient(90deg,#4488ff,#66bbff); }
+    .monument-bar-fill.bar-hp { background:linear-gradient(90deg,#cc2222,#ff4444); }
+
     .defender-marker { display:flex; flex-direction:column; align-items:center; }
     .defender-hp-bar { width:36px; height:4px; background:#333; border-radius:2px; overflow:hidden; }
     .defender-hp-bar div { height:100%; background:#ff6600; transition:width 0.3s; }
@@ -10505,21 +10533,33 @@ const lootBoxMarkers = {};
 const lootBoxData = {};
 
 function monumentIcon(m) {
-  const phaseEmoji = m.phase === 'shield' ? '🛡️' : m.phase === 'open' ? '🔥' : '💀';
   const size = 50 + m.level * 3;
-  let barHtml = '';
-  if (m.phase === 'shield' || m.phase === 'open') {
-    const isShield = m.phase === 'shield';
-    const pct = isShield ? (m.shield_hp / m.max_shield_hp * 100) : (m.hp / m.max_hp * 100);
-    const color = isShield ? '#4488ff' : '#ff4444';
-    barHtml = `<div class="monument-hp-bar"><div style="width:${Math.max(0,pct)}%;background:${color}"></div></div>`;
+  const emojiSize = size * 0.5;
+
+  // Dome only in shield phase
+  const domeHtml = m.phase === 'shield'
+    ? `<div class="monument-dome"></div>`
+    : '';
+
+  // Bars: shield phase = blue shield bar, open = red HP bar, defeated = nothing
+  let barsHtml = '';
+  if (m.phase === 'shield') {
+    const shPct = m.max_shield_hp > 0 ? Math.max(0, m.shield_hp / m.max_shield_hp * 100) : 0;
+    barsHtml = `<div class="monument-bars">
+      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-shield" style="width:${shPct}%"></div></div>
+    </div>`;
+  } else if (m.phase === 'open') {
+    const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
+    barsHtml = `<div class="monument-bars">
+      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-hp" style="width:${hpPct}%"></div></div>
+    </div>`;
   }
+
   return L.divIcon({
     html: `<div class="monument-marker ${m.phase}" style="width:${size}px;height:${size}px">
-      <span style="font-size:${size*0.5}px">🏛️</span>
-      <div class="monument-level">Lv.${m.level}</div>
-      <div class="monument-phase">${phaseEmoji}</div>
-      ${barHtml}
+      ${domeHtml}
+      <span style="font-size:${emojiSize}px;position:relative;z-index:1">🏛️</span>
+      ${barsHtml}
     </div>`,
     className: '',
     iconSize: [size, size],
@@ -10616,7 +10656,26 @@ function renderLootBoxes(boxes) {
 
 function updateMonumentPhase(monumentId, phase) {
   const m = monumentData[monumentId];
-  if (m) { m.phase = phase; updateMonumentMarkerIcon(monumentId); }
+  if (!m) return;
+
+  // Shield break animation: keep dome visible, add .breaking, then swap phase after animation
+  if (m.phase === 'shield' && phase === 'open') {
+    const marker = monumentMarkers[monumentId];
+    if (marker?._icon) {
+      const dome = marker._icon.querySelector('.monument-dome');
+      if (dome) {
+        dome.classList.add('breaking');
+        setTimeout(() => {
+          m.phase = phase;
+          updateMonumentMarkerIcon(monumentId);
+        }, 600); // match dome-shatter duration
+        return;
+      }
+    }
+  }
+
+  m.phase = phase;
+  updateMonumentMarkerIcon(monumentId);
 }
 
 function updateMonumentMarkerIcon(monumentId) {
