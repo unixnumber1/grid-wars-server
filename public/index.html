@@ -4445,13 +4445,17 @@ function showHqPopup(hq, isOwn) {
           disabled: !canUpgrade,
           action: () => doUpgradeHq(),
         }] : []),
-        // Collector delivery buttons — show for each collector with stored coins
+        // Collector delivery buttons — show ALL own collectors
         ...(() => {
           const btns = [];
           for (const c of Object.values(collectorData)) {
-            if (c.is_mine && (c.stored_coins || 0) > 0) {
-              const comm = Math.floor(c.stored_coins * 0.10);
-              btns.push({ label: `📦 Сборщик Lv.${c.level}: ${formatCoins(c.stored_coins)} (−${formatCoins(comm)})`, cls: 'primary', action: () => doCollectorDeliver(c.id) });
+            if (!c.is_mine) continue;
+            const coins = c.stored_coins || 0;
+            if (coins > 0) {
+              const comm = Math.floor(coins * 0.10);
+              btns.push({ label: `📦 Lv.${c.level}: ${formatCoins(coins)} (−${formatCoins(comm)})`, cls: 'primary', action: () => doCollectorDeliver(c.id) });
+            } else {
+              btns.push({ label: `🧲 Lv.${c.level}: пусто`, cls: '', disabled: true });
             }
           }
           return btns;
@@ -11076,6 +11080,7 @@ async function doOpenLootBox(boxId) {
 // ═══════════════════════════════════════════════════
 const collectorMarkers = {};
 const collectorData = {};
+const collectorCircles = {};
 
 function collectorIcon(c) {
   const isMine = c.is_mine;
@@ -11101,7 +11106,7 @@ function collectorIcon(c) {
 }
 
 function renderCollectors(collectors) {
-  if (!collectors || !collectors.length) return; // Don't wipe on empty tick
+  if (!collectors || !collectors.length) return;
   for (const c of collectors) {
     // Estimate capacity client-side (mines in 200m owned by same player)
     const myMines = (state.mapBuildings?.mines || []).filter(m => m.owner_id === c.owner_id && haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
@@ -11117,6 +11122,20 @@ function renderCollectors(collectors) {
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showCollectorPopup(c.id); });
       marker.addTo(map);
       collectorMarkers[c.id] = marker;
+    }
+    // Owner-only radius circle (200m)
+    if (c.is_mine && !collectorCircles[c.id]) {
+      collectorCircles[c.id] = L.circle([c.lat, c.lng], {
+        radius: 200,
+        color: 'rgba(180,180,180,0.25)',
+        fillColor: 'transparent',
+        weight: 1,
+        opacity: 0.3,
+        interactive: false,
+      }).addTo(map);
+    } else if (!c.is_mine && collectorCircles[c.id]) {
+      map.removeLayer(collectorCircles[c.id]);
+      delete collectorCircles[c.id];
     }
   }
 }
