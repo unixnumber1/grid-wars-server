@@ -2301,6 +2301,13 @@
     .loot-box-marker.mine { filter: drop-shadow(0 0 8px gold); }
     .loot-box-label { font-size:10px; color:white; text-shadow:0 0 4px black; white-space:nowrap; }
     .loot-box-sublabel { font-size:9px; color:#aaa; text-shadow:0 0 4px black; white-space:nowrap; }
+    /* Collector markers */
+    .collector-marker { display:flex; flex-direction:column; align-items:center; position:relative; }
+    .collector-bar { width:80%; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; margin-top:1px; }
+    .collector-bar div { height:100%; border-radius:2px; transition:width 0.3s; }
+    .collector-full { font-size:8px; color:#FFD700; font-weight:bold; animation: collector-blink 0.8s infinite; }
+    @keyframes collector-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
     @keyframes raid-pulse { 0%,100% { filter: drop-shadow(0 0 10px #ff4444); } 50% { filter: drop-shadow(0 0 20px #ff4444); } }
     @keyframes box-pulse { 0%,100% { filter: drop-shadow(0 0 12px gold); } 50% { filter: drop-shadow(0 0 24px gold); } }
   </style>
@@ -3849,6 +3856,16 @@ async function doTeleportToHq() {
       showToast('🏰 Сначала постройте штаб');
       return;
     }
+    // PIN abuse fix: HQ must be 24h+ old
+    const hqCreatedAt = state.hq?.created_at;
+    if (hqCreatedAt) {
+      const ageMs = Date.now() - new Date(hqCreatedAt).getTime();
+      if (ageMs < 24 * 60 * 60 * 1000) {
+        const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - ageMs) / 3600000);
+        showToast(`🏰 Пин доступен через ${hoursLeft}ч`);
+        return;
+      }
+    }
     realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
     pinMode = true;
     _applyPlayerPosition(hqLat, hqLng);
@@ -4137,6 +4154,24 @@ function showBuildMenu(cellLat, cellLng) {
   mineBtn.addEventListener('click', () => { closePopup(); doBuildMine(cellLat, cellLng); });
   mineCard.appendChild(mineBtn);
   statsEl.appendChild(mineCard);
+
+  // Collector card
+  const collCard = document.createElement('div');
+  collCard.className = 'build-card';
+  const hasDiamonds = (state.player?.diamonds || 0) >= 75;
+  collCard.innerHTML = `
+    <div class="build-card-header"><span>⚙️</span><span>Автосборщик</span></div>
+    <div class="build-card-desc">Собирает монеты с шахт в радиусе 200м</div>
+    <div class="build-card-meta">75 💎</div>
+  `;
+  const collBtn = document.createElement('button');
+  collBtn.className = hasDiamonds ? 'btn primary' : 'btn';
+  collBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
+  if (!hasDiamonds) { collBtn.disabled = true; collBtn.style.opacity = '0.5'; }
+  collBtn.innerHTML = '⚙️ Построить сборщик';
+  collBtn.addEventListener('click', () => { closePopup(); doBuildCollector(cellLat, cellLng); });
+  collCard.appendChild(collBtn);
+  statsEl.appendChild(collCard);
 
   // Clan HQ card — only if player has no clan HQ yet
   const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine);
@@ -4888,6 +4923,20 @@ async function doSellHq() {
   }
 }
 
+async function doBuildCollector(lat, lng) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ GPS не готов');
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
+    });
+    showToast(`⚙️ Сборщик построен! Шахт в зоне: ${data.mines_in_range}`);
+    if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+    loadVisibleBuildings();
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
 async function doBuildMine(lat, lng) {
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
@@ -5388,6 +5437,17 @@ function initSocket() {
       }
     });
 
+    // ── Collector socket events ──
+    _socket.on('collector:hp_update', (data) => {
+      const c = collectorData[data.collector_id];
+      if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(data.collector_id); }
+    });
+
+    _socket.on('collector:destroyed', (data) => {
+      if (collectorMarkers[data.collector_id]) { map.removeLayer(collectorMarkers[data.collector_id]); delete collectorMarkers[data.collector_id]; delete collectorData[data.collector_id]; }
+      if (data.stolen_coins > 0) showToast(`💥 Сборщик уничтожен ${data.attacker_name}! Украдено ${formatCoins(data.stolen_coins)} монет`);
+    });
+
     _socket.on('disconnect', () => {
       // Disconnected from server
     });
@@ -5455,6 +5515,7 @@ function processTickData(data) {
   renderOreNodes(data.ore_nodes || []);
   renderMonuments(data.monuments || []);
   renderMonumentDefenders(data.monument_defenders || []);
+  renderCollectors(data.collectors || []);
   renderLootBoxes(data.loot_boxes || []);
   updateHexGrid();
   updateCoinDisplay();
@@ -9099,7 +9160,7 @@ function showCombatHUD(target, mode) {
   hud.id = 'combat-hud';
   hud.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,20px) + 20px);left:50%;transform:translateX(-50%);z-index:5000;display:flex;gap:12px;align-items:center;';
 
-  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : mode === 'monument' ? `🏛️ ${target.name || 'Монумент'} Lv.${target.level}` : mode === 'defender' ? `${target.emoji || '👹'} Защитник` : `Шахта Ур.${target.level}`;
+  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : mode === 'monument' ? `🏛️ ${target.name || 'Монумент'} Lv.${target.level}` : mode === 'defender' ? `${target.emoji || '👹'} Защитник` : mode === 'collector' ? `⚙️ Сборщик Lv.${target.level}` : `Шахта Ур.${target.level}`;
 
   hud.innerHTML = `
     <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
@@ -9124,6 +9185,7 @@ function showCombatHUD(target, mode) {
       else doMonumentBodyHit(target);
     }
     else if (mode === 'defender') doDefenderHit(target);
+    else if (mode === 'collector') doCollectorHit(target);
     else doMineHit(target);
   };
 
@@ -10995,6 +11057,196 @@ async function doOpenLootBox(boxId) {
     if (data.xp?.xpGained) lines.push(`⭐ +${data.xp.xpGained} XP`);
     showToast(lines.join('\n'), 5000);
     handleXpResult(data.xp);
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+// ═══════════════════════════════════════════════════
+//  COLLECTORS — Auto-collect buildings
+// ═══════════════════════════════════════════════════
+const collectorMarkers = {};
+const collectorData = {};
+
+function collectorIcon(c) {
+  const isMine = c.is_mine;
+  const glow = isMine ? 'filter:drop-shadow(0 0 6px #4caf50)' : 'filter:drop-shadow(0 0 6px #f44336)';
+  const capacity = c._capacity || 1;
+  const fillPct = capacity > 0 ? Math.min(100, Math.round((c.stored_coins || 0) / capacity * 100)) : 0;
+  const isFull = fillPct >= 90;
+  const barColor = isMine ? '#4caf50' : '#f44336';
+
+  let label = '';
+  if (isFull) label = '<div class="collector-full">ПОЛНЫЙ</div>';
+
+  return L.divIcon({
+    html: `<div class="collector-marker" style="${glow}">
+      <span style="font-size:26px">⚙️</span>
+      <div class="collector-bar"><div style="width:${fillPct}%;background:${barColor}"></div></div>
+      ${label}
+    </div>`,
+    className: '',
+    iconSize: [36, 44],
+    iconAnchor: [18, 22],
+  });
+}
+
+function renderCollectors(collectors) {
+  if (!collectors) return;
+  const activeIds = new Set(collectors.map(c => c.id));
+  for (const id of Object.keys(collectorMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(collectorMarkers[id]); delete collectorMarkers[id]; delete collectorData[id]; }
+  }
+  for (const c of collectors) {
+    // Estimate capacity client-side (mines in 200m owned by same player)
+    const myMines = (state.mapBuildings?.mines || []).filter(m => m.owner_id === c.owner_id && haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
+    const totalIncome = myMines.reduce((s, m) => s + (m.income || 0), 0);
+    const capHours = [0,6,8,10,12,16,20,24,30,36,48][c.level] || 6;
+    c._capacity = Math.floor(totalIncome * 3600 * capHours);
+
+    collectorData[c.id] = c;
+    if (collectorMarkers[c.id]) {
+      collectorMarkers[c.id].setIcon(collectorIcon(c));
+    } else {
+      const marker = L.marker([c.lat, c.lng], { icon: collectorIcon(c), zIndexOffset: 2000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showCollectorPopup(c.id); });
+      marker.addTo(map);
+      collectorMarkers[c.id] = marker;
+    }
+  }
+}
+
+function updateCollectorMarker(collectorId) {
+  const c = collectorData[collectorId];
+  if (c && collectorMarkers[collectorId]) collectorMarkers[collectorId].setIcon(collectorIcon(c));
+}
+
+function showCollectorPopup(collectorId) {
+  const c = collectorData[collectorId];
+  if (!c) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, c.lat, c.lng) : null;
+  const inRange = dist !== null && dist <= 200;
+  const inAttackRange = dist !== null && dist <= 500;
+  const capacity = c._capacity || 1;
+  const fillPct = capacity > 0 ? Math.min(100, Math.round((c.stored_coins || 0) / capacity * 100)) : 0;
+  const hpPct = c.max_hp > 0 ? Math.round(c.hp / c.max_hp * 100) : 100;
+
+  // Time until next auto-collect
+  const lastCollect = c.last_collected_at ? new Date(c.last_collected_at).getTime() : Date.now();
+  const nextCollectMs = Math.max(0, (lastCollect + 3600000) - Date.now());
+  const nextMin = Math.ceil(nextCollectMs / 60000);
+
+  if (c.is_mine) {
+    const upgCosts = [0,0,500000,1500000,4500000,13500000,40500000,121000000,364000000,1090000000,3280000000];
+    const nextCost = c.level < 10 ? upgCosts[c.level + 1] : null;
+    const canUpgrade = nextCost && (state.player?.coins || 0) >= nextCost;
+
+    const stats = [
+      ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#4caf50;border-radius:4px"></div></div>${c.hp}/${c.max_hp}</div>`],
+      ['💰 Накоплено', `${formatCoins(c.stored_coins || 0)} / ${formatCoins(capacity)} (${fillPct}%)`],
+      ['⏱️ Сбор', `через ${nextMin} мин`],
+    ];
+
+    const actions = [];
+    if ((c.stored_coins || 0) > 0) {
+      const commission = Math.floor((c.stored_coins || 0) * 0.10);
+      actions.push({ label: `📦 Доставка (−${formatCoins(commission)})`, cls: 'primary', action: () => doCollectorDeliver(collectorId) });
+    }
+    if (nextCost && c.level < 10) {
+      actions.push({ label: `⬆️ Ур.${c.level+1} за ${formatCoins(nextCost)}`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCollectorUpgrade(collectorId) });
+    }
+    actions.push({ label: `💸 Продать за 37💎`, cls: 'danger', action: () => doCollectorSell(collectorId) });
+
+    openPopup(`⚙️ Сборщик Lv.${c.level}`, '', stats, actions);
+  } else {
+    const approxCoins = Math.round((c.stored_coins || 0) / 1000) * 1000;
+    const stats = [
+      ['👤 Владелец', `${c.owner_avatar || ''} ${c.owner_name || '?'}`],
+      ['💰 Накоплено', `~${formatCoins(approxCoins)}`],
+    ];
+    const actions = [];
+    if (inAttackRange) {
+      actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartCollectorCombat(collectorId) });
+    } else {
+      actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+    }
+    openPopup(`⚙️ Чужой сборщик Lv.${c.level}`, '', stats, actions);
+  }
+}
+
+function doStartCollectorCombat(collectorId) {
+  const c = collectorData[collectorId];
+  if (!c) return;
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  closePopup();
+  showCombatHUD({ id: collectorId, level: c.level, _collectorMode: true }, 'collector');
+}
+
+async function doCollectorHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, collector_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const c = collectorData[target.id];
+    if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
+    if (data.destroyed) {
+      stopCombat();
+      if (collectorMarkers[target.id]) { map.removeLayer(collectorMarkers[target.id]); delete collectorMarkers[target.id]; delete collectorData[target.id]; }
+      showToast(`💥 Сборщик уничтожен! +${formatCoins(data.stolen_coins)} монет`);
+      _setPlayerCoins((state.player?.coins || 0) + data.stolen_coins);
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doCollectorDeliver(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deliver', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    closePopup();
+    showToast(`📦 Курьер отправлен!\n💰 ${formatCoins(data.net)} монет\n📋 Комиссия: ${formatCoins(data.commission)}`);
+    const c = collectorData[collectorId];
+    if (c) { c.stored_coins = 0; updateCollectorMarker(collectorId); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectorUpgrade(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    closePopup();
+    showToast(`⬆️ Сборщик улучшен до Lv.${data.level}!`);
+    const c = collectorData[collectorId];
+    if (c) { c.level = data.level; c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(collectorId); }
+    if (state.player) { state.player.coins = data.coins; updateCoinDisplay(); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectorSell(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    closePopup();
+    if (collectorMarkers[collectorId]) { map.removeLayer(collectorMarkers[collectorId]); delete collectorMarkers[collectorId]; delete collectorData[collectorId]; }
+    showToast(`💸 Сборщик продан!\n+37💎\n+${formatCoins(data.coins_returned)} монет`);
+    if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 </script>
