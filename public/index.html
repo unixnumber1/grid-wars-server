@@ -3784,6 +3784,8 @@ const map = L.map('map', {
   attributionControl: false,
   minZoom: 15,
   maxZoom: 19,
+  zoomSnap: 0,
+  zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
 // Map style from localStorage — apply saved style on load
@@ -4690,9 +4692,13 @@ async function doUpgradeHq() {
   }
 }
 
+let _upgradeInProgress = false;
 async function doUpgrade(mineId, targetLevel) {
+  if (_upgradeInProgress) return;
+  _upgradeInProgress = true;
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
+    _upgradeInProgress = false;
     showToast('❌ GPS не готов, подожди');
     return;
   }
@@ -4735,6 +4741,8 @@ async function doUpgrade(mineId, targetLevel) {
     } else {
       showToast(`❌ ${err.message}`);
     }
+  } finally {
+    _upgradeInProgress = false;
   }
 }
 
@@ -5874,19 +5882,11 @@ function updateMineAttackStatus() {
       marker._icon.classList.remove('mine-under-attack', 'mine-status-burning', 'mine-status-attack');
     }
   }
-  // Mark attacked mines (bots)
-  for (const bot of Object.values(botData)) {
-    if (bot.status === 'attacking' && bot.target_mine_id) {
-      const m = buildingMarkers[`mine_${bot.target_mine_id}`];
-      if (m?._icon) m._icon.classList.add('mine-under-attack');
-    }
-  }
-  // Mark burning/under_attack status from mine data
+  // Mark burning mines only (attack indicators removed — HP bar is enough)
   for (const mine of (state.mapBuildings.mines || [])) {
     const m = buildingMarkers[`mine_${mine.id}`];
     if (!m?._icon) continue;
     if (mine.status === 'burning') m._icon.classList.add('mine-status-burning');
-    else if (mine.status === 'under_attack') m._icon.classList.add('mine-status-attack');
   }
 }
 
