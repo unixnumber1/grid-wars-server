@@ -4130,7 +4130,7 @@ function updateHexGrid() {
 
 function showBuildMenu(cellLat, cellLng) {
   const hasHq = state.hq || (state.mapBuildings?.headquarters || []).some(h => h.is_mine);
-  const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine);
+  const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine || ch.player_id === state.player?.id);
   const playerCoins = state.player?.coins ?? 0;
   const hasDiamonds = (state.player?.diamonds || 0) >= 75;
   const canAffordClanHq = playerCoins >= CLAN_HQ_COST;
@@ -4431,10 +4431,12 @@ function showHqPopup(hq, isOwn) {
     const playerName = displayName(state.player);
     const playerAvatar = state.player?.avatar || '🏠';
 
-    // Collect own collectors
-    const myCollectors = Object.values(collectorData).filter(c => c.is_mine);
+    // Collect own collectors (from cache — includes out-of-viewport ones)
+    const myCollectors = Object.values(_myCollectorsCache);
+    // Max collectors based on HQ level: lv1→0, lv2→1, lv3→1, lv4→2, lv5→2, lv6→3, lv7→3, lv8→4, lv9→4, lv10→5
+    const maxCollectors = Math.floor(hqLvl / 2);
     let collectorsHtml = '';
-    if (myCollectors.length > 0) {
+    if (myCollectors.length > 0 || maxCollectors > 0) {
       let cardsHtml = '';
       myCollectors.forEach((c, i) => {
         const coins = c.stored_coins || 0;
@@ -4457,7 +4459,7 @@ function showHqPopup(hq, isOwn) {
         </div>`;
       });
       collectorsHtml = `<div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
-        <div style="font-size:13px;color:#888;margin-bottom:8px">🧲 Мои сборщики (${myCollectors.length})</div>
+        <div style="font-size:13px;color:#888;margin-bottom:8px">🧲 Сборщики ${myCollectors.length}/${maxCollectors}</div>
         <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">${cardsHtml}</div>
       </div>`;
     }
@@ -5544,6 +5546,10 @@ function processTickData(data) {
   renderMonuments(data.monuments || []);
   renderMonumentDefenders(data.monument_defenders || []);
   renderCollectors(data.collectors || []);
+  // Cache own collectors for HQ popup (even if out of viewport)
+  if (data.collectors) {
+    for (const c of data.collectors) { if (c.is_mine) _myCollectorsCache[c.id] = c; }
+  }
   renderLootBoxes(data.loot_boxes || []);
   updateHexGrid();
   updateCoinDisplay();
@@ -7716,7 +7722,7 @@ function _courierIcon(courier) {
 }
 
 function _isMyDeliveryDrop(drop) {
-  const ownerId = drop.couriers?.owner_id || drop.owner_id;
+  const ownerId = drop.owner_id || drop.couriers?.owner_id;
   return ownerId === state.player?.id;
 }
 
@@ -11097,6 +11103,7 @@ async function doOpenLootBox(boxId) {
 const collectorMarkers = {};
 const collectorData = {};
 const collectorCircles = {};
+const _myCollectorsCache = {}; // all own collectors (not viewport-limited)
 
 function collectorIcon(c) {
   const isMine = c.is_mine;
