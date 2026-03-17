@@ -1760,7 +1760,7 @@
       0%,100% { opacity: 1; transform: scale(1); }
       50%     { opacity: 0.6; transform: scale(1.2); }
     }
-    .drop-marker { animation: dropPulse 1.5s ease-in-out infinite; }
+    .drop-marker { }
 
     /* Delivery box pulse (gold glow) */
     @keyframes deliveryPulse {
@@ -2298,7 +2298,7 @@
     .defender-hp-bar { width:36px; height:4px; background:#333; border-radius:2px; overflow:hidden; }
     .defender-hp-bar div { height:100%; background:#ff6600; transition:width 0.3s; }
     .loot-box-marker { display:flex; flex-direction:column; align-items:center; cursor:pointer; }
-    .loot-box-marker.mine { filter: drop-shadow(0 0 12px gold); animation: box-pulse 1s infinite; }
+    .loot-box-marker.mine { filter: drop-shadow(0 0 8px gold); }
     .loot-box-label { font-size:10px; color:white; text-shadow:0 0 4px black; white-space:nowrap; }
     .loot-box-sublabel { font-size:9px; color:#aaa; text-shadow:0 0 4px black; white-space:nowrap; }
     @keyframes raid-pulse { 0%,100% { filter: drop-shadow(0 0 10px #ff4444); } 50% { filter: drop-shadow(0 0 20px #ff4444); } }
@@ -2919,7 +2919,7 @@ function _addOrUpdateMineMarker(mine) {
     existing.off('click');
     existing.on('click', () => showMinePopup(mine, isOwn, false));
   } else {
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt), zIndexOffset: 450 })
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, false));
     marker._gw_level   = displayLevel;
@@ -2942,7 +2942,7 @@ function _addOrUpdateHqMarker(hq) {
     existing.off('click');
     existing.on('click', () => showHqPopup(hq, isOwn));
   } else {
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 480 })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     marker._gw_isOwn = isOwn;
@@ -4246,7 +4246,7 @@ function renderBuildings() {
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
     } else {
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 600 })
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000 })
         .addTo(map)
         .on('click', () => showOtherPlayerPopup(p));
       onlineMarkers[p.id] = marker;
@@ -5582,7 +5582,7 @@ function onPosition(pos) {
   const pIcon = playerIcon(state.player?.avatar);
   if (!playerMarker) {
     // First GPS fix — create marker at real position even if PIN will override it
-    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 500 }).addTo(map);
+    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 10000 }).addTo(map);
     // Combat zone (large red dashed circle — no fill)
     playerCombatCircle = L.circle([lat, lng], {
       radius: LARGE_RADIUS,
@@ -5683,7 +5683,7 @@ function renderVases(vasesRaw) {
     _knownVaseIds.add(vase.id);
     vaseData[vase.id] = vase;
     if (!vaseMarkers[vase.id]) {
-      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 2000 });
+      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 1000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showVasePopup(vase.id); });
       marker.addTo(vaseLayer);
       vaseMarkers[vase.id] = marker;
@@ -5953,7 +5953,7 @@ function renderBots(bots) {
       }
       ref.marker.setIcon(botIcon(bot));
     } else {
-      const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
+      const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 4000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
       marker.addTo(botLayer);
       botMarkers[bot.id] = { marker };
@@ -7631,7 +7631,7 @@ function renderMarkets(markets) {
   }
   for (const m of (markets || [])) {
     if (!marketMarkers[m.id]) {
-      const marker = L.marker([m.lat, m.lng], { icon: _marketIcon(), zIndexOffset: 400 });
+      const marker = L.marker([m.lat, m.lng], { icon: _marketIcon(), zIndexOffset: 3000 });
       marker.on('click', (e) => {
         _suppressMapClick = Date.now();
         L.DomEvent.stopPropagation(e);
@@ -7688,7 +7688,7 @@ function renderCouriers(couriers) {
       courierInterp[c.id].serverLng = c.current_lng;
       courierMarkers[c.id].setIcon(_courierIcon(c));
     } else {
-      const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 1200 });
+      const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 4000 });
       marker.on('click', (e) => {
         _suppressMapClick = Date.now();
         L.DomEvent.stopPropagation(e);
@@ -7835,7 +7835,7 @@ async function doAttackCourier(courierId) {
           html: '<div class="marker-wrap drop-marker" style="font-size:36px;line-height:1;">📦</div>',
           iconSize: [44, 44], iconAnchor: [22, 22],
         });
-        const dMarker = L.marker([drop.lat, drop.lng], { icon: dIcon, zIndexOffset: 2000 });
+        const dMarker = L.marker([drop.lat, drop.lng], { icon: dIcon, zIndexOffset: 1000 });
         dMarker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDropPopup(drop.id); });
         dMarker.addTo(dropLayer);
         dropMarkers[drop.id] = dMarker;
@@ -7883,7 +7883,7 @@ function renderDrops(drops) {
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       });
-      const marker = L.marker([d.lat, d.lng], { icon, zIndexOffset: 2000 });
+      const marker = L.marker([d.lat, d.lng], { icon, zIndexOffset: 1000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDropPopup(d.id); });
       marker.addTo(dropLayer);
       dropMarkers[d.id] = marker;
@@ -9531,7 +9531,7 @@ function renderClanHqs(clanHqs) {
       clanHqMarkers[ch.id].setIcon(clanHqIcon(ch));
       clanHqMarkers[ch.id].off('click').on('click', () => showClanHqPopup(ch));
     } else {
-      const marker = L.marker([ch.lat, ch.lng], { icon: clanHqIcon(ch), zIndexOffset: 470 })
+      const marker = L.marker([ch.lat, ch.lng], { icon: clanHqIcon(ch), zIndexOffset: 1000 })
         .addTo(map)
         .on('click', () => showClanHqPopup(ch));
       clanHqMarkers[ch.id] = marker;
@@ -9563,7 +9563,7 @@ function renderClanHqs(clanHqs) {
             iconSize: [120, 20],
             iconAnchor: [60, 40],
           }),
-          zIndexOffset: 471,
+          zIndexOffset: 1000,
           interactive: false,
         }).addTo(map);
       }
@@ -9619,7 +9619,7 @@ function renderOreNodes(ores) {
         oreMarkers[ore.id].setIcon(oreIcon(ore));
       }
     } else {
-      const marker = L.marker([ore.lat, ore.lng], { icon: oreIcon(ore), zIndexOffset: 800 });
+      const marker = L.marker([ore.lat, ore.lng], { icon: oreIcon(ore), zIndexOffset: 2000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOrePopup(ore.id); });
       marker.addTo(map);
       oreMarkers[ore.id] = marker;
@@ -10616,7 +10616,7 @@ function renderMonuments(monuments) {
     if (monumentMarkers[m.id]) {
       monumentMarkers[m.id].setIcon(monumentIcon(m));
     } else {
-      const marker = L.marker([m.lat, m.lng], { icon: monumentIcon(m), zIndexOffset: 2000 });
+      const marker = L.marker([m.lat, m.lng], { icon: monumentIcon(m), zIndexOffset: 3000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showMonumentPopup(m.id); });
       marker.addTo(map);
       monumentMarkers[m.id] = marker;
@@ -10635,7 +10635,7 @@ function renderMonumentDefenders(defenders) {
     if (defenderMarkers[d.id]) {
       defenderMarkers[d.id].setIcon(defenderIcon(d));
     } else {
-      const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 1800 });
+      const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 4000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
       marker.addTo(map);
       defenderMarkers[d.id] = marker;
@@ -10648,7 +10648,7 @@ function renderLootBoxes(boxes) {
   for (const box of boxes) {
     lootBoxData[box.id] = box;
     if (lootBoxMarkers[box.id]) continue;
-    const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1900 });
+    const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1000 });
     marker.on('click', (e) => {
       _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
       const isMine = Number(box.player_id) === Number(TG_ID);
@@ -10694,7 +10694,7 @@ function updateMonumentMarkerIcon(monumentId) {
 function addDefenderMarkerImmediate(d) {
   defenderData[d.id] = d;
   if (defenderMarkers[d.id]) return;
-  const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 1800 });
+  const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 4000 });
   marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
   marker.addTo(map);
   defenderMarkers[d.id] = marker;
@@ -10703,7 +10703,7 @@ function addDefenderMarkerImmediate(d) {
 function addLootBoxMarkerImmediate(box) {
   lootBoxData[box.id] = box;
   if (lootBoxMarkers[box.id]) return;
-  const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1900 });
+  const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1000 });
   marker.on('click', (e) => {
     _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
     const isMine = Number(box.player_id) === Number(TG_ID);
