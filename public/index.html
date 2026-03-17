@@ -2256,6 +2256,25 @@
     .activity-time { color:#666; min-width:45px; }
     .activity-player { color:#FFD700; min-width:70px; }
     .activity-action { color:#aaa; flex:1; }
+
+    /* ── Monument markers ── */
+    .monument-marker { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+    .monument-marker.shield { filter: drop-shadow(0 0 10px #4488ff); }
+    .monument-marker.open { filter: drop-shadow(0 0 10px #ff4444); animation: raid-pulse 0.5s infinite; }
+    .monument-marker.defeated { filter: grayscale(1) opacity(0.5); }
+    .monument-level { font-size:11px; color:gold; font-weight:bold; text-shadow:0 0 4px black; }
+    .monument-phase { font-size:14px; margin-top:-4px; }
+    .monument-hp-bar { width:100%; height:4px; background:#333; border-radius:2px; margin-top:2px; overflow:hidden; }
+    .monument-hp-bar div { height:100%; transition:width 0.3s; border-radius:2px; }
+    .defender-marker { display:flex; flex-direction:column; align-items:center; }
+    .defender-hp-bar { width:36px; height:4px; background:#333; border-radius:2px; overflow:hidden; }
+    .defender-hp-bar div { height:100%; background:#ff6600; transition:width 0.3s; }
+    .loot-box-marker { display:flex; flex-direction:column; align-items:center; cursor:pointer; }
+    .loot-box-marker.mine { filter: drop-shadow(0 0 12px gold); animation: box-pulse 1s infinite; }
+    .loot-box-label { font-size:10px; color:white; text-shadow:0 0 4px black; white-space:nowrap; }
+    .loot-box-sublabel { font-size:9px; color:#aaa; text-shadow:0 0 4px black; white-space:nowrap; }
+    @keyframes raid-pulse { 0%,100% { filter: drop-shadow(0 0 10px #ff4444); } 50% { filter: drop-shadow(0 0 20px #ff4444); } }
+    @keyframes box-pulse { 0%,100% { filter: drop-shadow(0 0 12px gold); } 50% { filter: drop-shadow(0 0 24px gold); } }
   </style>
 </head>
 <body>
@@ -5087,6 +5106,8 @@ async function loadVisibleBuildings(force = false) {
     renderCouriers(data.couriers || []);
     renderDrops(data.courier_drops || []);
     renderOreNodes(data.ore_nodes || []);
+    renderMonuments(data.monuments || []);
+    renderMonumentDefenders(data.monument_defenders || []);
     updateHexGrid();
   } catch (err) {
     console.error('[map] fetch error:', err);
@@ -5270,6 +5291,67 @@ function initSocket() {
       }
     });
 
+    // ── Monument socket events ──
+    _socket.on('monument:shield_broken', (data) => {
+      showToast(`💥 ${data.breaker_name} пробил щит монумента!`, 3000);
+      updateMonumentPhase(data.monument_id, 'open');
+      try { Telegram.WebApp.HapticFeedback.notificationOccurred('warning'); } catch(_){}
+    });
+
+    _socket.on('monument:wave_spawn', (data) => {
+      showToast(`🌊 Волна ${data.wave}! ${data.defenders.length} защитников!`, 3000);
+      if (data.defenders) {
+        for (const d of data.defenders) addDefenderMarkerImmediate(d);
+      }
+      try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
+    });
+
+    _socket.on('monument:vulnerable', (data) => {
+      showToast(`⚡ Монумент уязвим! Атакуйте!`, 2500);
+      try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
+    });
+
+    _socket.on('monument:defeated', (data) => {
+      showToast(`🏆 ${data.name} Lv.${data.level} повержен! Победитель: ${data.winner_name}`, 4000);
+      updateMonumentPhase(data.monument_id, 'defeated');
+      if (data.loot_boxes) {
+        for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
+      }
+    });
+
+    _socket.on('monument:loot_dropped', (data) => {
+      const emoji = data.box_type === 'trophy' ? '🏆' : '🎁';
+      showToast(`${emoji} Твоя награда появилась на карте! +${data.preview.gems}💎`, 3000);
+    });
+
+    _socket.on('monument:knocked_out', (data) => {
+      showToast(`💀 Защитник выбил тебя! Возвращайся через ${Math.floor(data.respawn_in/60)} мин`, 3000);
+      stopCombat();
+    });
+
+    _socket.on('monument:shield_restored', (data) => {
+      updateMonumentPhase(data.monument_id, 'shield');
+    });
+
+    _socket.on('monument:shield_update', (data) => {
+      const m = monumentData[data.monument_id];
+      if (m) { m.shield_hp = data.shield_hp; m.max_shield_hp = data.max_shield_hp; updateMonumentMarkerIcon(data.monument_id); }
+    });
+
+    _socket.on('monument:hp_update', (data) => {
+      const m = monumentData[data.monument_id];
+      if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(data.monument_id); }
+    });
+
+    _socket.on('monument:defender_killed', (data) => {
+      const ref = defenderMarkers[data.defender_id];
+      if (ref) {
+        map.removeLayer(ref);
+        delete defenderMarkers[data.defender_id];
+        delete defenderData[data.defender_id];
+      }
+    });
+
     _socket.on('disconnect', () => {
       // Disconnected from server
     });
@@ -5335,6 +5417,9 @@ function processTickData(data) {
   renderCouriers(data.couriers || []);
   renderDrops(data.courier_drops || []);
   renderOreNodes(data.ore_nodes || []);
+  renderMonuments(data.monuments || []);
+  renderMonumentDefenders(data.monument_defenders || []);
+  renderLootBoxes(data.loot_boxes || []);
   updateHexGrid();
   updateCoinDisplay();
   updatePlayerDisplay();
@@ -8961,7 +9046,7 @@ function showCombatHUD(target, mode) {
   hud.id = 'combat-hud';
   hud.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,20px) + 20px);left:50%;transform:translateX(-50%);z-index:5000;display:flex;gap:12px;align-items:center;';
 
-  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : `Шахта Ур.${target.level}`;
+  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : mode === 'monument' ? `🏛️ ${target.name || 'Монумент'} Lv.${target.level}` : mode === 'defender' ? `${target.emoji || '👹'} Защитник` : `Шахта Ур.${target.level}`;
 
   hud.innerHTML = `
     <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
@@ -8981,6 +9066,11 @@ function showCombatHUD(target, mode) {
   const doHit = () => {
     if (mode === 'pvp') doPvpHit(target);
     else if (mode === 'ore') doOreHit(target);
+    else if (mode === 'monument') {
+      if (target._monumentMode === 'shield') doMonumentShieldHit(target);
+      else doMonumentBodyHit(target);
+    }
+    else if (mode === 'defender') doDefenderHit(target);
     else doMineHit(target);
   };
 
@@ -10403,6 +10493,426 @@ async function doClanKick(targetTgId) {
 
   await boot();
 })();
+
+// ═══════════════════════════════════════════════════
+//  MONUMENTS — Raid bosses on the map
+// ═══════════════════════════════════════════════════
+const monumentMarkers = {};
+const monumentData = {};
+const defenderMarkers = {};
+const defenderData = {};
+const lootBoxMarkers = {};
+const lootBoxData = {};
+
+function monumentIcon(m) {
+  const phaseEmoji = m.phase === 'shield' ? '🛡️' : m.phase === 'open' ? '🔥' : '💀';
+  const size = 50 + m.level * 3;
+  let barHtml = '';
+  if (m.phase === 'shield' || m.phase === 'open') {
+    const isShield = m.phase === 'shield';
+    const pct = isShield ? (m.shield_hp / m.max_shield_hp * 100) : (m.hp / m.max_hp * 100);
+    const color = isShield ? '#4488ff' : '#ff4444';
+    barHtml = `<div class="monument-hp-bar"><div style="width:${Math.max(0,pct)}%;background:${color}"></div></div>`;
+  }
+  return L.divIcon({
+    html: `<div class="monument-marker ${m.phase}" style="width:${size}px;height:${size}px">
+      <span style="font-size:${size*0.5}px">🏛️</span>
+      <div class="monument-level">Lv.${m.level}</div>
+      <div class="monument-phase">${phaseEmoji}</div>
+      ${barHtml}
+    </div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
+}
+
+function defenderIcon(d) {
+  const hpPct = d.max_hp > 0 ? (d.hp / d.max_hp * 100) : 0;
+  return L.divIcon({
+    html: `<div class="defender-marker">
+      <span style="font-size:28px">${d.emoji}</span>
+      <div class="defender-hp-bar"><div style="width:${Math.max(0,hpPct)}%;background:#ff6600"></div></div>
+    </div>`,
+    className: '',
+    iconSize: [40, 50],
+    iconAnchor: [20, 25],
+  });
+}
+
+function lootBoxIcon(box) {
+  const emoji = box.box_type === 'trophy' ? '🏆' : '🎁';
+  const isMine = Number(box.player_id) === Number(TG_ID);
+  return L.divIcon({
+    html: `<div class="loot-box-marker ${isMine ? 'mine' : ''}">
+      <span style="font-size:32px">${emoji}</span>
+      <div class="loot-box-label">${box.player_avatar || ''} ${box.player_name || ''}</div>
+      <div class="loot-box-sublabel">Награда за рейд ${box.monument_level}ур.</div>
+    </div>`,
+    className: '',
+    iconSize: [60, 70],
+    iconAnchor: [30, 35],
+  });
+}
+
+function renderMonuments(monuments) {
+  if (!monuments || !monuments.length) return;
+  const activeIds = new Set(monuments.map(m => m.id));
+  for (const id of Object.keys(monumentMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(monumentMarkers[id]); delete monumentMarkers[id]; delete monumentData[id]; }
+  }
+  for (const m of monuments) {
+    monumentData[m.id] = m;
+    if (monumentMarkers[m.id]) {
+      monumentMarkers[m.id].setIcon(monumentIcon(m));
+    } else {
+      const marker = L.marker([m.lat, m.lng], { icon: monumentIcon(m), zIndexOffset: 2000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showMonumentPopup(m.id); });
+      marker.addTo(map);
+      monumentMarkers[m.id] = marker;
+    }
+  }
+}
+
+function renderMonumentDefenders(defenders) {
+  if (!defenders) return;
+  const activeIds = new Set(defenders.map(d => d.id));
+  for (const id of Object.keys(defenderMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id]; }
+  }
+  for (const d of defenders) {
+    defenderData[d.id] = d;
+    if (defenderMarkers[d.id]) {
+      defenderMarkers[d.id].setIcon(defenderIcon(d));
+    } else {
+      const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 1800 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
+      marker.addTo(map);
+      defenderMarkers[d.id] = marker;
+    }
+  }
+}
+
+function renderLootBoxes(boxes) {
+  if (!boxes) return;
+  const activeIds = new Set(boxes.map(b => b.id));
+  for (const id of Object.keys(lootBoxMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(lootBoxMarkers[id]); delete lootBoxMarkers[id]; delete lootBoxData[id]; }
+  }
+  for (const box of boxes) {
+    lootBoxData[box.id] = box;
+    if (lootBoxMarkers[box.id]) continue;
+    const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1900 });
+    marker.on('click', (e) => {
+      _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
+      const isMine = Number(box.player_id) === Number(TG_ID);
+      if (isMine) showLootBoxPopup(box.id);
+      else showToast(`${box.player_avatar} ${box.player_name} — чужая награда`);
+    });
+    marker.addTo(map);
+    lootBoxMarkers[box.id] = marker;
+  }
+}
+
+function updateMonumentPhase(monumentId, phase) {
+  const m = monumentData[monumentId];
+  if (m) { m.phase = phase; updateMonumentMarkerIcon(monumentId); }
+}
+
+function updateMonumentMarkerIcon(monumentId) {
+  const m = monumentData[monumentId];
+  if (m && monumentMarkers[monumentId]) {
+    monumentMarkers[monumentId].setIcon(monumentIcon(m));
+  }
+}
+
+function addDefenderMarkerImmediate(d) {
+  defenderData[d.id] = d;
+  if (defenderMarkers[d.id]) return;
+  const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 1800 });
+  marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
+  marker.addTo(map);
+  defenderMarkers[d.id] = marker;
+}
+
+function addLootBoxMarkerImmediate(box) {
+  lootBoxData[box.id] = box;
+  if (lootBoxMarkers[box.id]) return;
+  const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1900 });
+  marker.on('click', (e) => {
+    _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
+    const isMine = Number(box.player_id) === Number(TG_ID);
+    if (isMine) showLootBoxPopup(box.id);
+    else showToast(`${box.player_avatar} ${box.player_name} — чужая награда`);
+  });
+  marker.addTo(map);
+  lootBoxMarkers[box.id] = marker;
+}
+
+// ── Monument popup ──
+function showMonumentPopup(monumentId) {
+  const m = monumentData[monumentId];
+  if (!m) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, m.lat, m.lng) : null;
+  const inRange = dist !== null && dist <= 500;
+
+  const phaseLabel = m.phase === 'shield' ? '🛡️ Щит' : m.phase === 'open' ? '🔥 Открыт' : '💀 Повержен';
+  const distLabel = dist !== null
+    ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
+    : '<span style="color:#888">📍 GPS...</span>';
+
+  const stats = [
+    ['Уровень', `⭐ ${m.level}`],
+    ['Фаза', phaseLabel],
+  ];
+
+  if (m.phase === 'shield') {
+    const pct = m.max_shield_hp > 0 ? Math.round(m.shield_hp / m.max_shield_hp * 100) : 0;
+    stats.push(['🛡️ Щит', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
+  } else if (m.phase === 'open') {
+    const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
+    stats.push(['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
+    const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
+    stats.push(['🌊 Защитники', `${defenders.length} живых`]);
+  } else if (m.phase === 'defeated' && m.respawn_at) {
+    const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
+    stats.push(['⏰ Респавн', `${Math.floor(left/60)}ч ${left%60}мин`]);
+  }
+
+  const actions = [];
+  if (m.phase === 'shield' && inRange) {
+    actions.push({ label: '⚔️ Атаковать щит', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'shield') });
+  } else if (m.phase === 'open' && inRange) {
+    const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
+    if (defenders.length > 0) {
+      actions.push({ label: `⚔️ Убить защитников (${defenders.length})`, cls: 'danger', action: () => doStartDefenderCombat(monumentId) });
+    } else {
+      actions.push({ label: '⚔️ Атаковать монумент', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
+    }
+  }
+  if (m.phase !== 'defeated' && inRange) {
+    actions.push({ label: '👥 Присоединиться к рейду', cls: '', action: () => doJoinRaid(monumentId) });
+  }
+  if (!inRange && m.phase !== 'defeated') {
+    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+  }
+
+  openPopup(`🏛️ ${m.name}`, distLabel, stats, actions);
+}
+
+// ── Defender popup ──
+function showDefenderPopup(defenderId) {
+  const d = defenderData[defenderId];
+  if (!d) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, d.lat, d.lng) : null;
+  const inRange = dist !== null && dist <= 500;
+  const hpPct = d.max_hp > 0 ? Math.round(d.hp / d.max_hp * 100) : 0;
+
+  const stats = [
+    ['HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff6600;border-radius:4px"></div></div>${formatNumber(d.hp)}/${formatNumber(d.max_hp)}</div>`],
+  ];
+
+  const actions = [];
+  if (inRange) {
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartSingleDefenderCombat(defenderId) });
+  } else {
+    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+  }
+
+  openPopup(`${d.emoji} Защитник монумента`, dist ? `📍 ${Math.round(dist)}м` : '', stats, actions);
+}
+
+// ── Loot box popup ──
+function showLootBoxPopup(boxId) {
+  const box = lootBoxData[boxId];
+  if (!box) return;
+
+  const emoji = box.box_type === 'trophy' ? '🏆' : '🎁';
+  const label = box.box_type === 'trophy' ? 'Трофей' : 'Подарок';
+
+  const stats = [
+    ['Тип', `${emoji} ${label}`],
+    ['Рейд', `🏛️ ${box.monument_level} ур.`],
+  ];
+
+  const actions = [
+    { label: '🎊 Открыть', cls: 'danger', action: () => doOpenLootBox(boxId) },
+  ];
+
+  openPopup(`${emoji} Награда за рейд`, '', stats, actions);
+}
+
+// ── Combat: attack monument shield or body ──
+function doStartMonumentCombat(monumentId, mode) {
+  const m = monumentData[monumentId];
+  if (!m) return;
+
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+
+  closePopup();
+  showCombatHUD({ id: monumentId, level: m.level, name: m.name, _monumentMode: mode }, 'monument');
+}
+
+function doStartDefenderCombat(monumentId) {
+  // Attack the closest alive defender for this monument
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  const defenders = Object.entries(defenderData)
+    .filter(([_, d]) => d.monument_id === monumentId)
+    .map(([id, d]) => ({ id, ...d, dist: haversine(pos.lat, pos.lng, d.lat, d.lng) }))
+    .sort((a, b) => a.dist - b.dist);
+
+  if (!defenders.length) return showToast('Нет живых защитников');
+  doStartSingleDefenderCombat(defenders[0].id);
+}
+
+function doStartSingleDefenderCombat(defenderId) {
+  const d = defenderData[defenderId];
+  if (!d) return;
+
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+
+  closePopup();
+  showCombatHUD({ id: defenderId, emoji: d.emoji, _defenderMode: true, monument_id: d.monument_id }, 'defender');
+}
+
+// ── Extend showCombatHUD for monument/defender modes ──
+const _origShowCombatHUD = showCombatHUD;
+
+// Override doHit dispatch in showCombatHUD (already handles modes via the existing pattern)
+// We need to add 'monument' and 'defender' modes to the doHit function
+
+// ── Hit handlers for monuments ──
+async function doMonumentShieldHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const m = monumentData[target.id];
+    if (m) { m.shield_hp = data.shield_hp; m.max_shield_hp = data.max_shield_hp; updateMonumentMarkerIcon(target.id); }
+    if (data.shield_broken) { stopCombat(); showToast('💥 Щит пробит! Появились защитники!'); }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doMonumentBodyHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-monument', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const m = monumentData[target.id];
+    if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
+    if (data.defeated) { stopCombat(); showToast('🏆 Монумент повержен! Награды на карте!'); }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('защитников') || msg.includes('Сначала')) { stopCombat(); showToast('⚔️ ' + msg); return; }
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doDefenderHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-defender', telegram_id: TG_ID, defender_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    if (data.killed) {
+      // Remove defender marker
+      if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
+      // Check if more defenders for this monument
+      const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id);
+      if (remaining.length > 0) {
+        // Switch to next closest defender
+        const pos2 = state.playerPos;
+        remaining.sort((a, b) => haversine(pos2.lat, pos2.lng, a.lat, a.lng) - haversine(pos2.lat, pos2.lng, b.lat, b.lng));
+        stopCombat();
+        doStartSingleDefenderCombat(remaining[0].id || Object.keys(defenderData).find(k => defenderData[k].monument_id === target.monument_id));
+      } else {
+        stopCombat();
+        showToast('⚡ Все защитники убиты! Атакуйте монумент!');
+      }
+    } else {
+      // Update defender HP
+      const d = defenderData[target.id];
+      if (d) { d.hp = data.defender_hp; d.max_hp = data.defender_max_hp; if (defenderMarkers[target.id]) defenderMarkers[target.id].setIcon(defenderIcon(d)); }
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doJoinRaid(monumentId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'start-raid', telegram_id: TG_ID, monument_id: monumentId, lat: pos.lat, lng: pos.lng }),
+    });
+    showToast(`👥 Присоединился к рейду! Участников: ${data.participants}`);
+    closePopup();
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doOpenLootBox(boxId) {
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'open-loot-box', telegram_id: TG_ID, box_id: boxId }),
+    });
+    closePopup();
+    // Remove marker
+    if (lootBoxMarkers[boxId]) { map.removeLayer(lootBoxMarkers[boxId]); delete lootBoxMarkers[boxId]; delete lootBoxData[boxId]; }
+    // Update diamonds
+    if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+    // Show reward screen
+    let msg = `🎊 Награда!\n💎 ${data.gems} алмазов`;
+    if (data.items?.length) {
+      for (const item of data.items) msg += `\n${item.emoji} ${item.name} (${item.rarity})`;
+    }
+    showToast(msg, 5000);
+    handleXpResult(data.xp);
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
 </script>
 
 <!-- Profile modal (fullscreen) -->
