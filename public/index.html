@@ -2289,7 +2289,7 @@
 
     /* Progress bars under emoji */
     .monument-bars { width:100%; display:flex; flex-direction:column; gap:2px; margin-top:1px; }
-    .monument-bar-wrap { width:100%; height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; }
+    .monument-bar-wrap { width:100%; height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
     .monument-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
     .monument-bar-fill.bar-shield { background:linear-gradient(90deg,#4488ff,#66bbff); }
     .monument-bar-fill.bar-hp { background:linear-gradient(90deg,#cc2222,#ff4444); }
@@ -5340,7 +5340,7 @@ function initSocket() {
     });
 
     _socket.on('monument:defeated', (data) => {
-      showToast(`🏆 ${data.name} Lv.${data.level} повержен! Победитель: ${data.winner_name}`, 4000);
+      showToast(`🏆 ${data.name} Lv.${data.level} повержен! ${data.winner_name}`, 4000);
       updateMonumentPhase(data.monument_id, 'defeated');
       if (data.loot_boxes) {
         for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
@@ -5348,8 +5348,7 @@ function initSocket() {
     });
 
     _socket.on('monument:loot_dropped', (data) => {
-      const emoji = data.box_type === 'trophy' ? '🏆' : '🎁';
-      showToast(`${emoji} Твоя награда появилась на карте! +${data.preview.gems}💎`, 3000);
+      // No extra toast — defeat toast is enough
     });
 
     _socket.on('monument:knocked_out', (data) => {
@@ -5994,7 +5993,7 @@ function showBotPopup(botId) {
 
   const actions = [];
   if (inRange) {
-    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doAttackBot(botId) });
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => { closePopup(); doAttackBot(botId); }, hold: () => { closePopup(); _startBotAutoAttack(botId); } });
   } else {
     actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
   }
@@ -6025,6 +6024,19 @@ function startRespawnCountdown(untilISO) {
     const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
     if (left <= 0) { clearInterval(_respawnTimer); _respawnTimer = null; return; }
   }, 1000);
+}
+
+let _botAutoAttackTimer = null;
+function _startBotAutoAttack(botId) {
+  if (_botAutoAttackTimer) clearInterval(_botAutoAttackTimer);
+  doAttackBot(botId);
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  _botAutoAttackTimer = setInterval(() => {
+    const bot = botData[botId];
+    if (!bot || (bot.hp ?? 0) <= 0) { clearInterval(_botAutoAttackTimer); _botAutoAttackTimer = null; return; }
+    doAttackBot(botId);
+  }, cd + 50);
 }
 
 async function doAttackBot(botId) {
@@ -8785,7 +8797,7 @@ async function doAttackMine(mineId) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   closePopup();
   showCombatHUD(mine, 'mine');
@@ -9060,7 +9072,7 @@ function startPvpCombat(target) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   // Show floating attack button
   showCombatHUD(target, 'pvp');
@@ -9698,7 +9710,7 @@ function attackOreOwnerPvp(ore) {
 
 function attackOreNode(ore) {
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
   closePopup();
   showCombatHUD(ore, 'ore');
 }
@@ -10586,12 +10598,10 @@ function lootBoxIcon(box) {
   return L.divIcon({
     html: `<div class="loot-box-marker ${isMine ? 'mine' : ''}">
       <span style="font-size:32px">${emoji}</span>
-      <div class="loot-box-label">${box.player_avatar || ''} ${box.player_name || ''}</div>
-      <div class="loot-box-sublabel">Награда за рейд ${box.monument_level}ур.</div>
     </div>`,
     className: '',
-    iconSize: [60, 70],
-    iconAnchor: [30, 35],
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   });
 }
 
@@ -10634,11 +10644,7 @@ function renderMonumentDefenders(defenders) {
 }
 
 function renderLootBoxes(boxes) {
-  if (!boxes) return;
-  const activeIds = new Set(boxes.map(b => b.id));
-  for (const id of Object.keys(lootBoxMarkers)) {
-    if (!activeIds.has(id)) { map.removeLayer(lootBoxMarkers[id]); delete lootBoxMarkers[id]; delete lootBoxData[id]; }
-  }
+  if (!boxes || !boxes.length) return; // Don't wipe markers on empty tick
   for (const box of boxes) {
     lootBoxData[box.id] = box;
     if (lootBoxMarkers[box.id]) continue;
@@ -10760,7 +10766,7 @@ function showMonumentPopup(monumentId) {
   openPopup(`🏛️ ${m.name}`, distLabel, stats, actions);
 }
 
-// ── Defender popup ──
+// ── Defender popup — direct attack (no combat mode) ──
 function showDefenderPopup(defenderId) {
   const d = defenderData[defenderId];
   if (!d) return;
@@ -10775,7 +10781,7 @@ function showDefenderPopup(defenderId) {
 
   const actions = [];
   if (inRange) {
-    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartSingleDefenderCombat(defenderId) });
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => { closePopup(); doStartSingleDefenderCombat(defenderId); } });
   } else {
     actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
   }
@@ -10788,19 +10794,15 @@ function showLootBoxPopup(boxId) {
   const box = lootBoxData[boxId];
   if (!box) return;
 
-  const emoji = box.box_type === 'trophy' ? '🏆' : '🎁';
-  const label = box.box_type === 'trophy' ? 'Трофей' : 'Подарок';
-
   const stats = [
-    ['Тип', `${emoji} ${label}`],
-    ['Рейд', `🏛️ ${box.monument_level} ур.`],
+    ['Рейд', `${box.monument_level} ур.`],
   ];
 
   const actions = [
     { label: '🎊 Открыть', cls: 'danger', action: () => doOpenLootBox(boxId) },
   ];
 
-  openPopup(`${emoji} Награда за рейд`, '', stats, actions);
+  openPopup(`Награда за рейд ${box.player_avatar || ''} ${box.player_name || ''}`, '', stats, actions);
 }
 
 // ── Combat: attack monument shield or body ──
@@ -10809,7 +10811,7 @@ function doStartMonumentCombat(monumentId, mode) {
   if (!m) return;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   closePopup();
   showCombatHUD({ id: monumentId, level: m.level, name: m.name, _monumentMode: mode }, 'monument');
@@ -10833,7 +10835,7 @@ function doStartSingleDefenderCombat(defenderId) {
   if (!d) return;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 1000 : 1300) : 500;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   closePopup();
   showCombatHUD({ id: defenderId, emoji: d.emoji, _defenderMode: true, monument_id: d.monument_id }, 'defender');
@@ -10963,12 +10965,13 @@ async function doOpenLootBox(boxId) {
     if (lootBoxMarkers[boxId]) { map.removeLayer(lootBoxMarkers[boxId]); delete lootBoxMarkers[boxId]; delete lootBoxData[boxId]; }
     // Update diamonds
     if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
-    // Show reward screen
-    let msg = `🎊 Награда!\n💎 ${data.gems} алмазов`;
+    // Show reward list
+    const lines = [`🎊 Награда!`, `💎 ${data.gems} алмазов`];
     if (data.items?.length) {
-      for (const item of data.items) msg += `\n${item.emoji} ${item.name} (${item.rarity})`;
+      for (const item of data.items) lines.push(`${item.emoji} ${item.name}`);
     }
-    showToast(msg, 5000);
+    if (data.xp?.xpGained) lines.push(`⭐ +${data.xp.xpGained} XP`);
+    showToast(lines.join('\n'), 5000);
     handleXpResult(data.xp);
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
