@@ -4440,7 +4440,11 @@ function showHqPopup(hq, isOwn) {
       let cardsHtml = '';
       myCollectors.forEach((c, i) => {
         const coins = c.stored_coins || 0;
-        const cap = c._capacity || 1;
+        // Compute capacity from own mines list (not viewport-limited)
+        const minesNear = (state.mines || []).filter(m => haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
+        const incomePerSec = minesNear.reduce((s, m) => s + (m.income || 0), 0);
+        const capHours = [0,6,8,10,12,16,20,24,30,36,48][c.level] || 6;
+        const cap = Math.floor(incomePerSec * 3600 * capHours) || c._capacity || 1;
         const pct = cap > 0 ? Math.min(100, Math.round(coins / cap * 100)) : 0;
         const hasCoins = coins > 0;
         const comm = Math.floor(coins * 0.10);
