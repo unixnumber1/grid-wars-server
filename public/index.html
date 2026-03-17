@@ -308,9 +308,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #1e1e1e;
+      background: #252538;
+      border-radius: 10px;
+      padding: 10px 12px;
       font-size: 13px;
+      color: #ccc;
     }
 
     .popup-stat .val { font-weight: 600; color: #f5c518; }
@@ -319,7 +321,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      margin-top: 16px;
+      margin-top: 12px;
     }
 
     .popup-actions > .btn {
@@ -4127,96 +4129,49 @@ function updateHexGrid() {
 }
 
 function showBuildMenu(cellLat, cellLng) {
-  document.getElementById('popup-title').innerHTML = '&#x1F3D7;&#xFE0F; Построить';
-  document.getElementById('popup-subtitle').textContent = 'Выбери тип постройки';
-
-  const statsEl = document.getElementById('popup-stats');
-  statsEl.innerHTML = '';
-
-  // HQ card — only if player has no HQ yet
   const hasHq = state.hq || (state.mapBuildings?.headquarters || []).some(h => h.is_mine);
-  if (!hasHq) {
-    const hqCard = document.createElement('div');
-    hqCard.className = 'build-card';
-    hqCard.innerHTML = `
-      <div class="build-card-header"><span>&#x26A1;</span><span>Штаб</span></div>
-      <div class="build-card-desc">Хранит монеты &bull; Только один на игрока</div>
-      <div class="build-card-meta">Бесплатно</div>
-    `;
-    const hqBtn = document.createElement('button');
-    hqBtn.className = 'btn primary';
-    hqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-    hqBtn.innerHTML = '&#x26A1; Построить штаб';
-    hqBtn.addEventListener('click', () => { closePopup(); doBuildHq(cellLat, cellLng); });
-    hqCard.appendChild(hqBtn);
-    statsEl.appendChild(hqCard);
-  }
-
-  // Mine card — always shown
-  const mineCard = document.createElement('div');
-  mineCard.className = 'build-card';
-  mineCard.innerHTML = `
-    <div class="build-card-header"><span>&#x26CF;&#xFE0F;</span><span>Шахта</span></div>
-    <div class="build-card-desc">Генерирует монеты пассивно</div>
-    <div class="build-card-meta">30 монет/ч &bull; Бесплатно</div>
-  `;
-  const mineBtn = document.createElement('button');
-  mineBtn.className = 'btn yellow';
-  mineBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-  mineBtn.innerHTML = '&#x26CF;&#xFE0F; Построить шахту';
-  mineBtn.addEventListener('click', () => { closePopup(); doBuildMine(cellLat, cellLng); });
-  mineCard.appendChild(mineBtn);
-  statsEl.appendChild(mineCard);
-
-  // Collector card
-  const collCard = document.createElement('div');
-  collCard.className = 'build-card';
-  const hasDiamonds = (state.player?.diamonds || 0) >= 75;
-  collCard.innerHTML = `
-    <div class="build-card-header"><span>🧲</span><span>Автосборщик</span></div>
-    <div class="build-card-desc">Собирает монеты с шахт в радиусе 200м</div>
-    <div class="build-card-meta">75 💎</div>
-  `;
-  const collBtn = document.createElement('button');
-  collBtn.className = hasDiamonds ? 'btn primary' : 'btn';
-  collBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-  if (!hasDiamonds) { collBtn.disabled = true; collBtn.style.opacity = '0.5'; }
-  collBtn.innerHTML = '🧲 Построить сборщик';
-  collBtn.addEventListener('click', () => { closePopup(); doBuildCollector(cellLat, cellLng); });
-  collCard.appendChild(collBtn);
-  statsEl.appendChild(collCard);
-
-  // Clan HQ card — only if player has no clan HQ yet
   const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine);
   const playerCoins = state.player?.coins ?? 0;
-  if (!hasClanHq) {
-    const canAfford = playerCoins >= CLAN_HQ_COST;
-    const chqCard = document.createElement('div');
-    chqCard.className = 'build-card';
-    chqCard.innerHTML = `
-      <div class="build-card-header"><span>&#x1F3F0;</span><span>Штаб Клана</span></div>
-      <div class="build-card-desc">Зона клана &bull; Бусты для участников</div>
-      <div class="build-card-meta">${formatCoins(CLAN_HQ_COST)} монет${!canAfford ? ` (нужно ещё ${formatCoins(CLAN_HQ_COST - playerCoins)})` : ''}</div>
-    `;
-    const chqBtn = document.createElement('button');
-    chqBtn.className = 'btn primary';
-    chqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-    if (!canAfford) { chqBtn.disabled = true; chqBtn.style.opacity = '0.5'; }
-    chqBtn.innerHTML = '&#x1F3F0; Построить штаб клана';
-    chqBtn.addEventListener('click', () => { closePopup(); doBuildClanHq(cellLat, cellLng); });
-    chqCard.appendChild(chqBtn);
-    statsEl.appendChild(chqCard);
+  const hasDiamonds = (state.player?.diamonds || 0) >= 75;
+  const canAffordClanHq = playerCoins >= CLAN_HQ_COST;
+
+  const card = document.getElementById('popup-card');
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-size:16px;font-weight:600;color:#fff">🏗️ Построить</div>
+    <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">`;
+
+  if (!hasHq) {
+    html += `<div class="hq-collector-card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">⚡ Штаб</span><span style="font-size:11px;color:#4caf50">Бесплатно</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">Хранит монеты · Только один</div>
+      <button class="hq-coll-btn active" onclick="closePopup();doBuildHq(${cellLat},${cellLng})">⚡ Построить штаб</button>
+    </div>`;
   }
 
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Отмена';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
+  html += `<div class="hq-collector-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">⛏️ Шахта</span><span style="font-size:11px;color:#4caf50">Бесплатно</span></div>
+    <div style="font-size:12px;color:#888;margin:4px 0">Генерирует монеты пассивно</div>
+    <button class="hq-coll-btn active" onclick="closePopup();doBuildMine(${cellLat},${cellLng})">⛏️ Построить шахту</button>
+  </div>`;
 
+  html += `<div class="hq-collector-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🧲 Автосборщик</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
+    <div style="font-size:12px;color:#888;margin:4px 0">Собирает монеты с шахт в 200м</div>
+    <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">🧲 Построить сборщик</button>
+  </div>`;
+
+  if (!hasClanHq) {
+    html += `<div class="hq-collector-card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🏰 Штаб Клана</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">Зона клана · Бусты для участников</div>
+      <button class="hq-coll-btn ${canAffordClanHq ? 'active' : ''}" ${canAffordClanHq ? '' : 'disabled'} onclick="closePopup();doBuildClanHq(${cellLat},${cellLng})">🏰 Построить штаб клана</button>
+    </div>`;
+  }
+
+  html += `</div>`;
+  card.innerHTML = html;
   document.getElementById('popup-overlay').classList.add('open');
 }
 
@@ -4314,11 +4269,32 @@ function renderBuildings() {
 // ─────────────────────────────────────────────
 //  Popup helpers
 // ─────────────────────────────────────────────
+const _popupBtnActions = {};
+let _popupBtnIdx = 0;
+
+function _makePopupBtnHtml(btn) {
+  const idx = _popupBtnIdx++;
+  _popupBtnActions[idx] = btn;
+  const cls = btn.isClose ? '' : (btn.cls || '');
+  const styleMap = {
+    'danger': 'background:#f44336;color:#fff',
+    'primary': 'background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff',
+    'yellow': 'background:#2196f3;color:#fff',
+    '': 'background:#333;color:#ccc',
+  };
+  const baseStyle = styleMap[cls] || styleMap[''];
+  const disabledStyle = btn.disabled ? 'opacity:0.5;cursor:not-allowed;' : 'cursor:pointer;';
+  return `<button data-popup-btn="${idx}" style="${baseStyle};${disabledStyle}border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;flex:1;text-align:center" ${btn.disabled ? 'disabled' : ''}>${btn.label}</button>`;
+}
+
+// Legacy DOM version (used by build menu etc.)
 function _makePopupBtn(btn) {
   const b = document.createElement('button');
-  b.className = `btn ${btn.cls || ''}`;
+  const cls = btn.cls || '';
+  const styleMap = { 'danger': 'background:#f44336;color:#fff', 'primary': 'background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff', 'yellow': 'background:#2196f3;color:#fff' };
+  b.style.cssText = `${styleMap[cls] || 'background:#333;color:#ccc'};border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;flex:1;text-align:center`;
   b.innerHTML = btn.label;
-  if (btn.disabled) b.disabled = true;
+  if (btn.disabled) { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'not-allowed'; }
   b.addEventListener('click', () => {
     if (!btn.noClose) closePopup();
     if (btn.action) btn.action();
@@ -4327,46 +4303,55 @@ function _makePopupBtn(btn) {
 }
 
 function openPopup(title, subtitle, stats, actions) {
-  document.getElementById('popup-title').innerHTML = title;
-  document.getElementById('popup-subtitle').innerHTML = subtitle;
+  // Build custom card HTML in the new style
+  const card = document.getElementById('popup-card');
 
-  const statsEl = document.getElementById('popup-stats');
-  statsEl.innerHTML = '';
-  for (const [label, val] of stats) {
-    const row = document.createElement('div');
-    row.className = 'popup-stat';
-    row.innerHTML = `<span>${label}</span><span class="val">${val}</span>`;
-    statsEl.appendChild(row);
-  }
+  // Header with close button
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div>
+      <div style="font-size:16px;font-weight:600;color:#fff">${title}</div>
+      ${subtitle ? `<div style="font-size:12px;color:#888;margin-top:2px">${subtitle}</div>` : ''}
+    </div>
+    <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 0 0 8px">✕</button>
+  </div>`;
 
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  let hasClose = false;
-
-  for (const item of actions) {
-    if (Array.isArray(item)) {
-      // Row of buttons side-by-side
-      const row = document.createElement('div');
-      row.className = 'popup-btn-row';
-      for (const btn of item) {
-        if (btn.isClose) hasClose = true;
-        row.appendChild(_makePopupBtn(btn));
-      }
-      actEl.appendChild(row);
-    } else {
-      const b = _makePopupBtn(item);
-      if (item.isClose) hasClose = true;
-      actEl.appendChild(b);
+  // Stats as cards
+  if (stats && stats.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:5px">';
+    for (const [label, val] of stats) {
+      html += `<div class="hq-stat-card"><span>${label}</span><span class="val">${val}</span></div>`;
     }
+    html += '</div>';
   }
 
-  if (!hasClose) {
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'btn';
-    closeBtn.textContent = 'Закрыть';
-    closeBtn.addEventListener('click', closePopup);
-    actEl.appendChild(closeBtn);
+  // Actions as styled buttons
+  if (actions && actions.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">';
+    for (const item of actions) {
+      if (Array.isArray(item)) {
+        html += '<div style="display:flex;gap:8px">';
+        for (const btn of item) {
+          html += _makePopupBtnHtml(btn);
+        }
+        html += '</div>';
+      } else {
+        html += _makePopupBtnHtml(item);
+      }
+    }
+    html += '</div>';
   }
+
+  card.innerHTML = html;
+
+  // Bind button click events
+  card.querySelectorAll('[data-popup-btn]').forEach(el => {
+    const idx = el.dataset.popupBtn;
+    el.addEventListener('click', () => {
+      const action = _popupBtnActions[idx];
+      if (action?.isClose || !action?.noClose) closePopup();
+      if (action?.action) action.action();
+    });
+  });
 
   document.getElementById('popup-overlay').classList.add('open');
 }
@@ -4518,9 +4503,9 @@ function showHqPopup(hq, isOwn) {
       else                  presenceText = `🕐 Был ${Math.floor(mins / 1440)} дн назад`;
     }
     openPopup(
-      `&#x26A1; ${owner}`,
+      `🏠 Штаб ${owner}`,
       presenceText,
-      [['Штаб', `Ур. ${hq.level ?? 1}`]],
+      [['Уровень', `${hq.level ?? 1}`]],
       []
     );
   }
@@ -4733,7 +4718,7 @@ map.on('click', e => {
   const pos = state.playerPos;
   const dist = haversine(pos.lat, pos.lng, lat, lng);
   if (dist > LARGE_RADIUS) {
-    openPopup('&#x1F4CD; Outside Zone', `${Math.round(dist)}m away — move closer`, [], []);
+    openPopup('📍 Вне зоны', `${Math.round(dist)}м — подойди ближе`, [], []);
     return;
   }
   // Inside range: route to hex handler
