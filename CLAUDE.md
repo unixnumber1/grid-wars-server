@@ -26,11 +26,11 @@ BOT_TOKEN=
 ```
 /api
   /proxy.js                — REST proxy to VPS (mixed content bypass, HTTPS→HTTP)
-  /player/init.js          — init/set-username/location/pvp-initiate/pvp-flee
+  /player/init.js          — init/set-username/location/pvp-initiate/pvp-attack/pvp-flee
   /map/index.js            — GET map data / POST tick (unified polling 5s)
   /buildings/headquarters.js
   /buildings/mine.js
-  /buildings/attack.js     — attack/finish/extinguish/sell
+  /buildings/attack.js     — hit/attack/finish/extinguish/sell
   /buildings/upgrade.js
   (collect merged into /buildings/mine.js action:collect)
   /items/index.js          — equip/unequip/sell/open-box/craft/daily-diamonds/daily-check/stars-invoice/webhook
@@ -39,11 +39,15 @@ BOT_TOKEN=
   /vases.js                — spawn/break/cron
   /clan.js                 — build-hq/create/list/join/leave/donate/upgrade/set-role/kick/transfer/info
   /admin/maintenance.js    — reward/ban/unban/generate-markets/maintenance-start/end/fix-hq/setup-webhook
+  /monuments.js            — start-raid/attack-shield/attack-monument/attack-defender/open-loot-box
+  /collectors.js           — build/upgrade/deliver/sell/hit
 /lib
-  supabase.js  grid.js  haversine.js  income.js  formulas.js  items.js  bots.js  vases.js  xp.js  clans.js  markets.js
+  supabase.js  grid.js  haversine.js  income.js  formulas.js  items.js  bots.js  vases.js  xp.js  clans.js  markets.js  monuments.js  collectors.js
 /public
   index.html
 vercel.json  CLAUDE.md
+/scripts
+  test-smoke.js            — smoke test (36 тестов: gameState, API, формулы, DB, Socket.io)
 ```
 
 ## БД (Supabase)
@@ -66,6 +70,11 @@ vercel.json  CLAUDE.md
 | `clans` | name, symbol, color, description, min_level, level(1-10), treasury(BIGINT), leader_id |
 | `clan_members` | clan_id, player_id, role(leader/officer/member), joined_at, left_at |
 | `clan_headquarters` | player_id, clan_id, lat, lng, cell_id |
+| `monuments` | lat, lng, cell_id, level(1-10), name, hp, max_hp, shield_hp, max_shield_hp, shield_regen, phase(shield/open/defeated), raid_started_at, respawn_at |
+| `monument_raid_damage` | monument_id, player_id, damage_dealt, shield_damage |
+| `monument_defenders` | monument_id, emoji, hp, max_hp, attack, wave, lat, lng, alive |
+| `monument_loot_boxes` | monument_id, player_id, player_name, player_avatar, box_type(trophy/gift), monument_level, gems, items(JSONB), opened, lat, lng, expires_at |
+| `collectors` | owner_id, lat, lng, cell_id, level(1-10), hp, max_hp, stored_coins(BIGINT), last_collected_at |
 
 ## Ключевые механики
 
@@ -90,27 +99,41 @@ vercel.json  CLAUDE.md
 - 3 состояния: roaming (бродит) → aggro (бежит к шахте) → fleeing (убегает с добычей)
 - HP: 50, атака: 15, награда: 1-3💎 + 75 XP
 - Ночью (0-6 МСК) спаунятся в 1.5x больше, агрессия 70% вместо 50%
-- Кража: aggro к шахте в 500м, ворует 15% за тик, максимум 15 сек
-- Fleeing: убегает 30 сек с мешком, при убийстве дропает 50% украденного
-- Маркер меняется: 👺 → 👺💰 → 👺💰💰 → 👺💰💰💰 (по объёму)
+- Кража: aggro к шахте в 500м, ворует с расстояния 100м, drain_per_sec * 3 за тик
+- Fleeing: убегает с добычей, при убийстве дропает 50% украденного
+- Маркер: 👺 (бродит), 👺+❗ справа сверху (атакует), 👺+💰 снизу (убегает с лутом)
 - Глобальный лимит: 50, зона спауна: 500м-3км от игрока
 - DB колонки: state, stolen_coins, waypoint_lat/lng, last_state_change
 - API: POST /api/bots action:attack (единственное действие)
 
+### Боевая система (реал-тайм снаряды)
+- **Единая механика**: нажал кнопку → POST запрос → сервер считает урон → Socket.io emit снаряда
+- **КД по оружию**: sword 500ms, axe 700ms, без оружия 200ms
+- **Реген HP игрока**: 10 HP/сек (calcHpRegen в formulas.js)
+- **Auto-fire**: зажатие кнопки ⚔️ → автоатака по КД
+- **Rate limiting**: lastAttackTime Map в памяти сервера, 1 атака за КД на игрока
+- **Socket.io события**: `projectile`, `mine:hp_update`, `pvp:hit`, `pvp:kill`
+- **Снаряды**: div поверх карты, latLng→px, easeIn 200-600ms, 💥 вспышка + floating damage
+
 ### Атака построек
+- POST /api/buildings/attack action:hit — одиночный удар по шахте
 - Статусы: normal → under_attack → burning → destroyed
 - HP шахт: getMineHp(level), регенерация 25%/ч
 - Burning → уничтожение через 24ч, владелец может потушить (25% HP)
+- При попадании: emit `projectile` + `mine:hp_update` nearby 1км
+- HP бары на маркерах шахт обновляются в реалтайме
 
 ### PvP
-- 3-раундовый бой, щит 10мин после поражения, кулдаун 30мин
+- POST /api/player/init action:pvp-attack — одиночный удар по игроку
+- HP урон в реалтайме, щит 10мин после смерти, кулдаун 30мин между игроками
 - Проигравший теряет 10% монет, победитель получает 50% от этого
+- Старый 3-раундовый бой (pvp-initiate) сохранён для совместимости
 
 ### Маркет
 - Торговля предметами за алмазы, 10% комиссия
 - Автоспаун рынков: при входе игрока проверяется наличие рынка в 5км, если нет — спаунится
-- Overpass API: поиск пересечений крупных дорог (primary/secondary/trunk) для реалистичного размещения
-- Fallback: случайная точка 1-3км от игрока, если Overpass недоступен
+- Overpass API: 2-tier поиск — 1) ТЦ/универмаги/marketplace/retail 2) супермаркеты/коммерческие/площади/перекрёстки
+- Рынки ставятся в центр гекса, замещают шахты если нужно (с уведомлением владельцу)
 - lib/markets.js: ensureMarketNearPlayer(), вызывается из api/player/init.js (fire-and-forget)
 - Мин 500м между рынками
 - Курьеры на карте, PvP перехват курьеров
@@ -121,7 +144,7 @@ vercel.json  CLAUDE.md
 - Создание клана: бесплатно, нужен штаб клана
 - 10 уровней клана: бусты дохода (5-30%), защиты (10-75%), радиус (75-300м)
 - Апгрейд за алмазы из казны клана
-- Буст дохода: x2.0-x6.5 на 24ч из казны (500-5000💎), boostCost/boostMul в CLAN_LEVELS
+- Буст дохода: x2.0-x6.5 на 24ч из казны (500-5000💎), boostCost/boostMul в CLAN_LEVELS, Telegram-уведомление всем участникам
 - DB колонки: boost_started_at, boost_expires_at, boost_multiplier на таблице clans
 - Роли: leader, officer, member; лидер может менять роли, кикать, распустить клан
 - Автопередача лидерства при 7 днях неактивности лидера
@@ -131,9 +154,43 @@ vercel.json  CLAUDE.md
 - GET /api/clan?view=list — список кланов; GET /api/clan?view=info&clan_id=... — инфо
 - UI: fullscreen экран с вкладками (Штаб/Участники/Кланы), попап на карте минимальный
 
+### Монументы (рейд-боссы)
+- Спавн: Overpass API (historic, tourism, amenity, library, theatre, townhall), только городская инфраструктура, 3 на кластер HQ
+- Монументы ставятся в центр гекса, замещают шахты (с уведомлением владельцу)
+- 10 уровней (взвешенно: lv1-3=50%, lv4-7=35%, lv8-10=15%): HP 30K-20M, щит 5K-2.5M
+- Фазы: shield → open (щит пробит, появляются защитники) → defeated (7 дней респавн)
+- Если open-фаза длится >4ч без слома — монумент полностью регенерируется и покрывается щитом
+- Щит регенерирует: shield_regen * 5HP каждые 5 сек
+- Защитники (monument_defenders): волны по порогам HP (каждые 10%), НЕ по таймеру
+- Защитники двигаются: преследуют ближайшего игрока, атакуют с 50м; без игроков — бродят в 200м от монумента
+- Урон по монументу: только если нет живых защитников
+- Уведомления (wave_spawn, shield_broken, vulnerable, defeated) — только участникам рейда (не всем)
+- Авто-join: любая атака (щит/монумент/защитник) добавляет игрока в рейд
+- Лут: пропорционально урону, trophy (топ-1) / gift (остальные), гемы + предметы
+- Лут-боксы на карте 24ч, только владелец может открыть, без подписей на маркере
+- Визуал: полупрозрачный голубой купол (shield), прогресс-бар только при повреждении (60% ширины)
+- Еженедельный ресет: воскресенье 00:00 МСК
+- POST /api/monuments action:(start-raid/attack-shield/attack-monument/attack-defender/open-loot-box)
+- GET /api/monuments?monument_id=...&telegram_id=... — данные монумента
+- Socket: monument:shield_broken, monument:wave_spawn, monument:vulnerable, monument:defeated, monument:loot_dropped, monument:knocked_out, monument:shield_restored, monument:shield_update, monument:hp_update, monument:defender_killed
+- Game loop: server.js startMonumentLoop() — 5с тик для щита/регена, движения защитников, атак
+
+### Автосборщики (collectors)
+- Постройка: 75💎, ставится в центр гекса рядом с кластером своих шахт
+- Автосбор каждый час (server.js setInterval 1ч): собирает монеты со всех шахт владельца в радиусе 200м
+- Вместимость: суммарный_доход_шахт × capacity_hours[level] (6ч-48ч по уровням)
+- 10 уровней: HP 3K-90K, апгрейд за монеты (500K-3.28B)
+- Доставка: курьер от сборщика к игроку, 10% комиссия, монеты начисляются при доставке
+- PvP: атака чужого сборщика (500м), при уничтожении атакующий получает ВСЕ накопленные монеты
+- Продажа: 37💎 + все накопленные монеты
+- Маркер: ⚙️ с полоской заполненности, зелёный glow (свой) / красный (чужой), мигает "ПОЛНЫЙ" при >90%
+- PIN fix: пин на штаб работает только если штаб стоит 24+ часов (headquarters.created_at)
+- POST /api/collectors action:(build/upgrade/deliver/sell/hit)
+- Socket: collector:hp_update, collector:destroyed
+
 ### Unified Tick
 - POST /api/map action:tick каждые 5с — заменяет 7+ polling-запросов
-- Возвращает: player, buildings, bots, vases, couriers, drops, markets, online_players, notifications, clan_hqs
+- Возвращает: player, buildings, bots, vases, couriers, drops, markets, online_players, notifications, clan_hqs, monuments, monument_defenders, loot_boxes
 - Периодическая чистка БД каждые 60 тиков (~5мин)
 
 ## Оптимизации
@@ -153,10 +210,30 @@ vercel.json  CLAUDE.md
 - Условное логирование на VPS: `lib/log.js` — только при `NODE_ENV=development`
 - Автодеплой VPS: webhook.js (pm2, GitHub push → git pull + restart)
 
+## Спавн и размещение объектов
+- **Монументы, рынки**: ставятся в центр H3-гекса, замещают шахты (с уведомлением владельцу)
+- **Вазы**: случайные координаты (не центр гекса), НЕ замещают шахты, 300м между вазами
+- **Рудники**: случайные координаты, НЕ замещают шахты, 200м между рудниками
+- **Вазы авто-спавн**: внутренний таймер в server.js, полночь МСК ежедневно (setInterval 30мин + проверка mskHour===0)
+- **Боты**: `loadFromDB` загружает только живых (`expires_at > now`)
+
+## Z-Index слои (Leaflet zIndexOffset)
+- **10000** — Игрок
+- **5000** — Другие игроки
+- **4000** — Боты, курьеры, защитники монументов
+- **3000** — Монументы, рынки
+- **2000** — Рудники, вазы
+- **1000** — Шахты, штабы, клан-штабы, посылки, награды
+
 ## UI
 - Тёмная тема (#0d0d0d), Segoe UI / system-ui
 - Inline CSS в index.html (единый `<style>` блок)
 - Эмодзи маркеры на Leaflet карте
+- **Попапы**: card-based дизайн, фон #1a1a2e, карточки статов #252538, кнопки border-radius 12px
+  - `openPopup(title, subtitle, stats, actions)` → рендерит в `popup-card` innerHTML
+  - Кнопки: зелёный (primary), синий (yellow/upgrade), красный (danger), серый (disabled)
+  - Все тексты на русском, ✕ закрытие в хедере
+  - Кастомные попапы (штаб, сборщик) пишут напрямую в `popup-card`
 - **Навигация**:
   - Верхний блок (левый угол, 2 строки): 💰 монеты · ⚡ доход/ч | 💎 алмазы
   - Правая вертикальная панель: 📍/🏰 PIN-переключатель (реальная позиция ↔ штаб), 🛒 магазин, 🎪 рынок, 🏆 лидерборд, ⚙️ настройки
@@ -180,6 +257,54 @@ vercel.json  CLAUDE.md
 - Джойстик перемещения (3 скорости), только для админа
 - Панель: выдача ресурсов, бан/разбан, генерация рынков, maintenance mode, webhook setup
 
+## Архитектурные правила
+
+### In-Memory Game State (lib/gameState.js)
+- **ВСЕ чтения** игрового состояния — только из `gameState` (не из Supabase)
+- `supabase.from(...).select()` **запрещён** в тике и polling эндпоинтах
+- Новые объекты (боты, постройки, итемы) — сначала в gameState, потом `markDirty()`
+- **Критичные транзакции** (деньги, PvP, крафт, покупка) — немедленная запись в Supabase + обновление gameState
+- Каждый новый эндпоинт должен обновлять gameState синхронно
+- `gameState.loadFromDB()` вызывается при старте сервера (server.js)
+- Если `gameState.loaded === false` — fallback к прямым DB запросам
+
+### Batch Persist (lib/persist.js)
+- Каждые 30 секунд все "dirty" объекты пишутся в Supabase одним batch upsert
+- `gameState.markDirty(collection, id)` — пометить объект для записи
+- `persistNow(table, data)` — немедленная запись для критичных операций
+- Bot/courier movement — только в памяти, persist через batch
+
+### Серверные процессы
+- `socket/gameLoop.js` — основной игровой цикл (5с): движение ботов/курьеров, cleanup
+- `routes/map.js` handleTick — HTTP тик: чтение snapshot из gameState, 0 DB запросов
+- Движение ботов и курьеров — ТОЛЬКО в gameLoop (не дублировать в handleTick)
+
+### Боевые события (реал-тайм)
+- Снаряды, урон, HP обновления идут через Socket.io emit, НЕ через тик
+- `lastAttackTime` Map в server.js — rate limiting атак per player (КД оружия)
+- HP игроков хранится в gameState.players[id].hp, обновляется при каждом попадании
+- Новые боевые эндпоинты (pvp-attack, mine hit) должны: читать из gameState → emit через io → markDirty
+- `emitToNearbyPlayers(lat, lng, radius, event, data)` — broadcast Socket.io в радиусе
+- Критичные данные (смерть, монеты, pvp_log) — немедленная запись в Supabase
+
+## Тестирование
+
+### Smoke test
+- `node scripts/test-smoke.js` — запускать после каждого патча
+- Если есть FAIL — починить прежде чем деплоить
+- 36 тестов: gameState, API, формулы, DB, Socket.io
+- `/api/health` — localhost-only эндпоинт для проверки gameState
+
+### Правила разработки
+- Не изменять файлы не связанные с текущей задачей
+- При добавлении новой механики создавать новые файлы, минимально трогая существующие
+- Перед крупной задачей: `git commit -m "backup: before [фича]"`
+- Всегда включать `upgrade_level` при SELECT/UPDATE items (баг с обнулением)
+- Items upsert safety: persist.js проставляет `upgrade_level=0` если null
+
 ## TODO
+- [x] Монументы (рейд-боссы)
+- [x] Автосборщики
 - [x] Кланы
 - [x] Аудит и оптимизация (анимации, пассивный доход, логирование, автодеплой)
+- [x] In-Memory Game State (gameState + persist)
