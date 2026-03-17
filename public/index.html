@@ -2288,8 +2288,8 @@
     }
 
     /* Progress bars under emoji */
-    .monument-bars { width:100%; display:flex; flex-direction:column; gap:2px; margin-top:1px; }
-    .monument-bar-wrap { width:100%; height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+    .monument-bars { width:60%; display:flex; flex-direction:column; gap:2px; margin-top:1px; }
+    .monument-bar-wrap { width:100%; height:3px; background:rgba(255,255,255,0.12); border-radius:2px; overflow:hidden; }
     .monument-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
     .monument-bar-fill.bar-shield { background:linear-gradient(90deg,#4488ff,#66bbff); }
     .monument-bar-fill.bar-hp { background:linear-gradient(90deg,#cc2222,#ff4444); }
@@ -10553,14 +10553,14 @@ function monumentIcon(m) {
     ? `<div class="monument-dome"></div>`
     : '';
 
-  // Bars: shield phase = blue shield bar, open = red HP bar, defeated = nothing
+  // Bars: only visible when not at full HP/shield
   let barsHtml = '';
-  if (m.phase === 'shield') {
+  if (m.phase === 'shield' && m.shield_hp < m.max_shield_hp) {
     const shPct = m.max_shield_hp > 0 ? Math.max(0, m.shield_hp / m.max_shield_hp * 100) : 0;
     barsHtml = `<div class="monument-bars">
       <div class="monument-bar-wrap"><div class="monument-bar-fill bar-shield" style="width:${shPct}%"></div></div>
     </div>`;
-  } else if (m.phase === 'open') {
+  } else if (m.phase === 'open' && m.hp < m.max_hp) {
     const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
     barsHtml = `<div class="monument-bars">
       <div class="monument-bar-wrap"><div class="monument-bar-fill bar-hp" style="width:${hpPct}%"></div></div>
@@ -10755,9 +10755,6 @@ function showMonumentPopup(monumentId) {
     } else {
       actions.push({ label: '⚔️ Атаковать монумент', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
     }
-  }
-  if (m.phase !== 'defeated' && inRange) {
-    actions.push({ label: '👥 Присоединиться к рейду', cls: '', action: () => doJoinRaid(monumentId) });
   }
   if (!inRange && m.phase !== 'defeated') {
     actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
