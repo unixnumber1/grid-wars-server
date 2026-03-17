@@ -5683,7 +5683,7 @@ function renderVases(vasesRaw) {
     _knownVaseIds.add(vase.id);
     vaseData[vase.id] = vase;
     if (!vaseMarkers[vase.id]) {
-      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 1000 });
+      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 2000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showVasePopup(vase.id); });
       marker.addTo(vaseLayer);
       vaseMarkers[vase.id] = marker;
