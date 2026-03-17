@@ -5892,18 +5892,30 @@ function updateMineAttackStatus() {
 
 function botIcon(bot) {
   const ms = 36;
-  // Server sends 'status' field, map to display state
   const st = bot.state || bot.status || 'roaming';
-  let emoji = bot.emoji || '👺';
-  if (st === 'fleeing' && (bot.stolen_coins || 0) > 0) {
-    const s = bot.stolen_coins;
-    emoji = s > 100000 ? '👺💰💰💰' : s > 50000 ? '👺💰💰' : s > 0 ? '👺💰' : '👺';
-  }
+  const baseEmoji = bot.emoji || '👺';
+  const isGoblin = bot.type === 'goblin' || baseEmoji === '👺';
+
   let glow = 'filter:drop-shadow(0 0 5px rgba(255,50,50,0.8))';
-  if (st === 'aggro' || st === 'attacking') glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
-  if (st === 'fleeing' || st === 'leaving') glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
+  let badge = '';
+
+  if (isGoblin) {
+    if (st === 'aggro' || st === 'attacking') {
+      // Attacking mine — red glow + small exclamation mark top-right
+      glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
+      badge = '<span style="position:absolute;top:-4px;right:-6px;font-size:14px">❗</span>';
+    } else if (st === 'fleeing' || st === 'leaving') {
+      // Leaving with loot — gold glow + money bag on back
+      glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
+      badge = '<span style="position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:16px">💰</span>';
+    }
+  } else {
+    if (st === 'aggro' || st === 'attacking') glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
+    if (st === 'fleeing' || st === 'leaving') glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
+  }
+
   return makeMarkerIcon(
-    `<div class="marker-wrap"><span style="font-size:${ms}px;${glow}">${emoji}</span></div>`,
+    `<div class="marker-wrap" style="position:relative"><span style="font-size:${ms}px;${glow}">${baseEmoji}</span>${badge}</div>`,
     ms + 12
   );
 }
