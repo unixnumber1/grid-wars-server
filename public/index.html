@@ -7679,8 +7679,10 @@ function _marketIcon() {
 }
 
 function _courierIcon(courier) {
-  const emoji = courier.type === 'delivery' ? '🚚' : '🚶';
-  const size = courier.type === 'delivery' ? 32 : 28;
+  // Player courier (to_market or slow delivery) = pedestrian, Game courier (fast delivery) = truck
+  const isPlayerCourier = courier.type === 'to_market' || (courier.speed && courier.speed <= 0.0003);
+  const emoji = isPlayerCourier ? '🚶' : '🚚';
+  const size = isPlayerCourier ? 28 : 32;
   const hpPct = Math.max(0, Math.round((courier.hp / courier.max_hp) * 100));
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
   const isMy = courier.owner_id === state.player?.id;
@@ -7963,12 +7965,13 @@ function renderDrops(drops) {
   for (const d of (drops || [])) {
     dropData[d.id] = d;
     if (!dropMarkers[d.id]) {
-      const isDelivery = d.drop_type === 'delivery';
+      const isDelivery = d.drop_type === 'delivery' || d.drop_type === 'coin_delivery';
       const isMy = isDelivery && _isMyDeliveryDrop(d);
       const cls = isDelivery && isMy ? 'delivery-marker' : 'drop-marker';
+      const dropEmoji = d.drop_type === 'coin_delivery' ? '💰' : '📦';
       const icon = L.divIcon({
         className: '',
-        html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">📦</div>`,
+        html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">${dropEmoji}</div>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       });
@@ -7985,7 +7988,7 @@ function showDropPopup(dropId) {
     const drop = dropData[dropId];
     if (!drop) { showToast('ERR: no drop data'); return; }
 
-    const isDelivery = drop.drop_type === 'delivery';
+    const isDelivery = drop.drop_type === 'delivery' || drop.drop_type === 'coin_delivery';
     if (isDelivery && !_isMyDeliveryDrop(drop)) {
       showToast('📦 Чужая посылка');
       return;
