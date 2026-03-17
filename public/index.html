@@ -10631,9 +10631,20 @@ function renderMonumentDefenders(defenders) {
     if (!activeIds.has(id)) { map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id]; }
   }
   for (const d of defenders) {
+    const prev = defenderData[d.id];
     defenderData[d.id] = d;
     if (defenderMarkers[d.id]) {
-      defenderMarkers[d.id].setIcon(defenderIcon(d));
+      const marker = defenderMarkers[d.id];
+      // Smooth move to new position
+      const from = marker.getLatLng();
+      const dist = Math.abs(from.lat - d.lat) + Math.abs(from.lng - d.lng);
+      if (dist > 0.002) {
+        marker.setLatLng([d.lat, d.lng]);
+      } else if (dist > 0.000005) {
+        _animateMarkerTo(marker, d.lat, d.lng, 4500);
+      }
+      // Update icon if HP changed
+      if (!prev || prev.hp !== d.hp) marker.setIcon(defenderIcon(d));
     } else {
       const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 4000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
