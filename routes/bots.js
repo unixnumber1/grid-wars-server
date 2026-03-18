@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, rateLimit } from '../lib/supabase.js';
+import { supabase, getPlayerByTelegramId } from '../lib/supabase.js';
 import { log } from '../lib/log.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../lib/bots.js';
 import { haversine } from '../lib/haversine.js';
@@ -497,11 +497,6 @@ async function routeHandler(req, res) {
   const telegram_id = req.method === 'GET' ? req.query.telegram_id : req.body?.telegram_id;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
-  if (['attack', 'lure', 'repel'].includes(action)) {
-    if (!rateLimit(telegram_id, 30)) {
-      return res.status(429).json({ error: 'Слишком много запросов' });
-    }
-  }
 
   // Include respawn_until so handleAttack can check it without extra query
   const { player, error } = await getPlayerByTelegramId(telegram_id, 'id, level, respawn_until, coins');

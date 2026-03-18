@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { supabase } from '../lib/supabase.js';
-import { rateLimitMw } from '../lib/rateLimit.js';
 import { haversine } from '../lib/haversine.js';
 import { gameState } from '../lib/gameState.js';
 import { CORE_TYPES, MAX_CORE_SLOTS, getCoreMultiplier, getCoreUpgradeCost } from '../lib/cores.js';
@@ -8,7 +7,7 @@ import { SMALL_RADIUS } from '../lib/formulas.js';
 
 export const coresRouter = Router();
 
-coresRouter.post('/', rateLimitMw('build'), async (req, res) => {
+coresRouter.post('/', async (req, res) => {
   const { action } = req.body || {};
   if (action === 'install')   return handleInstall(req, res);
   if (action === 'uninstall') return handleUninstall(req, res);

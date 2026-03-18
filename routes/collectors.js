@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../lib/supabase.js';
-import { rateLimitMw } from '../lib/rateLimit.js';
 import { haversine } from '../lib/haversine.js';
 import { getCellId, getCellCenter } from '../lib/grid.js';
 import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS } from '../lib/formulas.js';
@@ -25,7 +24,7 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   }
 }
 
-collectorsRouter.post('/', rateLimitMw('attack'), async (req, res) => {
+collectorsRouter.post('/', async (req, res) => {
   const { action } = req.body || {};
   if (action === 'build') return handleBuild(req, res);
   if (action === 'upgrade') return handleUpgrade(req, res);
@@ -101,7 +100,7 @@ async function handleBuild(req, res) {
   if (error) return res.status(500).json({ error: error.message });
 
   gameState.collectors.set(inserted.id, inserted);
-  logActivity(player.game_username, `built collector at ${cLat.toFixed(4)},${cLng.toFixed(4)}`);
+  logActivity(player.game_username, `built collector at ${tapLat.toFixed(4)},${tapLng.toFixed(4)}`);
 
   return res.json({ success: true, collector: inserted, diamonds: newDiamonds, mines_in_range: nearbyMines.length });
 }

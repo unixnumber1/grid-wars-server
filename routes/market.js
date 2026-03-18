@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, rateLimit, sendTelegramNotification } from '../lib/supabase.js';
-import { rateLimitMw } from '../lib/rateLimit.js';
+import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../lib/supabase.js';
 import { log } from '../lib/log.js';
 import { haversine } from '../lib/haversine.js';
 import { addXp } from '../lib/xp.js';
@@ -990,14 +989,8 @@ marketRouter.get('/', async (req, res) => {
   return res.status(400).json({ error: 'Unknown GET action' });
 });
 
-marketRouter.post('/', rateLimitMw('market'), async (req, res) => {
+marketRouter.post('/', async (req, res) => {
   const { action } = req.body || {};
-  const _tgId = req.body?.telegram_id;
-  if (_tgId && ['buy', 'attack-courier', 'list-item'].includes(action)) {
-    if (!rateLimit(_tgId, 30)) {
-      return res.status(429).json({ error: 'Слишком много запросов' });
-    }
-  }
   if (action === 'list-item')       return handleListItem(req, res);
   if (action === 'buy')             return handleBuy(req, res);
   if (action === 'cancel')          return handleCancel(req, res);

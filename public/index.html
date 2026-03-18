@@ -4228,20 +4228,22 @@ function showBuildMenu(cellLat, cellLng) {
   document.getElementById('popup-overlay').classList.add('open');
 }
 
-function handleHexClick(cellId) {
+function handleHexClick(cellId, tapLat, tapLng) {
   if (!state.player || !state.playerPos) return;
 
   const building = getBuildingInCell(cellId);
-  const [cellLat, cellLng] = h3.cellToLatLng(cellId);
+  // Use actual tap coordinates for building placement
+  const buildLat = tapLat ?? h3.cellToLatLng(cellId)[0];
+  const buildLng = tapLng ?? h3.cellToLatLng(cellId)[1];
 
   if (!building) {
-    // Block build popup if hex center is beyond 200m
-    const dist = haversine(state.playerPos.lat, state.playerPos.lng, cellLat, cellLng);
+    // Block build popup if tap point is beyond 200m
+    const dist = haversine(state.playerPos.lat, state.playerPos.lng, buildLat, buildLng);
     if (dist > SMALL_RADIUS) {
       showToast(`⚠️ Слишком далеко (${Math.round(dist)}м)`);
       return;
     }
-    showBuildMenu(cellLat, cellLng);
+    showBuildMenu(buildLat, buildLng);
   } else if (building.type === 'mine') {
     const isOwn = building.is_mine ?? (building.owner_id === state.player?.id);
     showMinePopup(building, isOwn, false);
@@ -4796,9 +4798,9 @@ map.on('click', e => {
     openPopup('📍 Вне зоны', `${Math.round(dist)}м — подойди ближе`, [], []);
     return;
   }
-  // Inside range: route to hex handler
+  // Inside range: route to hex handler with actual tap coords
   const cellId = getCellId(lat, lng);
-  handleHexClick(cellId);
+  handleHexClick(cellId, lat, lng);
 });
 
 let _loadBuildingsTimer = null;
@@ -5185,12 +5187,11 @@ async function doBuildMine(lat, lng) {
     mine_lng: lng,
   };
 
-  // Optimistic: add placeholder mine marker immediately
+  // Optimistic: add placeholder mine marker at tap coords
   const cellId = getCellId(lat, lng);
-  const [cellLat, cellLng] = h3.cellToLatLng(cellId);
   const tempId = '_opt_' + Date.now();
   const tempMine = {
-    id: tempId, lat: cellLat, lng: cellLng, level: 0,
+    id: tempId, lat: lat, lng: lng, level: 0,
     owner_id: state.player?.id, cell_id: cellId,
     is_mine: true, can_capture: false,
     last_collected: new Date().toISOString(),

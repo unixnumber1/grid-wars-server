@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, parseTgId, rateLimit, sendTelegramNotification } from '../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification } from '../lib/supabase.js';
 import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS } from '../lib/formulas.js';
 import { haversine } from '../lib/haversine.js';
 import { addXp } from '../lib/xp.js';
@@ -7,7 +7,6 @@ import { gameState } from '../lib/gameState.js';
 import { ensureMarketNearPlayer } from '../lib/markets.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../server.js';
 import { validatePosition } from '../lib/antispoof.js';
-import { rateLimitMw } from '../lib/rateLimit.js';
 import { logPlayer } from '../lib/logger.js';
 
 export const playerRouter = Router();
@@ -120,7 +119,6 @@ async function handlePvpInitiate(req, res) {
   const { telegram_id, defender_telegram_id, lat, lng } = req.body || {};
   if (!telegram_id || !defender_telegram_id || lat == null || lng == null) return res.status(400).json({ error: 'Missing fields' });
   if (String(telegram_id) === String(defender_telegram_id)) return res.status(400).json({ error: 'Нельзя атаковать себя' });
-  if (!rateLimit(telegram_id, 10)) return res.status(429).json({ error: 'Too many requests' });
   const { player: attacker, error: aErr } = await getPlayerByTelegramId(telegram_id, 'id,telegram_id,game_username,avatar,level,xp,coins,bonus_attack,bonus_hp,bonus_crit,equipped_sword');
   if (aErr || !attacker) return res.status(404).json({ error: 'Attacker not found' });
   const { player: defender, error: dErr } = await getPlayerByTelegramId(defender_telegram_id, 'id,telegram_id,game_username,avatar,level,xp,coins,bonus_attack,bonus_hp,bonus_crit,equipped_sword,shield_until,last_lat,last_lng');
@@ -406,7 +404,7 @@ async function handlePvpAttack(req, res) {
   });
 }
 
-playerRouter.post('/init', rateLimitMw('default'), async (req, res) => {
+playerRouter.post('/init', async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { action } = req.body || {};
   if (action === 'avatar') return handleAvatar(req, res);

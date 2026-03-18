@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, rateLimit, sendTelegramNotification } from '../lib/supabase.js';
-import { rateLimitMw } from '../lib/rateLimit.js';
+import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../lib/grid.js';
 import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../lib/formulas.js';
 import { haversine } from '../lib/haversine.js';
@@ -243,7 +242,6 @@ async function handleMineCollect(req, res) {
 async function handleAttackStart(req, res) {
   const { telegram_id, mine_id, lat, lng } = req.body || {};
   if (!telegram_id || !mine_id || lat == null || lng == null) return res.status(400).json({ error: 'Missing required fields: telegram_id, mine_id, lat, lng' });
-  if (!rateLimit(telegram_id, 30)) return res.status(429).json({ error: 'Too many requests' });
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id,game_username,bonus_attack,bonus_crit');
   if (playerError || !player) return res.status(404).json({ error: 'Player not found' });
   const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,hp,max_hp,last_hp_update,status,lat,lng').eq('id', mine_id).maybeSingle();
@@ -647,7 +645,7 @@ async function handleMineHit(req, res) {
 
 // ─── Route definitions ───────────────────────────────────────────────
 
-buildingsRouter.post('/headquarters', rateLimitMw('build'), async (req, res) => {
+buildingsRouter.post('/headquarters', async (req, res) => {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed, coins, diamonds');
@@ -658,13 +656,13 @@ buildingsRouter.post('/headquarters', rateLimitMw('build'), async (req, res) => 
   return handleHqPlace(player, req.body, res);
 });
 
-buildingsRouter.post('/mine', rateLimitMw('build'), async (req, res) => {
+buildingsRouter.post('/mine', async (req, res) => {
   const { action } = req.body || {};
   if (action === 'collect') return handleMineCollect(req, res);
   return handleMineBuild(req, res);
 });
 
-buildingsRouter.post('/attack', rateLimitMw('attack'), async (req, res) => {
+buildingsRouter.post('/attack', async (req, res) => {
   const { action } = req.body || {};
   if (action === 'hit') return handleMineHit(req, res);
   if (action === 'finish') return handleAttackFinish(req, res);
@@ -674,4 +672,4 @@ buildingsRouter.post('/attack', rateLimitMw('attack'), async (req, res) => {
 });
 
 buildingsRouter.get('/upgrade', handleUpgradeGet);
-buildingsRouter.post('/upgrade', rateLimitMw('build'), handleUpgradePost);
+buildingsRouter.post('/upgrade', handleUpgradePost);
