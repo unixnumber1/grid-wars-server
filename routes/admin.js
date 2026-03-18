@@ -230,13 +230,13 @@ adminRouter.post('/', async (req, res) => {
   if (action === 'setup-webhook') {
     const BOT = process.env.BOT_TOKEN;
     if (!BOT) return res.status(500).json({ error: 'BOT_TOKEN not set' });
-    const webhookUrl = 'https://grid-wars-two.vercel.app/api/items';
+    const webhookUrl = 'https://overthrow.ru:8443/api/telegram-webhook';
     const tgRes = await fetch(
       `https://api.telegram.org/bot${BOT}/setWebhook`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message', 'pre_checkout_query'] }),
+        body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message', 'callback_query', 'pre_checkout_query'] }),
       }
     );
     const tgData = await tgRes.json();

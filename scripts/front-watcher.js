@@ -1,75 +1,74 @@
-import { exec } from 'child_process';
-import dotenv from 'dotenv';
-dotenv.config();
+import { execSync } from 'child_process';
+import { copyFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
-const GH_TOKEN = process.env.GH_TOKEN;
-const REPO = 'unixnumber1/grid-wars-front';
-const BRANCH = 'main';
-const CHECK_INTERVAL = 30000; // 30 sec
-const DEST_DIR = '/var/www/grid-wars-server/public';
+const PROJECT_DIR = '/var/www/grid-wars-server';
+const FRONT_SRC = join(PROJECT_DIR, 'public/index.html');
+const FRONT_DEST = '/var/www/html/index.html';
+const CHECK_INTERVAL = 30000; // 30 seconds
 
-let lastSha = null;
+let lastHash = '';
 
-async function checkForUpdates() {
+function getCurrentHash() {
   try {
-    const res = await fetch(
-      `https://api.github.com/repos/${REPO}/commits/${BRANCH}`,
-      {
-        headers: {
-          'Authorization': `token ${GH_TOKEN}`,
-          'User-Agent': 'grid-wars-watcher',
-        },
+    return execSync('git rev-parse HEAD', { cwd: PROJECT_DIR }).toString().trim();
+  } catch { return ''; }
+}
+
+function getCommitMessage(hash) {
+  try {
+    return execSync(`git log -1 --format=%s ${hash}`, { cwd: PROJECT_DIR }).toString().trim();
+  } catch { return ''; }
+}
+
+function syncFrontend() {
+  try {
+    // Git pull (force reset to avoid conflicts from local edits)
+    execSync('git fetch origin main && git reset --hard origin/main', { cwd: PROJECT_DIR, stdio: 'pipe' });
+
+    const newHash = getCurrentHash();
+
+    if (newHash && newHash !== lastHash) {
+      const msg = getCommitMessage(newHash);
+      console.log(`[watcher] Новый коммит: ${newHash.slice(0, 7)} — ${msg}`);
+
+      // Copy frontend to /var/www/html/
+      if (existsSync(FRONT_SRC)) {
+        copyFileSync(FRONT_SRC, FRONT_DEST);
+        console.log('[watcher] Фронт скопирован в', FRONT_DEST);
       }
-    );
-    if (!res.ok) {
-      console.error('[watcher] GitHub API error:', res.status);
-      return;
-    }
-    const data = await res.json();
-    const sha = data.sha;
 
-    if (!lastSha) {
-      lastSha = sha;
-      console.log('[watcher] Initial SHA:', sha.slice(0, 7));
-      return;
-    }
+      // Check if backend files changed — restart PM2 if so
+      if (lastHash) {
+        try {
+          const diff = execSync(`git diff ${lastHash} ${newHash} --name-only`, { cwd: PROJECT_DIR }).toString();
+          if (diff.includes('server.js') || diff.includes('routes/') || diff.includes('lib/') || diff.includes('socket/')) {
+            execSync('pm2 restart grid-wars', { stdio: 'pipe' });
+            console.log('[watcher] Сервер перезапущен (изменился бэкенд)');
+          }
+        } catch (e) {
+          // If diff fails (e.g. force push), restart anyway
+          execSync('pm2 restart grid-wars', { stdio: 'pipe' });
+          console.log('[watcher] Сервер перезапущен (не удалось проверить diff)');
+        }
+      }
 
-    if (sha !== lastSha) {
-      console.log('[watcher] New commit:', sha.slice(0, 7), '-', data.commit?.message?.split('\n')[0]);
-      lastSha = sha;
-      syncFront();
+      lastHash = newHash;
     }
-  } catch (e) {
-    console.error('[watcher] Check error:', e.message);
+  } catch (err) {
+    console.error('[watcher] Ошибка:', err.message);
   }
 }
 
-function syncFront() {
-  const cloneUrl = GH_TOKEN
-    ? `https://${GH_TOKEN}@github.com/${REPO}.git`
-    : `https://github.com/${REPO}.git`;
+// Init
+lastHash = getCurrentHash();
+console.log(`[watcher] Запущен. Текущий коммит: ${lastHash.slice(0, 7)}`);
+console.log(`[watcher] Репо: ${PROJECT_DIR}`);
+console.log(`[watcher] Источник: ${FRONT_SRC}`);
+console.log(`[watcher] Назначение: ${FRONT_DEST}`);
 
-  const cmd = [
-    'rm -rf /tmp/grid-wars-front-sync',
-    `git clone --depth 1 ${cloneUrl} /tmp/grid-wars-front-sync`,
-    `mkdir -p ${DEST_DIR}`,
-    `cp -r /tmp/grid-wars-front-sync/public/* ${DEST_DIR}/`,
-    'rm -rf /tmp/grid-wars-front-sync',
-  ].join(' && ');
+// First sync
+syncFrontend();
 
-  console.log('[watcher] Syncing frontend...');
-  exec(cmd, (err, stdout, stderr) => {
-    if (err) {
-      console.error('[watcher] Sync error:', err.message);
-    } else {
-      console.log('[watcher] Frontend synced successfully');
-    }
-  });
-}
-
-// First run — sync immediately
-console.log('[watcher] Starting front-watcher, checking every', CHECK_INTERVAL / 1000, 'sec');
-syncFront();
-
-// Then poll for changes
-setInterval(checkForUpdates, CHECK_INTERVAL);
+// Periodic check
+setInterval(syncFrontend, CHECK_INTERVAL);

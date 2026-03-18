@@ -127,6 +127,54 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ── Telegram Bot Webhook (callback_query for ban/unban buttons) ──
+app.post('/api/telegram-webhook', async (req, res) => {
+  res.json({ ok: true }); // respond immediately
+  try {
+    const cb = req.body?.callback_query;
+    if (!cb) return;
+    const data = cb.data || '';
+    const chatId = cb.message?.chat?.id;
+    const msgId = cb.message?.message_id;
+    const BOT = process.env.BOT_TOKEN;
+    if (!BOT || !chatId) return;
+
+    const answerCallback = (text) =>
+      fetch(`https://api.telegram.org/bot${BOT}/answerCallbackQuery`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: cb.id, text }),
+      }).catch(() => {});
+
+    const editMessage = (text) =>
+      fetch(`https://api.telegram.org/bot${BOT}/editMessageText`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: msgId, text }),
+      }).catch(() => {});
+
+    if (data.startsWith('confirm_ban_')) {
+      const tgId = parseInt(data.replace('confirm_ban_', ''), 10);
+      await answerCallback('Бан подтверждён');
+      await editMessage(`✅ Бан игрока ${tgId} подтверждён администратором.`);
+    } else if (data.startsWith('unban_')) {
+      const tgId = parseInt(data.replace('unban_', ''), 10);
+      const { supabase: sb } = await import('./lib/supabase.js');
+      await sb.from('players').update({ is_banned: false, ban_reason: null, ban_until: null }).eq('telegram_id', tgId);
+      if (gameState.loaded) {
+        const p = gameState.getPlayerByTgId(tgId);
+        if (p) { p.is_banned = false; p.ban_reason = null; p.ban_until = null; gameState.markDirty('players', p.id); }
+      }
+      const { resetSpoofRecord: reset } = await import('./lib/antispoof.js');
+      reset(tgId);
+      await answerCallback('Игрок разбанен');
+      await editMessage(`✅ Игрок ${tgId} разбанен.`);
+      const { sendTelegramNotification: notify } = await import('./lib/supabase.js');
+      notify(tgId, '✅ Вы разбанены! Добро пожаловать обратно.');
+    }
+  } catch (e) {
+    console.error('[webhook] callback error:', e.message);
+  }
+});
+
 // API Routes
 app.use('/api/player', playerRouter);
 app.use('/api/buildings', buildingsRouter);
