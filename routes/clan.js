@@ -36,8 +36,9 @@ async function handleBuildHq(req, res) {
     return res.status(400).json({ error: `Нужно ${CLAN_HQ_COST.toLocaleString()} монет` });
   }
 
-  const cell_id = getCellId(parseFloat(lat), parseFloat(lng));
-  const [cellLat, cellLng] = cellToLatLng(cell_id);
+  // Use tap coordinates for clan HQ placement
+  const tapLat = parseFloat(lat), tapLng = parseFloat(lng);
+  const cell_id = getCellId(tapLat, tapLng);
 
   const [{ data: hqOnCell }, { data: mineOnCell }, { data: clanHqOnCell }] = await Promise.all([
     supabase.from('headquarters').select('id').eq('cell_id', cell_id).maybeSingle(),
@@ -73,7 +74,7 @@ async function handleBuildHq(req, res) {
     }
     // Player is NOT linked to this placeholder clan — stays clan_id=null
   }
-  const insertData = { player_id: player.id, lat: cellLat, lng: cellLng, cell_id, clan_id: clanIdForHq };
+  const insertData = { player_id: player.id, lat: tapLat, lng: tapLng, cell_id, clan_id: clanIdForHq };
   const { data: hq, error: insertErr } = await supabase.from('clan_headquarters').insert(insertData).select().single();
 
   if (insertErr) {

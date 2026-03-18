@@ -52,12 +52,14 @@ async function handleHqPlace(player, body, res) {
     }
   }
   if (!finalCell) return res.status(400).json({ error: 'Нет свободных клеток рядом' });
-  const [centerLat, centerLng] = cellToLatLng(finalCell);
+  // Use tap coordinates for HQ placement
+  const hqLat = parseFloat(lat);
+  const hqLng = parseFloat(lng);
   const cell_id = finalCell;
   const bonusClaimed = player.starting_bonus_claimed === true;
   const startingCoins = bonusClaimed ? 0 : 100_000;
   const startingDiamonds = bonusClaimed ? 0 : 100;
-  const { data: hq, error: insertError } = await supabase.from('headquarters').insert({ player_id: player.id, owner_username: player.username, lat: centerLat, lng: centerLng, cell_id }).select('id,player_id,lat,lng,cell_id,level,created_at').single();
+  const { data: hq, error: insertError } = await supabase.from('headquarters').insert({ player_id: player.id, owner_username: player.username, lat: hqLat, lng: hqLng, cell_id }).select('id,player_id,lat,lng,cell_id,level,created_at').single();
   if (insertError) return res.status(500).json({ error: 'Failed to place headquarters' });
   if (!bonusClaimed) {
     const { data: bonusOk } = await supabase.from('players').update({ starting_bonus_claimed: true, coins: (player.coins ?? 0) + startingCoins, diamonds: (player.diamonds ?? 0) + startingDiamonds }).eq('id', player.id).eq('starting_bonus_claimed', false).select('id').maybeSingle();
@@ -73,7 +75,7 @@ async function handleHqPlace(player, body, res) {
     }
   }
   // Spawn ore nodes near new HQ (fire-and-forget)
-  spawnOreNodesNearHq(centerLat, centerLng).catch(e => console.error('[hq] ore spawn error:', e.message));
+  spawnOreNodesNearHq(hqLat, hqLng).catch(e => console.error('[hq] ore spawn error:', e.message));
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
   return res.status(201).json({ headquarters: hq, xp: xpResult, startingBonus: !bonusClaimed, player_coins: (player.coins ?? 0) + startingCoins, player_diamonds: (player.diamonds ?? 0) + startingDiamonds });
@@ -140,15 +142,17 @@ async function handleMineBuild(req, res) {
   const { data: hq, error: hqError } = await supabase.from('headquarters').select('id').eq('player_id', player.id).maybeSingle();
   if (hqError) return res.status(500).json({ error: hqError.message });
   if (!hq) return res.status(403).json({ error: 'You must place your headquarters first' });
+  // Distance check uses tap coordinates (mineLat/mineLng), NOT cell center
+  const distance = haversine(playerActualLat, playerActualLng, mineLat, mineLng);
+  if (distance > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(distance)}м > ${SMALL_RADIUS}м)`, distance: Math.round(distance) });
   const targetCell = getCell(mineLat, mineLng);
   const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
-  const distance = haversine(playerActualLat, playerActualLng, cellCenterLat, cellCenterLng);
-  if (distance > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(distance)}м > ${SMALL_RADIUS}м)`, distance: Math.round(distance) });
   const { data: existingMine } = await supabase.from('mines').select('id').eq('cell_id', targetCell).maybeSingle();
   const { data: existingHqOnCell } = await supabase.from('headquarters').select('id').eq('cell_id', targetCell).maybeSingle();
   if (existingMine) return res.status(409).json({ error: 'A mine already exists on this cell' });
   if (existingHqOnCell) return res.status(409).json({ error: 'Cell is occupied by a headquarters' });
-  const { data: mine, error: insertError } = await supabase.from('mines').insert({ owner_id: player.id, original_builder_id: player.id, lat: cellCenterLat, lng: cellCenterLng, cell_id: targetCell, level: 0, hp: 0, max_hp: 0, last_collected: new Date().toISOString() }).select('id,owner_id,original_builder_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level,hp,max_hp,status').single();
+  // Building placed at tap coordinates, cell_id computed from tap
+  const { data: mine, error: insertError } = await supabase.from('mines').insert({ owner_id: player.id, original_builder_id: player.id, lat: mineLat, lng: mineLng, cell_id: targetCell, level: 0, hp: 0, max_hp: 0, last_collected: new Date().toISOString() }).select('id,owner_id,original_builder_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level,hp,max_hp,status').single();
   if (insertError) return res.status(500).json({ error: insertError.message });
   // Update gameState
   if (gameState.loaded && mine) {

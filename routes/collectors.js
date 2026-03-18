@@ -43,12 +43,13 @@ async function handleBuild(req, res) {
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
+  // Use tap coordinates (body.lat/lng) for distance check and placement
+  const tapLat = parseFloat(lat), tapLng = parseFloat(lng);
   if (!player.last_lat) return res.status(400).json({ error: 'GPS не готов' });
-  const dist = haversine(pLat, pLng, player.last_lat, player.last_lng);
-  if (dist > 50) {
-    // Place at player position, not arbitrary coords
-  }
+
+  // Distance check: player position to tap point
+  const dist = haversine(player.last_lat, player.last_lng, tapLat, tapLng);
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(dist)}м > ${SMALL_RADIUS}м)` });
 
   // Check max collectors limit based on HQ level (lv/2 rounded down)
   const hq = gameState.getHqByPlayerId(player.id);
@@ -62,19 +63,18 @@ async function handleBuild(req, res) {
   if ((player.diamonds || 0) < COLLECTOR_COST_DIAMONDS)
     return res.status(400).json({ error: `Нужно ${COLLECTOR_COST_DIAMONDS} 💎` });
 
-  // Snap to cell center
-  const cellId = getCellId(pLat, pLng);
-  const [cLat, cLng] = getCellCenter(cellId);
+  // Cell ID from tap coordinates
+  const cellId = getCellId(tapLat, tapLng);
 
   // Check cell not occupied
   const existingMine = gameState.getMineByCellId(cellId);
   const existingCollector = [...gameState.collectors.values()].find(c => c.cell_id === cellId);
   if (existingCollector) return res.status(400).json({ error: 'Здесь уже стоит сборщик' });
 
-  // Check nearby mines of this player
+  // Check nearby mines of this player (using tap position)
   const nearbyMines = [];
   for (const m of gameState.mines.values()) {
-    if (m.owner_id === player.id && m.status !== 'destroyed' && haversine(cLat, cLng, m.lat, m.lng) <= COLLECTOR_RADIUS) {
+    if (m.owner_id === player.id && m.status !== 'destroyed' && haversine(tapLat, tapLng, m.lat, m.lng) <= COLLECTOR_RADIUS) {
       nearbyMines.push(m);
     }
   }
@@ -89,7 +89,7 @@ async function handleBuild(req, res) {
   const cfg = COLLECTOR_LEVELS[1];
   const collector = {
     owner_id: player.id,
-    lat: cLat, lng: cLng, cell_id: cellId,
+    lat: tapLat, lng: tapLng, cell_id: cellId,
     level: 1,
     hp: cfg.hp, max_hp: cfg.hp,
     stored_coins: 0,
