@@ -4764,6 +4764,7 @@ async function doUpgradeHq() {
 
 let _upgradeInProgress = false;
 async function doUpgrade(mineId, targetLevel) {
+  if (String(mineId).startsWith('_opt_')) return;
   if (_upgradeInProgress) return;
   _upgradeInProgress = true;
   const pos = state.playerPos;
@@ -4864,6 +4865,7 @@ async function pollCompleteUpgrades() {
 }
 
 async function doSellMine(mineId) {
+  if (String(mineId).startsWith('_opt_')) return;
   try {
     // Optimistic: remove marker immediately
     const key = `mine_${mineId}`;
@@ -8909,6 +8911,7 @@ let _mineAttackMineId = null;
 let _projectileInterval = null;
 
 async function doAttackMine(mineId) {
+  if (String(mineId).startsWith('_opt_')) return;
   const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
   if (!mine) return showToast('❌ Шахта не найдена');
 
