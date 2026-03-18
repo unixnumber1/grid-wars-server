@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, rateLimit, sendTelegramNotification } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../lib/grid.js';
 import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../lib/formulas.js';
 import { haversine } from '../lib/haversine.js';
@@ -9,6 +10,7 @@ import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../server.js';
 import { spawnOreNodesNearHq } from '../lib/oreNodes.js';
+import { logPlayer } from '../lib/logger.js';
 
 export const buildingsRouter = Router();
 
@@ -154,6 +156,7 @@ async function handleMineBuild(req, res) {
   }
   const pName = gameState.loaded ? gameState.getPlayerByTgId(telegram_id)?.game_username : null;
   logActivity(pName || 'player', 'построил шахту');
+  logPlayer(telegram_id, 'action', 'Построил шахту', { cell_id: targetCell, lat: cellCenterLat, lng: cellCenterLng });
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_MINE); } catch (e) {}
   return res.status(201).json({ mine, xp: xpResult });
@@ -226,6 +229,7 @@ async function handleMineCollect(req, res) {
     }
   }
   const collectedAmount = Math.round(totalCoins);
+  if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
   const xpGained = collectedAmount > 0 ? Math.max(1, Math.floor(collectedAmount * 0.001)) : 0;
   let xpResult = null;
   if (xpGained > 0) { try { xpResult = await addXp(player.id, xpGained); } catch (e) {} }
@@ -456,6 +460,7 @@ async function handleUpgradePost(req, res) {
     const p = gameState.getPlayerById(player.id);
     if (p) { p.coins = newBalance; gameState.markDirty('players', p.id); }
   }
+  logPlayer(telegram_id, 'action', `Улучшил шахту до уровня ${targetLevel}`, { mine_id, cost });
   return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: 20, player_coins: newBalance, pendingLevel: targetLevel });
 }
 
@@ -641,7 +646,7 @@ async function handleMineHit(req, res) {
 
 // ─── Route definitions ───────────────────────────────────────────────
 
-buildingsRouter.post('/headquarters', async (req, res) => {
+buildingsRouter.post('/headquarters', rateLimitMw('build'), async (req, res) => {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed, coins, diamonds');
@@ -652,13 +657,13 @@ buildingsRouter.post('/headquarters', async (req, res) => {
   return handleHqPlace(player, req.body, res);
 });
 
-buildingsRouter.post('/mine', async (req, res) => {
+buildingsRouter.post('/mine', rateLimitMw('build'), async (req, res) => {
   const { action } = req.body || {};
   if (action === 'collect') return handleMineCollect(req, res);
   return handleMineBuild(req, res);
 });
 
-buildingsRouter.post('/attack', async (req, res) => {
+buildingsRouter.post('/attack', rateLimitMw('attack'), async (req, res) => {
   const { action } = req.body || {};
   if (action === 'hit') return handleMineHit(req, res);
   if (action === 'finish') return handleAttackFinish(req, res);
@@ -668,4 +673,4 @@ buildingsRouter.post('/attack', async (req, res) => {
 });
 
 buildingsRouter.get('/upgrade', handleUpgradeGet);
-buildingsRouter.post('/upgrade', handleUpgradePost);
+buildingsRouter.post('/upgrade', rateLimitMw('build'), handleUpgradePost);

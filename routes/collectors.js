@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { haversine } from '../lib/haversine.js';
 import { getCellId, getCellCenter } from '../lib/grid.js';
 import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS } from '../lib/formulas.js';
@@ -24,7 +25,7 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   }
 }
 
-collectorsRouter.post('/', async (req, res) => {
+collectorsRouter.post('/', rateLimitMw('attack'), async (req, res) => {
   const { action } = req.body || {};
   if (action === 'build') return handleBuild(req, res);
   if (action === 'upgrade') return handleUpgrade(req, res);

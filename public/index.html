@@ -2191,6 +2191,39 @@
           <div id="admin-ban-actions"></div>
         </div>
       </div>
+      <!-- Server Errors -->
+      <div class="settings-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="settings-section-title" style="margin:0;">ОШИБКИ СЕРВЕРА <span id="admin-errors-count" style="color:#ff6b6b;">(0)</span></div>
+          <button onclick="_adminClearErrors()" style="background:rgba(255,68,68,0.15);border:1px solid rgba(255,68,68,0.3);color:#ff6b6b;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">Очистить</button>
+        </div>
+        <div id="admin-errors-list" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
+      <!-- Player Search + Logs -->
+      <div class="settings-card">
+        <div class="settings-section-title">ПОИСК ИГРОКА И ЛОГИ</div>
+        <div style="display:flex;gap:6px;">
+          <input id="admin-player-search" type="text" placeholder="Введи ник или telegram_id..." style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;">
+          <button onclick="_adminSearchPlayer()" style="padding:10px 14px;background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.3);color:#FFD700;border-radius:10px;font-size:14px;cursor:pointer;">&#x1F50E;</button>
+        </div>
+        <div id="admin-player-card" style="margin-top:8px;"></div>
+        <!-- Player logs section -->
+        <div id="admin-player-logs-section" style="display:none;margin-top:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div id="admin-logs-title" style="font-size:13px;font-weight:700;color:#aaa;"></div>
+            <button onclick="_adminExportLogs()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#aaa;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">Экспорт</button>
+          </div>
+          <div id="admin-logs-filters" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="admin-log-filter active" data-filter="all" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:rgba(255,215,0,0.15);color:#FFD700;">Все</button>
+            <button class="admin-log-filter" data-filter="action" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Действия</button>
+            <button class="admin-log-filter" data-filter="login" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Входы</button>
+            <button class="admin-log-filter" data-filter="ban" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Баны</button>
+            <button class="admin-log-filter" data-filter="spoof" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Спуф</button>
+            <button class="admin-log-filter" data-filter="warn" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Rate</button>
+          </div>
+          <div id="admin-logs-list" style="max-height:500px;overflow-y:auto;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -5672,6 +5705,211 @@ function renderBanForm(player) {
 }
 
 // ─────────────────────────────────────────────
+//  Admin: Errors + Player Search + Logs
+// ─────────────────────────────────────────────
+let _adminStatsInterval = null;
+let _adminCurrentPlayerLogs = [];
+let _adminCurrentPlayerTgId = null;
+let _adminLogFilter = 'all';
+
+const _LOG_COLORS = {
+  action: '#888', login: '#888', error: '#ff6b6b', ban: '#ff6b6b',
+  spoof: '#ff9800', fraud: '#ff9800', warn: '#ffc107',
+};
+const _LOG_ICONS = {
+  action: '📋', login: '🔑', error: '❌', ban: '🚫',
+  spoof: '🚨', fraud: '💰', warn: '⚠️',
+};
+
+function _adminStartAutoRefresh() {
+  if (_adminStatsInterval) return;
+  _adminLoadErrors();
+  _adminStatsInterval = setInterval(_adminLoadErrors, 30000);
+}
+function _adminStopAutoRefresh() {
+  if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
+}
+
+async function _adminLoadErrors() {
+  try {
+    const data = await apiFetch(`/api/admin/stats?telegram_id=${TG_ID}`);
+    const errors = data.recent_errors || [];
+    document.getElementById('admin-errors-count').textContent = `(${errors.length})`;
+    const list = document.getElementById('admin-errors-list');
+    if (errors.length === 0) {
+      list.innerHTML = '<div style="color:#666;font-size:13px;padding:12px;text-align:center;">Ошибок нет</div>';
+      return;
+    }
+    list.innerHTML = errors.map((e, i) => `
+      <div style="background:#1a1a1a;border:1px solid #222;border-left:3px solid #ff6b6b;border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#ff6b6b;font-size:12px;font-weight:700;">❌ ${e.time} ${e.type}</span>
+          <span style="color:#555;font-size:10px;">${e.date || ''}</span>
+        </div>
+        <div style="color:#ccc;font-size:13px;margin:4px 0;word-break:break-all;">${_esc(e.message)}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button onclick="_adminCopyStack(${i})" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#aaa;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer;">Копировать stack</button>
+          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#aaa;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer;">Подробнее</button>
+          <pre style="display:none;background:#111;color:#999;font-size:10px;padding:8px;border-radius:6px;margin:4px 0 0;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;">${_esc(e.stack || 'No stack')}</pre>
+        </div>
+      </div>
+    `).join('');
+    window._adminErrors = errors;
+  } catch (_) {}
+}
+
+function _adminCopyStack(idx) {
+  const err = window._adminErrors?.[idx];
+  if (!err) return;
+  navigator.clipboard.writeText(err.stack || err.message).then(() => showToast('Скопировано'));
+}
+
+async function _adminClearErrors() {
+  try {
+    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'clear-errors' }) });
+    showToast('Ошибки очищены');
+    _adminLoadErrors();
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+async function _adminSearchPlayer() {
+  const q = document.getElementById('admin-player-search').value.trim();
+  if (!q) return;
+  try {
+    const data = await apiFetch(`/api/admin/player-search?admin_id=${TG_ID}&q=${encodeURIComponent(q)}`);
+    const card = document.getElementById('admin-player-card');
+    const logs = document.getElementById('admin-player-logs-section');
+    logs.style.display = 'none';
+    if (!data.players?.length) {
+      card.innerHTML = '<div style="color:#666;font-size:13px;padding:8px;">Не найдено</div>';
+      return;
+    }
+    card.innerHTML = data.players.map(p => {
+      const fmtCoins = (p.coins || 0) >= 1e6 ? Math.floor((p.coins||0)/1e6) + 'M' : (p.coins||0).toLocaleString('ru');
+      return `
+      <div style="background:#1a1a1a;border:1px solid #222;border-radius:10px;padding:12px;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:24px;">${p.avatar || '🐺'}</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;">${_esc(p.username || '?')} <span style="color:#888;font-size:12px;">Ур.${p.level||1}</span> ${p.online ? '<span style="color:#00ff88;">●</span>' : '<span style="color:#555;">●</span>'}</div>
+            <div style="font-size:12px;color:#888;">ID: ${p.telegram_id} ${p.is_banned ? '<span style="color:#ff6b6b;">ЗАБАНЕН</span>' : ''}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;font-size:12px;color:#aaa;margin-bottom:8px;">
+          <span>💰 ${fmtCoins}</span>
+          <span>💎 ${p.diamonds||0}</span>
+          <span>⛏️ ${p.mines_count} шахт</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button onclick="_adminPlayerLogs(${p.telegram_id},'${_esc(p.username||'?')}')" style="padding:6px 10px;border-radius:8px;background:rgba(33,150,243,0.15);border:1px solid rgba(33,150,243,0.3);color:#2196F3;font-size:11px;cursor:pointer;">📋 Логи</button>
+          <button onclick="_adminRewardPlayer('${p.id}','${_esc(p.username||'?')}','coins')" style="padding:6px 10px;border-radius:8px;background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:11px;cursor:pointer;">💰 Монеты</button>
+          <button onclick="_adminRewardPlayer('${p.id}','${_esc(p.username||'?')}','diamonds')" style="padding:6px 10px;border-radius:8px;background:rgba(0,188,212,0.15);border:1px solid rgba(0,188,212,0.3);color:#00BCD4;font-size:11px;cursor:pointer;">💎 Алмазы</button>
+          ${p.is_banned
+            ? `<button onclick="_adminQuickUnban('${p.id}')" style="padding:6px 10px;border-radius:8px;background:rgba(0,200,83,0.15);border:1px solid rgba(0,200,83,0.3);color:#00C853;font-size:11px;cursor:pointer;">✅ Разбан</button>`
+            : `<button onclick="_adminQuickBan('${p.id}','${_esc(p.username||'?')}')" style="padding:6px 10px;border-radius:8px;background:rgba(255,23,68,0.15);border:1px solid rgba(255,23,68,0.3);color:#FF1744;font-size:11px;cursor:pointer;">🚫 Бан</button>`
+          }
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+async function _adminPlayerLogs(tgId, name) {
+  _adminCurrentPlayerTgId = tgId;
+  _adminLogFilter = 'all';
+  document.getElementById('admin-logs-title').textContent = `📋 Логи: ${name}`;
+  document.getElementById('admin-player-logs-section').style.display = '';
+  // Reset filter buttons
+  document.querySelectorAll('.admin-log-filter').forEach(b => {
+    b.style.background = 'rgba(255,255,255,0.04)'; b.style.color = '#888';
+    if (b.dataset.filter === 'all') { b.style.background = 'rgba(255,215,0,0.15)'; b.style.color = '#FFD700'; }
+  });
+  await _adminRefreshLogs();
+}
+
+async function _adminRefreshLogs() {
+  if (!_adminCurrentPlayerTgId) return;
+  try {
+    const data = await apiFetch(`/api/admin/player-logs?admin_id=${TG_ID}&player_telegram_id=${_adminCurrentPlayerTgId}&filter=${_adminLogFilter}`);
+    _adminCurrentPlayerLogs = data.logs || [];
+    _adminRenderLogs();
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+function _adminRenderLogs() {
+  const list = document.getElementById('admin-logs-list');
+  const logs = _adminCurrentPlayerLogs;
+  if (logs.length === 0) {
+    list.innerHTML = '<div style="color:#666;font-size:13px;padding:12px;text-align:center;">Нет логов</div>';
+    return;
+  }
+  list.innerHTML = logs.slice(0, 200).map(l => {
+    const color = _LOG_COLORS[l.level] || '#888';
+    const icon = _LOG_ICONS[l.level] || '📋';
+    const borderColor = ['ban','error'].includes(l.level) ? '#ff6b6b' : ['spoof','fraud'].includes(l.level) ? '#ff9800' : l.level === 'warn' ? '#ffc107' : '#333';
+    return `<div style="background:#1a1a1a;border:1px solid #222;border-left:3px solid ${borderColor};border-radius:6px;padding:8px 10px;margin-bottom:4px;font-size:12px;">
+      <span style="color:#555;">${l.time}</span> <span style="color:${color};font-weight:700;">${icon} ${l.level.toUpperCase()}</span> <span style="color:#ccc;">${_esc(l.message)}</span>
+      ${l.data ? `<span style="color:#555;font-size:10px;"> ${JSON.stringify(l.data).slice(0,80)}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function _adminExportLogs() {
+  if (!_adminCurrentPlayerLogs.length) return showToast('Нет логов');
+  const text = _adminCurrentPlayerLogs.map(l => `[${l.date} ${l.time}] ${l.level.toUpperCase()} ${l.message}${l.data ? ' ' + JSON.stringify(l.data) : ''}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `player_${_adminCurrentPlayerTgId}_logs.txt`;
+  a.click();
+}
+
+async function _adminQuickBan(playerId, name) {
+  if (!confirm(`Забанить ${name} на 1 день?`)) return;
+  try {
+    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: playerId, reason: 'Бан от админа', duration_days: 1 }) });
+    showToast(`🚫 ${name} забанен на 1д`);
+    _adminSearchPlayer();
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+async function _adminQuickUnban(playerId) {
+  try {
+    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: playerId }) });
+    showToast('✅ Разбанен');
+    _adminSearchPlayer();
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+async function _adminRewardPlayer(playerId, name, currency) {
+  const amount = prompt(`Сколько ${currency === 'coins' ? 'монет' : 'алмазов'} выдать ${name}?`);
+  if (!amount || isNaN(amount) || Number(amount) <= 0) return;
+  try {
+    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'reward', player_id: playerId, currency, amount: Number(amount) }) });
+    showToast(`✅ Выдано ${Number(amount).toLocaleString('ru')} ${currency === 'coins' ? '💰' : '💎'}`);
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Filter button handlers + search on Enter
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.admin-log-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _adminLogFilter = btn.dataset.filter;
+      document.querySelectorAll('.admin-log-filter').forEach(b => {
+        b.style.background = 'rgba(255,255,255,0.04)'; b.style.color = '#888';
+      });
+      btn.style.background = 'rgba(255,215,0,0.15)'; btn.style.color = '#FFD700';
+      _adminRefreshLogs();
+    });
+  });
+  document.getElementById('admin-player-search')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') _adminSearchPlayer();
+  });
+});
+
+// ─────────────────────────────────────────────
 //  Username setup screen (first login)
 // ─────────────────────────────────────────────
 const SETUP_AVATARS = [
@@ -5993,6 +6231,7 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 
 document.getElementById('btn-close-settings').addEventListener('click', () => {
   document.getElementById('settings-drawer').classList.remove('open');
+  _adminStopAutoRefresh();
 });
 
 // Settings tabs
@@ -6021,6 +6260,7 @@ function _updateSettingsAdminTab() {
       document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
       adminTabBtn.classList.add('active');
       document.getElementById('settings-tab-admin').classList.add('active');
+      _adminStartAutoRefresh();
     });
     tabsEl.appendChild(adminTabBtn);
   }
@@ -7381,13 +7621,26 @@ function closeMarketPrivate() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('market-private-btn')?.addEventListener('click', () => {
+  document.getElementById('market-private-btn')?.addEventListener('click', async () => {
     const code = document.getElementById('market-private-input').value.trim().toUpperCase();
     if (code.length !== 6) return showToast('❌ Код должен быть 6 символов');
-    closeMarketPrivate();
     if (_buyTargetListing) {
+      // Existing flow: buying a visible private listing
+      closeMarketPrivate();
       _buyTargetListing._privateCode = code;
       showMarketBuyConfirm(_buyTargetListing);
+    } else {
+      // Search by code flow: find private listing
+      try {
+        const data = await apiFetch(`/api/market?action=search-by-code&telegram_id=${TG_ID}&code=${code}`);
+        closeMarketPrivate();
+        if (data.listing) {
+          data.listing._privateCode = code;
+          showMarketBuyConfirm(data.listing);
+        }
+      } catch (err) {
+        showToast(`❌ ${err.message}`);
+      }
     }
   });
 });
@@ -9384,6 +9637,7 @@ async function doClanKick(targetTgId) {
     <button class="market-sort-btn" data-sort="cheap">💰 Дешевле</button>
     <button class="market-sort-btn" data-sort="expensive">💎 Дороже</button>
     <button class="market-sort-btn active" data-sort="new">🆕 Новые</button>
+    <button class="market-sort-btn" onclick="_buyTargetListing=null;openMarketPrivate()" style="margin-left:auto;">🔒 Код</button>
   </div>
   <div id="market-body">
     <div id="market-grid"></div>

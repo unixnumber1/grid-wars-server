@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, rateLimit } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { haversine } from '../lib/haversine.js';
 import { gameState } from '../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../server.js';
@@ -35,7 +36,7 @@ function emitToRaidParticipants(monumentId, event, data) {
 }
 
 // ── POST /api/monuments ──
-monumentsRouter.post('/', async (req, res) => {
+monumentsRouter.post('/', rateLimitMw('attack'), async (req, res) => {
   const { action } = req.body || {};
   if (action === 'start-raid') return handleStartRaid(req, res);
   if (action === 'attack-shield') return handleAttackShield(req, res);

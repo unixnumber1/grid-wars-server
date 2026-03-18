@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { log } from '../lib/log.js';
 import { getCellsInRange } from '../lib/grid.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../lib/bots.js';
@@ -800,7 +801,7 @@ mapRouter.get('/', async (req, res) => {
   return res.status(200).json(responseData);
 });
 
-mapRouter.post('/', async (req, res) => {
+mapRouter.post('/', rateLimitMw('tick'), async (req, res) => {
   const { action } = req.body || {};
   if (action === 'tick') return handleTick(req, res);
   return res.status(400).json({ error: 'Unknown POST action' });

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { getMaxHp } from '../lib/formulas.js';
 import { ITEM_SELL_PRICE, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats } from '../lib/items.js';
 import { gameState } from '../lib/gameState.js';
@@ -336,7 +337,7 @@ async function handleStarsWebhook(req, res) {
 }
 
 // ── ROUTE ───────────────────────────────────────────────────────────────────
-itemsRouter.post('/', async (req, res) => {
+itemsRouter.post('/', rateLimitMw('default'), async (req, res) => {
   const body = req.body || {};
 
   // Detect Telegram webhook calls (no action/telegram_id, has update structure)

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, rateLimit, sendTelegramNotification } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { log } from '../lib/log.js';
 import { haversine } from '../lib/haversine.js';
 import { addXp } from '../lib/xp.js';
@@ -951,16 +952,45 @@ async function handleMoveCouriers(req, res) {
   });
 }
 
+/* ── Action: search-by-code (GET) ─────────────────────────── */
+
+async function handleSearchByCode(req, res) {
+  const { telegram_id, code } = req.query;
+  if (!telegram_id || !code) return res.status(400).json({ error: 'telegram_id and code required' });
+
+  const trimmed = code.trim().toUpperCase();
+  if (trimmed.length !== 6) return res.status(400).json({ error: 'Code must be 6 characters' });
+
+  const { data: listing, error } = await supabase
+    .from('market_listings')
+    .select(`
+      id, price_diamonds, is_private, created_at, expires_at,
+      market_id,
+      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance),
+      seller:players!market_listings_seller_id_fkey(id, username, game_username, avatar)
+    `)
+    .eq('private_code', trimmed)
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!listing) return res.status(404).json({ error: 'Лот не найден или истёк' });
+
+  return res.json({ listing });
+}
+
 /* ── Main router ───────────────────────────────────────────── */
 
 marketRouter.get('/', async (req, res) => {
   const { action } = req.query;
-  if (action === 'listings')    return handleListings(req, res);
-  if (action === 'my-listings') return handleMyListings(req, res);
+  if (action === 'listings')       return handleListings(req, res);
+  if (action === 'my-listings')    return handleMyListings(req, res);
+  if (action === 'search-by-code') return handleSearchByCode(req, res);
   return res.status(400).json({ error: 'Unknown GET action' });
 });
 
-marketRouter.post('/', async (req, res) => {
+marketRouter.post('/', rateLimitMw('market'), async (req, res) => {
   const { action } = req.body || {};
   const _tgId = req.body?.telegram_id;
   if (_tgId && ['buy', 'attack-courier', 'list-item'].includes(action)) {

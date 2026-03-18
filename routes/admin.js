@@ -7,6 +7,8 @@ import { log } from '../lib/log.js';
 import { getCellCenter } from '../lib/grid.js';
 import { haversine } from '../lib/haversine.js';
 import { dailyMarketCheck } from '../lib/markets.js';
+import { resetSpoofRecord } from '../lib/antispoof.js';
+import { getPlayerLogs, logPlayer } from '../lib/logger.js';
 
 export const adminRouter = Router();
 
@@ -115,9 +117,64 @@ adminRouter.get('/stats', async (req, res) => {
     ore_nodes_loaded: gameState.loaded ? gameState.oreNodes.size : 0,
     players_loaded: gameState.loaded ? gameState.players.size : 0,
     connected_sockets: connectedPlayers.size,
-    recent_errors: (global.recentErrors || []).slice(0, 10),
-    recent_activity: (global.recentActivity || []).slice(0, 15),
+    recent_errors: (global.recentErrors || []).slice(0, 50),
+    recent_activity: (global.recentActivity || []).slice(0, 30),
   });
+});
+
+// ── GET /player-search ───────────────────────────────────────
+adminRouter.get('/player-search', (req, res) => {
+  const tgId = req.query.admin_id || req.query.telegram_id;
+  if (String(tgId) !== '560013667') return res.status(403).json({ error: 'Admin only' });
+
+  const q = (req.query.q || '').trim().toLowerCase();
+  if (!q) return res.json({ players: [] });
+
+  if (!gameState.loaded) return res.json({ players: [] });
+
+  const results = [];
+  for (const p of gameState.players.values()) {
+    if (results.length >= 10) break;
+    const name = (p.game_username || p.username || '').toLowerCase();
+    const tg = String(p.telegram_id || '');
+    if (name.includes(q) || tg.includes(q)) {
+      let minesCount = 0;
+      for (const m of gameState.mines.values()) {
+        if (m.owner_id === p.id) minesCount++;
+      }
+      let isOnline = false;
+      for (const [, info] of connectedPlayers) {
+        if (String(info.telegram_id) === String(p.telegram_id)) { isOnline = true; break; }
+      }
+      results.push({
+        id: p.id,
+        telegram_id: p.telegram_id,
+        username: p.game_username || p.username,
+        avatar: p.avatar,
+        level: p.level,
+        coins: p.coins,
+        diamonds: p.diamonds,
+        is_banned: p.is_banned,
+        ban_reason: p.ban_reason,
+        mines_count: minesCount,
+        online: isOnline,
+      });
+    }
+  }
+  return res.json({ players: results });
+});
+
+// ── GET /player-logs ─────────────────────────────────────────
+adminRouter.get('/player-logs', (req, res) => {
+  const tgId = req.query.admin_id || req.query.telegram_id;
+  if (String(tgId) !== '560013667') return res.status(403).json({ error: 'Admin only' });
+
+  const playerTgId = parseInt(req.query.player_telegram_id, 10);
+  if (!playerTgId) return res.status(400).json({ error: 'player_telegram_id required' });
+
+  const filter = req.query.filter || 'all';
+  const logs = getPlayerLogs(playerTgId, filter);
+  return res.json({ logs });
 });
 
 // ── POST ─────────────────────────────────────────────────────
@@ -126,6 +183,12 @@ adminRouter.post('/', async (req, res) => {
   const tgId = parseInt(telegram_id || admin_id, 10);
   if (tgId !== ADMIN_TG_ID) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // ── clear-errors: clear recent errors array ──
+  if (action === 'clear-errors') {
+    global.recentErrors = [];
+    return res.json({ success: true, cleared: true });
   }
 
   // ── fix-positions: snap all HQs and mines to cell centers ──
@@ -264,6 +327,9 @@ adminRouter.post('/', async (req, res) => {
       sendTelegramNotification(gp.telegram_id, `🚫 Вы забанены. Причина: ${reason}. До: ${untilStr}`);
     }
 
+    if (gp?.telegram_id) {
+      logPlayer(gp.telegram_id, 'ban', `Забанен: ${reason}`, { reason, ban_until: banUntil });
+    }
     return res.status(200).json({ success: true, banned: true, until: banUntil });
   }
 
@@ -289,9 +355,10 @@ adminRouter.post('/', async (req, res) => {
       }
     }
 
-    // Notify player via Telegram
+    // Reset antispoof violation counter
     const unbannedPlayer = gameState.loaded ? gameState.getPlayerById(player_id) : null;
     if (unbannedPlayer?.telegram_id) {
+      resetSpoofRecord(unbannedPlayer.telegram_id);
       sendTelegramNotification(unbannedPlayer.telegram_id, `✅ Вы разбанены! Добро пожаловать обратно.`);
     }
 

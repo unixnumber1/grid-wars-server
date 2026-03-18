@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../lib/supabase.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
 import { haversine } from '../lib/haversine.js';
 import { gameState } from '../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../server.js';
@@ -18,7 +19,7 @@ function emitToNearby(lat, lng, radiusM, event, data) {
   }
 }
 
-oreRouter.post('/', async (req, res) => {
+oreRouter.post('/', rateLimitMw('attack'), async (req, res) => {
   const { action, telegram_id } = req.body || {};
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 

@@ -39,8 +39,28 @@ global.recentActivity = [];
 
 process.on('unhandledRejection', (err) => {
   console.error('[unhandledRejection]', err?.message || err);
-  global.recentErrors.unshift({ time: new Date().toLocaleTimeString('ru'), message: String(err?.message || err).slice(0, 100), type: 'unhandledRejection' });
-  if (global.recentErrors.length > 50) global.recentErrors.pop();
+  global.recentErrors.unshift({
+    id: Date.now(),
+    time: new Date().toLocaleTimeString('ru'),
+    date: new Date().toLocaleDateString('ru'),
+    message: String(err?.message || err).slice(0, 200),
+    stack: err?.stack || 'No stack trace',
+    type: 'unhandledRejection',
+  });
+  if (global.recentErrors.length > 100) global.recentErrors.pop();
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err?.message || err);
+  global.recentErrors.unshift({
+    id: Date.now(),
+    time: new Date().toLocaleTimeString('ru'),
+    date: new Date().toLocaleDateString('ru'),
+    message: String(err?.message || err).slice(0, 200),
+    stack: err?.stack || 'No stack trace',
+    type: 'uncaughtException',
+  });
+  if (global.recentErrors.length > 100) global.recentErrors.pop();
 });
 
 export function logActivity(playerName, action) {
@@ -55,8 +75,13 @@ const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
+import { validateRequest, checkBan } from './lib/security.js';
+import { rateLimitMw } from './lib/rateLimit.js';
+
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
+app.use(validateRequest);
+app.use('/api', checkBan);
 
 // Serve static frontend files (no cache for index.html to ensure updates)
 app.use(express.static(join(__dirname, 'public'), {

@@ -6,6 +6,9 @@ import { addXp } from '../lib/xp.js';
 import { gameState } from '../lib/gameState.js';
 import { ensureMarketNearPlayer } from '../lib/markets.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../server.js';
+import { validatePosition } from '../lib/antispoof.js';
+import { rateLimitMw } from '../lib/rateLimit.js';
+import { logPlayer } from '../lib/logger.js';
 
 export const playerRouter = Router();
 
@@ -58,10 +61,25 @@ async function handleAvatar(req, res) {
 }
 
 async function handleLocation(req, res) {
-  const { telegram_id, lat, lng } = req.body;
+  const { telegram_id, lat, lng, pin_mode } = req.body;
   if (!telegram_id || lat == null || lng == null) return res.status(400).json({ error: 'telegram_id, lat, lng are required' });
   const playerLat = parseFloat(lat), playerLng = parseFloat(lng);
   if (isNaN(playerLat) || isNaN(playerLng)) return res.status(400).json({ error: 'lat and lng must be numbers' });
+
+  // GPS antispoof validation
+  const isPinMode = pin_mode === true;
+  const validation = validatePosition(telegram_id, playerLat, playerLng, isPinMode);
+  if (!validation.valid) {
+    if (validation.reason === 'impossible_speed') {
+      // Don't reveal detection — silently accept
+      return res.json({ ok: true });
+    }
+    if (validation.reason === 'too_frequent') {
+      return res.json({ ok: true });
+    }
+    return res.status(400).json({ error: 'Invalid coordinates' });
+  }
+
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -339,6 +357,8 @@ async function handlePvpAttack(req, res) {
     try { await addXp(attacker.id, 100 + (attacker.level || 1) * 10); } catch (_) {}
 
     logActivity(attacker.game_username, `убил ${defender.game_username}`);
+    logPlayer(attacker.telegram_id, 'action', `Убил ${defender.game_username}`, { damage, coins_won: coinsWon, target_id: defender.telegram_id });
+    logPlayer(defender.telegram_id, 'action', `Убит игроком ${attacker.game_username}`, { coins_lost: coinsLost, attacker_id: attacker.telegram_id });
 
     // Emit kill event to nearby
     emitToNearbyPlayers(pLat, pLng, 1000, 'pvp:kill', {
@@ -386,7 +406,7 @@ async function handlePvpAttack(req, res) {
   });
 }
 
-playerRouter.post('/init', async (req, res) => {
+playerRouter.post('/init', rateLimitMw('default'), async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { action } = req.body || {};
   if (action === 'avatar') return handleAvatar(req, res);
@@ -475,6 +495,7 @@ playerRouter.post('/init', async (req, res) => {
     ensureMarketNearPlayer(player.last_lat, player.last_lng, player.id).catch(() => {});
   }
   logActivity(player.game_username || player.username, 'вошёл в игру');
+  logPlayer(tgId, 'login', 'Вошёл в игру');
   return res.status(200).json({
     needUsername,
     player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0 },
