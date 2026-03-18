@@ -1,8 +1,2 @@
-import { Router } from 'express';
-
-export const economyRouter = Router();
-
-// Economy routes are merged into buildings router (mine.js action:collect)
-economyRouter.post('/', (req, res) => {
-  res.status(400).json({ error: 'Use /api/buildings/mine with action:collect instead' });
-});
+// Re-export from new location
+export { economyRouter } from '../api/routes/economy.js';

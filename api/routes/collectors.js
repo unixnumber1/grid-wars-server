@@ -1,0 +1,352 @@
+import { Router } from 'express';
+import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
+import { haversine } from '../../lib/haversine.js';
+import { getCellId, getCellCenter } from '../../lib/grid.js';
+import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS } from '../../lib/formulas.js';
+import { gameState } from '../../lib/gameState.js';
+import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
+import { addXp } from '../../lib/xp.js';
+import {
+  COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
+  COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS,
+  getCollectorCapacity, getCollectorMines,
+} from '../../lib/collectors.js';
+
+export const collectorsRouter = Router();
+
+const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
+const COURIER_SPEED_PLAYER = 0.0002; // 🚶 ~20 km/h (player courier = pedestrian)
+
+function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
+  for (const [sid, info] of connectedPlayers) {
+    if (!info.lat || !info.lng) continue;
+    if (haversine(lat, lng, info.lat, info.lng) <= radiusM) io.to(sid).emit(event, data);
+  }
+}
+
+collectorsRouter.post('/', async (req, res) => {
+  const { action } = req.body || {};
+  if (action === 'build') return handleBuild(req, res);
+  if (action === 'upgrade') return handleUpgrade(req, res);
+  if (action === 'deliver') return handleDeliver(req, res);
+  if (action === 'sell') return handleSell(req, res);
+  if (action === 'hit') return handleHit(req, res);
+  return res.status(400).json({ error: 'Unknown action' });
+});
+
+// ── BUILD ──
+async function handleBuild(req, res) {
+  const { telegram_id, lat, lng } = req.body || {};
+  if (!telegram_id || lat == null || lng == null) return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  // Use tap coordinates (body.lat/lng) for distance check and placement
+  const tapLat = parseFloat(lat), tapLng = parseFloat(lng);
+  if (!player.last_lat) return res.status(400).json({ error: 'GPS не готов' });
+
+  // Distance check: player position to tap point
+  const dist = haversine(player.last_lat, player.last_lng, tapLat, tapLng);
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(dist)}м > ${SMALL_RADIUS}м)` });
+
+  // Check max collectors limit based on HQ level (lv/2 rounded down)
+  const hq = gameState.getHqByPlayerId(player.id);
+  const hqLevel = hq?.level || 1;
+  const maxCollectors = Math.floor(hqLevel / 2);
+  const currentCount = [...gameState.collectors.values()].filter(c => c.owner_id === player.id).length;
+  if (currentCount >= maxCollectors)
+    return res.status(400).json({ error: `Макс ${maxCollectors} сборщиков (штаб Ур.${hqLevel}). Улучшите штаб.` });
+
+  // Check diamonds
+  if ((player.diamonds || 0) < COLLECTOR_COST_DIAMONDS)
+    return res.status(400).json({ error: `Нужно ${COLLECTOR_COST_DIAMONDS} 💎` });
+
+  // Cell ID from tap coordinates
+  const cellId = getCellId(tapLat, tapLng);
+
+  // Check cell not occupied
+  const existingMine = gameState.getMineByCellId(cellId);
+  const existingCollector = [...gameState.collectors.values()].find(c => c.cell_id === cellId);
+  if (existingCollector) return res.status(400).json({ error: 'Здесь уже стоит сборщик' });
+
+  // Check nearby mines of this player (using tap position)
+  const nearbyMines = [];
+  for (const m of gameState.mines.values()) {
+    if (m.owner_id === player.id && m.status !== 'destroyed' && haversine(tapLat, tapLng, m.lat, m.lng) <= COLLECTOR_RADIUS) {
+      nearbyMines.push(m);
+    }
+  }
+  if (nearbyMines.length === 0) return res.status(400).json({ error: 'Нет твоих шахт в радиусе 200м' });
+
+  // Deduct diamonds
+  const newDiamonds = player.diamonds - COLLECTOR_COST_DIAMONDS;
+  player.diamonds = newDiamonds;
+  gameState.markDirty('players', player.id);
+  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+
+  const cfg = COLLECTOR_LEVELS[1];
+  const collector = {
+    owner_id: player.id,
+    lat: tapLat, lng: tapLng, cell_id: cellId,
+    level: 1,
+    hp: cfg.hp, max_hp: cfg.hp,
+    stored_coins: 0,
+    last_collected_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+  };
+
+  const { data: inserted, error } = await supabase.from('collectors').insert(collector).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  gameState.collectors.set(inserted.id, inserted);
+  logActivity(player.game_username, `built collector at ${tapLat.toFixed(4)},${tapLng.toFixed(4)}`);
+
+  return res.json({ success: true, collector: inserted, diamonds: newDiamonds, mines_in_range: nearbyMines.length });
+}
+
+// ── UPGRADE ──
+async function handleUpgrade(req, res) {
+  const { telegram_id, collector_id } = req.body || {};
+  if (!telegram_id || !collector_id) return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const collector = gameState.collectors.get(collector_id);
+  if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+  if (collector.level >= 10) return res.status(400).json({ error: 'Максимальный уровень' });
+
+  const nextLevel = collector.level + 1;
+  const diamondCosts = [0,0,50,100,200,400,750,1200,2000,3500,6000];
+  const cost = diamondCosts[nextLevel] || 50;
+
+  if ((player.diamonds || 0) < cost) return res.status(400).json({ error: `Нужно ${cost} 💎` });
+
+  // Deduct diamonds
+  const newDiamonds = (player.diamonds || 0) - cost;
+  player.diamonds = newDiamonds;
+  gameState.markDirty('players', player.id);
+  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+
+  const newCfg = COLLECTOR_LEVELS[nextLevel];
+  collector.level = nextLevel;
+  collector.max_hp = newCfg.hp;
+  collector.hp = newCfg.hp;
+  gameState.markDirty('collectors', collector.id);
+
+  await supabase.from('collectors').update({ level: nextLevel, hp: newCfg.hp, max_hp: newCfg.hp }).eq('id', collector.id);
+
+  return res.json({ success: true, level: nextLevel, hp: newCfg.hp, max_hp: newCfg.hp, diamonds: newDiamonds });
+}
+
+// ── DELIVER (order courier delivery to player) ──
+async function handleDeliver(req, res) {
+  const { telegram_id, collector_id } = req.body || {};
+  if (!telegram_id || !collector_id) return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'GPS не готов' });
+
+  const collector = gameState.collectors.get(collector_id);
+  if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+  if ((collector.stored_coins || 0) <= 0) return res.status(400).json({ error: 'Нечего доставлять' });
+
+  const gross = collector.stored_coins;
+  const commission = Math.floor(gross * COLLECTOR_DELIVERY_COMMISSION);
+  const net = gross - commission;
+
+  // Clear collector storage
+  collector.stored_coins = 0;
+  gameState.markDirty('collectors', collector.id);
+
+  // Create courier from collector to player position
+  const nowISO = new Date().toISOString();
+  const courier = {
+    id: globalThis.crypto.randomUUID(),
+    type: 'delivery',
+    owner_id: player.id,
+    item_id: null,
+    listing_id: null,
+    to_market_id: null,
+    start_lat: collector.lat,
+    start_lng: collector.lng,
+    current_lat: collector.lat,
+    current_lng: collector.lng,
+    target_lat: player.last_lat,
+    target_lng: player.last_lng,
+    hp: 5000, max_hp: 5000,
+    speed: COURIER_SPEED_PLAYER,
+    status: 'moving',
+    created_at: nowISO,
+    // Store coins in courier for drop
+    _coins: net,
+  };
+
+  const { data: insertedCourier, error: cErr } = await supabase.from('couriers').insert({
+    type: courier.type, owner_id: courier.owner_id,
+    start_lat: courier.start_lat, start_lng: courier.start_lng,
+    current_lat: courier.current_lat, current_lng: courier.current_lng,
+    target_lat: courier.target_lat, target_lng: courier.target_lng,
+    hp: courier.hp, max_hp: courier.max_hp, speed: courier.speed, status: courier.status,
+    created_at: nowISO,
+  }).select().single();
+
+  if (cErr) return res.status(500).json({ error: cErr.message });
+
+  // Store coins amount in courier_drops metadata when it arrives
+  // For now store in memory on the courier object
+  const courierObj = { ...insertedCourier, _coins: net };
+  gameState.upsertCourier(courierObj);
+
+  // Persist collector coins=0
+  await supabase.from('collectors').update({ stored_coins: 0 }).eq('id', collector.id);
+
+  logActivity(player.game_username, `ordered delivery from collector (${net} coins)`);
+
+  return res.json({ success: true, gross, commission, net, courier_id: insertedCourier.id });
+}
+
+// ── SELL ──
+async function handleSell(req, res) {
+  const { telegram_id, collector_id } = req.body || {};
+  if (!telegram_id || !collector_id) return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const collector = gameState.collectors.get(collector_id);
+  if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+
+  // Refund diamonds
+  const newDiamonds = (player.diamonds || 0) + COLLECTOR_SELL_DIAMONDS;
+  player.diamonds = newDiamonds;
+  gameState.markDirty('players', player.id);
+
+  // If has stored coins, add to player
+  if (collector.stored_coins > 0) {
+    player.coins = (player.coins || 0) + collector.stored_coins;
+    gameState.markDirty('players', player.id);
+    await supabase.from('players').update({ coins: player.coins, diamonds: newDiamonds }).eq('id', player.id);
+  } else {
+    await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+  }
+
+  // Delete collector
+  gameState.collectors.delete(collector.id);
+  await supabase.from('collectors').delete().eq('id', collector.id);
+
+  return res.json({ success: true, diamonds: newDiamonds, coins_returned: collector.stored_coins || 0 });
+}
+
+// ── HIT (attack enemy collector) ──
+async function handleHit(req, res) {
+  const { telegram_id, collector_id, lat, lng } = req.body || {};
+  if (!telegram_id || !collector_id || lat == null || lng == null)
+    return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const collector = gameState.collectors.get(collector_id);
+  if (!collector) return res.status(404).json({ error: 'Collector not found' });
+  if (collector.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать свой сборщик' });
+  if (collector.hp <= 0) return res.status(400).json({ error: 'Уже уничтожен' });
+
+  const pLat = parseFloat(lat), pLng = parseFloat(lng);
+  const dist = haversine(pLat, pLng, collector.lat, collector.lng);
+  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
+
+  // Weapon cooldown
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
+  const cooldownMs = WEAPON_COOLDOWNS[weaponType] || 200;
+  const now = Date.now();
+  const last = lastAttackTime.get(String(telegram_id)) || 0;
+  if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
+  lastAttackTime.set(String(telegram_id), now);
+
+  // Calculate damage
+  const baseDmg = 10 + (weapon?.attack || 0);
+  const mul = 0.8 + Math.random() * 0.4;
+  let damage = Math.round(baseDmg * mul);
+  let isCrit = false;
+
+  if (weapon?.type === 'sword') {
+    const cc = weapon.crit_chance || 0;
+    if (Math.random() * 100 < cc) {
+      const wLvl = weapon.upgrade_level || 0;
+      let cm = 1.5;
+      if (weapon.rarity === 'mythic') cm = 1.5 + (wLvl / 90) * 0.7;
+      else if (weapon.rarity === 'legendary') cm = 1.5 + (wLvl / 100) * 1.5;
+      damage = Math.floor(damage * cm);
+      isCrit = true;
+    }
+  }
+
+  collector.hp = Math.max(0, collector.hp - damage);
+  gameState.markDirty('collectors', collector.id);
+
+  // Emit projectile
+  emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'projectile', {
+    from_lat: pLat, from_lng: pLng,
+    to_lat: collector.lat, to_lng: collector.lng,
+    damage, crit: isCrit,
+    target_type: 'collector', target_id: collector.id,
+    weapon_type: weaponType,
+    attacker_id: player.id,
+  });
+
+  emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'collector:hp_update', {
+    collector_id: collector.id, hp: collector.hp, max_hp: collector.max_hp,
+  });
+
+  let destroyed = false;
+  let stolenCoins = 0;
+
+  if (collector.hp <= 0) {
+    destroyed = true;
+    stolenCoins = collector.stored_coins || 0;
+
+    // Transfer coins to attacker
+    if (stolenCoins > 0) {
+      player.coins = (player.coins || 0) + stolenCoins;
+      gameState.markDirty('players', player.id);
+      await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
+    }
+
+    // Notify owner
+    const owner = gameState.getPlayerById(collector.owner_id);
+    if (owner) {
+      const msg = `💥 Твой сборщик уничтожен! Украдено ${stolenCoins} монет`;
+      const notif = {
+        id: globalThis.crypto.randomUUID(),
+        player_id: owner.id, type: 'collector_destroyed', message: msg, read: false,
+        created_at: new Date().toISOString(),
+      };
+      gameState.addNotification(notif);
+      supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+      if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg);
+    }
+
+    // Emit destroy event
+    emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'collector:destroyed', {
+      collector_id: collector.id,
+      attacker_name: player.game_username || '?',
+      stolen_coins: stolenCoins,
+    });
+
+    // Remove from DB and gameState
+    gameState.collectors.delete(collector.id);
+    await supabase.from('collectors').delete().eq('id', collector.id);
+
+    // XP
+    try { await addXp(player.id, 100); } catch (_) {}
+
+    logActivity(player.game_username, `destroyed collector (stole ${stolenCoins} coins)`);
+  }
+
+  return res.json({ damage, crit: isCrit, destroyed, stolen_coins: stolenCoins, hp: collector.hp, max_hp: collector.max_hp });
+}
