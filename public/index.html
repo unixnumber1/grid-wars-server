@@ -43,8 +43,18 @@
       padding: 8px 12px;
       white-space: nowrap;
     }
-    .hud-row-1 { display: flex; align-items: center; gap: 8px; }
-    .hud-row-2 { margin-top: 2px; }
+    .hud-collapsed { display: flex; align-items: center; gap: 8px; }
+    .hud-toggle-btn {
+      background: none; border: none; color: rgba(255,255,255,0.4);
+      font-size: 10px; cursor: pointer; padding: 0 0 0 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hud-expanded {
+      max-height: 0; overflow: hidden;
+      transition: max-height 250ms ease-out;
+    }
+    .hud-expanded.open { max-height: 120px; }
+    .hud-exp-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
     .hud-coins { font-size: 16px; font-weight: 700; color: #FFD700; }
     .hud-income { font-size: 12px; color: #00E676; }
     .hud-diamonds { font-size: 14px; font-weight: 700; color: #64B5F6; }
@@ -298,9 +308,11 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #1e1e1e;
+      background: #252538;
+      border-radius: 10px;
+      padding: 10px 12px;
       font-size: 13px;
+      color: #ccc;
     }
 
     .popup-stat .val { font-weight: 600; color: #f5c518; }
@@ -309,7 +321,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      margin-top: 16px;
+      margin-top: 12px;
     }
 
     .popup-actions > .btn {
@@ -1085,6 +1097,12 @@
       cursor: default; color: rgba(255,255,255,0.2);
     }
     .char-equip-slot .slot-empty { color: rgba(255,255,255,0.25); }
+    .char-equip-slot .inv-lvl {
+      position:absolute; bottom:1px; right:2px;
+      font-size:8px; font-weight:700; color:#FFD700;
+      text-shadow:0 0 3px rgba(0,0,0,0.9);
+      line-height:1;
+    }
 
     /* XP bar (full width) */
     .char-xp-bar {
@@ -1145,6 +1163,12 @@
       transition: opacity 0.2s;
     }
     .inv-cell:active { opacity: 0.7; }
+    .inv-cell .inv-lvl {
+      position:absolute; bottom:2px; right:3px;
+      font-size:9px; font-weight:700; color:#FFD700;
+      text-shadow:0 0 3px rgba(0,0,0,0.9);
+      line-height:1;
+    }
     .inv-cell.equipped::after {
       content: '✓';
       position: absolute;
@@ -1183,41 +1207,55 @@
     }
 
     /* Item detail bottom sheet inside profile modal */
+    /* ── Item detail card ── */
     #item-detail-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 4000;
-      align-items: flex-end;
-      justify-content: center;
+      display:none; position:fixed; inset:0; z-index:8000;
+      background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);
+      flex-direction:column; align-items:center; justify-content:center;
     }
-    #item-detail-overlay.open { display: flex; }
-    #item-detail-card {
-      background: #1a1a2e;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px 16px 0 0;
-      width: 100%;
-      max-width: 480px;
-      padding: 20px;
-      animation: slideUp 0.2s ease-out;
+    #item-detail-overlay.open { display:flex; }
+    .item-detail-card {
+      background:#111; border-radius:16px; padding:20px; width:90%; max-width:340px;
+      border:2px solid rgba(255,255,255,0.1); position:relative;
     }
-    #item-detail-card h3 { font-size: 18px; margin-bottom: 4px; }
-    #item-detail-card .item-stat { font-size: 15px; margin: 12px 0; color: #f5c518; }
-    #item-detail-card .item-btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-    #item-detail-card .item-btn-row .btn { flex: 1; padding: 12px; font-size: 14px; }
+    .idc-header { text-align:center; margin-bottom:16px; }
+    .idc-emoji { font-size:56px; }
+    .idc-name { font-size:18px; font-weight:700; margin-top:8px; }
+    .idc-rarity { font-size:12px; margin-top:2px; }
+    .idc-level { font-size:13px; color:#FFD700; margin-top:4px; }
+    .idc-tabs { display:flex; gap:0; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); }
+    .idc-tab { flex:1; padding:8px; text-align:center; font-size:13px; color:#888; cursor:pointer; border-bottom:2px solid transparent; }
+    .idc-tab.active { color:#fff; border-bottom-color:#FFD700; }
+    .idc-tab-content { display:none; }
+    .idc-tab-content.active { display:block; }
+    .idc-stat-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:14px; }
+    .idc-stat-label { color:#aaa; }
+    .idc-stat-value { color:#fff; font-weight:600; }
+    .idc-upgrade-bar { height:6px; background:#222; border-radius:3px; margin:8px 0; overflow:hidden; }
+    .idc-upgrade-fill { height:100%; background:linear-gradient(90deg,#FFD700,#FF8C00); border-radius:3px; transition:width 0.3s; }
+    .idc-upgrade-btn {
+      width:100%; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:700;
+      cursor:pointer; margin-top:8px; transition:all 0.2s;
+    }
+    .idc-upgrade-btn.can-afford { background:linear-gradient(135deg,#FFD700,#FF8C00); color:#000; }
+    .idc-upgrade-btn.cant-afford { background:#333; color:#666; cursor:not-allowed; }
+    .idc-upgrade-btn.maxed { background:#222; color:#4caf50; cursor:default; }
+    .idc-feature { font-size:12px; color:#D500F9; margin-top:6px; padding:6px 8px; background:rgba(213,0,249,0.1); border-radius:6px; }
+    .idc-close { position:absolute; top:10px; right:14px; font-size:20px; color:#888; cursor:pointer; background:none; border:none; }
+    .idc-actions { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+    .idc-actions .btn { flex:1; padding:12px; font-size:14px; }
     .btn-sell-item {
-      width: 100%;
-      margin-top: 8px;
-      padding: 8px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.4);
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      cursor: pointer;
+      width:100%; margin-top:8px; padding:8px; font-size:12px;
+      color:rgba(255,255,255,0.4); background:transparent;
+      border:1px solid rgba(255,255,255,0.1); border-radius:8px; cursor:pointer;
     }
-    .btn-sell-item:active { opacity: 0.6; }
+    .btn-sell-item:active { opacity:0.6; }
+    @keyframes upgradeFlash {
+      0% { box-shadow: 0 0 0 0 rgba(255,215,0,0.6); }
+      50% { box-shadow: 0 0 30px 10px rgba(255,215,0,0.3); }
+      100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); }
+    }
+    .upgrade-flash { animation: upgradeFlash 0.5s ease-out; }
 
     /* Sell confirm */
     #sell-confirm-overlay {
@@ -1445,6 +1483,12 @@
     }
     .shop-box-open-btn:active { background: rgba(255,215,0,0.25); }
     .shop-box-open-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .shop-mythic-card {
+      background:#1a0a0a; border:1px solid rgba(255,109,0,0.3);
+      border-radius:10px; padding:10px; text-align:center; cursor:pointer;
+      transition:all 0.2s; box-shadow:0 0 12px rgba(255,109,0,0.06);
+    }
+    .shop-mythic-card:active { transform:scale(0.95); background:rgba(255,109,0,0.12); }
     .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .shop-star-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -1718,7 +1762,7 @@
       0%,100% { opacity: 1; transform: scale(1); }
       50%     { opacity: 0.6; transform: scale(1.2); }
     }
-    .drop-marker { animation: dropPulse 1.5s ease-in-out infinite; }
+    .drop-marker { }
 
     /* Delivery box pulse (gold glow) */
     @keyframes deliveryPulse {
@@ -1912,6 +1956,167 @@
     .projectile-glow-mythic    { filter: drop-shadow(0 0 10px #8b0000) drop-shadow(0 0 20px #8b000088); }
     .projectile-glow-legendary { filter: drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FF8C00aa) drop-shadow(0 0 30px #FFD70066); }
 
+    /* ── Combat projectile system ── */
+    .combat-projectile {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      font-size: 20px;
+      transform: translate(-50%, -50%);
+    }
+    .combat-hit-flash {
+      position: fixed;
+      z-index: 9998;
+      pointer-events: none;
+      font-size: 28px;
+      transform: translate(-50%, -50%);
+      animation: hitFlash 0.3s ease-out forwards;
+    }
+    @keyframes hitFlash {
+      0% { transform: translate(-50%,-50%) scale(1); opacity:1; }
+      50% { transform: translate(-50%,-50%) scale(2); opacity:0.8; }
+      100% { transform: translate(-50%,-50%) scale(0); opacity:0; }
+    }
+    .floating-damage {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      font-weight: 900;
+      font-size: 18px;
+      text-shadow: 0 0 6px rgba(0,0,0,0.8);
+      animation: combatFloatUp 1s ease-out forwards;
+    }
+    .floating-damage.crit {
+      font-size: 24px;
+      color: #FFD700 !important;
+    }
+    @keyframes combatFloatUp {
+      0% { opacity:1; transform: translate(-50%,0); }
+      100% { opacity:0; transform: translate(-50%,-60px); }
+    }
+    /* Mine HP bar overlay */
+    .mine-hp-bar {
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .mine-hp-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    /* ── Ore node markers ── */
+    .ore-marker {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(255,215,0,0.25), transparent 70%);
+      border-radius: 50%;
+      position: relative;
+      filter: drop-shadow(0 0 8px rgba(255,215,0,0.6));
+      animation: orePulse 2s infinite;
+    }
+    .ore-marker.free {
+      background: radial-gradient(circle, rgba(0,255,136,0.25), transparent 70%);
+      filter: drop-shadow(0 0 10px rgba(0,255,136,0.6));
+      animation: orePulseFree 1.2s infinite;
+    }
+    .ore-marker.mine-owned {
+      filter: drop-shadow(0 0 8px rgba(0,150,255,0.6));
+    }
+    .ore-level { font-size: 10px; color: #FFD700; font-weight: bold; text-shadow: 0 0 4px black; margin-top: -2px; }
+    .ore-owner { font-size: 9px; color: #aaa; white-space: nowrap; text-shadow: 0 0 4px black; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+    .ore-hp-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 30px; height: 3px; background: #333; border-radius: 2px; overflow: hidden; }
+    .ore-hp-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+    @keyframes orePulse {
+      0%,100% { filter: drop-shadow(0 0 8px rgba(255,215,0,0.6)); }
+      50% { filter: drop-shadow(0 0 14px rgba(255,215,0,0.8)); }
+    }
+    @keyframes orePulseFree {
+      0%,100% { filter: drop-shadow(0 0 10px rgba(0,255,136,0.6)); }
+      50% { filter: drop-shadow(0 0 20px rgba(0,255,136,0.9)); }
+    }
+    /* Player HP bar on map */
+    .player-hp-overlay {
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 36px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .player-hp-fill {
+      height: 100%;
+      background: #4caf50;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    /* Attack CD button */
+    .atk-btn-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .atk-cd-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      border-radius: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .atk-cd-overlay.active { opacity: 1; }
+    .atk-btn-pulse {
+      animation: atkPulse 0.5s ease-in-out infinite;
+    }
+    @keyframes atkPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,23,68,0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(255,23,68,0); }
+    }
+
+    /* ── Death screen ── */
+    #death-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 20000;
+      background: rgba(0,0,0,0.92);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #fff;
+    }
+    #death-screen.open { display: flex; }
+    #death-screen .death-skull { font-size: 80px; animation: deathPulse 2s ease-in-out infinite; }
+    #death-screen .death-text { font-size: 24px; font-weight: 900; color: #f44336; text-transform: uppercase; letter-spacing: 2px; }
+    #death-screen .death-timer { font-size: 48px; font-weight: 900; color: #FFD700; font-variant-numeric: tabular-nums; }
+    #death-screen .death-info { font-size: 14px; color: #888; }
+    /* Kill animation on map marker */
+    @keyframes killShrink {
+      0% { transform: scale(1); opacity: 1; }
+      30% { transform: scale(1.5); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .marker-killed .marker-wrap {
+      animation: killShrink 0.6s ease-in forwards !important;
+    }
+
+    @keyframes deathPulse {
+      0%,100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
     /* ── Mass selection mode ── */
     .inv-cell.selectable { cursor: pointer; }
     .inv-cell.selected { border-color: #FFD700 !important; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
@@ -2033,6 +2238,93 @@
     }
     .cs-color-grid .cg-cell.selected { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
     .cs-search { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; padding: 10px; font-size: 14px; margin-bottom: 12px; outline: none; }
+    .admin-monitor-card { background:#111; border-radius:12px; padding:12px; margin-bottom:12px; border:1px solid #333; }
+    .monitor-header { display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:15px; margin-bottom:12px; color:#fff; }
+    .monitor-header button { background:#222; border:1px solid #444; color:#fff; border-radius:8px; padding:4px 10px; cursor:pointer; font-size:16px; }
+    .monitor-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+    .monitor-section { background:#1a1a1a; border-radius:8px; padding:10px; margin-bottom:8px; }
+    .monitor-title { font-size:12px; color:#888; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+    .monitor-row { display:flex; justify-content:space-between; font-size:13px; color:#ccc; padding:3px 0; }
+    .monitor-row b { color:#fff; }
+    .monitor-bar { height:6px; background:#333; border-radius:3px; margin:4px 0 8px; overflow:hidden; }
+    .monitor-bar div { height:100%; border-radius:3px; transition:width 0.3s; }
+    .monitor-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+    .stat-chip { background:#222; border-radius:8px; padding:8px 4px; text-align:center; font-size:11px; color:#aaa; }
+    .stat-chip b { display:block; font-size:16px; color:#fff; margin-top:4px; }
+    .error-row { display:flex; gap:8px; font-size:12px; padding:4px 0; border-bottom:1px solid #222; }
+    .error-time { color:#666; min-width:45px; }
+    .error-msg { color:#f44336; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+    .activity-row { display:flex; gap:8px; font-size:12px; padding:3px 0; }
+    .activity-time { color:#666; min-width:45px; }
+    .activity-player { color:#FFD700; min-width:70px; }
+    .activity-action { color:#aaa; flex:1; }
+
+    /* ── Monument markers ── */
+    .monument-marker { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+    .monument-marker.open { animation: raid-pulse 0.5s infinite; }
+    .monument-marker.defeated { filter: grayscale(1) opacity(0.5); }
+
+    /* Dome shield — semi-transparent blue hemisphere */
+    .monument-dome {
+      position:absolute; inset:0; border-radius:50%;
+      background: radial-gradient(ellipse at 35% 30%, rgba(120,180,255,0.35), rgba(60,120,255,0.12) 60%, rgba(40,80,220,0.06));
+      border: 1.5px solid rgba(100,170,255,0.45);
+      box-shadow: 0 0 14px 4px rgba(80,150,255,0.25), inset 0 0 20px 2px rgba(120,180,255,0.10);
+      pointer-events:none;
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    /* Shimmer highlight on dome */
+    .monument-dome::after {
+      content:''; position:absolute; top:12%; left:18%; width:30%; height:22%;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.45), transparent 70%);
+      border-radius:50%; pointer-events:none;
+    }
+    /* Shield break animation */
+    .monument-dome.breaking {
+      animation: dome-shatter 0.6s ease-out forwards;
+    }
+    @keyframes dome-shatter {
+      0%   { opacity:1; transform:scale(1); border-color:rgba(100,170,255,0.45); }
+      30%  { opacity:0.8; transform:scale(1.15); border-color:rgba(255,120,60,0.7); box-shadow:0 0 30px 8px rgba(255,100,40,0.4); }
+      100% { opacity:0; transform:scale(1.5); border-color:transparent; box-shadow:none; }
+    }
+
+    /* Progress bars under emoji */
+    .monument-bars { width:60%; display:flex; flex-direction:column; gap:2px; margin-top:1px; }
+    .monument-bar-wrap { width:100%; height:3px; background:rgba(255,255,255,0.12); border-radius:2px; overflow:hidden; }
+    .monument-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
+    .monument-bar-fill.bar-shield { background:linear-gradient(90deg,#4488ff,#66bbff); }
+    .monument-bar-fill.bar-hp { background:linear-gradient(90deg,#cc2222,#ff4444); }
+
+    .defender-marker { display:flex; flex-direction:column; align-items:center; }
+    .defender-hp-bar { width:36px; height:4px; background:#333; border-radius:2px; overflow:hidden; }
+    .defender-hp-bar div { height:100%; background:#ff6600; transition:width 0.3s; }
+    .loot-box-marker { display:flex; flex-direction:column; align-items:center; cursor:pointer; }
+    .loot-box-marker.mine { filter: drop-shadow(0 0 8px gold); }
+    .loot-box-label { font-size:10px; color:white; text-shadow:0 0 4px black; white-space:nowrap; }
+    .loot-box-sublabel { font-size:9px; color:#aaa; text-shadow:0 0 4px black; white-space:nowrap; }
+    /* HQ & Collector popup cards */
+    .hq-stat-card { display:flex; justify-content:space-between; align-items:center; background:#252538; border-radius:10px; padding:10px 12px; font-size:13px; color:#ccc; }
+    .hq-collector-card { background:#252538; border-radius:10px; padding:10px 12px; }
+    .hq-coll-btn { width:100%; margin-top:6px; padding:8px; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; }
+    .hq-coll-btn.active { background:linear-gradient(135deg,#4caf50,#2e7d32); color:#fff; }
+    .hq-coll-btn:disabled { background:#333; color:#666; cursor:not-allowed; }
+    .hq-btn { width:100%; padding:14px; border:none; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer; }
+    .hq-btn.blue { background:#2196f3; color:#fff; }
+    .hq-btn.blue:disabled { background:#333; color:#666; }
+    .hq-btn.red { background:#f44336; color:#fff; font-size:13px; padding:10px; }
+    .coll-progress { width:100%; height:6px; background:#222; border-radius:3px; overflow:hidden; margin-top:6px; }
+    .coll-progress div { height:100%; border-radius:3px; transition:width 0.3s; }
+
+    /* Collector markers */
+    .collector-marker { display:flex; flex-direction:column; align-items:center; position:relative; }
+    .collector-bar { width:80%; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; margin-top:1px; }
+    .collector-bar div { height:100%; border-radius:2px; transition:width 0.3s; }
+    .collector-full { font-size:8px; color:#FFD700; font-weight:bold; animation: collector-blink 0.8s infinite; }
+    @keyframes collector-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    @keyframes raid-pulse { 0%,100% { filter: drop-shadow(0 0 10px #ff4444); } 50% { filter: drop-shadow(0 0 20px #ff4444); } }
+    @keyframes box-pulse { 0%,100% { filter: drop-shadow(0 0 12px gold); } 50% { filter: drop-shadow(0 0 24px gold); } }
   </style>
 </head>
 <body>
@@ -2152,6 +2444,7 @@
     </div>
     <!-- Admin tab (hidden by default) -->
     <div id="settings-tab-admin" class="settings-tab-content">
+      <div id="admin-stats"></div>
       <div class="settings-card">
         <div class="settings-section-title">УПРАВЛЕНИЕ</div>
         <button id="btn-maintenance-toggle" class="settings-action-btn s-danger">&#x1F534; Включить тех перерыв</button>
@@ -2191,39 +2484,6 @@
           <div id="admin-ban-actions"></div>
         </div>
       </div>
-      <!-- Server Errors -->
-      <div class="settings-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div class="settings-section-title" style="margin:0;">ОШИБКИ СЕРВЕРА <span id="admin-errors-count" style="color:#ff6b6b;">(0)</span></div>
-          <button onclick="_adminClearErrors()" style="background:rgba(255,68,68,0.15);border:1px solid rgba(255,68,68,0.3);color:#ff6b6b;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">Очистить</button>
-        </div>
-        <div id="admin-errors-list" style="max-height:400px;overflow-y:auto;"></div>
-      </div>
-      <!-- Player Search + Logs -->
-      <div class="settings-card">
-        <div class="settings-section-title">ПОИСК ИГРОКА И ЛОГИ</div>
-        <div style="display:flex;gap:6px;">
-          <input id="admin-player-search" type="text" placeholder="Введи ник или telegram_id..." style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;">
-          <button onclick="_adminSearchPlayer()" style="padding:10px 14px;background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.3);color:#FFD700;border-radius:10px;font-size:14px;cursor:pointer;">&#x1F50E;</button>
-        </div>
-        <div id="admin-player-card" style="margin-top:8px;"></div>
-        <!-- Player logs section -->
-        <div id="admin-player-logs-section" style="display:none;margin-top:12px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <div id="admin-logs-title" style="font-size:13px;font-weight:700;color:#aaa;"></div>
-            <button onclick="_adminExportLogs()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#aaa;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">Экспорт</button>
-          </div>
-          <div id="admin-logs-filters" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
-            <button class="admin-log-filter active" data-filter="all" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:rgba(255,215,0,0.15);color:#FFD700;">Все</button>
-            <button class="admin-log-filter" data-filter="action" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Действия</button>
-            <button class="admin-log-filter" data-filter="login" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Входы</button>
-            <button class="admin-log-filter" data-filter="ban" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Баны</button>
-            <button class="admin-log-filter" data-filter="spoof" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Спуф</button>
-            <button class="admin-log-filter" data-filter="warn" style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#888;">Rate</button>
-          </div>
-          <div id="admin-logs-list" style="max-height:500px;overflow-y:auto;"></div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -2254,13 +2514,26 @@
 
 <!-- Top currency pill -->
 <div id="hud-top-pill">
-  <div class="hud-row-1">
+  <div class="hud-collapsed">
     <span class="hud-coins">💰 <span id="coin-display">—</span></span>
     <span class="hud-sep">·</span>
-    <span class="hud-income" id="income-display"></span>
-  </div>
-  <div class="hud-row-2">
+    <span class="hud-income" id="income-display-collapsed" style="font-size:12px;color:#00E676;"></span>
+    <span class="hud-sep">·</span>
     <span class="hud-diamonds">💎 <span id="diamond-display">0</span></span>
+    <button class="hud-toggle-btn" id="hud-toggle-btn" onclick="toggleHud()">▼</button>
+  </div>
+  <div class="hud-expanded" id="hud-expanded">
+    <div class="hud-exp-row" style="margin-top:6px;">
+      <span class="hud-coins">💰 <span id="coin-display-exp">—</span></span>
+      <span class="hud-income" id="income-display"></span>
+    </div>
+    <div class="hud-exp-row">
+      <span id="crystal-display" style="color:#FFD700;font-size:13px;">✨ 0</span>
+      <span id="crystal-income-display" style="color:#aa88ff;font-size:11px;margin-left:2px;"></span>
+    </div>
+    <div class="hud-exp-row">
+      <span class="hud-diamonds">💎 <span id="diamond-display-exp">0</span></span>
+    </div>
   </div>
 </div>
 
@@ -2345,21 +2618,42 @@
     <!-- Boxes tab -->
     <div id="shop-tab-boxes" class="shop-tab-content active">
       <div class="shop-boxes-row">
-        <div class="shop-box-card" style="border-color:rgba(0,200,83,0.3);background:rgba(0,200,83,0.05);box-shadow:0 0 20px rgba(0,200,83,0.1);position:relative;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();_showBoxInfo('rare')">i</button>
+        <div class="shop-box-card" style="border-color:rgba(76,175,80,0.35);background:#1a1a1a;box-shadow:0 0 24px rgba(76,175,80,0.08);position:relative;">
+          <button class="shop-box-info-btn shop-info-btn" data-box="rare" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
           <div class="shop-box-name">Редкий бокс</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;">⚔️ Меч · 🪓 Топор · 🛡️ Щит</div>
-          <div class="shop-box-price">💎 5 алмазов</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="rare">Открыть</button>
+          <div class="shop-box-price">💎 5</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(76,175,80,0.2),rgba(76,175,80,0.08));border-color:rgba(76,175,80,0.4);color:#4caf50;">Открыть</button>
         </div>
-        <div class="shop-box-card" style="border-color:rgba(245,0,87,0.3);background:rgba(245,0,87,0.05);box-shadow:0 0 20px rgba(245,0,87,0.1);position:relative;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();_showBoxInfo('epic')">i</button>
+        <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;box-shadow:0 0 24px rgba(156,39,176,0.08);position:relative;">
+          <button class="shop-box-info-btn shop-info-btn" data-box="epic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🎁</div>
           <div class="shop-box-name">Эпический бокс</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:4px;">⚔️ Меч · 🪓 Топор · 🛡️ Щит</div>
-          <div class="shop-box-price">💎 30 алмазов</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="epic">Открыть</button>
+          <div class="shop-box-price">💎 30</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(156,39,176,0.08));border-color:rgba(156,39,176,0.4);color:#ce93d8;">Открыть</button>
+        </div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;">🔥 Мифическое снаряжение</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div class="shop-mythic-card" onclick="buyMythic('sword')" style="position:relative;">
+            <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
+            <div style="font-size:32px;">🗡️</div>
+            <div style="font-size:11px;font-weight:600;color:#fff;">Меч</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
+          </div>
+          <div class="shop-mythic-card" onclick="buyMythic('axe')" style="position:relative;">
+            <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('axe')">i</button>
+            <div style="font-size:32px;">🪓</div>
+            <div style="font-size:11px;font-weight:600;color:#fff;">Топор</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
+          </div>
+          <div class="shop-mythic-card" onclick="buyMythic('shield')" style="position:relative;">
+            <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
+            <div style="font-size:32px;">🛡️</div>
+            <div style="font-size:11px;font-weight:600;color:#fff;">Щит</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
+          </div>
         </div>
       </div>
     </div>
@@ -2390,7 +2684,7 @@
     <h3 id="box-odds-title"></h3>
     <div id="box-odds-rows"></div>
     <div class="odds-footer">
-      Предметы: 🗡️ мечи, 🛡️ щиты<br>
+      Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты<br>
       Легендарные: недоступны
     </div>
     <button id="box-odds-close">Закрыть</button>
@@ -2453,51 +2747,39 @@ let TG_NAME = tgUser?.username || 'unknown';
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
 const VPS_URL = 'https://overthrow.ru:8443';  // Socket.io direct
-const MINE_MAX_LEVEL    = 250;
+const MINE_MAX_LEVEL    = 200;
 const HQ_MAX_LEVEL      = 10;
 const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
 function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
-const SMALL_RADIUS = 200;        // build / collect / upgrade zone (metres)
-const LARGE_RADIUS = 500;        // combat / vase zone (metres)
-const H3_RES            = 11;    // ~50m hex diameter
-const H3_DISK_K         = 12;    // gridDisk radius for ~500m range
+const SMALL_RADIUS = 200;
+const LARGE_RADIUS = 500;
+const H3_RES            = 11;
+const H3_DISK_K         = 12;
 
 // Formulas (keep in sync with lib/formulas.js)
-function mineBaseCost(l) {
-  if (l <= 0)   return 100; // activation cost 0→1
-  if (l <= 50)  return 100 * Math.pow(1.21, l - 1);
-  const e1 = 100 * Math.pow(1.21, 49);
-  if (l <= 100) return e1 * 5 * Math.pow(1.15, l - 51);
-  const e2 = e1 * 5 * Math.pow(1.15, 49);
-  if (l <= 150) return e2 * 8 * Math.pow(1.13, l - 101);
-  const e3 = e2 * 8 * Math.pow(1.13, 49);
-  if (l <= 200) return e3 * 12 * Math.pow(1.12, l - 151);
-  const e4 = e3 * 12 * Math.pow(1.12, 49);
-  return e4 * 20 * Math.pow(1.11, l - 201);
-}
 function getMineUpgradeCost(level) {
-  let cost = mineBaseCost(level);
-  if (level >= 9 && level % 10 === 9) cost *= 4;
-  return Math.min(Math.round(cost), 9_000_000_000_000_000_000);
-}
-function getPayback(l) {
-  if (l <= 50)  return 3600 * Math.pow(6, (l - 1) / 49);
-  if (l <= 100) return 21600 * Math.pow(12, (l - 50) / 50);
-  if (l <= 150) return 259200 * Math.pow(4.67, (l - 100) / 50);
-  if (l <= 200) return 1209600 * Math.pow(4.29, (l - 150) / 50);
-  return 5184000 * Math.pow(6.08, (l - 200) / 50);
+  if (level <= 0) return 0;
+  if (level <= 100) return Math.floor(998 * Math.pow(1.1301, level - 1));
+  const base100 = Math.floor(998 * Math.pow(1.1301, 99));
+  return Math.floor(base100 * Math.pow(1.1857, level - 100));
 }
 function getMineIncome(level) {
-  if (level === 0) return 0;
-  const cost = mineBaseCost(level);
-  return Math.max(1, Math.round(cost / getPayback(level)));
+  if (level <= 0) return 0;
+  // Returns coins/sec. Targets: lv1=50/h, lv100=1.1M/h, lv200=5B/h
+  if (level <= 100) return 50 * Math.pow(1.1063, level - 1) / 3600;
+  const base100 = 50 * Math.pow(1.1063, 99) / 3600;
+  return base100 * Math.pow(1.0879, level - 100);
 }
 function getMineCapacity(level) {
-  if (level === 0) return 0;
-  const days = level <= 100 ? 6 : level <= 150 ? 5 : level <= 200 ? 4 : 3;
-  return Math.round(getMineIncome(level) * days * 86400);
+  if (level <= 0) return 0;
+  const income = getMineIncome(level);
+  let hours;
+  if (level < 50) hours = 6;
+  else if (level < 100) hours = 168;
+  else if (level < 150) hours = 336;
+  else hours = 480;
+  return Math.floor(income * hours * 3600);
 }
-// Backward-compat aliases used elsewhere in this file
 const mineRate = getMineIncome;
 const mineUpgradeCost = getMineUpgradeCost;
 
@@ -2510,8 +2792,8 @@ const HQ_LEVELS = [
   { level:6,  maxMines:60,  maxMineLevel:150, upgradeCost:50_000_000 },
   { level:7,  maxMines:70,  maxMineLevel:175, upgradeCost:500_000_000 },
   { level:8,  maxMines:80,  maxMineLevel:200, upgradeCost:5_000_000_000 },
-  { level:9,  maxMines:90,  maxMineLevel:225, upgradeCost:50_000_000_000 },
-  { level:10, maxMines:100, maxMineLevel:250, upgradeCost:500_000_000_000 },
+  { level:9,  maxMines:90,  maxMineLevel:200, upgradeCost:50_000_000_000 },
+  { level:10, maxMines:100, maxMineLevel:200, upgradeCost:500_000_000_000 },
 ];
 function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
@@ -2612,14 +2894,7 @@ function _setPlayerCoins(coins) {
 }
 
 function _startCoinTick() {
-  if (_coinTickInterval) return;
-  _coinTickInterval = setInterval(() => {
-    if (!_incomePerSecond || !_lastTickTime) return;
-    const elapsed = (Date.now() - _lastTickTime) / 1000;
-    const earned = _incomePerSecond * elapsed;
-    const display = Math.floor(_localCoins + earned);
-    document.getElementById('coin-display').textContent = formatCoins(display);
-  }, 1000);
+  // Disabled: coins only update from server on collect
 }
 
 // Map fetch state — declared here to avoid TDZ when loadVisibleBuildings is hoisted
@@ -2666,7 +2941,7 @@ function _addOrUpdateMineMarker(mine) {
     existing.off('click');
     existing.on('click', () => showMinePopup(mine, isOwn, false));
   } else {
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt), zIndexOffset: 450 })
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, false));
     marker._gw_level   = displayLevel;
@@ -2689,7 +2964,7 @@ function _addOrUpdateHqMarker(hq) {
     existing.off('click');
     existing.on('click', () => showHqPopup(hq, isOwn));
   } else {
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 480 })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     marker._gw_isOwn = isOwn;
@@ -2726,10 +3001,11 @@ function getBuildingInCell(cellId) {
   return null;
 }
 
-function calcAccumulated(level, lastCollectedISO) {
+function calcAccumulated(level, lastCollectedISO, customIncome) {
   if (level === 0) return 0;
   const elapsedSec = (Date.now() - new Date(lastCollectedISO).getTime()) / 1000;
-  const raw = mineRate(level) * Math.max(0, elapsedSec);
+  const rate = customIncome || mineRate(level);
+  const raw = rate * Math.max(0, elapsedSec);
   return Math.min(Math.round(raw), getMineCapacity(level));
 }
 
@@ -2737,7 +3013,7 @@ function calcAccumulated(level, lastCollectedISO) {
 function xpForLevel(level) { return Math.floor(100 * Math.pow(level, 1.9)); }
 
 // Inline mirrors of lib/formulas.js (frontend has no imports)
-function _calcMaxHp(_level)      { return 100; }
+function _calcMaxHp(_level)      { return 1000; }
 function _calcAttack(_level)     { return 10; }
 function _calcBuildRadius(_lvl)  { return SMALL_RADIUS; }
 
@@ -2854,6 +3130,86 @@ function rarityLabel(rarity) {
   return `<span style="color:${color}">${name}</span>`;
 }
 
+function showItemReveal(item, source) {
+  const REVEAL_COLORS = {common:'#9e9e9e',uncommon:'#4caf50',rare:'#2196f3',epic:'#9c27b0',mythic:'#ff6d00',legendary:'#ffd700'};
+  const color = REVEAL_COLORS[item.rarity] || '#888';
+
+  let bonusHtml = '';
+  if (item.rarity === 'mythic' || item.rarity === 'legendary') {
+    const prefix = item.rarity === 'mythic' ? '🔥 Мифический' : '👑 Легендарный';
+    let bonusText = '';
+    if (item.type === 'sword') bonusText = item.rarity === 'mythic' ? 'Крит множитель ×1.5 → ×2.2 при прокачке' : 'Крит множитель ×1.5 → ×3.0 при прокачке';
+    if (item.type === 'axe') bonusText = item.rarity === 'mythic' ? 'Казнь врага &lt; 50% HP — шанс 7-17%' : 'Казнь врага &lt; 50% HP — шанс 13-20%';
+    if (item.type === 'shield') bonusText = item.rarity === 'mythic' ? 'Блок удара — шанс 10-25%' : 'Блок удара — шанс 20-41%';
+    if (bonusText) {
+      bonusHtml = `<div style="margin-top:16px;padding:12px 16px;background:rgba(0,0,0,0.5);border:1px solid ${color}44;border-radius:12px;">
+        <div style="font-size:13px;color:${color};font-weight:600;">${prefix} бонус:</div>
+        <div style="font-size:12px;color:#ccc;margin-top:4px;">${bonusText}</div>
+      </div>`;
+    }
+  }
+
+  let statsHtml = '';
+  if (item.attack > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">⚔️ Атака</span><span style="font-weight:700;">${item.attack}</span></div>`;
+  if (item.crit_chance > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">💥 Крит</span><span style="font-weight:700;">${item.crit_chance}%</span></div>`;
+  if (item.defense > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">🛡️ Защита</span><span style="font-weight:700;">+${item.defense}</span></div>`;
+  if (item.block_chance > 0) statsHtml += `<div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="color:#aaa;">🔰 Блок</span><span style="font-weight:700;">${item.block_chance}%</span></div>`;
+
+  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity]||'';
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:15000;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;';
+
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  ov.appendChild(canvas);
+
+  const content = document.createElement('div');
+  content.style.cssText = 'position:relative;z-index:1;text-align:center;max-width:300px;width:100%;';
+  content.innerHTML = `
+    <div style="font-size:72px;filter:drop-shadow(0 0 20px ${color});margin-bottom:12px;">${item.emoji}</div>
+    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">${item.name}</div>
+    <div style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44;">${rarLabel}</div>
+    <div style="margin-top:16px;text-align:left;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
+      ${statsHtml}
+    </div>
+    ${bonusHtml}
+    <button onclick="this.closest('div[style*=fixed]').remove()" style="margin-top:20px;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;background:${color};color:#000;">Продолжить</button>
+  `;
+  ov.appendChild(content);
+  document.body.appendChild(ov);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const particles = Array.from({length:40}, () => ({
+    x: Math.random() * canvas.width,
+    y: canvas.height + Math.random() * 100,
+    speed: 0.3 + Math.random() * 0.7,
+    size: 1 + Math.random() * 3,
+    alpha: 0.3 + Math.random() * 0.5,
+  }));
+  function animParticles() {
+    if (!ov.parentNode) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of particles) {
+      p.y -= p.speed;
+      if (p.y < -10) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = color + Math.round(p.alpha * 255).toString(16).padStart(2,'0');
+      ctx.fill();
+    }
+    requestAnimationFrame(animParticles);
+  }
+  animParticles();
+
+  if (window.Telegram?.WebApp?.HapticFeedback) {
+    const impact = (item.rarity === 'legendary' || item.rarity === 'mythic') ? 'heavy' : 'medium';
+    window.Telegram.WebApp.HapticFeedback.impactOccurred(impact);
+  }
+}
+
 function showProfilePopup() {
   const p = state.player;
   if (!p) return;
@@ -2894,8 +3250,8 @@ function showProfilePopup() {
   statsEl.innerHTML = '';
 
   const rows = [
-    ['❤️ HP', `${hp} / ${maxHp}${bonusHp ? ` <span class="bonus">(+${bonusHp})</span>` : ''}`],
-    ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk} <span class="bonus">+${bonusAtk} от ${equippedWeapon?.type === 'axe' ? 'топора' : 'меча'}</span>` : `${baseAtk}`],
+    ['❤️ HP', `${hp} / ${maxHp}`],
+    ['⚔️ Атака', `${baseAtk + bonusAtk}`],
     ['💥 Крит', `${critChance}%`],
     ['⭐ XP', formatNumber(xp)],
     ['🏆 Уровень', `${level}`],
@@ -2929,16 +3285,18 @@ function _renderEquipSlots() {
   const shieldSlot = document.getElementById('equip-slot-shield');
 
   if (weapon) {
+    const wl = weapon.upgrade_level || 0;
     weaponSlot.className = `char-equip-slot filled ${rarityClass(weapon.rarity)}`;
-    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span>`;
+    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span><span class="inv-lvl">${wl > 0 ? '+' + wl : 'Ур.0'}</span>`;
   } else {
     weaponSlot.className = 'char-equip-slot';
     weaponSlot.innerHTML = '<span class="slot-empty">⚔️</span>';
   }
 
   if (shield) {
+    const sl = shield.upgrade_level || 0;
     shieldSlot.className = `char-equip-slot filled ${rarityClass(shield.rarity)}`;
-    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span>`;
+    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span><span class="inv-lvl">${sl > 0 ? '+' + sl : 'Ур.0'}</span>`;
   } else {
     shieldSlot.className = 'char-equip-slot';
     shieldSlot.innerHTML = '<span class="slot-empty">🛡️</span>';
@@ -2958,7 +3316,8 @@ function _renderInventoryGrid() {
   for (const item of inv) {
     const cell = document.createElement('div');
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
-    cell.innerHTML = `<span>${item.emoji}</span>`;
+    const lvl = item.upgrade_level || 0;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${lvl > 0 ? '+' + lvl : 'Ур.0'}</span>`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -3000,55 +3359,211 @@ function showItemDetail(itemId) {
   const item = (state.inventory || []).find(i => i.id === itemId);
   if (!item) return;
   _currentItemId = itemId;
+  openItemDetail(item);
+}
 
-  document.getElementById('item-detail-emoji').textContent  = item.emoji;
-  document.getElementById('item-detail-name').textContent   = item.name;
-  document.getElementById('item-detail-rarity').innerHTML   = rarityLabel(item.rarity);
-  document.getElementById('item-detail-stat').textContent   = itemStatLabel(item);
+// ── Item detail card ──
+function openItemDetail(item) {
+  const ov = document.getElementById('item-detail-overlay');
+  const card = document.getElementById('item-detail-card');
+  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+  const isGrad = rarColor.startsWith('linear');
+  const borderStyle = isGrad ? `border-image:${rarColor} 1` : `border-color:${rarColor}`;
 
-  const btns = document.getElementById('item-detail-btns');
-  btns.innerHTML = '';
+  const maxLvl = { common:10, uncommon:25, rare:50, epic:75, mythic:90, legendary:100 }[item.rarity] || 10;
+  const upgLvl = item.upgrade_level || 0;
+  const upgPct = Math.round(upgLvl / maxLvl * 100);
 
-  if (item.on_market) {
-    // Item is in transit (courier delivery) — no actions
-    const info = document.createElement('div');
-    info.style.cssText = 'text-align:center;color:#ffaa00;font-size:13px;margin:8px 0;';
-    info.textContent = '🚚 Предмет в пути (доставка курьером)';
-    btns.appendChild(info);
-  } else if (item.equipped) {
-    const unBtn = document.createElement('button');
-    unBtn.className = 'btn';
-    unBtn.textContent = 'Снять';
-    unBtn.onclick = () => doUnequipItem(itemId);
-    btns.appendChild(unBtn);
-  } else {
-    const eqBtn = document.createElement('button');
-    eqBtn.className = 'btn primary';
-    eqBtn.textContent = 'Надеть';
-    eqBtn.onclick = () => doEquipItem(itemId);
-    btns.appendChild(eqBtn);
+  // Upgrade cost
+  function getUpgCost(lvl) {
+    if (lvl <= 10) return 40;
+    if (lvl <= 25) return 120;
+    if (lvl <= 50) return 300;
+    if (lvl <= 75) return 800;
+    if (lvl <= 90) return 2000;
+    return 5000;
+  }
+  const nextCost = upgLvl < maxLvl ? getUpgCost(upgLvl + 1) : 0;
+  const crystals = state.player?.crystals || 0;
+  const canAfford = crystals >= nextCost;
+  const isMaxed = upgLvl >= maxLvl;
 
-    // Sell button — intentionally subdued
-    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
-    const sellBtn = document.createElement('button');
-    sellBtn.className = 'btn-sell-item';
-    sellBtn.textContent = `Продать за ${sellPrice} 💎`;
-    sellBtn.onclick = () => showSellConfirm(item, sellPrice);
-    btns.appendChild(sellBtn);
+  // Compute dynamic stats (execution_chance, crit_multiplier — not stored in DB)
+  const mul = 1 + upgLvl * 0.01;
+  let computedCritMul = 1.5;
+  let computedExec = 0;
+  let computedBlock = item.block_chance || 0;
+  if (item.type === 'sword') {
+    if (item.rarity === 'mythic') computedCritMul = 1.5 + (upgLvl / 90) * 0.7;
+    else if (item.rarity === 'legendary') computedCritMul = 1.5 + (upgLvl / 100) * 1.5;
+  }
+  if (item.type === 'axe') {
+    if (item.rarity === 'mythic') computedExec = 7 + (upgLvl / 90) * 10;
+    else if (item.rarity === 'legendary') computedExec = 13 + (upgLvl / 100) * 7;
+  }
+  if (item.type === 'shield' && (item.rarity === 'mythic' || item.rarity === 'legendary')) {
+    const baseBlock = item.block_chance || 0;
+    if (item.rarity === 'mythic') computedBlock = baseBlock + (upgLvl / 90) * 5;
+    else computedBlock = baseBlock + (upgLvl / 100) * 6;
   }
 
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn';
-  cancelBtn.textContent = 'Закрыть';
-  cancelBtn.onclick = closeItemDetail;
-  btns.appendChild(cancelBtn);
+  // Stats
+  let statsHtml = '';
+  if (item.type === 'sword' || item.type === 'axe') {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">⚔️ Атака</span><span class="idc-stat-value">${item.attack}</span></div>`;
+  }
+  if (item.type === 'sword') {
+    const critVal = typeof item.crit_chance === 'number' ? item.crit_chance : 0;
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💥 Крит шанс</span><span class="idc-stat-value">${critVal.toFixed(1)}%</span></div>`;
+    if (computedCritMul > 1.5) {
+      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">✨ Крит урон</span><span class="idc-stat-value">×${computedCritMul.toFixed(2)}</span></div>`;
+    }
+  }
+  if (item.type === 'axe' && computedExec > 0) {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💀 Казнь</span><span class="idc-stat-value">${computedExec.toFixed(1)}%</span></div>`;
+  }
+  if (item.type === 'shield') {
+    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🛡️ Защита HP</span><span class="idc-stat-value">+${item.defense}</span></div>`;
+    if (computedBlock > 0) {
+      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🔰 Блок</span><span class="idc-stat-value">${computedBlock.toFixed(1)}%</span></div>`;
+    }
+  }
 
-  document.getElementById('item-detail-overlay').classList.add('open');
+  // Features
+  let featHtml = '';
+  if (item.type === 'sword' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Крит множитель растёт до ×2.2 при прокачке</div>';
+  if (item.type === 'sword' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Крит множитель растёт до ×3.0 при прокачке</div>';
+  if (item.type === 'axe' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Казнь: мгновенное убийство врага &lt;50% HP (до 17%)</div>';
+  if (item.type === 'axe' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Казнь: мгновенное убийство врага &lt;50% HP (до 20%)</div>';
+  if (item.type === 'shield' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Блок удара растёт до ~25% при прокачке</div>';
+  if (item.type === 'shield' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Блок удара растёт до ~41% при прокачке</div>';
+
+  // Upgrade button
+  let upgBtnHtml = '';
+  if (isMaxed) {
+    upgBtnHtml = '<button class="idc-upgrade-btn maxed">✅ Максимальный уровень</button>';
+  } else if (canAfford) {
+    upgBtnHtml = `<button class="idc-upgrade-btn can-afford" id="idc-upg-btn" data-item-id="${item.id}">✨ Прокачать за ${nextCost} осколков</button>`;
+  } else {
+    upgBtnHtml = `<button class="idc-upgrade-btn cant-afford">✨ Нужно ${nextCost} осколков (есть ${crystals})</button>`;
+  }
+
+  // Action buttons (equip/unequip/sell)
+  let actionsHtml = '';
+  if (item.on_market) {
+    actionsHtml = '<div style="text-align:center;color:#ffaa00;font-size:13px;margin:8px 0;">🚚 Предмет в пути (доставка курьером)</div>';
+  } else if (item.equipped) {
+    actionsHtml = '<div class="idc-actions"><button class="btn" id="idc-unequip-btn">Снять</button></div>';
+  } else {
+    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    actionsHtml = `<div class="idc-actions"><button class="btn primary" id="idc-equip-btn">Надеть</button></div>
+    <button class="btn-sell-item" id="idc-sell-btn">Продать за ${sellPrice} 💎</button>`;
+  }
+
+  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity] || '';
+  const typeLabel = {sword:'Меч',axe:'Топор',shield:'Щит'}[item.type] || '';
+
+  // Cost table for info tab
+  const costTable = [
+    ['1-10', '40✨'], ['11-25', '120✨'], ['26-50', '300✨'],
+    ['51-75', '800✨'], ['76-90', '2000✨'], ['91-100', '5000✨']
+  ].filter(([range]) => {
+    const max = parseInt(range.split('-')[1]);
+    return max <= maxLvl;
+  }).map(([range, cost]) => `<div class="idc-stat-row"><span class="idc-stat-label">Ур. ${range}</span><span class="idc-stat-value">${cost}</span></div>`).join('');
+
+  card.style = isGrad ? `border-image:${rarColor} 1` : `border-color:${rarColor}`;
+  card.innerHTML = `
+    <button class="idc-close" onclick="closeItemDetail()">✕</button>
+    <div class="idc-header">
+      <div class="idc-emoji" style="${isGrad ? '' : `filter:drop-shadow(0 0 12px ${rarColor})`}">${item.emoji}</div>
+      <div class="idc-name">${item.name}</div>
+      <div class="idc-rarity" style="color:${isGrad ? '#FFD700' : rarColor}">${rarLabel} ${typeLabel}</div>
+      <div class="idc-level">Ур. ${upgLvl} / ${maxLvl}</div>
+      <div class="idc-upgrade-bar"><div class="idc-upgrade-fill" style="width:${upgPct}%"></div></div>
+    </div>
+    <div class="idc-tabs">
+      <div class="idc-tab active" data-tab="stats" onclick="switchItemTab('stats')">Статы</div>
+      <div class="idc-tab" data-tab="info" onclick="switchItemTab('info')">Инфо</div>
+    </div>
+    <div class="idc-tab-content active" id="idc-stats">
+      ${statsHtml}
+      ${featHtml}
+      ${upgBtnHtml}
+      ${actionsHtml}
+    </div>
+    <div class="idc-tab-content" id="idc-info">
+      <div style="font-size:13px;color:#aaa;margin-bottom:8px;">Стоимость прокачки:</div>
+      ${costTable}
+      <div style="font-size:13px;color:#aaa;margin-top:12px;">Макс. уровень: ${maxLvl}</div>
+    </div>
+  `;
+
+  // Bind upgrade button
+  const upgBtn = document.getElementById('idc-upg-btn');
+  if (upgBtn) {
+    upgBtn.addEventListener('click', () => doUpgradeItem(item));
+  }
+
+  // Bind equip/unequip/sell buttons
+  const equipBtn = document.getElementById('idc-equip-btn');
+  if (equipBtn) equipBtn.addEventListener('click', () => doEquipItem(item.id));
+  const unequipBtn = document.getElementById('idc-unequip-btn');
+  if (unequipBtn) unequipBtn.addEventListener('click', () => doUnequipItem(item.id));
+  const sellBtn = document.getElementById('idc-sell-btn');
+  if (sellBtn) {
+    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    sellBtn.addEventListener('click', () => showSellConfirm(item, sellPrice));
+  }
+
+  ov.classList.add('open');
 }
 
 function closeItemDetail() {
   document.getElementById('item-detail-overlay').classList.remove('open');
   _currentItemId = null;
+}
+
+function switchItemTab(tab) {
+  document.querySelectorAll('.idc-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('idc-stats').classList.toggle('active', tab === 'stats');
+  document.getElementById('idc-info').classList.toggle('active', tab === 'info');
+}
+
+async function doUpgradeItem(item) {
+  const btn = document.getElementById('idc-upg-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade-item', telegram_id: TG_ID, item_id: item.id }),
+    });
+    // Update local item
+    if (data.stats) Object.assign(item, data.stats);
+    item.upgrade_level = data.upgrade_level;
+    if (state.player) state.player.crystals = data.crystals_left;
+    // Update inventory
+    const inv = (state.inventory || []).find(i => i.id === item.id);
+    if (inv) Object.assign(inv, item);
+    // Flash animation
+    const card = document.getElementById('item-detail-card');
+    if (card) { card.classList.add('upgrade-flash'); setTimeout(() => card.classList.remove('upgrade-flash'), 500); }
+    // Haptic
+    if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+    showToast(`✨ Ур.${data.upgrade_level}! Атака: ${data.stats?.attack || item.attack}`);
+    // Reopen with updated data
+    openItemDetail(item);
+    updateCrystalDisplay();
+    _renderEquipSlots();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Прокачать'; }
+  }
+}
+
+function updateCrystalDisplay() {
+  const el = document.getElementById('crystal-display');
+  if (el) el.textContent = `✨ ${state.player?.crystals || 0}`;
 }
 
 function showSellConfirm(item, price) {
@@ -3164,11 +3679,11 @@ function _refreshProfileStats() {
       <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
         <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
       </div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP${bonusHp ? ` (+${bonusHp} от щита)` : ''}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP</div>
     </div>
   `;
   const rows = [
-    ['⚔️ Атака', bonusAtk > 0 ? `${baseAtk + bonusAtk} <span class="bonus">(+${bonusAtk})</span>` : `${baseAtk}`],
+    ['⚔️ Атака', `${baseAtk + bonusAtk}`],
   ];
   if (critChance > 0) {
     rows.push(['🎯 Крит', `${critChance}%`]);
@@ -3243,7 +3758,7 @@ function showToast(msg, duration = 2500) {
   }
   const el = document.createElement('div');
   el.style.cssText = `background:rgba(8,8,18,0.92);border:1px solid rgba(255,255,255,0.1);border-radius:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:13px;color:#e0e0e0;transform:translateX(-120%);opacity:0;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.35s cubic-bezier(0.34,1.56,0.64,1);word-break:break-word;box-shadow:0 4px 16px rgba(0,0,0,0.5);`;
-  el.innerHTML = msg;
+  el.innerHTML = typeof msg === 'string' ? msg.replace(/\n/g, '<br>') : msg;
   container.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => {
     el.style.transform = 'translateX(0)';
@@ -3291,6 +3806,8 @@ const map = L.map('map', {
   attributionControl: false,
   minZoom: 15,
   maxZoom: 19,
+  zoomSnap: 0,
+  zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
 // Map style from localStorage — apply saved style on load
@@ -3353,6 +3870,16 @@ async function doTeleportToHq() {
     if (!hqLat || !hqLng) {
       showToast('🏰 Сначала постройте штаб');
       return;
+    }
+    // PIN abuse fix: HQ must be 24h+ old
+    const hqCreatedAt = state.hq?.created_at;
+    if (hqCreatedAt) {
+      const ageMs = Date.now() - new Date(hqCreatedAt).getTime();
+      if (ageMs < 24 * 60 * 60 * 1000) {
+        const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - ageMs) / 3600000);
+        showToast(`🏰 Пин доступен через ${hoursLeft}ч`);
+        return;
+      }
     }
     realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
     pinMode = true;
@@ -3602,77 +4129,49 @@ function updateHexGrid() {
 }
 
 function showBuildMenu(cellLat, cellLng) {
-  document.getElementById('popup-title').innerHTML = '&#x1F3D7;&#xFE0F; Построить';
-  document.getElementById('popup-subtitle').textContent = 'Выбери тип постройки';
-
-  const statsEl = document.getElementById('popup-stats');
-  statsEl.innerHTML = '';
-
-  // HQ card — only if player has no HQ yet
-  if (!state.hq) {
-    const hqCard = document.createElement('div');
-    hqCard.className = 'build-card';
-    hqCard.innerHTML = `
-      <div class="build-card-header"><span>&#x26A1;</span><span>Штаб</span></div>
-      <div class="build-card-desc">Хранит монеты &bull; Только один на игрока</div>
-      <div class="build-card-meta">Бесплатно</div>
-    `;
-    const hqBtn = document.createElement('button');
-    hqBtn.className = 'btn primary';
-    hqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-    hqBtn.innerHTML = '&#x26A1; Построить штаб';
-    hqBtn.addEventListener('click', () => { closePopup(); doBuildHq(cellLat, cellLng); });
-    hqCard.appendChild(hqBtn);
-    statsEl.appendChild(hqCard);
-  }
-
-  // Mine card — always shown
-  const mineCard = document.createElement('div');
-  mineCard.className = 'build-card';
-  mineCard.innerHTML = `
-    <div class="build-card-header"><span>&#x26CF;&#xFE0F;</span><span>Шахта</span></div>
-    <div class="build-card-desc">Генерирует монеты пассивно</div>
-    <div class="build-card-meta">30 монет/ч &bull; Бесплатно</div>
-  `;
-  const mineBtn = document.createElement('button');
-  mineBtn.className = 'btn yellow';
-  mineBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-  mineBtn.innerHTML = '&#x26CF;&#xFE0F; Построить шахту';
-  mineBtn.addEventListener('click', () => { closePopup(); doBuildMine(cellLat, cellLng); });
-  mineCard.appendChild(mineBtn);
-  statsEl.appendChild(mineCard);
-
-  // Clan HQ card — only if player has no clan HQ yet
-  const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine);
+  const hasHq = state.hq || (state.mapBuildings?.headquarters || []).some(h => h.is_mine);
+  const hasClanHq = (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine || ch.player_id === state.player?.id);
   const playerCoins = state.player?.coins ?? 0;
-  if (!hasClanHq) {
-    const canAfford = playerCoins >= CLAN_HQ_COST;
-    const chqCard = document.createElement('div');
-    chqCard.className = 'build-card';
-    chqCard.innerHTML = `
-      <div class="build-card-header"><span>&#x1F3F0;</span><span>Штаб Клана</span></div>
-      <div class="build-card-desc">Зона клана &bull; Бусты для участников</div>
-      <div class="build-card-meta">${formatCoins(CLAN_HQ_COST)} монет${!canAfford ? ` (нужно ещё ${formatCoins(CLAN_HQ_COST - playerCoins)})` : ''}</div>
-    `;
-    const chqBtn = document.createElement('button');
-    chqBtn.className = 'btn primary';
-    chqBtn.style.cssText = 'width:100%;padding:10px;font-size:14px;';
-    if (!canAfford) { chqBtn.disabled = true; chqBtn.style.opacity = '0.5'; }
-    chqBtn.innerHTML = '&#x1F3F0; Построить штаб клана';
-    chqBtn.addEventListener('click', () => { closePopup(); doBuildClanHq(cellLat, cellLng); });
-    chqCard.appendChild(chqBtn);
-    statsEl.appendChild(chqCard);
+  const hasDiamonds = (state.player?.diamonds || 0) >= 75;
+  const canAffordClanHq = playerCoins >= CLAN_HQ_COST;
+
+  const card = document.getElementById('popup-card');
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-size:16px;font-weight:600;color:#fff">🏗️ Построить</div>
+    <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">`;
+
+  if (!hasHq) {
+    html += `<div class="hq-collector-card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">⚡ Штаб</span><span style="font-size:11px;color:#4caf50">Бесплатно</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">Хранит монеты · Только один</div>
+      <button class="hq-coll-btn active" onclick="closePopup();doBuildHq(${cellLat},${cellLng})">⚡ Построить штаб</button>
+    </div>`;
   }
 
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Отмена';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
+  html += `<div class="hq-collector-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">⛏️ Шахта</span><span style="font-size:11px;color:#4caf50">Бесплатно</span></div>
+    <div style="font-size:12px;color:#888;margin:4px 0">Генерирует монеты пассивно</div>
+    <button class="hq-coll-btn active" onclick="closePopup();doBuildMine(${cellLat},${cellLng})">⛏️ Построить шахту</button>
+  </div>`;
 
+  html += `<div class="hq-collector-card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🧲 Автосборщик</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
+    <div style="font-size:12px;color:#888;margin:4px 0">Собирает монеты с шахт в 200м</div>
+    <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">🧲 Построить сборщик</button>
+  </div>`;
+
+  if (!hasClanHq) {
+    html += `<div class="hq-collector-card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🏰 Штаб Клана</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">Зона клана · Бусты для участников</div>
+      <button class="hq-coll-btn ${canAffordClanHq ? 'active' : ''}" ${canAffordClanHq ? '' : 'disabled'} onclick="closePopup();doBuildClanHq(${cellLat},${cellLng})">🏰 Построить штаб клана</button>
+    </div>`;
+  }
+
+  html += `</div>`;
+  card.innerHTML = html;
   document.getElementById('popup-overlay').classList.add('open');
 }
 
@@ -3753,7 +4252,7 @@ function renderBuildings() {
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
     } else {
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 600 })
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000 })
         .addTo(map)
         .on('click', () => showOtherPlayerPopup(p));
       onlineMarkers[p.id] = marker;
@@ -3770,11 +4269,32 @@ function renderBuildings() {
 // ─────────────────────────────────────────────
 //  Popup helpers
 // ─────────────────────────────────────────────
+const _popupBtnActions = {};
+let _popupBtnIdx = 0;
+
+function _makePopupBtnHtml(btn) {
+  const idx = _popupBtnIdx++;
+  _popupBtnActions[idx] = btn;
+  const cls = btn.isClose ? '' : (btn.cls || '');
+  const styleMap = {
+    'danger': 'background:#f44336;color:#fff',
+    'primary': 'background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff',
+    'yellow': 'background:#2196f3;color:#fff',
+    '': 'background:#333;color:#ccc',
+  };
+  const baseStyle = styleMap[cls] || styleMap[''];
+  const disabledStyle = btn.disabled ? 'opacity:0.5;cursor:not-allowed;' : 'cursor:pointer;';
+  return `<button data-popup-btn="${idx}" style="${baseStyle};${disabledStyle}border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;flex:1;text-align:center" ${btn.disabled ? 'disabled' : ''}>${btn.label}</button>`;
+}
+
+// Legacy DOM version (used by build menu etc.)
 function _makePopupBtn(btn) {
   const b = document.createElement('button');
-  b.className = `btn ${btn.cls || ''}`;
+  const cls = btn.cls || '';
+  const styleMap = { 'danger': 'background:#f44336;color:#fff', 'primary': 'background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff', 'yellow': 'background:#2196f3;color:#fff' };
+  b.style.cssText = `${styleMap[cls] || 'background:#333;color:#ccc'};border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;flex:1;text-align:center`;
   b.innerHTML = btn.label;
-  if (btn.disabled) b.disabled = true;
+  if (btn.disabled) { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'not-allowed'; }
   b.addEventListener('click', () => {
     if (!btn.noClose) closePopup();
     if (btn.action) btn.action();
@@ -3783,46 +4303,55 @@ function _makePopupBtn(btn) {
 }
 
 function openPopup(title, subtitle, stats, actions) {
-  document.getElementById('popup-title').innerHTML = title;
-  document.getElementById('popup-subtitle').innerHTML = subtitle;
+  // Build custom card HTML in the new style
+  const card = document.getElementById('popup-card');
 
-  const statsEl = document.getElementById('popup-stats');
-  statsEl.innerHTML = '';
-  for (const [label, val] of stats) {
-    const row = document.createElement('div');
-    row.className = 'popup-stat';
-    row.innerHTML = `<span>${label}</span><span class="val">${val}</span>`;
-    statsEl.appendChild(row);
-  }
+  // Header with close button
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div>
+      <div style="font-size:16px;font-weight:600;color:#fff">${title}</div>
+      ${subtitle ? `<div style="font-size:12px;color:#888;margin-top:2px">${subtitle}</div>` : ''}
+    </div>
+    <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 0 0 8px">✕</button>
+  </div>`;
 
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-  let hasClose = false;
-
-  for (const item of actions) {
-    if (Array.isArray(item)) {
-      // Row of buttons side-by-side
-      const row = document.createElement('div');
-      row.className = 'popup-btn-row';
-      for (const btn of item) {
-        if (btn.isClose) hasClose = true;
-        row.appendChild(_makePopupBtn(btn));
-      }
-      actEl.appendChild(row);
-    } else {
-      const b = _makePopupBtn(item);
-      if (item.isClose) hasClose = true;
-      actEl.appendChild(b);
+  // Stats as cards
+  if (stats && stats.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:5px">';
+    for (const [label, val] of stats) {
+      html += `<div class="hq-stat-card"><span>${label}</span><span class="val">${val}</span></div>`;
     }
+    html += '</div>';
   }
 
-  if (!hasClose) {
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'btn';
-    closeBtn.textContent = 'Закрыть';
-    closeBtn.addEventListener('click', closePopup);
-    actEl.appendChild(closeBtn);
+  // Actions as styled buttons
+  if (actions && actions.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">';
+    for (const item of actions) {
+      if (Array.isArray(item)) {
+        html += '<div style="display:flex;gap:8px">';
+        for (const btn of item) {
+          html += _makePopupBtnHtml(btn);
+        }
+        html += '</div>';
+      } else {
+        html += _makePopupBtnHtml(item);
+      }
+    }
+    html += '</div>';
   }
+
+  card.innerHTML = html;
+
+  // Bind button click events
+  card.querySelectorAll('[data-popup-btn]').forEach(el => {
+    const idx = el.dataset.popupBtn;
+    el.addEventListener('click', () => {
+      const action = _popupBtnActions[idx];
+      if (action?.isClose || !action?.noClose) closePopup();
+      if (action?.action) action.action();
+    });
+  });
 
   document.getElementById('popup-overlay').classList.add('open');
 }
@@ -3894,39 +4423,75 @@ function showHqPopup(hq, isOwn) {
   _currentPopupEntityId = `hq_${hq.id}`;
   _selectMarker(`hq_${hq.id}`);
   if (isOwn) {
-    const hqLvl   = hq.level ?? 1;
-    const mineCount = state.mines.length;
-    const nextCost  = hqUpgradeCost(hqLvl);
+    const hqLvl = hq.level ?? 1;
+    const mineCount = (state.mines || []).length;
+    const nextCost = hqUpgradeCost(hqLvl);
     const playerCoins = state.player?.coins ?? 0;
     const canUpgrade = nextCost !== null && playerCoins >= nextCost;
-    openPopup(
-      `&#x26A1; Headquarters Level ${hqLvl}`,
-      `Cell: ${hq.cell_id}`,
-      [
-        ['&#x1F4B0; Монеты', formatCoins(playerCoins)],
-        ['&#x26CF;&#xFE0F; Шахты', mineCount],
-        ['HQ upgrade cost', nextCost !== null ? formatCoins(nextCost) : 'MAX LEVEL'],
-      ],
-      [
-        ...(nextCost !== null ? [{
-          label: `⬆️ Улучшить штаб (${formatCoins(nextCost)})`,
-          cls: 'yellow',
-          disabled: !canUpgrade,
-          action: () => doUpgradeHq(),
-        }] : []),
-        [
-          {
-            label: '🗑️ Снести',
-            cls: 'danger',
-            action: () => confirmSellHq(),
-          },
-          {
-            label: 'Закрыть',
-            isClose: true,
-          },
-        ],
-      ]
-    );
+    const playerName = displayName(state.player);
+    const playerAvatar = state.player?.avatar || '🏠';
+
+    // Collect own collectors (from cache — includes out-of-viewport ones)
+    const myCollectors = Object.values(_myCollectorsCache);
+    // Max collectors based on HQ level: lv1→0, lv2→1, lv3→1, lv4→2, lv5→2, lv6→3, lv7→3, lv8→4, lv9→4, lv10→5
+    const maxCollectors = Math.floor(hqLvl / 2);
+    let collectorsHtml = '';
+    if (myCollectors.length > 0 || maxCollectors > 0) {
+      let cardsHtml = '';
+      myCollectors.forEach((c, i) => {
+        const coins = c.stored_coins || 0;
+        // Compute capacity from own mines list (not viewport-limited)
+        const minesNear = (state.mines || []).filter(m => haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
+        const incomePerSec = minesNear.reduce((s, m) => s + (m.income || 0), 0);
+        const capHours = [0,6,8,10,12,16,20,24,30,36,48][c.level] || 6;
+        const cap = Math.floor(incomePerSec * 3600 * capHours) || c._capacity || 1;
+        const pct = cap > 0 ? Math.min(100, Math.round(coins / cap * 100)) : 0;
+        const hasCoins = coins > 0;
+        const comm = Math.floor(coins * 0.10);
+        cardsHtml += `<div class="hq-collector-card" data-cid="${c.id}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:600;color:#fff">🧲 #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
+            <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">📍 камера</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+            <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
+            <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
+          </div>
+          <button class="hq-coll-btn ${hasCoins ? 'active' : ''}" ${hasCoins ? '' : 'disabled'} onclick="event.stopPropagation();doCollectorDeliver('${c.id}')">
+            ${hasCoins ? `📦 Доставка −${formatCoins(comm)}` : 'Пусто'}
+          </button>
+        </div>`;
+      });
+      collectorsHtml = `<div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
+        <div style="font-size:13px;color:#888;margin-bottom:8px">🧲 Сборщики ${myCollectors.length}/${maxCollectors}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">${cardsHtml}</div>
+      </div>`;
+    }
+
+    // Build custom popup HTML
+    const card = document.getElementById('popup-card');
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:22px">${playerAvatar}</span>
+          <div>
+            <div style="font-size:16px;font-weight:600;color:#fff">🏠 Штаб ${playerName}</div>
+            <div style="font-size:12px;color:#888">Уровень ${hqLvl}</div>
+          </div>
+        </div>
+        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hq-stat-card"><span>💰 Монеты</span><span style="color:#FFD700;font-weight:600">${formatCoins(playerCoins)}</span></div>
+        <div class="hq-stat-card"><span>⛏️ Шахт</span><span style="font-weight:600">${mineCount}</span></div>
+      </div>
+      ${collectorsHtml}
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">⬆️ Улучшить штаб — ${formatCoins(nextCost)}</button>` : ''}
+        <button class="hq-btn red" onclick="closePopup();confirmSellHq()">🗑️ Снести</button>
+      </div>
+    `;
+    document.getElementById('popup-overlay').classList.add('open');
   } else {
     const owner = displayName(hq.players);
     let presenceText;
@@ -3944,9 +4509,9 @@ function showHqPopup(hq, isOwn) {
       else                  presenceText = `🕐 Был ${Math.floor(mins / 1440)} дн назад`;
     }
     openPopup(
-      `&#x26A1; ${owner}`,
+      `🏠 Штаб ${owner}`,
       presenceText,
-      [['Штаб', `Ур. ${hq.level ?? 1}`]],
+      [['Уровень', `${hq.level ?? 1}`]],
       []
     );
   }
@@ -3958,12 +4523,17 @@ function showHqPopup(hq, isOwn) {
 function showMinePopup(mine, isOwn, canCapture) {
   _currentPopupEntityId = `mine_${mine.id}`;
   _selectMarker(`mine_${mine.id}`);
+  // Merge boosted income from mines_own (server sends clan-boosted income there)
+  if (isOwn) {
+    const ownMine = (state.mines || []).find(m => m.id === mine.id);
+    if (ownMine?.income) mine.income = ownMine.income;
+  }
   const appearance  = getMineAppearance(mine.level);
   const { emoji, name } = appearance;
-  const ratePerSec  = mineRate(mine.level);
+  const ratePerSec  = mine.income || mineRate(mine.level);
   const rate        = Math.round(ratePerSec * 3600);
   const capacity    = getMineCapacity(mine.level);
-  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected) : 0;
+  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected, mine.income) : 0;
   const isFull      = mine.level > 0 && accumulated >= capacity;
 
   // Distance check
@@ -4090,7 +4660,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       _accumulatedCoinsTimer = setInterval(() => {
         const el = document.getElementById('accumulated-coins-val');
         if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
-        const acc = calcAccumulated(mine.level, mine.last_collected);
+        const acc = calcAccumulated(mine.level, mine.last_collected, mine.income);
         const full = acc >= capacity;
         el.textContent = formatCoins(acc);
         el.style.color = full ? '#ff4444' : '';
@@ -4101,7 +4671,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const inCombatZone = dist !== null && dist <= LARGE_RADIUS;
     const isBurning = mine.status === 'burning';
     const isUnderAttack = mine.status === 'under_attack';
-    const canAttack = inCombatZone && mine.level > 0 && mine.status === 'normal';
+    const canAttack = inCombatZone && mine.level > 0 && (mine.status === 'normal' || mine.status === 'under_attack');
     const attackActions = [];
     if (canAttack) {
       attackActions.push({
@@ -4154,7 +4724,7 @@ map.on('click', e => {
   const pos = state.playerPos;
   const dist = haversine(pos.lat, pos.lng, lat, lng);
   if (dist > LARGE_RADIUS) {
-    openPopup('&#x1F4CD; Outside Zone', `${Math.round(dist)}m away — move closer`, [], []);
+    openPopup('📍 Вне зоны', `${Math.round(dist)}м — подойди ближе`, [], []);
     return;
   }
   // Inside range: route to hex handler
@@ -4192,9 +4762,13 @@ async function doUpgradeHq() {
   }
 }
 
+let _upgradeInProgress = false;
 async function doUpgrade(mineId, targetLevel) {
+  if (_upgradeInProgress) return;
+  _upgradeInProgress = true;
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
+    _upgradeInProgress = false;
     showToast('❌ GPS не готов, подожди');
     return;
   }
@@ -4237,6 +4811,8 @@ async function doUpgrade(mineId, targetLevel) {
     } else {
       showToast(`❌ ${err.message}`);
     }
+  } finally {
+    _upgradeInProgress = false;
   }
 }
 
@@ -4379,6 +4955,20 @@ async function doSellHq() {
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
+}
+
+async function doBuildCollector(lat, lng) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ GPS не готов');
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
+    });
+    showToast(`🧲 Сборщик построен! Шахт в зоне: ${data.mines_in_range}`);
+    if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+    loadVisibleBuildings();
+  } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
 async function doBuildMine(lat, lng) {
@@ -4540,13 +5130,56 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─────────────────────────────────────────────
 //  Display updates
 // ─────────────────────────────────────────────
+function toggleHud() {
+  const exp = document.getElementById('hud-expanded');
+  const btn = document.getElementById('hud-toggle-btn');
+  exp.classList.toggle('open');
+  btn.textContent = exp.classList.contains('open') ? '▲' : '▼';
+}
+
 function updateCoinDisplay() {
-  document.getElementById('coin-display').textContent =
-    state.player ? formatCoins(state.player.coins ?? 0) : '—';
-  const inc = state.totalIncome;
+  const coinText = state.player ? formatCoins(state.player.coins ?? 0) : '—';
+  document.getElementById('coin-display').textContent = coinText;
+  const coinExp = document.getElementById('coin-display-exp');
+  if (coinExp) coinExp.textContent = coinText;
+
+  const inc = state.totalIncome || 0;
+  const base = state.baseIncome || 0;
+  const basePerHour = Math.round(base * 3600);
+  const totalPerHour = Math.round(inc * 3600);
+  const bonus = totalPerHour - basePerHour;
+
+  // Collapsed income (short)
+  const incCollapsed = document.getElementById('income-display-collapsed');
+  if (incCollapsed) {
+    incCollapsed.textContent = inc > 0 ? `⚡ ${formatCoins(totalPerHour)}/ч` : '';
+  }
+
+  // Expanded income (full with clan boost)
   const incEl = document.getElementById('income-display');
   if (incEl) {
-    incEl.textContent = inc > 0 ? `⚡ +${formatCoins(Math.round(inc * 3600))}/ч` : '';
+    if (inc > 0) {
+      let txt = `⚡ +${formatCoins(basePerHour)}/ч`;
+      if (bonus > 0) {
+        const color = state.clanColor || '#D500F9';
+        txt += ` <span style="color:${color}">(+${formatCoins(bonus)})</span>`;
+      }
+      incEl.innerHTML = txt;
+    } else {
+      incEl.textContent = '';
+    }
+  }
+
+  // Diamonds expanded
+  const diaExp = document.getElementById('diamond-display-exp');
+  if (diaExp) diaExp.textContent = state.player?.diamonds ?? 0;
+
+  const crEl = document.getElementById('crystal-display');
+  if (crEl) crEl.textContent = `✨ ${state.player?.crystals || 0}`;
+  const crIncEl = document.getElementById('crystal-income-display');
+  if (crIncEl) {
+    const oi = state.oreIncome || 0;
+    crIncEl.textContent = oi > 0 ? `+${oi}/ч` : '';
   }
 }
 
@@ -4592,6 +5225,9 @@ async function loadVisibleBuildings(force = false) {
     renderClanHqs(data.clan_hqs || []);
     renderCouriers(data.couriers || []);
     renderDrops(data.courier_drops || []);
+    renderOreNodes(data.ore_nodes || []);
+    renderMonuments(data.monuments || []);
+    renderMonumentDefenders(data.monument_defenders || []);
     updateHexGrid();
   } catch (err) {
     console.error('[map] fetch error:', err);
@@ -4692,6 +5328,160 @@ function initSocket() {
       if (p) { p.last_lat = data.lat; p.last_lng = data.lng; }
     });
 
+    _socket.on('projectile', (data) => {
+      // data: {from_lat, from_lng, to_lat, to_lng, damage, crit, target_type, target_id, attacker_id}
+      animateCombatProjectile(data);
+    });
+
+    _socket.on('mine:hp_update', (data) => {
+      // data: {mine_id, cell_id, hp, max_hp, status}
+      updateMineHpBar(data);
+    });
+
+    _socket.on('ore:captured', (data) => {
+      const ore = oreData[data.ore_node_id];
+      if (ore) {
+        ore.owner_id = data.new_owner;
+        ore.owner_name = data.new_owner_name;
+        ore.is_mine = data.new_owner === state.player?.id;
+        if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
+      }
+    });
+
+    _socket.on('ore:hp_update', (data) => {
+      const ore = oreData[data.ore_node_id];
+      if (ore) {
+        ore.hp = data.hp;
+        ore.max_hp = data.max_hp;
+        if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
+      }
+    });
+
+    _socket.on('pvp:hit', (data) => {
+      // data: {attacker_id, attacker_name, damage, hp_left, max_hp, killed}
+      if (state.player) {
+        state.player.hp = data.hp_left;
+        updatePlayerDisplay();
+      }
+      if (!data.killed) {
+        showToast(`💥 ${data.attacker_name} нанёс ${data.damage} урона!`);
+      }
+      // Death is handled by pvp:kill event
+    });
+
+    _socket.on('pvp:kill', (data) => {
+      const myId = state.player?.id;
+
+      // Animate killed player's marker (for all observers)
+      const loserMarker = onlineMarkers[data.loser_id];
+      if (loserMarker?._icon) {
+        // Show skull explosion at death location
+        const pos = loserMarker.getLatLng();
+        const pt = map.latLngToContainerPoint(pos);
+        const skull = document.createElement('div');
+        skull.className = 'combat-hit-flash';
+        skull.textContent = '💀';
+        skull.style.cssText = `left:${pt.x}px;top:${pt.y}px;font-size:40px;`;
+        document.body.appendChild(skull);
+        setTimeout(() => skull.remove(), 600);
+
+        // Shrink + fade marker
+        loserMarker._icon.classList.add('marker-killed');
+        setTimeout(() => {
+          if (onlineMarkers[data.loser_id]) {
+            map.removeLayer(onlineMarkers[data.loser_id]);
+            delete onlineMarkers[data.loser_id];
+          }
+        }, 700);
+      }
+
+      if (data.winner_id === myId) {
+        showToast(`⚔️ Победа! +${formatCoins(data.coins_transferred)} монет`);
+        _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
+        stopCombat();
+      } else if (data.loser_id === myId) {
+        // I died — show death screen
+        stopCombat();
+        const coinsLost = Math.round(data.coins_transferred * 2);
+        _setPlayerCoins(Math.max(0, (state.player.coins || 0) - coinsLost));
+        state.player.shield_until = data.shield_until;
+        state.player.hp = state.player.max_hp || 100;
+        updateShieldDisplay();
+        showDeathScreen(data.winner_name, coinsLost);
+      }
+    });
+
+    // ── Monument socket events ──
+    _socket.on('monument:shield_broken', (data) => {
+      showToast(`💥 ${data.breaker_name} пробил щит монумента!`, 3000);
+      updateMonumentPhase(data.monument_id, 'open');
+      try { Telegram.WebApp.HapticFeedback.notificationOccurred('warning'); } catch(_){}
+    });
+
+    _socket.on('monument:wave_spawn', (data) => {
+      showToast(`🌊 Волна ${data.wave}! ${data.defenders.length} защитников!`, 3000);
+      if (data.defenders) {
+        for (const d of data.defenders) addDefenderMarkerImmediate(d);
+      }
+      try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
+    });
+
+    _socket.on('monument:vulnerable', (data) => {
+      showToast(`⚡ Монумент уязвим! Атакуйте!`, 2500);
+      try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
+    });
+
+    _socket.on('monument:defeated', (data) => {
+      showToast(`🏆 ${data.name} Lv.${data.level} повержен! ${data.winner_name}`, 4000);
+      updateMonumentPhase(data.monument_id, 'defeated');
+      if (data.loot_boxes) {
+        for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
+      }
+    });
+
+    _socket.on('monument:loot_dropped', (data) => {
+      // No extra toast — defeat toast is enough
+    });
+
+    _socket.on('monument:knocked_out', (data) => {
+      showToast(`💀 Защитник выбил тебя! Возвращайся через ${Math.floor(data.respawn_in/60)} мин`, 3000);
+      stopCombat();
+    });
+
+    _socket.on('monument:shield_restored', (data) => {
+      updateMonumentPhase(data.monument_id, 'shield');
+    });
+
+    _socket.on('monument:shield_update', (data) => {
+      const m = monumentData[data.monument_id];
+      if (m) { m.shield_hp = data.shield_hp; m.max_shield_hp = data.max_shield_hp; updateMonumentMarkerIcon(data.monument_id); }
+    });
+
+    _socket.on('monument:hp_update', (data) => {
+      const m = monumentData[data.monument_id];
+      if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(data.monument_id); }
+    });
+
+    _socket.on('monument:defender_killed', (data) => {
+      const ref = defenderMarkers[data.defender_id];
+      if (ref) {
+        map.removeLayer(ref);
+        delete defenderMarkers[data.defender_id];
+        delete defenderData[data.defender_id];
+      }
+    });
+
+    // ── Collector socket events ──
+    _socket.on('collector:hp_update', (data) => {
+      const c = collectorData[data.collector_id];
+      if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(data.collector_id); }
+    });
+
+    _socket.on('collector:destroyed', (data) => {
+      if (collectorMarkers[data.collector_id]) { map.removeLayer(collectorMarkers[data.collector_id]); delete collectorMarkers[data.collector_id]; delete collectorData[data.collector_id]; }
+      if (data.stolen_coins > 0) showToast(`💥 Сборщик уничтожен ${data.attacker_name}! Украдено ${formatCoins(data.stolen_coins)} монет`);
+    });
+
     _socket.on('disconnect', () => {
       // Disconnected from server
     });
@@ -4736,6 +5526,9 @@ function processTickData(data) {
     _incomePerSecond = data.totalIncome;
     _startCoinTick();
   }
+  if (data.oreIncome != null) state.oreIncome = data.oreIncome;
+  if (data.baseIncome != null) state.baseIncome = data.baseIncome;
+  if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
   if (data.clan_boost) state.clanBoost = data.clan_boost;
   else if (data.clanBoost) state.clanBoost = data.clanBoost;
@@ -4753,6 +5546,15 @@ function processTickData(data) {
   renderClanHqs(data.clan_hqs || []);
   renderCouriers(data.couriers || []);
   renderDrops(data.courier_drops || []);
+  renderOreNodes(data.ore_nodes || []);
+  renderMonuments(data.monuments || []);
+  renderMonumentDefenders(data.monument_defenders || []);
+  renderCollectors(data.collectors || []);
+  // Cache own collectors for HQ popup (even if out of viewport)
+  if (data.collectors) {
+    for (const c of data.collectors) { if (c.is_mine) _myCollectorsCache[c.id] = c; }
+  }
+  renderLootBoxes(data.loot_boxes || []);
   updateHexGrid();
   updateCoinDisplay();
   updatePlayerDisplay();
@@ -4888,7 +5690,7 @@ function onPosition(pos) {
   const pIcon = playerIcon(state.player?.avatar);
   if (!playerMarker) {
     // First GPS fix — create marker at real position even if PIN will override it
-    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 500 }).addTo(map);
+    playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 10000 }).addTo(map);
     // Combat zone (large red dashed circle — no fill)
     playerCombatCircle = L.circle([lat, lng], {
       radius: LARGE_RADIUS,
@@ -5153,6 +5955,8 @@ function updateDiamondDisplay() {
   const diamonds = state.player?.diamonds ?? 0;
   const el = document.getElementById('diamond-display');
   if (el) el.textContent = diamonds;
+  const elExp = document.getElementById('diamond-display-exp');
+  if (elExp) elExp.textContent = diamonds;
 }
 
 function animateDrain(mineLatLng, botLatLng) {
@@ -5178,36 +5982,40 @@ function updateMineAttackStatus() {
       marker._icon.classList.remove('mine-under-attack', 'mine-status-burning', 'mine-status-attack');
     }
   }
-  // Mark attacked mines (bots)
-  for (const bot of Object.values(botData)) {
-    if (bot.status === 'attacking' && bot.target_mine_id) {
-      const m = buildingMarkers[`mine_${bot.target_mine_id}`];
-      if (m?._icon) m._icon.classList.add('mine-under-attack');
-    }
-  }
-  // Mark burning/under_attack status from mine data
+  // Mark burning mines only (attack indicators removed — HP bar is enough)
   for (const mine of (state.mapBuildings.mines || [])) {
     const m = buildingMarkers[`mine_${mine.id}`];
     if (!m?._icon) continue;
     if (mine.status === 'burning') m._icon.classList.add('mine-status-burning');
-    else if (mine.status === 'under_attack') m._icon.classList.add('mine-status-attack');
   }
 }
 
 function botIcon(bot) {
   const ms = 36;
-  // Server sends 'status' field, map to display state
   const st = bot.state || bot.status || 'roaming';
-  let emoji = bot.emoji || '👺';
-  if (st === 'fleeing' && (bot.stolen_coins || 0) > 0) {
-    const s = bot.stolen_coins;
-    emoji = s > 100000 ? '👺💰💰💰' : s > 50000 ? '👺💰💰' : s > 0 ? '👺💰' : '👺';
-  }
+  const baseEmoji = bot.emoji || '👺';
+  const isGoblin = bot.type === 'goblin' || baseEmoji === '👺';
+
   let glow = 'filter:drop-shadow(0 0 5px rgba(255,50,50,0.8))';
-  if (st === 'aggro' || st === 'attacking') glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
-  if (st === 'fleeing' || st === 'leaving') glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
+  let badge = '';
+
+  if (isGoblin) {
+    if (st === 'aggro' || st === 'attacking') {
+      // Attacking mine — red glow + small exclamation mark top-right
+      glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
+      badge = '<span style="position:absolute;top:-4px;right:-6px;font-size:14px">❗</span>';
+    } else if (st === 'fleeing' || st === 'leaving') {
+      // Leaving with loot — gold glow + money bag on back
+      glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
+      badge = '<span style="position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:16px">💰</span>';
+    }
+  } else {
+    if (st === 'aggro' || st === 'attacking') glow = 'filter:drop-shadow(0 0 8px rgba(255,23,68,0.9))';
+    if (st === 'fleeing' || st === 'leaving') glow = 'filter:drop-shadow(0 0 8px rgba(255,215,0,0.9))';
+  }
+
   return makeMarkerIcon(
-    `<div class="marker-wrap"><span style="font-size:${ms}px;${glow}">${emoji}</span></div>`,
+    `<div class="marker-wrap" style="position:relative"><span style="font-size:${ms}px;${glow}">${baseEmoji}</span>${badge}</div>`,
     ms + 12
   );
 }
@@ -5257,7 +6065,7 @@ function renderBots(bots) {
       }
       ref.marker.setIcon(botIcon(bot));
     } else {
-      const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 1500 });
+      const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 4000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
       marker.addTo(botLayer);
       botMarkers[bot.id] = { marker };
@@ -5297,7 +6105,7 @@ function showBotPopup(botId) {
 
   const actions = [];
   if (inRange) {
-    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doAttackBot(botId) });
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => { closePopup(); doAttackBot(botId); }, hold: () => { closePopup(); _startBotAutoAttack(botId); } });
   } else {
     actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
   }
@@ -5330,6 +6138,19 @@ function startRespawnCountdown(untilISO) {
   }, 1000);
 }
 
+let _botAutoAttackTimer = null;
+function _startBotAutoAttack(botId) {
+  if (_botAutoAttackTimer) clearInterval(_botAutoAttackTimer);
+  doAttackBot(botId);
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  _botAutoAttackTimer = setInterval(() => {
+    const bot = botData[botId];
+    if (!bot || (bot.hp ?? 0) <= 0) { clearInterval(_botAutoAttackTimer); _botAutoAttackTimer = null; return; }
+    doAttackBot(botId);
+  }, cd + 50);
+}
+
 async function doAttackBot(botId) {
   const bot = botData[botId];
   if (!bot) return;
@@ -5356,10 +6177,18 @@ async function doAttackBot(botId) {
     if (data.botDefeated) {
       if (ref?.marker) { botLayer.removeLayer(ref.marker); delete botMarkers[botId]; delete botData[botId]; }
       closePopup();
-      let msg = `⚔️ Гоблин убит! +${data.reward?.xp || 0} XP +${data.reward?.diamonds || 0} 💎`;
-      if (data.reward?.coinsDropped > 0) msg += ` +${formatNumber(data.reward.coinsDropped)} монет`;
+      const xpGained = data.xp?.xpGained || 0;
+      const diamonds = data.diamondReward || 0;
+      const coinDrop = data.coinDrop || 0;
+      const coinReward = data.reward || 0;
+      let msg = `⚔️ Убит!`;
+      if (xpGained > 0) msg += ` +${xpGained} XP`;
+      if (diamonds > 0) msg += ` +${diamonds} 💎`;
+      if (coinDrop > 0) msg += ` +${formatCoins(coinDrop)} монет (лут)`;
+      if (coinReward > 0) msg += ` +${formatCoins(coinReward)} монет`;
       showToast(msg);
-      if (state.player && data.reward?.diamonds) state.player.diamonds += data.reward.diamonds;
+      if (state.player && diamonds > 0) { state.player.diamonds = data.player_diamonds ?? ((state.player.diamonds || 0) + diamonds); }
+      if (state.player && (coinDrop > 0 || coinReward > 0)) { _setPlayerCoins(data.player_coins ?? (state.player.coins || 0)); }
       updateDiamondDisplay();
     } else {
       // Update bot HP in popup
@@ -5705,211 +6534,6 @@ function renderBanForm(player) {
 }
 
 // ─────────────────────────────────────────────
-//  Admin: Errors + Player Search + Logs
-// ─────────────────────────────────────────────
-let _adminStatsInterval = null;
-let _adminCurrentPlayerLogs = [];
-let _adminCurrentPlayerTgId = null;
-let _adminLogFilter = 'all';
-
-const _LOG_COLORS = {
-  action: '#888', login: '#888', error: '#ff6b6b', ban: '#ff6b6b',
-  spoof: '#ff9800', fraud: '#ff9800', warn: '#ffc107',
-};
-const _LOG_ICONS = {
-  action: '📋', login: '🔑', error: '❌', ban: '🚫',
-  spoof: '🚨', fraud: '💰', warn: '⚠️',
-};
-
-function _adminStartAutoRefresh() {
-  if (_adminStatsInterval) return;
-  _adminLoadErrors();
-  _adminStatsInterval = setInterval(_adminLoadErrors, 30000);
-}
-function _adminStopAutoRefresh() {
-  if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
-}
-
-async function _adminLoadErrors() {
-  try {
-    const data = await apiFetch(`/api/admin/stats?telegram_id=${TG_ID}`);
-    const errors = data.recent_errors || [];
-    document.getElementById('admin-errors-count').textContent = `(${errors.length})`;
-    const list = document.getElementById('admin-errors-list');
-    if (errors.length === 0) {
-      list.innerHTML = '<div style="color:#666;font-size:13px;padding:12px;text-align:center;">Ошибок нет</div>';
-      return;
-    }
-    list.innerHTML = errors.map((e, i) => `
-      <div style="background:#1a1a1a;border:1px solid #222;border-left:3px solid #ff6b6b;border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:#ff6b6b;font-size:12px;font-weight:700;">❌ ${e.time} ${e.type}</span>
-          <span style="color:#555;font-size:10px;">${e.date || ''}</span>
-        </div>
-        <div style="color:#ccc;font-size:13px;margin:4px 0;word-break:break-all;">${_esc(e.message)}</div>
-        <div style="display:flex;gap:6px;margin-top:6px;">
-          <button onclick="_adminCopyStack(${i})" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#aaa;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer;">Копировать stack</button>
-          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#aaa;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer;">Подробнее</button>
-          <pre style="display:none;background:#111;color:#999;font-size:10px;padding:8px;border-radius:6px;margin:4px 0 0;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;">${_esc(e.stack || 'No stack')}</pre>
-        </div>
-      </div>
-    `).join('');
-    window._adminErrors = errors;
-  } catch (_) {}
-}
-
-function _adminCopyStack(idx) {
-  const err = window._adminErrors?.[idx];
-  if (!err) return;
-  navigator.clipboard.writeText(err.stack || err.message).then(() => showToast('Скопировано'));
-}
-
-async function _adminClearErrors() {
-  try {
-    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'clear-errors' }) });
-    showToast('Ошибки очищены');
-    _adminLoadErrors();
-  } catch (e) { showToast('❌ ' + e.message); }
-}
-
-async function _adminSearchPlayer() {
-  const q = document.getElementById('admin-player-search').value.trim();
-  if (!q) return;
-  try {
-    const data = await apiFetch(`/api/admin/player-search?admin_id=${TG_ID}&q=${encodeURIComponent(q)}`);
-    const card = document.getElementById('admin-player-card');
-    const logs = document.getElementById('admin-player-logs-section');
-    logs.style.display = 'none';
-    if (!data.players?.length) {
-      card.innerHTML = '<div style="color:#666;font-size:13px;padding:8px;">Не найдено</div>';
-      return;
-    }
-    card.innerHTML = data.players.map(p => {
-      const fmtCoins = (p.coins || 0) >= 1e6 ? Math.floor((p.coins||0)/1e6) + 'M' : (p.coins||0).toLocaleString('ru');
-      return `
-      <div style="background:#1a1a1a;border:1px solid #222;border-radius:10px;padding:12px;margin-bottom:6px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span style="font-size:24px;">${p.avatar || '🐺'}</span>
-          <div style="flex:1;">
-            <div style="font-weight:700;font-size:14px;">${_esc(p.username || '?')} <span style="color:#888;font-size:12px;">Ур.${p.level||1}</span> ${p.online ? '<span style="color:#00ff88;">●</span>' : '<span style="color:#555;">●</span>'}</div>
-            <div style="font-size:12px;color:#888;">ID: ${p.telegram_id} ${p.is_banned ? '<span style="color:#ff6b6b;">ЗАБАНЕН</span>' : ''}</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;font-size:12px;color:#aaa;margin-bottom:8px;">
-          <span>💰 ${fmtCoins}</span>
-          <span>💎 ${p.diamonds||0}</span>
-          <span>⛏️ ${p.mines_count} шахт</span>
-        </div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button onclick="_adminPlayerLogs(${p.telegram_id},'${_esc(p.username||'?')}')" style="padding:6px 10px;border-radius:8px;background:rgba(33,150,243,0.15);border:1px solid rgba(33,150,243,0.3);color:#2196F3;font-size:11px;cursor:pointer;">📋 Логи</button>
-          <button onclick="_adminRewardPlayer('${p.id}','${_esc(p.username||'?')}','coins')" style="padding:6px 10px;border-radius:8px;background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:11px;cursor:pointer;">💰 Монеты</button>
-          <button onclick="_adminRewardPlayer('${p.id}','${_esc(p.username||'?')}','diamonds')" style="padding:6px 10px;border-radius:8px;background:rgba(0,188,212,0.15);border:1px solid rgba(0,188,212,0.3);color:#00BCD4;font-size:11px;cursor:pointer;">💎 Алмазы</button>
-          ${p.is_banned
-            ? `<button onclick="_adminQuickUnban('${p.id}')" style="padding:6px 10px;border-radius:8px;background:rgba(0,200,83,0.15);border:1px solid rgba(0,200,83,0.3);color:#00C853;font-size:11px;cursor:pointer;">✅ Разбан</button>`
-            : `<button onclick="_adminQuickBan('${p.id}','${_esc(p.username||'?')}')" style="padding:6px 10px;border-radius:8px;background:rgba(255,23,68,0.15);border:1px solid rgba(255,23,68,0.3);color:#FF1744;font-size:11px;cursor:pointer;">🚫 Бан</button>`
-          }
-        </div>
-      </div>`;
-    }).join('');
-  } catch (e) { showToast('❌ ' + e.message); }
-}
-
-async function _adminPlayerLogs(tgId, name) {
-  _adminCurrentPlayerTgId = tgId;
-  _adminLogFilter = 'all';
-  document.getElementById('admin-logs-title').textContent = `📋 Логи: ${name}`;
-  document.getElementById('admin-player-logs-section').style.display = '';
-  // Reset filter buttons
-  document.querySelectorAll('.admin-log-filter').forEach(b => {
-    b.style.background = 'rgba(255,255,255,0.04)'; b.style.color = '#888';
-    if (b.dataset.filter === 'all') { b.style.background = 'rgba(255,215,0,0.15)'; b.style.color = '#FFD700'; }
-  });
-  await _adminRefreshLogs();
-}
-
-async function _adminRefreshLogs() {
-  if (!_adminCurrentPlayerTgId) return;
-  try {
-    const data = await apiFetch(`/api/admin/player-logs?admin_id=${TG_ID}&player_telegram_id=${_adminCurrentPlayerTgId}&filter=${_adminLogFilter}`);
-    _adminCurrentPlayerLogs = data.logs || [];
-    _adminRenderLogs();
-  } catch (e) { showToast('❌ ' + e.message); }
-}
-
-function _adminRenderLogs() {
-  const list = document.getElementById('admin-logs-list');
-  const logs = _adminCurrentPlayerLogs;
-  if (logs.length === 0) {
-    list.innerHTML = '<div style="color:#666;font-size:13px;padding:12px;text-align:center;">Нет логов</div>';
-    return;
-  }
-  list.innerHTML = logs.slice(0, 200).map(l => {
-    const color = _LOG_COLORS[l.level] || '#888';
-    const icon = _LOG_ICONS[l.level] || '📋';
-    const borderColor = ['ban','error'].includes(l.level) ? '#ff6b6b' : ['spoof','fraud'].includes(l.level) ? '#ff9800' : l.level === 'warn' ? '#ffc107' : '#333';
-    return `<div style="background:#1a1a1a;border:1px solid #222;border-left:3px solid ${borderColor};border-radius:6px;padding:8px 10px;margin-bottom:4px;font-size:12px;">
-      <span style="color:#555;">${l.time}</span> <span style="color:${color};font-weight:700;">${icon} ${l.level.toUpperCase()}</span> <span style="color:#ccc;">${_esc(l.message)}</span>
-      ${l.data ? `<span style="color:#555;font-size:10px;"> ${JSON.stringify(l.data).slice(0,80)}</span>` : ''}
-    </div>`;
-  }).join('');
-}
-
-function _adminExportLogs() {
-  if (!_adminCurrentPlayerLogs.length) return showToast('Нет логов');
-  const text = _adminCurrentPlayerLogs.map(l => `[${l.date} ${l.time}] ${l.level.toUpperCase()} ${l.message}${l.data ? ' ' + JSON.stringify(l.data) : ''}`).join('\n');
-  const blob = new Blob([text], { type: 'text/plain' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `player_${_adminCurrentPlayerTgId}_logs.txt`;
-  a.click();
-}
-
-async function _adminQuickBan(playerId, name) {
-  if (!confirm(`Забанить ${name} на 1 день?`)) return;
-  try {
-    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: playerId, reason: 'Бан от админа', duration_days: 1 }) });
-    showToast(`🚫 ${name} забанен на 1д`);
-    _adminSearchPlayer();
-  } catch (e) { showToast('❌ ' + e.message); }
-}
-
-async function _adminQuickUnban(playerId) {
-  try {
-    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: playerId }) });
-    showToast('✅ Разбанен');
-    _adminSearchPlayer();
-  } catch (e) { showToast('❌ ' + e.message); }
-}
-
-async function _adminRewardPlayer(playerId, name, currency) {
-  const amount = prompt(`Сколько ${currency === 'coins' ? 'монет' : 'алмазов'} выдать ${name}?`);
-  if (!amount || isNaN(amount) || Number(amount) <= 0) return;
-  try {
-    await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'reward', player_id: playerId, currency, amount: Number(amount) }) });
-    showToast(`✅ Выдано ${Number(amount).toLocaleString('ru')} ${currency === 'coins' ? '💰' : '💎'}`);
-  } catch (e) { showToast('❌ ' + e.message); }
-}
-
-function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-// Filter button handlers + search on Enter
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.admin-log-filter').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _adminLogFilter = btn.dataset.filter;
-      document.querySelectorAll('.admin-log-filter').forEach(b => {
-        b.style.background = 'rgba(255,255,255,0.04)'; b.style.color = '#888';
-      });
-      btn.style.background = 'rgba(255,215,0,0.15)'; btn.style.color = '#FFD700';
-      _adminRefreshLogs();
-    });
-  });
-  document.getElementById('admin-player-search')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') _adminSearchPlayer();
-  });
-});
-
-// ─────────────────────────────────────────────
 //  Username setup screen (first login)
 // ─────────────────────────────────────────────
 const SETUP_AVATARS = [
@@ -6231,7 +6855,7 @@ document.getElementById('btn-settings').addEventListener('click', () => {
 
 document.getElementById('btn-close-settings').addEventListener('click', () => {
   document.getElementById('settings-drawer').classList.remove('open');
-  _adminStopAutoRefresh();
+  if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
 });
 
 // Settings tabs
@@ -6242,6 +6866,7 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
     document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('settings-tab-' + tabId).classList.add('active');
+    if (tabId !== 'admin' && _adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
   });
 });
 
@@ -6260,13 +6885,81 @@ function _updateSettingsAdminTab() {
       document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
       adminTabBtn.classList.add('active');
       document.getElementById('settings-tab-admin').classList.add('active');
-      _adminStartAutoRefresh();
+      loadAdminStats();
+      if (_adminStatsInterval) clearInterval(_adminStatsInterval);
+      _adminStatsInterval = setInterval(loadAdminStats, 30000);
     });
     tabsEl.appendChild(adminTabBtn);
   }
   if (!isAdmin && adminTabBtn) {
     adminTabBtn.remove();
   }
+}
+
+let _adminStatsInterval = null;
+
+async function loadAdminStats() {
+  try {
+    const res = await fetch(VPS_URL + '/api/admin/stats?telegram_id=' + TG_ID);
+    if (!res.ok) return;
+    const s = await res.json();
+    renderAdminStats(s);
+  } catch (e) { console.error('[admin stats]', e.message); }
+}
+
+function renderAdminStats(s) {
+  const el = document.getElementById('admin-stats');
+  if (!el) return;
+  const upD = Math.floor(s.uptime_seconds / 86400);
+  const upH = Math.floor((s.uptime_seconds % 86400) / 3600);
+  const upM = Math.floor((s.uptime_seconds % 3600) / 60);
+  const uptime = upD + '\u0434 ' + upH + '\u0447 ' + upM + '\u043C';
+  const ramPct = Math.round(s.memory_used_mb / s.memory_total_mb * 100);
+  const ramColor = ramPct > 85 ? '#f44336' : ramPct > 60 ? '#ff9800' : '#4caf50';
+  const cpuColor = s.cpu_load < 1 ? '#4caf50' : s.cpu_load < 2 ? '#ff9800' : '#f44336';
+
+  el.innerHTML = '<div class="admin-monitor-card">' +
+    '<div class="monitor-header">\uD83D\uDCCA \u041C\u043E\u043D\u0438\u0442\u043E\u0440\u0438\u043D\u0433 <button onclick="loadAdminStats()">\u21BB</button></div>' +
+    '<div class="monitor-grid">' +
+      '<div class="monitor-section">' +
+        '<div class="monitor-title">\uD83D\uDFE2 \u0418\u0433\u0440\u043E\u043A\u0438</div>' +
+        '<div class="monitor-row"><span>\u041E\u043D\u043B\u0430\u0439\u043D</span><b>' + s.online_now + '</b></div>' +
+        '<div class="monitor-row"><span>\u0417\u0430 24\u0447</span><b>' + s.online_today + '</b></div>' +
+        '<div class="monitor-row"><span>\u0412\u0441\u0435\u0433\u043E</span><b>' + s.total_players + '</b></div>' +
+        '<div class="monitor-row"><span>\u041D\u043E\u0432\u044B\u0445</span><b style="color:#4caf50">+' + s.new_today + '</b></div>' +
+        '<div class="monitor-row"><span>\u0421\u043E\u043A\u0435\u0442\u044B</span><b>' + s.connected_sockets + '</b></div>' +
+      '</div>' +
+      '<div class="monitor-section">' +
+        '<div class="monitor-title">\uD83D\uDCBE \u0421\u0435\u0440\u0432\u0435\u0440</div>' +
+        '<div class="monitor-row"><span>RAM</span><b>' + s.memory_used_mb + '/' + s.memory_total_mb + ' MB</b></div>' +
+        '<div class="monitor-bar"><div style="width:' + ramPct + '%;background:' + ramColor + '"></div></div>' +
+        '<div class="monitor-row"><span>CPU</span><b style="color:' + cpuColor + '">' + s.cpu_load.toFixed(2) + '</b></div>' +
+        '<div class="monitor-row"><span>Uptime</span><b>' + uptime + '</b></div>' +
+        '<div class="monitor-row"><span>Node</span><b style="color:#888">' + s.node_version + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="monitor-section">' +
+      '<div class="monitor-title">\uD83D\uDDC4\uFE0F GameState</div>' +
+      '<div class="monitor-grid-4">' +
+        '<div class="stat-chip">\u26CF\uFE0F \u0428\u0430\u0445\u0442\u044B<br><b>' + s.mines_loaded + '</b></div>' +
+        '<div class="stat-chip">\uD83D\uDC7A \u0411\u043E\u0442\u044B<br><b>' + s.bots_loaded + '</b></div>' +
+        '<div class="stat-chip">\uD83D\uDC8E \u0420\u0443\u0434\u043D\u0438\u043A\u0438<br><b>' + s.ore_nodes_loaded + '</b></div>' +
+        '<div class="stat-chip">\uD83D\uDC65 \u0418\u0433\u0440\u043E\u043A\u0438<br><b>' + s.players_loaded + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    (s.recent_errors && s.recent_errors.length > 0 ?
+      '<div class="monitor-section">' +
+        '<div class="monitor-title" style="color:#f44336">\uD83D\uDD34 \u041E\u0448\u0438\u0431\u043A\u0438 (' + s.recent_errors.length + ')</div>' +
+        s.recent_errors.slice(0,5).map(function(e) { return '<div class="error-row"><span class="error-time">' + e.time + '</span><span class="error-msg">' + e.message + '</span></div>'; }).join('') +
+      '</div>'
+      : '<div class="monitor-section" style="color:#4caf50;text-align:center;padding:12px;">\u2705 \u041E\u0448\u0438\u0431\u043E\u043A \u043D\u0435\u0442</div>') +
+    '<div class="monitor-section">' +
+      '<div class="monitor-title">\uD83D\uDCCB \u041F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F</div>' +
+      ((s.recent_activity || []).length > 0 ?
+        (s.recent_activity || []).slice(0,8).map(function(a) { return '<div class="activity-row"><span class="activity-time">' + a.time + '</span><span class="activity-player">' + a.player + '</span><span class="activity-action">' + a.action + '</span></div>'; }).join('')
+        : '<div style="color:#666;font-size:12px;">\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445</div>') +
+    '</div>' +
+  '</div>';
 }
 
 const MAP_STYLES = [
@@ -6410,6 +7103,53 @@ function _showBoxInfo(boxType) {
   openPopup(title, 'Случайный предмет одного из типов', stats, [{ label: 'Понятно', isClose: true }]);
 }
 
+function showMythicInfo(type) {
+  const info = {
+    sword: {
+      title: '🗡️ Мифический меч',
+      stats: [
+        ['⚔️ Атака', '90'],
+        ['💥 Крит шанс', '13%'],
+        ['🔥 Крит множитель', '×1.5 → ×2.2 при прокачке'],
+      ]
+    },
+    axe: {
+      title: '🪓 Мифический топор',
+      stats: [
+        ['⚔️ Атака', '125'],
+        ['💀 Казнь врага <50% HP', 'шанс 7% → 17% при прокачке'],
+      ]
+    },
+    shield: {
+      title: '🛡️ Мифический щит',
+      stats: [
+        ['🛡️ Защита', '+790'],
+        ['🔰 Блок удара', '15% → 25% при прокачке'],
+      ]
+    },
+  };
+  const i = info[type];
+  if (!i) return;
+  openPopup(i.title, 'Характеристики мифического предмета', i.stats, [{ label: 'Понятно', isClose: true }]);
+}
+
+async function buyMythic(weaponType) {
+  if (!confirm(`Купить мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} за 500 💎?`)) return;
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'buy-mythic', telegram_id: TG_ID, weapon_type: weaponType }),
+    });
+    if (state.player) state.player.diamonds = data.diamondsLeft;
+    if (data.item) state.inventory = [data.item, ...(state.inventory || [])];
+    updateDiamondDisplay();
+    _renderEquipSlots();
+    if (data.item) showItemReveal(data.item, 'mythic');
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
 function showBoxOdds(boxType) {
   const odds = SHOP_BOX_ODDS[boxType];
   const title = boxType === 'rare' ? '📦 Редкий бокс — содержимое' : '🎁 Эпический бокс — содержимое';
@@ -6491,31 +7231,12 @@ function _animateBoxOpen(boxType, item) {
       setTimeout(() => flash.remove(), 300);
     }, 900);
 
-    // Phase 4: Show item (after 1200ms)
+    // Phase 4: Show item reveal (after 1200ms)
     setTimeout(() => {
-      const statLabel = itemStatLabel(item);
-      const nameHtml = item.rarity === 'legendary'
-        ? `<span class="legendary-text">${item.name}</span>`
-        : item.name;
-      const glowStyle = `filter: drop-shadow(0 0 20px ${rarityColor.startsWith('linear') ? '#FFD700' : rarityColor})`;
-
-      overlay.innerHTML = `
-        <div class="box-result">
-          <div class="box-result-emoji" style="${glowStyle}">${item.emoji}</div>
-          <div class="box-result-name">${nameHtml}</div>
-          <div class="box-result-rarity">${rarityLabel(item.rarity)}</div>
-          <div class="box-result-stat">${statLabel}</div>
-          <div class="box-result-hint">Нажмите чтобы продолжить</div>
-        </div>
-      `;
-
-      // Phase 5: Click to close
-      overlay.addEventListener('click', function close() {
-        overlay.removeEventListener('click', close);
-        overlay.classList.remove('open');
-        overlay.innerHTML = '';
-        resolve();
-      });
+      overlay.classList.remove('open');
+      overlay.innerHTML = '';
+      showItemReveal(item, 'box');
+      resolve();
     }, 1200);
   });
 }
@@ -6807,43 +7528,13 @@ async function _playCraftAnimation(resultItem, sourceItems) {
   whiteout.style.transition = 'opacity 0.5s ease-out';
   await _craftSleep(500);
 
-  // Phase 5: result banner
-  ring.style.opacity = '0';
-  ring.style.transition = 'opacity 0.3s';
-
-  const rarityName = RARITY_NAMES_CLIENT[resultItem.rarity] || resultItem.rarity;
-  const isLegendary = resultItem.rarity === 'legendary';
-
-  const statsHtml = [
-    resultItem.attack ? `<span>⚔️ +${resultItem.attack}</span>` : '',
-    resultItem.crit_chance ? `<span>🎯 ${resultItem.crit_chance}%</span>` : '',
-    resultItem.defense ? `<span>🛡️ +${resultItem.defense}</span>` : '',
-  ].filter(Boolean).join('');
-
-  const banner = document.createElement('div');
-  banner.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;opacity:0;transition:opacity 0.6s ease;';
-  banner.innerHTML = `
-    <div style="font-size:14px;letter-spacing:3px;color:rgba(255,255,255,0.5);text-transform:uppercase;">⚒️ СКРАФТЛЕНО</div>
-    <div style="font-size:96px;line-height:1;filter:drop-shadow(0 0 30px ${flashColor});animation:_craftItemAppear 0.5s cubic-bezier(0.34,1.56,0.64,1);">${resultItem.emoji}</div>
-    <div style="font-size:24px;font-weight:bold;${isLegendary ? 'background:linear-gradient(90deg,#FFD700,#FF8C00,#FFD700);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:legendaryShimmer 2s linear infinite;' : `color:${flashColor};`}">${resultItem.name}</div>
-    <div style="padding:4px 16px;border-radius:20px;font-size:13px;font-weight:bold;background:${flashColor}33;border:1px solid ${flashColor};color:${flashColor};">${rarityName}</div>
-    <div style="font-size:15px;color:rgba(255,255,255,0.7);display:flex;gap:16px;margin-top:4px;">${statsHtml}</div>
-    <div style="margin-top:24px;font-size:13px;color:rgba(255,255,255,0.3);letter-spacing:1px;">Нажмите чтобы продолжить</div>
-  `;
-  overlay.appendChild(banner);
-  await _craftSleep(50);
-  banner.style.opacity = '1';
-
-  // Click to close
-  await new Promise(resolve => {
-    overlay.addEventListener('click', resolve, { once: true });
-  });
-
+  // Phase 5: show item reveal
   overlay.style.transition = 'opacity 0.3s';
   overlay.style.opacity = '0';
   await _craftSleep(300);
   overlay.remove();
   craftStyle.remove();
+  showItemReveal(resultItem, 'craft');
 }
 
 // ─────────────────────────────────────────────
@@ -7011,8 +7702,10 @@ function _marketIcon() {
 }
 
 function _courierIcon(courier) {
-  const emoji = courier.type === 'delivery' ? '🚚' : '🚶';
-  const size = courier.type === 'delivery' ? 32 : 28;
+  // Player courier (to_market or slow delivery) = pedestrian, Game courier (fast delivery) = truck
+  const isPlayerCourier = courier.type === 'to_market' || (courier.speed && courier.speed <= 0.0003);
+  const emoji = isPlayerCourier ? '🚶' : '🚚';
+  const size = isPlayerCourier ? 28 : 32;
   const hpPct = Math.max(0, Math.round((courier.hp / courier.max_hp) * 100));
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
   const isMy = courier.owner_id === state.player?.id;
@@ -7033,7 +7726,9 @@ function _courierIcon(courier) {
 }
 
 function _isMyDeliveryDrop(drop) {
-  const ownerId = drop.couriers?.owner_id || drop.owner_id;
+  const ownerId = drop.owner_id || drop.couriers?.owner_id;
+  // If no owner info available (courier cleaned up, old drop), allow pickup for coin_delivery
+  if (!ownerId && drop.drop_type === 'coin_delivery') return true;
   return ownerId === state.player?.id;
 }
 
@@ -7052,7 +7747,7 @@ function renderMarkets(markets) {
   }
   for (const m of (markets || [])) {
     if (!marketMarkers[m.id]) {
-      const marker = L.marker([m.lat, m.lng], { icon: _marketIcon(), zIndexOffset: 400 });
+      const marker = L.marker([m.lat, m.lng], { icon: _marketIcon(), zIndexOffset: 3000 });
       marker.on('click', (e) => {
         _suppressMapClick = Date.now();
         L.DomEvent.stopPropagation(e);
@@ -7109,7 +7804,7 @@ function renderCouriers(couriers) {
       courierInterp[c.id].serverLng = c.current_lng;
       courierMarkers[c.id].setIcon(_courierIcon(c));
     } else {
-      const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 1200 });
+      const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 4000 });
       marker.on('click', (e) => {
         _suppressMapClick = Date.now();
         L.DomEvent.stopPropagation(e);
@@ -7256,7 +7951,7 @@ async function doAttackCourier(courierId) {
           html: '<div class="marker-wrap drop-marker" style="font-size:36px;line-height:1;">📦</div>',
           iconSize: [44, 44], iconAnchor: [22, 22],
         });
-        const dMarker = L.marker([drop.lat, drop.lng], { icon: dIcon, zIndexOffset: 2000 });
+        const dMarker = L.marker([drop.lat, drop.lng], { icon: dIcon, zIndexOffset: 1000 });
         dMarker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDropPopup(drop.id); });
         dMarker.addTo(dropLayer);
         dropMarkers[drop.id] = dMarker;
@@ -7295,16 +7990,17 @@ function renderDrops(drops) {
   for (const d of (drops || [])) {
     dropData[d.id] = d;
     if (!dropMarkers[d.id]) {
-      const isDelivery = d.drop_type === 'delivery';
+      const isDelivery = d.drop_type === 'delivery' || d.drop_type === 'coin_delivery';
       const isMy = isDelivery && _isMyDeliveryDrop(d);
       const cls = isDelivery && isMy ? 'delivery-marker' : 'drop-marker';
+      const dropEmoji = d.drop_type === 'coin_delivery' ? '💰' : '📦';
       const icon = L.divIcon({
         className: '',
-        html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">📦</div>`,
+        html: `<div class="marker-wrap ${cls}" style="font-size:36px;line-height:1;">${dropEmoji}</div>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       });
-      const marker = L.marker([d.lat, d.lng], { icon, zIndexOffset: 2000 });
+      const marker = L.marker([d.lat, d.lng], { icon, zIndexOffset: 1000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDropPopup(d.id); });
       marker.addTo(dropLayer);
       dropMarkers[d.id] = marker;
@@ -7317,7 +8013,7 @@ function showDropPopup(dropId) {
     const drop = dropData[dropId];
     if (!drop) { showToast('ERR: no drop data'); return; }
 
-    const isDelivery = drop.drop_type === 'delivery';
+    const isDelivery = drop.drop_type === 'delivery' || drop.drop_type === 'coin_delivery';
     if (isDelivery && !_isMyDeliveryDrop(drop)) {
       showToast('📦 Чужая посылка');
       return;
@@ -7464,19 +8160,23 @@ function _renderMarketCards(listings, grid, isMine) {
     let btnHtml = '';
 
     if (isMine) {
+      // Show private code for own private listings
+      const privateCodeHtml = (l.is_private && l.private_code)
+        ? `<div style="margin-top:4px;padding:4px 8px;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);border-radius:6px;font-size:12px;text-align:center;cursor:pointer;user-select:all;" onclick="navigator.clipboard?.writeText('${l.private_code}');this.textContent='✅ Скопировано';setTimeout(()=>this.textContent='🔒 ${l.private_code}',1500)" title="Нажми чтобы скопировать">🔒 ${l.private_code}</div>`
+        : '';
       if (l.status === 'sold') {
         const received = Math.floor(l.price_diamonds * 0.9);
         statusHtml = `<div class="market-card-status" style="color:#FFD700;">💰 Продан!</div>
           <div style="font-size:12px;color:#00cfff;">+${received} 💎</div>`;
       } else if (l.status === 'pending') {
-        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>`;
+        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>${privateCodeHtml}`;
         btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Отменить</button>`;
       } else if (l.status === 'active') {
         const msLeft = new Date(l.expires_at) - Date.now();
         const daysLeft = Math.floor(msLeft / 86400000);
         const hrsLeft = Math.floor((msLeft % 86400000) / 3600000);
         statusHtml = `<div class="market-card-status" style="color:#00cc44;">✅ Активен</div>
-          <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>`;
+          <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>${privateCodeHtml}`;
         btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Снять</button>`;
       } else if (l.status === 'intercepted') {
         statusHtml = `<div class="market-card-status" style="color:#ff6b6b;">⚔️ Перехвачен</div>`;
@@ -7493,7 +8193,7 @@ function _renderMarketCards(listings, grid, isMine) {
     card.innerHTML = `
       ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
       <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
-      <div class="market-card-name">${item.name}</div>
+      <div class="market-card-name">${item.name}${item.upgrade_level ? ` <span style="color:#FFD700;font-size:11px;">+${item.upgrade_level}</span>` : ''}</div>
       <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
       <div class="market-card-stat">${itemStatLabel(item)}</div>
       <div class="market-card-price">💎 ${l.price_diamonds}</div>
@@ -7621,26 +8321,13 @@ function closeMarketPrivate() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('market-private-btn')?.addEventListener('click', async () => {
+  document.getElementById('market-private-btn')?.addEventListener('click', () => {
     const code = document.getElementById('market-private-input').value.trim().toUpperCase();
     if (code.length !== 6) return showToast('❌ Код должен быть 6 символов');
+    closeMarketPrivate();
     if (_buyTargetListing) {
-      // Existing flow: buying a visible private listing
-      closeMarketPrivate();
       _buyTargetListing._privateCode = code;
       showMarketBuyConfirm(_buyTargetListing);
-    } else {
-      // Search by code flow: find private listing
-      try {
-        const data = await apiFetch(`/api/market?action=search-by-code&telegram_id=${TG_ID}&code=${code}`);
-        closeMarketPrivate();
-        if (data.listing) {
-          data.listing._privateCode = code;
-          showMarketBuyConfirm(data.listing);
-        }
-      } catch (err) {
-        showToast(`❌ ${err.message}`);
-      }
     }
   });
 });
@@ -8000,7 +8687,7 @@ function showOtherPlayerPopup(p) {
     actions.push({
       label: '⚔️ Напасть',
       cls: 'danger',
-      action: () => showPvpPreview(p),
+      action: () => startPvpCombat(p),
     });
   } else if (hasShield) {
     actions.push({ label: '🛡️ Игрок под защитой', cls: '', disabled: true });
@@ -8222,19 +8909,77 @@ let _mineAttackMineId = null;
 let _projectileInterval = null;
 
 async function doAttackMine(mineId) {
-  const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
+  if (!mine) return showToast('❌ Шахта не найдена');
+
+  // Determine weapon CD
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+
   closePopup();
+  showCombatHUD(mine, 'mine');
+}
+
+async function doMineHit(mine) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) {
+    cdOverlay.classList.add('active');
+    setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
+  }
 
   try {
     const data = await apiFetch('/api/buildings/attack', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, mine_id: mineId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({
+        action: 'hit',
+        telegram_id: TG_ID,
+        mine_id: mine.id,
+        lat: pos.lat,
+        lng: pos.lng
+      }),
     });
-    showToast(`⚔️ Атака начата! ${data.attackDuration}с`);
-    _startAttackAnimation(mineId, data.attackDuration, data.attackEndsAt);
+
+    if (data.burned) {
+      stopCombat();
+      showToast('🔥 Шахта горит!');
+    }
   } catch (err) {
-    showToast(`❌ ${err.message}`);
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    showToast(`❌ ${msg}`);
+    stopCombat();
+  }
+}
+
+async function doOreHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/ore', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    if (data.captured) {
+      stopCombat();
+      showToast('⛏️ Рудник захвачен!');
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    showToast(`❌ ${msg}`);
+    stopCombat();
   }
 }
 
@@ -8325,6 +9070,266 @@ function fireProjectile(fromLatLng, toLatLng) {
     showFloatingText(toLatLng, '💥', '#FFD700');
     el.remove();
   }, durationMs + 50);
+}
+
+function animateCombatProjectile(data) {
+  const from = map.latLngToContainerPoint(L.latLng(data.from_lat, data.from_lng));
+  const to = map.latLngToContainerPoint(L.latLng(data.to_lat, data.to_lng));
+
+  const el = document.createElement('div');
+  el.className = 'combat-projectile';
+
+  // Determine projectile appearance by weapon type
+  const weaponType = data.weapon_type || 'fist';
+  if (weaponType === 'sword') {
+    const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
+    el.innerHTML = '🗡️';
+    el.style.transform = `translate(-50%,-50%) rotate(${angle - 135}deg)`;
+  } else if (weaponType === 'axe') {
+    el.innerHTML = '🪓';
+    el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
+  } else {
+    el.innerHTML = '👊';
+    el.style.fontSize = '16px';
+  }
+
+  el.style.left = from.x + 'px';
+  el.style.top = from.y + 'px';
+  document.body.appendChild(el);
+
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const dur = Math.min(600, Math.max(200, dist * 1.5));
+
+  const startTime = performance.now();
+  function anim(now) {
+    const t = Math.min((now - startTime) / dur, 1);
+    const ease = t * t; // easeIn
+    el.style.left = (from.x + dx * ease) + 'px';
+    el.style.top = (from.y + dy * ease) + 'px';
+    if (t < 1) requestAnimationFrame(anim);
+    else {
+      el.remove();
+      // Hit flash
+      const flash = document.createElement('div');
+      flash.className = 'combat-hit-flash';
+      if (data.blocked) {
+        flash.textContent = '🛡️';
+        flash.style.filter = 'drop-shadow(0 0 10px #4fc3f7)';
+      } else {
+        flash.textContent = '💥';
+      }
+      flash.style.left = to.x + 'px';
+      flash.style.top = to.y + 'px';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 300);
+
+      // Floating damage
+      const dmgEl = document.createElement('div');
+      dmgEl.className = 'floating-damage' + (data.crit ? ' crit' : '');
+      dmgEl.style.left = to.x + 'px';
+      dmgEl.style.top = (to.y - 10) + 'px';
+      if (data.blocked) {
+        dmgEl.textContent = '🛡️ БЛОК!';
+        dmgEl.style.color = '#4fc3f7';
+      } else if (data.execution) {
+        dmgEl.textContent = '💀 КАЗНЬ!';
+        dmgEl.style.color = '#f44336';
+        dmgEl.style.fontSize = '28px';
+      } else {
+        dmgEl.textContent = (data.crit ? '💥 КРИТ! ' : '') + '-' + data.damage;
+        dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
+      }
+      document.body.appendChild(dmgEl);
+      setTimeout(() => dmgEl.remove(), 1000);
+    }
+  }
+  requestAnimationFrame(anim);
+}
+
+function updateMineHpBar(data) {
+  // Update mine in local state
+  const mines = state.mapBuildings.mines || [];
+  const mine = mines.find(m => m.id === data.mine_id);
+  if (mine) {
+    mine.hp = data.hp;
+    mine.max_hp = data.max_hp;
+    mine.status = data.status;
+  }
+  // Update marker HP bar if visible
+  const key = 'mine_' + data.mine_id;
+  const marker = buildingMarkers[key];
+  if (marker?._icon) {
+    let bar = marker._icon.querySelector('.mine-hp-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'mine-hp-bar';
+      bar.innerHTML = '<div class="mine-hp-fill"></div>';
+      marker._icon.querySelector('.marker-wrap')?.appendChild(bar);
+    }
+    const fill = bar.querySelector('.mine-hp-fill');
+    const pct = data.max_hp > 0 ? Math.max(0, Math.min(100, data.hp / data.max_hp * 100)) : 0;
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+    // Auto-hide after 10s
+    bar.style.display = 'block';
+    clearTimeout(marker._hpBarTimeout);
+    marker._hpBarTimeout = setTimeout(() => { if (bar) bar.style.display = 'none'; }, 10000);
+  }
+}
+
+let _pvpAutoFire = null;
+let _pvpTarget = null;
+let _pvpCdMs = 1500;
+let _pvpLastHit = 0;
+
+function startPvpCombat(target) {
+  _pvpTarget = target;
+  closePopup();
+
+  // Determine weapon CD
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+
+  // Show floating attack button
+  showCombatHUD(target, 'pvp');
+}
+
+function showCombatHUD(target, mode) {
+  let hud = document.getElementById('combat-hud');
+  if (hud) hud.remove();
+
+  hud = document.createElement('div');
+  hud.id = 'combat-hud';
+  hud.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,20px) + 20px);left:50%;transform:translateX(-50%);z-index:5000;display:flex;gap:12px;align-items:center;';
+
+  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : mode === 'monument' ? `🏛️ ${target.name || 'Монумент'} Lv.${target.level}` : mode === 'defender' ? `${target.emoji || '👹'} Защитник` : mode === 'collector' ? `🧲 Сборщик Lv.${target.level}` : `Шахта Ур.${target.level}`;
+
+  hud.innerHTML = `
+    <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
+      <span style="color:#aaa;font-size:13px;">${targetName}</span>
+      <div class="atk-btn-wrap">
+        <button id="combat-atk-btn" class="btn danger" style="padding:10px 20px;font-size:16px;border-radius:10px;user-select:none;-webkit-user-select:none;touch-action:none;">⚔️</button>
+        <div class="atk-cd-overlay" id="combat-cd-overlay"></div>
+      </div>
+      <button onclick="stopCombat()" class="btn" style="padding:8px 12px;font-size:13px;border-radius:8px;">✕</button>
+    </div>
+  `;
+  document.body.appendChild(hud);
+
+  const atkBtn = document.getElementById('combat-atk-btn');
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+
+  const doHit = () => {
+    if (mode === 'pvp') doPvpHit(target);
+    else if (mode === 'ore') doOreHit(target);
+    else if (mode === 'monument') {
+      if (target._monumentMode === 'shield') doMonumentShieldHit(target);
+      else doMonumentBodyHit(target);
+    }
+    else if (mode === 'defender') doDefenderHit(target);
+    else if (mode === 'collector') doCollectorHit(target);
+    else doMineHit(target);
+  };
+
+  // Hold tracking
+  let holdTimer = null;
+  let isHolding = false;
+
+  function startHold() {
+    isHolding = false;
+    holdTimer = setTimeout(() => {
+      isHolding = true;
+      atkBtn.classList.add('atk-btn-pulse');
+      doHit(); // Fire first shot immediately on hold
+      _pvpAutoFire = setInterval(doHit, _pvpCdMs + 50); // +50ms buffer for server CD
+    }, 300);
+  }
+  function stopHold() {
+    const wasHolding = isHolding;
+    isHolding = false;
+    atkBtn.classList.remove('atk-btn-pulse');
+    clearTimeout(holdTimer);
+    holdTimer = null;
+    if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+    // If it was a quick tap (not a hold), fire single shot
+    if (!wasHolding) doHit();
+  }
+
+  atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
+  atkBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopHold(); }, { passive: false });
+  atkBtn.addEventListener('touchcancel', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('mousedown', startHold);
+  atkBtn.addEventListener('mouseup', stopHold);
+  atkBtn.addEventListener('mouseleave', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function stopCombat() {
+  if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+  _pvpTarget = null;
+  const hud = document.getElementById('combat-hud');
+  if (hud) hud.remove();
+}
+
+function showDeathScreen(killerName, coinsLost) {
+  const screen = document.getElementById('death-screen');
+  const timerEl = document.getElementById('death-timer');
+  const infoEl = document.getElementById('death-info');
+  infoEl.textContent = `${killerName || 'Игрок'} убил вас · -${formatCoins(coinsLost)} монет · Щит 2 мин`;
+  screen.classList.add('open');
+  let sec = 10;
+  timerEl.textContent = sec;
+  const iv = setInterval(() => {
+    sec--;
+    timerEl.textContent = sec;
+    if (sec <= 0) {
+      clearInterval(iv);
+      screen.classList.remove('open');
+      showToast('🔄 Возрождение!');
+    }
+  }, 1000);
+}
+
+async function doPvpHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  // Show CD on button
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) {
+    cdOverlay.classList.add('active');
+    setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
+  }
+
+  try {
+    const data = await apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'pvp-attack',
+        telegram_id: TG_ID,
+        target_telegram_id: target.telegram_id,
+        lat: pos.lat,
+        lng: pos.lng
+      }),
+    });
+
+    if (data.killed) {
+      stopCombat();
+      showToast(`⚔️ Победа! +${formatCoins(data.coins_won)} монет`);
+      _setPlayerCoins((state.player.coins || 0) + data.coins_won);
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    // Ignore cooldown / rate-limit errors silently
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    showToast(`❌ ${msg}`);
+    stopCombat();
+  }
 }
 
 async function _finishAttack(mineId) {
@@ -8506,7 +9511,8 @@ function _renderInventoryGridSelectable() {
     check.className = 'select-check';
     check.textContent = '✓';
     if (!canSelect) check.style.display = 'none';
-    cell.innerHTML = `<span>${item.emoji}</span>`;
+    const slvl = item.upgrade_level || 0;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : 'Ур.0'}</span>`;
     cell.appendChild(check);
 
     if (canSelect) {
@@ -8643,7 +9649,7 @@ function renderClanHqs(clanHqs) {
       clanHqMarkers[ch.id].setIcon(clanHqIcon(ch));
       clanHqMarkers[ch.id].off('click').on('click', () => showClanHqPopup(ch));
     } else {
-      const marker = L.marker([ch.lat, ch.lng], { icon: clanHqIcon(ch), zIndexOffset: 470 })
+      const marker = L.marker([ch.lat, ch.lng], { icon: clanHqIcon(ch), zIndexOffset: 1000 })
         .addTo(map)
         .on('click', () => showClanHqPopup(ch));
       clanHqMarkers[ch.id] = marker;
@@ -8667,7 +9673,8 @@ function renderClanHqs(clanHqs) {
       }
       // Label above marker
       if (!clanHqLabels[ch.id]) {
-        const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${ch.symbol || '🏰'} ${ch.clan_name || ''}</div>`;
+        const labelText = ch.clan_name ? `${ch.symbol || '🏰'} ${ch.clan_name}` : 'Без клана';
+        const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${labelText}</div>`;
         clanHqLabels[ch.id] = L.marker([ch.lat, ch.lng], {
           icon: L.divIcon({
             html: labelHtml,
@@ -8675,7 +9682,7 @@ function renderClanHqs(clanHqs) {
             iconSize: [120, 20],
             iconAnchor: [60, 40],
           }),
-          zIndexOffset: 471,
+          zIndexOffset: 1000,
           interactive: false,
         }).addTo(map);
       }
@@ -8684,6 +9691,147 @@ function renderClanHqs(clanHqs) {
       if (clanHqLabels[ch.id]) { map.removeLayer(clanHqLabels[ch.id]); delete clanHqLabels[ch.id]; }
     }
   }
+}
+
+// ── Ore nodes rendering ──
+const oreMarkers = {};
+const oreData = {};
+
+function oreIcon(ore) {
+  const size = 40 + (ore.level * 3);
+  const isOwned = !!ore.owner_id;
+  const isMine = ore.is_mine;
+  const cls = isMine ? 'mine-owned' : (isOwned ? '' : 'free');
+  const hpPct = ore.max_hp > 0 ? Math.round((ore.hp || ore.max_hp) / ore.max_hp * 100) : 100;
+  const showHp = hpPct < 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+
+  return L.divIcon({
+    html: `<div class="ore-marker ${cls}" style="width:${size}px;height:${size}px">
+      <span style="font-size:${size*0.55}px">⛏️</span>
+      <div class="ore-level">Ур.${ore.level}</div>
+      ${ore.owner_name ? `<div class="ore-owner">${ore.owner_name}</div>` : ''}
+      ${showHp ? `<div class="ore-hp-bar"><div class="ore-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
+    </div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
+}
+
+function renderOreNodes(ores) {
+  if (!ores || ores.length === 0) return; // Don't wipe markers on empty tick
+  const activeIds = new Set(ores.map(o => o.id));
+  for (const id of Object.keys(oreMarkers)) {
+    if (!activeIds.has(id)) {
+      map.removeLayer(oreMarkers[id]);
+      delete oreMarkers[id];
+      delete oreData[id];
+    }
+  }
+  for (const ore of ores) {
+    const prev = oreData[ore.id];
+    oreData[ore.id] = ore;
+    if (oreMarkers[ore.id]) {
+      // Only update icon if data changed
+      if (!prev || prev.hp !== ore.hp || prev.owner_id !== ore.owner_id || prev.owner_name !== ore.owner_name) {
+        oreMarkers[ore.id].setIcon(oreIcon(ore));
+      }
+    } else {
+      const marker = L.marker([ore.lat, ore.lng], { icon: oreIcon(ore), zIndexOffset: 2000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOrePopup(ore.id); });
+      marker.addTo(map);
+      oreMarkers[ore.id] = marker;
+    }
+  }
+}
+
+function showOrePopup(oreId) {
+  const ore = oreData[oreId];
+  if (!ore) return;
+
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, ore.lat, ore.lng) : null;
+  const inRange = dist !== null && dist <= 200; // ORE_CAPTURE_RADIUS
+  const inAttackRange = dist !== null && dist <= LARGE_RADIUS;
+
+  const isOwned = !!ore.owner_id;
+  const isMine = ore.is_mine;
+  const ownerOnline = ore.owner_online;
+
+  const distLabel = dist !== null
+    ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
+    : '<span style="color:#888">📍 GPS...</span>';
+
+  const hpPct = ore.max_hp > 0 ? Math.round((ore.hp || ore.max_hp) / ore.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+
+  const expDate = new Date(ore.expires_at);
+  const expStr = `${expDate.getDate().toString().padStart(2,'0')}.${(expDate.getMonth()+1).toString().padStart(2,'0')}`;
+
+  const stats = [
+    ['Доход', `${ore.level} ✨/ч`],
+    ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
+    ['Владелец', isOwned ? (ore.owner_name || 'Игрок') : '<span style="color:#00ff88">Свободен</span>'],
+    ['Истекает', expStr],
+  ];
+
+  const actions = [];
+  if (isMine) {
+    actions.push({ label: '✨ Мой рудник', cls: 'primary', disabled: true });
+  } else if (!isOwned && inRange) {
+    actions.push({ label: '✅ Захватить', cls: 'primary', action: () => captureOre(oreId) });
+  } else if (isOwned && inAttackRange) {
+    if (ownerOnline) {
+      actions.push({ label: '⚔️ Атаковать владельца', cls: 'danger', action: () => attackOreOwnerPvp(ore) });
+    } else {
+      actions.push({ label: '⚔️ Атаковать рудник', cls: 'danger', action: () => attackOreNode(ore) });
+    }
+  } else if (!inRange && !inAttackRange) {
+    actions.push({ label: '🔒 Подойди ближе', cls: '', disabled: true });
+  } else if (!isOwned && !inRange) {
+    actions.push({ label: '🔒 Подойди ближе (200м)', cls: '', disabled: true });
+  }
+
+  openPopup(`⛏️ Рудник Ур.${ore.level}`, distLabel, stats, actions);
+}
+
+async function captureOre(oreId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  try {
+    const data = await apiFetch('/api/ore', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'capture', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng }),
+    });
+    showToast('⛏️ Рудник захвачен!');
+    closePopup();
+  } catch (err) {
+    if (err.message?.includes('занят')) {
+      showToast('⚔️ Рудник занят — атакуй владельца!');
+    } else {
+      showToast(`❌ ${err.message}`);
+    }
+  }
+}
+
+function attackOreOwnerPvp(ore) {
+  const ownerPlayer = (state.mapBuildings.online_players || []).find(p =>
+    p.id === ore.owner_id || String(p.telegram_id) === String(ore.owner_id)
+  );
+  if (ownerPlayer) {
+    closePopup();
+    startPvpCombat(ownerPlayer);
+  } else {
+    showToast('❌ Владелец не найден на карте');
+  }
+}
+
+function attackOreNode(ore) {
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  closePopup();
+  showCombatHUD(ore, 'ore');
 }
 
 // ── Clan HQ popup (minimal) ──
@@ -8703,7 +9851,7 @@ function showClanHqPopup(ch) {
   } else if (isOwn && isActive) {
     const inClan = !!state.player?.clan_id;
     openPopup(
-      `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
+      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
       `Уровень ${ch.clan_level}`,
       [],
       [
@@ -8724,7 +9872,7 @@ function showClanHqPopup(ch) {
     }
   } else if (isActive) {
     openPopup(
-      `🏰 ${ch.symbol || ''} ${ch.clan_name || ''}`,
+      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
       `Уровень ${ch.clan_level}`,
       [],
       [{ label: '🔍 Посмотреть клан', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') }]
@@ -8954,10 +10102,8 @@ async function _renderMembersTab(body) {
   const members = _clanScreenData.members;
   const isLeader = state.player?.clan_role === 'leader';
 
-  // Build set of online telegram_ids for status dots
-  const onlineTgIds = new Set((state.mapBuildings.online_players || []).map(p => String(p.telegram_id)));
-  // Current player is always online
-  if (TG_ID) onlineTgIds.add(String(TG_ID));
+  const ONLINE_MS = 5 * 60 * 1000;
+  const nowMs = Date.now();
 
   let html = '';
   for (const m of members) {
@@ -8968,7 +10114,10 @@ async function _renderMembersTab(body) {
     const roleIcon = m.role === 'leader' ? '👑' : m.role === 'officer' ? '⭐' : '';
     const canManage = isLeader && m.role !== 'leader';
     const escapedName = name.replace(/'/g, "\\'");
-    const isOnline = p.telegram_id && onlineTgIds.has(String(p.telegram_id));
+    // Online check: use last_seen from member data (not viewport)
+    const lastSeen = p.last_seen ? new Date(p.last_seen).getTime() : 0;
+    const isSelf = String(p.telegram_id) === String(TG_ID);
+    const isOnline = isSelf || (lastSeen > 0 && (nowMs - lastSeen) < ONLINE_MS);
     const onlineDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isOnline ? '#00ff88' : '#ff4444'};margin-right:6px;flex-shrink:0;"></span>`;
     html += `
       <div class="cs-member-row">
@@ -9503,6 +10652,680 @@ async function doClanKick(targetTgId) {
 
   await boot();
 })();
+
+// ═══════════════════════════════════════════════════
+//  MONUMENTS — Raid bosses on the map
+// ═══════════════════════════════════════════════════
+const monumentMarkers = {};
+const monumentData = {};
+const defenderMarkers = {};
+const defenderData = {};
+const lootBoxMarkers = {};
+const lootBoxData = {};
+
+function monumentIcon(m) {
+  const size = 50 + m.level * 3;
+  const emojiSize = size * 0.5;
+
+  // Dome only in shield phase
+  const domeHtml = m.phase === 'shield'
+    ? `<div class="monument-dome"></div>`
+    : '';
+
+  // Bars: only visible when not at full HP/shield
+  let barsHtml = '';
+  if (m.phase === 'shield' && m.shield_hp < m.max_shield_hp) {
+    const shPct = m.max_shield_hp > 0 ? Math.max(0, m.shield_hp / m.max_shield_hp * 100) : 0;
+    barsHtml = `<div class="monument-bars">
+      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-shield" style="width:${shPct}%"></div></div>
+    </div>`;
+  } else if (m.phase === 'open' && m.hp < m.max_hp) {
+    const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
+    barsHtml = `<div class="monument-bars">
+      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-hp" style="width:${hpPct}%"></div></div>
+    </div>`;
+  }
+
+  return L.divIcon({
+    html: `<div class="monument-marker ${m.phase}" style="width:${size}px;height:${size}px">
+      ${domeHtml}
+      <span style="font-size:${emojiSize}px;position:relative;z-index:1">🏛️</span>
+      ${barsHtml}
+    </div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
+}
+
+function defenderIcon(d) {
+  const hpPct = d.max_hp > 0 ? (d.hp / d.max_hp * 100) : 0;
+  return L.divIcon({
+    html: `<div class="defender-marker">
+      <span style="font-size:28px">${d.emoji}</span>
+      <div class="defender-hp-bar"><div style="width:${Math.max(0,hpPct)}%;background:#ff6600"></div></div>
+    </div>`,
+    className: '',
+    iconSize: [40, 50],
+    iconAnchor: [20, 25],
+  });
+}
+
+function lootBoxIcon(box) {
+  const emoji = box.box_type === 'trophy' ? '🏆' : '🎁';
+  const isMine = Number(box.player_id) === Number(TG_ID);
+  return L.divIcon({
+    html: `<div class="loot-box-marker ${isMine ? 'mine' : ''}">
+      <span style="font-size:32px">${emoji}</span>
+    </div>`,
+    className: '',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+}
+
+function renderMonuments(monuments) {
+  if (!monuments || !monuments.length) return;
+  const activeIds = new Set(monuments.map(m => m.id));
+  for (const id of Object.keys(monumentMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(monumentMarkers[id]); delete monumentMarkers[id]; delete monumentData[id]; }
+  }
+  for (const m of monuments) {
+    monumentData[m.id] = m;
+    if (monumentMarkers[m.id]) {
+      monumentMarkers[m.id].setIcon(monumentIcon(m));
+    } else {
+      const marker = L.marker([m.lat, m.lng], { icon: monumentIcon(m), zIndexOffset: 3000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showMonumentPopup(m.id); });
+      marker.addTo(map);
+      monumentMarkers[m.id] = marker;
+    }
+  }
+}
+
+function renderMonumentDefenders(defenders) {
+  if (!defenders) return;
+  const activeIds = new Set(defenders.map(d => d.id));
+  for (const id of Object.keys(defenderMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id]; }
+  }
+  for (const d of defenders) {
+    const prev = defenderData[d.id];
+    defenderData[d.id] = d;
+    if (defenderMarkers[d.id]) {
+      const marker = defenderMarkers[d.id];
+      // Smooth move to new position
+      const from = marker.getLatLng();
+      const dist = Math.abs(from.lat - d.lat) + Math.abs(from.lng - d.lng);
+      if (dist > 0.002) {
+        marker.setLatLng([d.lat, d.lng]);
+      } else if (dist > 0.000005) {
+        _animateMarkerTo(marker, d.lat, d.lng, 4500);
+      }
+      // Update icon if HP changed
+      if (!prev || prev.hp !== d.hp) marker.setIcon(defenderIcon(d));
+    } else {
+      const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 4000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
+      marker.addTo(map);
+      defenderMarkers[d.id] = marker;
+    }
+  }
+}
+
+function renderLootBoxes(boxes) {
+  if (!boxes || !boxes.length) return; // Don't wipe markers on empty tick
+  for (const box of boxes) {
+    lootBoxData[box.id] = box;
+    if (lootBoxMarkers[box.id]) continue;
+    const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1000 });
+    marker.on('click', (e) => {
+      _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
+      const isMine = Number(box.player_id) === Number(TG_ID);
+      if (isMine) showLootBoxPopup(box.id);
+      else showToast(`${box.player_avatar} ${box.player_name} — чужая награда`);
+    });
+    marker.addTo(map);
+    lootBoxMarkers[box.id] = marker;
+  }
+}
+
+function updateMonumentPhase(monumentId, phase) {
+  const m = monumentData[monumentId];
+  if (!m) return;
+
+  // Shield break animation: keep dome visible, add .breaking, then swap phase after animation
+  if (m.phase === 'shield' && phase === 'open') {
+    const marker = monumentMarkers[monumentId];
+    if (marker?._icon) {
+      const dome = marker._icon.querySelector('.monument-dome');
+      if (dome) {
+        dome.classList.add('breaking');
+        setTimeout(() => {
+          m.phase = phase;
+          updateMonumentMarkerIcon(monumentId);
+        }, 600); // match dome-shatter duration
+        return;
+      }
+    }
+  }
+
+  m.phase = phase;
+  updateMonumentMarkerIcon(monumentId);
+}
+
+function updateMonumentMarkerIcon(monumentId) {
+  const m = monumentData[monumentId];
+  if (m && monumentMarkers[monumentId]) {
+    monumentMarkers[monumentId].setIcon(monumentIcon(m));
+  }
+}
+
+function addDefenderMarkerImmediate(d) {
+  defenderData[d.id] = d;
+  if (defenderMarkers[d.id]) return;
+  const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 4000 });
+  marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
+  marker.addTo(map);
+  defenderMarkers[d.id] = marker;
+}
+
+function addLootBoxMarkerImmediate(box) {
+  lootBoxData[box.id] = box;
+  if (lootBoxMarkers[box.id]) return;
+  const marker = L.marker([box.lat, box.lng], { icon: lootBoxIcon(box), zIndexOffset: 1000 });
+  marker.on('click', (e) => {
+    _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
+    const isMine = Number(box.player_id) === Number(TG_ID);
+    if (isMine) showLootBoxPopup(box.id);
+    else showToast(`${box.player_avatar} ${box.player_name} — чужая награда`);
+  });
+  marker.addTo(map);
+  lootBoxMarkers[box.id] = marker;
+}
+
+// ── Monument popup ──
+function showMonumentPopup(monumentId) {
+  const m = monumentData[monumentId];
+  if (!m) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, m.lat, m.lng) : null;
+  const inRange = dist !== null && dist <= 500;
+
+  const phaseLabel = m.phase === 'shield' ? '🛡️ Щит' : m.phase === 'open' ? '🔥 Открыт' : '💀 Повержен';
+  const distLabel = dist !== null
+    ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
+    : '<span style="color:#888">📍 GPS...</span>';
+
+  const stats = [
+    ['Уровень', `⭐ ${m.level}`],
+    ['Фаза', phaseLabel],
+  ];
+
+  if (m.phase === 'shield') {
+    const pct = m.max_shield_hp > 0 ? Math.round(m.shield_hp / m.max_shield_hp * 100) : 0;
+    stats.push(['🛡️ Щит', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
+  } else if (m.phase === 'open') {
+    const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
+    stats.push(['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
+    const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
+    stats.push(['🌊 Защитники', `${defenders.length} живых`]);
+  } else if (m.phase === 'defeated' && m.respawn_at) {
+    const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
+    stats.push(['⏰ Респавн', `${Math.floor(left/60)}ч ${left%60}мин`]);
+  }
+
+  const actions = [];
+  if (m.phase === 'shield' && inRange) {
+    actions.push({ label: '⚔️ Атаковать щит', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'shield') });
+  } else if (m.phase === 'open' && inRange) {
+    const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
+    if (defenders.length > 0) {
+      actions.push({ label: `⚔️ Убить защитников (${defenders.length})`, cls: 'danger', action: () => doStartDefenderCombat(monumentId) });
+    } else {
+      actions.push({ label: '⚔️ Атаковать монумент', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
+    }
+  }
+  if (!inRange && m.phase !== 'defeated') {
+    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+  }
+
+  openPopup(`🏛️ ${m.name}`, distLabel, stats, actions);
+}
+
+// ── Defender popup — direct attack (no combat mode) ──
+function showDefenderPopup(defenderId) {
+  const d = defenderData[defenderId];
+  if (!d) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, d.lat, d.lng) : null;
+  const inRange = dist !== null && dist <= 500;
+  const hpPct = d.max_hp > 0 ? Math.round(d.hp / d.max_hp * 100) : 0;
+
+  const stats = [
+    ['HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff6600;border-radius:4px"></div></div>${formatNumber(d.hp)}/${formatNumber(d.max_hp)}</div>`],
+  ];
+
+  const actions = [];
+  if (inRange) {
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => { closePopup(); doStartSingleDefenderCombat(defenderId); } });
+  } else {
+    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+  }
+
+  openPopup(`${d.emoji} Защитник монумента`, dist ? `📍 ${Math.round(dist)}м` : '', stats, actions);
+}
+
+// ── Loot box popup ──
+function showLootBoxPopup(boxId) {
+  const box = lootBoxData[boxId];
+  if (!box) return;
+
+  const stats = [
+    ['Рейд', `${box.monument_level} ур.`],
+  ];
+
+  const actions = [
+    { label: '🎊 Открыть', cls: 'danger', action: () => doOpenLootBox(boxId) },
+  ];
+
+  openPopup(`Награда за рейд ${box.player_avatar || ''} ${box.player_name || ''}`, '', stats, actions);
+}
+
+// ── Combat: attack monument shield or body ──
+function doStartMonumentCombat(monumentId, mode) {
+  const m = monumentData[monumentId];
+  if (!m) return;
+
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+
+  closePopup();
+  showCombatHUD({ id: monumentId, level: m.level, name: m.name, _monumentMode: mode }, 'monument');
+}
+
+function doStartDefenderCombat(monumentId) {
+  // Attack the closest alive defender for this monument
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  const defenders = Object.entries(defenderData)
+    .filter(([_, d]) => d.monument_id === monumentId)
+    .map(([id, d]) => ({ id, ...d, dist: haversine(pos.lat, pos.lng, d.lat, d.lng) }))
+    .sort((a, b) => a.dist - b.dist);
+
+  if (!defenders.length) return showToast('Нет живых защитников');
+  doStartSingleDefenderCombat(defenders[0].id);
+}
+
+function doStartSingleDefenderCombat(defenderId) {
+  const d = defenderData[defenderId];
+  if (!d) return;
+
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+
+  closePopup();
+  showCombatHUD({ id: defenderId, emoji: d.emoji, _defenderMode: true, monument_id: d.monument_id }, 'defender');
+}
+
+// ── Extend showCombatHUD for monument/defender modes ──
+const _origShowCombatHUD = showCombatHUD;
+
+// Override doHit dispatch in showCombatHUD (already handles modes via the existing pattern)
+// We need to add 'monument' and 'defender' modes to the doHit function
+
+// ── Hit handlers for monuments ──
+async function doMonumentShieldHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const m = monumentData[target.id];
+    if (m) { m.shield_hp = data.shield_hp; m.max_shield_hp = data.max_shield_hp; updateMonumentMarkerIcon(target.id); }
+    if (data.shield_broken) { stopCombat(); showToast('💥 Щит пробит! Появились защитники!'); }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doMonumentBodyHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-monument', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const m = monumentData[target.id];
+    if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
+    if (data.defeated) { stopCombat(); showToast('🏆 Монумент повержен! Награды на карте!'); }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('защитников') || msg.includes('Сначала')) { stopCombat(); showToast('⚔️ ' + msg); return; }
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doDefenderHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-defender', telegram_id: TG_ID, defender_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    if (data.killed) {
+      // Remove defender marker
+      if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
+      // Check if more defenders for this monument
+      const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id);
+      if (remaining.length > 0) {
+        // Switch to next closest defender
+        const pos2 = state.playerPos;
+        remaining.sort((a, b) => haversine(pos2.lat, pos2.lng, a.lat, a.lng) - haversine(pos2.lat, pos2.lng, b.lat, b.lng));
+        stopCombat();
+        doStartSingleDefenderCombat(remaining[0].id || Object.keys(defenderData).find(k => defenderData[k].monument_id === target.monument_id));
+      } else {
+        stopCombat();
+        showToast('⚡ Все защитники убиты! Атакуйте монумент!');
+      }
+    } else {
+      // Update defender HP
+      const d = defenderData[target.id];
+      if (d) { d.hp = data.defender_hp; d.max_hp = data.defender_max_hp; if (defenderMarkers[target.id]) defenderMarkers[target.id].setIcon(defenderIcon(d)); }
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doJoinRaid(monumentId) {
+  const pos = state.playerPos;
+  if (!pos) return showToast('❌ Нет GPS');
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'start-raid', telegram_id: TG_ID, monument_id: monumentId, lat: pos.lat, lng: pos.lng }),
+    });
+    showToast(`👥 Присоединился к рейду! Участников: ${data.participants}`);
+    closePopup();
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doOpenLootBox(boxId) {
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'open-loot-box', telegram_id: TG_ID, box_id: boxId }),
+    });
+    closePopup();
+    // Remove marker
+    if (lootBoxMarkers[boxId]) { map.removeLayer(lootBoxMarkers[boxId]); delete lootBoxMarkers[boxId]; delete lootBoxData[boxId]; }
+    // Update diamonds
+    if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+    // Show reward list
+    const lines = [`🎊 Награда!`, `💎 ${data.gems} алмазов`];
+    if (data.items?.length) {
+      for (const item of data.items) lines.push(`${item.emoji} ${item.name}`);
+    }
+    if (data.xp?.xpGained) lines.push(`⭐ +${data.xp.xpGained} XP`);
+    showToast(lines.join('\n'), 5000);
+    handleXpResult(data.xp);
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+// ═══════════════════════════════════════════════════
+//  COLLECTORS — Auto-collect buildings
+// ═══════════════════════════════════════════════════
+const collectorMarkers = {};
+const collectorData = {};
+const collectorCircles = {};
+const _myCollectorsCache = {}; // all own collectors (not viewport-limited)
+
+function collectorIcon(c) {
+  const isMine = c.is_mine;
+  const glow = isMine ? 'filter:drop-shadow(0 0 6px #4caf50)' : 'filter:drop-shadow(0 0 6px #f44336)';
+  const capacity = c._capacity || 1;
+  const fillPct = capacity > 0 ? Math.min(100, Math.round((c.stored_coins || 0) / capacity * 100)) : 0;
+  const isFull = fillPct >= 90;
+  const barColor = isMine ? '#4caf50' : '#f44336';
+
+  let label = '';
+  if (isFull) label = '<div class="collector-full">ПОЛНЫЙ</div>';
+
+  return L.divIcon({
+    html: `<div class="collector-marker" style="${glow}">
+      <span style="font-size:26px">🧲</span>
+      <div class="collector-bar"><div style="width:${fillPct}%;background:${barColor}"></div></div>
+      ${label}
+    </div>`,
+    className: '',
+    iconSize: [36, 44],
+    iconAnchor: [18, 22],
+  });
+}
+
+function renderCollectors(collectors) {
+  if (!collectors || !collectors.length) return;
+  for (const c of collectors) {
+    // Estimate capacity client-side (mines in 200m owned by same player)
+    const myMines = (state.mapBuildings?.mines || []).filter(m => m.owner_id === c.owner_id && haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
+    const totalIncome = myMines.reduce((s, m) => s + (m.income || 0), 0);
+    const capHours = [0,6,8,10,12,16,20,24,30,36,48][c.level] || 6;
+    c._capacity = Math.floor(totalIncome * 3600 * capHours);
+
+    collectorData[c.id] = c;
+    if (collectorMarkers[c.id]) {
+      collectorMarkers[c.id].setIcon(collectorIcon(c));
+    } else {
+      const marker = L.marker([c.lat, c.lng], { icon: collectorIcon(c), zIndexOffset: 2000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showCollectorPopup(c.id); });
+      marker.addTo(map);
+      collectorMarkers[c.id] = marker;
+    }
+    // Owner-only radius circle (200m)
+    if (c.is_mine && !collectorCircles[c.id]) {
+      collectorCircles[c.id] = L.circle([c.lat, c.lng], {
+        radius: 200,
+        color: 'rgba(180,180,180,0.25)',
+        fillColor: 'transparent',
+        weight: 1,
+        opacity: 0.3,
+        interactive: false,
+      }).addTo(map);
+    } else if (!c.is_mine && collectorCircles[c.id]) {
+      map.removeLayer(collectorCircles[c.id]);
+      delete collectorCircles[c.id];
+    }
+  }
+}
+
+function flyToCollector(collectorId) {
+  const c = collectorData[collectorId];
+  if (!c) return;
+  closePopup();
+  map.flyTo([c.lat, c.lng], 17, { duration: 1.0 });
+  setTimeout(() => showCollectorPopup(collectorId), 1200);
+}
+
+function updateCollectorMarker(collectorId) {
+  const c = collectorData[collectorId];
+  if (c && collectorMarkers[collectorId]) collectorMarkers[collectorId].setIcon(collectorIcon(c));
+}
+
+function showCollectorPopup(collectorId) {
+  const c = collectorData[collectorId];
+  if (!c) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, c.lat, c.lng) : null;
+  const inAttackRange = dist !== null && dist <= 500;
+  const capacity = c._capacity || 1;
+  const coins = c.stored_coins || 0;
+  const fillPct = capacity > 0 ? Math.min(100, Math.round(coins / capacity * 100)) : 0;
+  const hpPct = c.max_hp > 0 ? Math.round(c.hp / c.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+  const barColor = fillPct < 70 ? '#4caf50' : fillPct < 90 ? '#ff9800' : '#f44336';
+
+  const lastCollect = c.last_collected_at ? new Date(c.last_collected_at).getTime() : Date.now();
+  const nextMin = Math.ceil(Math.max(0, (lastCollect + 3600000) - Date.now()) / 60000);
+
+  // Index among own collectors
+  const myColls = Object.values(collectorData).filter(x => x.is_mine);
+  const idx = myColls.findIndex(x => x.id === c.id) + 1;
+
+  const card = document.getElementById('popup-card');
+
+  if (c.is_mine) {
+    const upgCostsDiamonds = [0,0,50,100,200,400,750,1200,2000,3500,6000];
+    const nextCost = c.level < 10 ? upgCostsDiamonds[c.level + 1] : null;
+    const canUpgrade = nextCost && (state.player?.diamonds || 0) >= nextCost;
+
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:600;color:#fff">🧲 Сборщик #${idx} · Ур.${c.level}</div>
+        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hq-stat-card"><span>❤️ HP</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>
+        <div class="hq-stat-card"><span>💰 Накоплено</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>
+        <div class="hq-stat-card"><span>📊 Заполнен</span><span>${fillPct}%</span></div>
+        <div class="hq-stat-card"><span>⏱️ Сбор</span><span>через ${nextMin} мин</span></div>
+      </div>
+      <div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">⬆️ Улучшить — ${nextCost}💎</button>` : ''}
+        <button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">💸 Продать — 37💎</button>
+      </div>
+      <div style="font-size:11px;color:#555;margin-top:8px;text-align:center">Заказать доставку можно через штаб</div>
+    `;
+  } else {
+    const approxCoins = Math.round(coins / 1000) * 1000;
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:600;color:#fff">🧲 Чужой сборщик · Ур.${c.level}</div>
+        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;color:#888">${c.owner_avatar || ''} ${c.owner_name || '?'}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="hq-stat-card"><span>💰 Накоплено</span><span style="color:#FFD700">~${formatCoins(approxCoins)}</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        ${inAttackRange
+          ? `<button class="hq-btn red" onclick="closePopup();doStartCollectorCombat('${collectorId}')">⚔️ Атаковать</button>
+             <div style="font-size:11px;color:#888;text-align:center">При уничтожении получишь все накопленные монеты</div>`
+          : `<button class="hq-btn" disabled style="background:#333;color:#666">${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}</button>`
+        }
+      </div>
+    `;
+  }
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+function doStartCollectorCombat(collectorId) {
+  const c = collectorData[collectorId];
+  if (!c) return;
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  closePopup();
+  showCombatHUD({ id: collectorId, level: c.level, _collectorMode: true }, 'collector');
+}
+
+async function doCollectorHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, collector_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const c = collectorData[target.id];
+    if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
+    if (data.destroyed) {
+      stopCombat();
+      if (collectorMarkers[target.id]) { map.removeLayer(collectorMarkers[target.id]); delete collectorMarkers[target.id]; delete collectorData[target.id]; }
+      showToast(`💥 Сборщик уничтожен! +${formatCoins(data.stolen_coins)} монет`);
+      _setPlayerCoins((state.player?.coins || 0) + data.stolen_coins);
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat();
+  }
+}
+
+async function doCollectorDeliver(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deliver', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    closePopup();
+    showToast(`📦 Курьер отправлен!\n💰 ${formatCoins(data.net)} монет\n📋 Комиссия: ${formatCoins(data.commission)}`);
+    const c = collectorData[collectorId];
+    if (c) { c.stored_coins = 0; updateCollectorMarker(collectorId); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectorUpgrade(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    closePopup();
+    showToast(`⬆️ Сборщик улучшен до Lv.${data.level}!`);
+    const c = collectorData[collectorId];
+    if (c) { c.level = data.level; c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(collectorId); }
+    if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectorSell(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    closePopup();
+    if (collectorMarkers[collectorId]) { map.removeLayer(collectorMarkers[collectorId]); delete collectorMarkers[collectorId]; delete collectorData[collectorId]; }
+    showToast(`💸 Сборщик продан!\n+37💎\n+${formatCoins(data.coins_returned)} монет`);
+    if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
 </script>
 
 <!-- Profile modal (fullscreen) -->
@@ -9559,13 +11382,7 @@ async function doClanKick(targetTgId) {
 
 <!-- Item detail sheet -->
 <div id="item-detail-overlay" onclick="if(event.target===this)closeItemDetail()">
-  <div id="item-detail-card">
-    <div id="item-detail-emoji" style="font-size:48px;text-align:center;margin-bottom:8px;"></div>
-    <h3 id="item-detail-name" style="text-align:center;"></h3>
-    <div id="item-detail-rarity" style="text-align:center;font-size:12px;margin:4px 0;"></div>
-    <div class="item-stat" id="item-detail-stat" style="text-align:center;"></div>
-    <div class="item-btn-row" id="item-detail-btns"></div>
-  </div>
+  <div class="item-detail-card" id="item-detail-card"></div>
 </div>
 
 <!-- Sell confirm dialog -->
@@ -9637,7 +11454,6 @@ async function doClanKick(targetTgId) {
     <button class="market-sort-btn" data-sort="cheap">💰 Дешевле</button>
     <button class="market-sort-btn" data-sort="expensive">💎 Дороже</button>
     <button class="market-sort-btn active" data-sort="new">🆕 Новые</button>
-    <button class="market-sort-btn" onclick="_buyTargetListing=null;openMarketPrivate()" style="margin-left:auto;">🔒 Код</button>
   </div>
   <div id="market-body">
     <div id="market-grid"></div>
@@ -9708,6 +11524,14 @@ async function doClanKick(targetTgId) {
 
 <!-- PvP battle overlay -->
 <div id="pvp-overlay"></div>
+
+<!-- Death screen -->
+<div id="death-screen">
+  <div class="death-skull">💀</div>
+  <div class="death-text">Вы погибли</div>
+  <div class="death-timer" id="death-timer">10</div>
+  <div class="death-info" id="death-info"></div>
+</div>
 
 <!-- Mine attack countdown overlay -->
 <div id="mine-attack-overlay">
