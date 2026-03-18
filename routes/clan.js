@@ -627,7 +627,6 @@ async function handleSellHq(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, coins');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.clan_id) return res.status(400).json({ error: 'Сначала покиньте клан' });
 
   const { data: hq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
   if (!hq) return res.status(404).json({ error: 'Штаб не найден' });

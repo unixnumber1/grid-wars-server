@@ -10109,7 +10109,6 @@ function showClanHqPopup(ch) {
       ],
     ]);
   } else if (isOwn && isActive) {
-    const inClan = !!state.player?.clan_id;
     openPopup(
       `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
       `Уровень ${ch.clan_level}`,
@@ -10117,19 +10116,11 @@ function showClanHqPopup(ch) {
       [
         { label: '⚔️ Войти в штаб', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') },
         [
-          inClan
-            ? { label: '🗑️ Снести', cls: '', disabled: true }
-            : { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
+          { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
           { label: 'Закрыть', isClose: true },
         ],
       ]
     );
-    if (inClan) {
-      setTimeout(() => {
-        const btns = document.querySelectorAll('#popup-actions .btn[disabled]');
-        btns.forEach(b => { if (b.textContent.includes('Снести')) { b.insertAdjacentHTML('afterend', '<div style="font-size:11px;color:#666;text-align:center;margin-top:2px;">Покиньте клан чтобы снести штаб</div>'); }});
-      }, 50);
-    }
   } else if (isActive) {
     openPopup(
       `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
