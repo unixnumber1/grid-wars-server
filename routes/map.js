@@ -535,6 +535,12 @@ async function handleTick(req, res) {
     if (pc) clanColor = pc.color;
   }
 
+  // Check if player has a clan HQ (regardless of viewport)
+  let hasClanHq = false;
+  if (gameState.loaded) {
+    hasClanHq = !!gameState.getClanHqByPlayerId(currentPlayerId);
+  }
+
   // ── Loot boxes (monument rewards for this player, near viewport) ──
   let loot_boxes = [];
   if (hasBbox) {
@@ -576,6 +582,7 @@ async function handleTick(req, res) {
     clanColor,
     oreIncome,
     etherIncome,
+    hasClanHq,
     inventory,
     notifications,
     completedUpgrades,
