@@ -1148,6 +1148,27 @@
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
     }
+    .cores-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .core-card { background:#1a1a2e; border-radius:12px; padding:12px 8px; text-align:center; cursor:pointer; border:1px solid #333; }
+    .core-card:active { transform:scale(0.95); }
+    .core-emoji { font-size:28px; }
+    .core-level { font-size:11px; color:#888; margin-top:4px; }
+    .core-multiplier { font-size:10px; color:#FFD700; }
+    .cores-empty { grid-column:1/-1; text-align:center; color:#555; padding:40px 20px; font-size:14px; }
+    .mine-cores-section { background:#1a1a2e; border-radius:12px; padding:12px; margin-top:12px; }
+    .mine-cores-header { font-size:14px; font-weight:600; color:#fff; margin-bottom:10px; display:flex; justify-content:space-between; }
+    .cores-count { color:#888; font-weight:400; }
+    .mine-cores-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+    .core-slot { aspect-ratio:1; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
+    .core-slot.installed { background:#252538; border:1px solid #444; }
+    .core-slot.installed:active { transform:scale(0.93); }
+    .core-slot.empty { background:#111; border:1px dashed #333; }
+    .core-slot.empty:active { background:#1a1a2e; }
+    .slot-emoji { font-size:20px; }
+    .slot-level { font-size:9px; color:#888; }
+    .slot-mult { font-size:9px; color:#FFD700; }
+    .slot-plus { font-size:22px; color:#444; }
+    .cores-total-boost { margin-top:8px; font-size:12px; color:#888; text-align:center; }
     .inv-cell {
       width: 100%;
       aspect-ratio: 1;
@@ -4601,8 +4622,7 @@ function showHqPopup(hq, isOwn) {
 function showMinePopup(mine, isOwn, canCapture) {
   _currentPopupEntityId = `mine_${mine.id}`;
   _selectMarker(`mine_${mine.id}`);
-  // Pre-fetch cores for this mine (fire-and-forget, will be available on next popup open)
-  if (isOwn && mine.cell_id) fetchMineCores(mine.cell_id).catch(() => {});
+  // Cores are now synced via tick data in state._playerCores
   // Merge boosted income from mines_own (server sends clan-boosted income there)
   if (isOwn) {
     const ownMine = (state.mines || []).find(m => m.id === mine.id);
@@ -4699,18 +4719,26 @@ function showMinePopup(mine, isOwn, canCapture) {
           return `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(hp)}/${formatNumber(boostedHp)}</span></div>${clanBonusInfo ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${clanBonusInfo.defense}% защита клана</div>` : ''}`;
         })()]] : []),
         ...(mine.level > 0 && mine.cell_id ? [['🔮 Ядра', (() => {
-          const cores = (state._mineCores || {})[mine.cell_id] || [];
-          const slotsHtml = [];
+          const cores = getCoresForMine(mine.cell_id);
+          let slotsHtml = '<div class="mine-cores-grid">';
           for (let i = 0; i < 10; i++) {
             const c = cores.find(x => x.slot_index === i);
             if (c) {
               const info = CORE_TYPES[c.core_type] || {};
-              slotsHtml.push(`<span title="${info.name || ''} Lv.${c.level} x${getCoreMultiplier(c.level)}" style="display:inline-block;width:24px;height:24px;text-align:center;line-height:24px;background:#252538;border-radius:6px;font-size:14px;cursor:pointer;" onclick="showCoreDetail('${c.id}')">${info.emoji || '?'}</span>`);
+              slotsHtml += `<div class="core-slot installed" onclick="showInstalledCorePopup('${c.id}')"><div class="slot-emoji">${info.emoji || '?'}</div><div class="slot-level">lv.${c.level}</div><div class="slot-mult">x${getCoreMultiplier(c.level)}</div></div>`;
             } else {
-              slotsHtml.push(`<span style="display:inline-block;width:24px;height:24px;text-align:center;line-height:24px;background:#1a1a2e;border:1px dashed #444;border-radius:6px;font-size:12px;color:#555;cursor:pointer;" onclick="openCoreInstallPicker('${mine.id}','${mine.cell_id}')">+</span>`);
+              slotsHtml += `<div class="core-slot empty" onclick="openCoreInstallPicker('${mine.id}','${mine.cell_id}')"><div class="slot-plus">+</div></div>`;
             }
           }
-          return `<div style="display:flex;gap:3px;flex-wrap:wrap">${slotsHtml.join('')}</div><div style="font-size:11px;color:#888;margin-top:3px">${cores.length}/10 слотов</div>`;
+          slotsHtml += '</div>';
+          // Total boosts
+          if (cores.length > 0) {
+            const byType = {};
+            for (const c of cores) { byType[c.core_type] = (byType[c.core_type] || 0) + getCoreMultiplier(c.level); }
+            const lines = Object.entries(byType).map(([t, v]) => `${(CORE_TYPES[t]||{}).emoji||''} x${v.toFixed(1)}`).join('  ');
+            slotsHtml += `<div class="cores-total-boost">${lines}</div>`;
+          }
+          return `${slotsHtml}<div style="font-size:11px;color:#555;margin-top:4px">${cores.length}/10</div>`;
         })()]] : []),
       ],
       mine.status === 'burning' ? [
@@ -4989,48 +5017,91 @@ async function doSellMine(mineId) {
 
 
 // ── Core management functions ──
-async function fetchMineCores(cellId) {
-  // Fetch cores for a specific mine and cache them
-  try {
-    const data = await apiFetch('/api/cores', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'inventory', telegram_id: TG_ID }),
-    });
-    if (!state._mineCores) state._mineCores = {};
-    // Group cores by mine_cell_id
-    state._allCores = data.cores || [];
-    for (const c of state._allCores) {
-      if (c.mine_cell_id) {
-        if (!state._mineCores[c.mine_cell_id]) state._mineCores[c.mine_cell_id] = [];
-        // Avoid duplicates
-        const existing = state._mineCores[c.mine_cell_id].find(x => x.id === c.id);
-        if (!existing) state._mineCores[c.mine_cell_id].push(c);
-      }
-    }
-    return state._mineCores[cellId] || [];
-  } catch (e) {
-    return [];
+// ── Core inventory tab ──
+function switchInvTab(tab) {
+  const eqBtn = document.getElementById('inv-tab-equip');
+  const crBtn = document.getElementById('inv-tab-cores');
+  const eqPanel = document.getElementById('inv-panel-equip');
+  const crPanel = document.getElementById('inv-panel-cores');
+  const eqActions = document.getElementById('inv-equip-actions');
+  if (tab === 'cores') {
+    eqBtn.style.background = 'transparent'; eqBtn.style.color = '#666';
+    crBtn.style.background = '#333'; crBtn.style.color = '#fff';
+    eqPanel.style.display = 'none'; crPanel.style.display = '';
+    if (eqActions) eqActions.style.display = 'none';
+    renderCoresInventory();
+  } else {
+    eqBtn.style.background = '#333'; eqBtn.style.color = '#fff';
+    crBtn.style.background = 'transparent'; crBtn.style.color = '#666';
+    eqPanel.style.display = ''; crPanel.style.display = 'none';
+    if (eqActions) eqActions.style.display = 'flex';
   }
 }
 
-function showCoreDetail(coreId) {
-  const core = (state._allCores || []).find(c => c.id === coreId);
+function renderCoresInventory() {
+  const grid = document.getElementById('cores-inv-grid');
+  if (!grid) return;
+  const cores = (state._playerCores || []).filter(c => !c.mine_cell_id);
+  if (cores.length === 0) {
+    grid.innerHTML = '<div class="cores-empty">Нет ядер в сумке<br>Получай с монументов 🏛️</div>';
+    return;
+  }
+  grid.innerHTML = `<div class="cores-grid">${cores.map(c => {
+    const info = CORE_TYPES[c.core_type] || {};
+    return `<div class="core-card" onclick="showCoreDetailPopup('${c.id}')">
+      <div class="core-emoji">${info.emoji || '?'}</div>
+      <div class="core-level">lv.${c.level}</div>
+      <div class="core-multiplier">x${getCoreMultiplier(c.level)}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── Core detail popup (from inventory) ──
+function showCoreDetailPopup(coreId) {
+  const core = (state._playerCores || []).find(c => c.id === coreId);
+  if (!core) return;
+  const info = CORE_TYPES[core.core_type] || {};
+  const mul = getCoreMultiplier(core.level);
+  const nextMul = getCoreMultiplier(core.level + 1);
+  const cost = getCoreUpgradeCost(core.level);
+  const ether = state.player?.ether || 0;
+  const canUpgrade = ether >= cost;
+  openPopup(
+    `${info.emoji} ${info.name}`,
+    '',
+    [
+      ['Уровень', core.level],
+      ['Множитель', `<span style="color:#FFD700">x${mul}</span>`],
+      ['После прокачки', `<span style="color:#4caf50">x${nextMul}</span> (lv.${core.level + 1})`],
+      ['Стоимость', `${cost} 🌀`],
+    ],
+    [
+      { label: `⬆️ Прокачать за ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      ...(core.mine_cell_id ? [{ label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
+      { label: 'Закрыть', isClose: true },
+    ]
+  );
+}
+
+// ── Core detail popup (installed in mine) ──
+function showInstalledCorePopup(coreId) {
+  const core = (state._playerCores || []).find(c => c.id === coreId);
   if (!core) return;
   const info = CORE_TYPES[core.core_type] || {};
   const mul = getCoreMultiplier(core.level);
   const cost = getCoreUpgradeCost(core.level);
   const ether = state.player?.ether || 0;
+  const canUpgrade = ether >= cost;
   openPopup(
     `${info.emoji} ${info.name} Lv.${core.level}`,
     `Множитель: x${mul}`,
     [
-      ['Тип', info.name || core.core_type],
       ['Уровень', core.level],
-      ['Множитель', `x${mul}`],
+      ['Множитель', `<span style="color:#FFD700">x${mul}</span>`],
     ],
     [
-      { label: `⬆️ Прокачать (${cost}🌀)`, cls: ether >= cost ? 'yellow' : 'disabled', disabled: ether < cost, action: () => doCoreUpgrade(coreId) },
-      { label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) },
+      { label: `⬆️ Прокачать (${cost}🌀)`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      { label: '📤 Извлечь в сумку', cls: 'danger', action: () => doCoreUninstall(coreId) },
       { label: 'Закрыть', isClose: true },
     ]
   );
@@ -5044,9 +5115,12 @@ async function doCoreUpgrade(coreId) {
     });
     if (data.success) {
       if (state.player) state.player.ether = data.ether_left;
+      // Update local core data
+      const c = (state._playerCores || []).find(x => x.id === coreId);
+      if (c) c.level = data.new_level;
       showToast(`✅ Ядро улучшено до Lv.${data.new_level} (x${data.multiplier})`);
-      state._mineCores = {}; // clear cache
-      closePopup();
+      updateCoinDisplay();
+      showCoreDetailPopup(coreId); // refresh popup
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
@@ -5058,42 +5132,30 @@ async function doCoreUninstall(coreId) {
       body: JSON.stringify({ action: 'uninstall', telegram_id: TG_ID, core_id: coreId }),
     });
     if (data.success) {
-      showToast('✅ Ядро извлечено');
-      state._mineCores = {};
+      const c = (state._playerCores || []).find(x => x.id === coreId);
+      if (c) { c.mine_cell_id = null; c.slot_index = null; }
+      showToast('✅ Ядро извлечено в сумку');
       closePopup();
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
 
-async function openCoreInstallPicker(mineId, cellId) {
-  try {
-    const data = await apiFetch('/api/cores', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'inventory', telegram_id: TG_ID }),
-    });
-    const inventoryCores = (data.cores || []).filter(c => !c.mine_cell_id);
-    if (inventoryCores.length === 0) {
-      showToast('Нет ядер в инвентаре');
-      return;
-    }
-
-    const stats = inventoryCores.map(c => {
-      const info = CORE_TYPES[c.core_type] || {};
-      return [`${info.emoji} ${info.name}`, `Lv.${c.level} x${getCoreMultiplier(c.level)}`];
-    });
-
-    const actions = inventoryCores.map(c => {
-      const info = CORE_TYPES[c.core_type] || {};
-      return {
-        label: `${info.emoji} Установить ${info.name} Lv.${c.level}`,
-        cls: 'primary',
-        action: () => doCoreInstall(c.id, mineId),
-      };
-    });
-    actions.push({ label: 'Отмена', isClose: true });
-
-    openPopup('🔮 Выбери ядро', `${inventoryCores.length} ядер в инвентаре`, [], actions);
-  } catch (e) { showToast(`❌ ${e.message}`); }
+function openCoreInstallPicker(mineId, cellId) {
+  const available = (state._playerCores || []).filter(c => !c.mine_cell_id);
+  if (available.length === 0) {
+    showToast('Нет ядер в сумке. Получай с монументов 🏛️');
+    return;
+  }
+  const actions = available.map(c => {
+    const info = CORE_TYPES[c.core_type] || {};
+    return {
+      label: `${info.emoji} ${info.name} Lv.${c.level} (x${getCoreMultiplier(c.level)})`,
+      cls: 'primary',
+      action: () => doCoreInstall(c.id, mineId),
+    };
+  });
+  actions.push({ label: 'Отмена', isClose: true });
+  openPopup('🔮 Выбери ядро', `${available.length} ядер в сумке`, [], actions);
 }
 
 async function doCoreInstall(coreId, mineId) {
@@ -5106,11 +5168,17 @@ async function doCoreInstall(coreId, mineId) {
       }),
     });
     if (data.success) {
+      const c = (state._playerCores || []).find(x => x.id === coreId);
+      if (c) { c.mine_cell_id = data.core?.mine_cell_id; c.slot_index = data.slot; }
       showToast('✅ Ядро установлено');
-      state._mineCores = {};
       closePopup();
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
+}
+
+// Helper: get cores installed in a specific mine
+function getCoresForMine(cellId) {
+  return (state._playerCores || []).filter(c => c.mine_cell_id === cellId);
 }
 
 async function doBuildHq(lat, lng) {
@@ -5780,6 +5848,7 @@ function processTickData(data) {
   if (data.oreIncome != null) state.oreIncome = data.oreIncome;
   if (data.etherIncome != null) state.etherIncome = data.etherIncome;
   if (data.hasClanHq != null) state.hasClanHq = data.hasClanHq;
+  if (data.player_cores) state._playerCores = data.player_cores;
   if (data.baseIncome != null) state.baseIncome = data.baseIncome;
   if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
@@ -11632,16 +11701,25 @@ async function doCollectorSell(collectorId) {
     <div id="profile-stat-rows"></div>
   </div>
 
-  <!-- Inventory -->
+  <!-- Inventory with tabs -->
   <div class="profile-section" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div class="profile-section-title" id="inventory-title" style="margin-bottom:0;">Инвентарь (0)</div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+        <button id="inv-tab-equip" onclick="switchInvTab('equip')" style="padding:6px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#333;color:#fff;">⚔️ Снаряжение</button>
+        <button id="inv-tab-cores" onclick="switchInvTab('cores')" style="padding:6px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:#666;">🔮 Ядра</button>
+      </div>
+      <div id="inv-equip-actions" style="display:flex;gap:6px;">
         <button id="btn-mass-sell" onclick="enterSelectionMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
         <button id="btn-craft" onclick="openCraftScreen()" style="background:linear-gradient(135deg,#f5c518,#ff8c00);color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">⚒️ Крафт</button>
       </div>
     </div>
-    <div class="inventory-grid" id="inventory-grid" style="margin-top:12px;"></div>
+    <div id="inv-panel-equip">
+      <div class="profile-section-title" id="inventory-title" style="margin-top:8px;margin-bottom:0;">Инвентарь (0)</div>
+      <div class="inventory-grid" id="inventory-grid" style="margin-top:12px;"></div>
+    </div>
+    <div id="inv-panel-cores" style="display:none;margin-top:12px;">
+      <div id="cores-inv-grid"></div>
+    </div>
   </div>
 </div>
 
