@@ -418,6 +418,7 @@ async function handleTick(req, res) {
   let inventory = [];
   let totalIncome = 0;
   let _clanBoost = null;
+  let mineCountBoost = 1;
   try {
     if (gameState.loaded) {
       playerMines = gameState.getPlayerMines(currentPlayerId).map(m => {
@@ -449,6 +450,9 @@ async function handleTick(req, res) {
       });
       inventory = inv || [];
     }
+
+    // Compute mine count boost after playerMines is populated
+    mineCountBoost = getMineCountBoost(playerMines.length);
 
     try {
       // Apply mine count boost + core boosts to income function
@@ -493,9 +497,7 @@ async function handleTick(req, res) {
   } catch (_) {}
 
   // ── Build response ─────────────────────────────────────
-  // Mine count boost
   const playerMineCount = playerMines.length;
-  const mineCountBoost = getMineCountBoost(playerMineCount);
 
   const playerData = {
     ...player, level, xp: player.xp ?? 0,
