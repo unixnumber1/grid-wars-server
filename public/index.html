@@ -4031,6 +4031,21 @@ function togglePin() {
 }
 
 const hexLayer  = L.layerGroup().addTo(map);
+
+// Flash hex grid briefly (brighten lines for 600ms then fade)
+let _hexFlashTimeout = null;
+function _flashHexGrid() {
+  if (_hexFlashTimeout) return; // already flashing
+  hexLayer.eachLayer(poly => {
+    poly.setStyle({ color: 'rgba(255,255,255,0.5)', weight: 1.2 });
+  });
+  _hexFlashTimeout = setTimeout(() => {
+    hexLayer.eachLayer(poly => {
+      poly.setStyle({ color: 'rgba(255,255,255,0.15)', weight: 0.5 });
+    });
+    _hexFlashTimeout = null;
+  }, 600);
+}
 const botLayer  = L.layerGroup().addTo(map);
 const vaseLayer = L.layerGroup().addTo(map);
 
@@ -4107,7 +4122,7 @@ function otherPlayerIcon(avatar, shieldUntil) {
 // ─────────────────────────────────────────────
 function updateHexGrid() {
   const zoom = map.getZoom();
-  if (zoom < 18) {
+  if (zoom < 17) {
     hexLayer.clearLayers();
     return;
   }
@@ -4173,7 +4188,8 @@ function updateHexGrid() {
       poly.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
         if (Date.now() - _suppressMapClick < 300) return;
-        handleHexClick(cellId);
+        // Just flash the hex — building popups only via marker hitbox
+        _flashHexGrid();
       });
     }
 
@@ -4794,13 +4810,12 @@ map.on('click', e => {
   const { lat, lng } = e.latlng;
   const pos = state.playerPos;
   const dist = haversine(pos.lat, pos.lng, lat, lng);
-  if (dist > LARGE_RADIUS) {
-    openPopup('📍 Вне зоны', `${Math.round(dist)}м — подойди ближе`, [], []);
-    return;
+  // Only flash hex grid if zoomed in enough and within range
+  const zoom = map.getZoom();
+  if (zoom >= 17 && dist <= SMALL_RADIUS) {
+    _flashHexGrid();
   }
-  // Inside range: route to hex handler with actual tap coords
-  const cellId = getCellId(lat, lng);
-  handleHexClick(cellId, lat, lng);
+  // No build menu or popup — buildings only open via marker click
 });
 
 let _loadBuildingsTimer = null;
