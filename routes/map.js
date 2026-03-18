@@ -6,7 +6,8 @@ import { getCellsInRange } from '../lib/grid.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../lib/bots.js';
 import { haversine } from '../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../lib/xp.js';
-import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS } from '../lib/formulas.js';
+import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, getMineCountBoost } from '../lib/formulas.js';
+import { getCoresTotalBoost } from '../lib/cores.js';
 import { gameState } from '../lib/gameState.js';
 import { calcTotalIncomeWithClanBonus, getClanLevel } from '../lib/clans.js';
 
@@ -450,7 +451,12 @@ async function handleTick(req, res) {
     }
 
     try {
-      const incResult = await calcTotalIncomeWithClanBonus(playerMines, getMineIncome, player.clan_id, supabase);
+      // Apply mine count boost + core boosts to income function
+      const boostedMineIncome = (level) => {
+        let inc = getMineIncome(level);
+        return inc * mineCountBoost;
+      };
+      const incResult = await calcTotalIncomeWithClanBonus(playerMines, boostedMineIncome, player.clan_id, supabase);
       totalIncome = incResult.total;
       if (incResult.boostExpiresAt) {
         _clanBoost = { expires_at: incResult.boostExpiresAt, multiplier: incResult.boostMultiplier };
@@ -466,12 +472,17 @@ async function handleTick(req, res) {
           const boostMul = boostActive ? (pClan.boost_multiplier || 1) : 1;
           for (const m of playerMines) {
             const inZone = cHqs.some(h => haversine(m.lat, m.lng, h.lat, h.lng) <= cCfg.radius);
-            if (inZone) {
-              let boosted = getMineIncome(m.level);
-              boosted = Math.round(boosted * (1 + cCfg.income / 100));
-              if (boostMul > 1) boosted = Math.round(boosted * boostMul);
-              m.income = boosted;
+            let inc = getMineIncome(m.level) * mineCountBoost;
+            // Apply core income boost if installed
+            if (gameState.loaded && m.cell_id) {
+              const cores = gameState.getCoresForMine(m.cell_id);
+              if (cores.length > 0) inc = inc * getCoresTotalBoost(cores, 'income');
             }
+            if (inZone) {
+              inc = Math.round(inc * (1 + cCfg.income / 100));
+              if (boostMul > 1) inc = Math.round(inc * boostMul);
+            }
+            m.income = inc;
           }
         }
       }
@@ -482,25 +493,39 @@ async function handleTick(req, res) {
   } catch (_) {}
 
   // ── Build response ─────────────────────────────────────
+  // Mine count boost
+  const playerMineCount = playerMines.length;
+  const mineCountBoost = getMineCountBoost(playerMineCount);
+
   const playerData = {
     ...player, level, xp: player.xp ?? 0,
     xpForNextLevel: xpForLevel(level),
     hp: currentHp, max_hp: maxHp,
     attack: 10 + (player.bonus_attack ?? 0),
     crystals: player.crystals || 0,
+    ether: player.ether || 0,
     smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS,
+    mine_count_boost: mineCountBoost,
+    mine_count: playerMineCount,
   };
 
   // Calculate total ore income for this player (all ore nodes, not just visible)
   let oreIncome = 0;
+  let etherIncome = 0;
   if (gameState.loaded) {
     for (const ore of gameState.oreNodes.values()) {
-      if (ore.owner_id === currentPlayerId) oreIncome += ore.level;
+      if (ore.owner_id === currentPlayerId) {
+        if (ore.currency === 'ether') {
+          etherIncome += ore.level;
+        } else {
+          oreIncome += ore.level;
+        }
+      }
     }
   }
 
-  // Base income without any clan bonuses
-  const baseIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+  // Base income with mine count boost (without clan bonuses)
+  const baseIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0) * mineCountBoost;
 
   // Clan color for UI
   let clanColor = null;
@@ -549,6 +574,7 @@ async function handleTick(req, res) {
     baseIncome,
     clanColor,
     oreIncome,
+    etherIncome,
     inventory,
     notifications,
     completedUpgrades,

@@ -457,14 +457,18 @@ async function periodicCleanup(nowMs, nowISO) {
           gameState.markDirty('oreNodes', id);
         }
 
-        // Passive crystal income for owners
+        // Passive income for owners (shards or ether based on currency)
         if (!ore.owner_id) continue;
         const hoursElapsed = (oreNow - new Date(ore.last_collected).getTime()) / 3600000;
-        const crystalsEarned = Math.floor(ore.level * hoursElapsed);
-        if (crystalsEarned > 0) {
+        const resourceEarned = Math.floor(ore.level * hoursElapsed);
+        if (resourceEarned > 0) {
           const player = gameState.getPlayerById(ore.owner_id);
           if (player) {
-            player.crystals = (player.crystals || 0) + crystalsEarned;
+            if (ore.currency === 'ether') {
+              player.ether = (player.ether || 0) + resourceEarned;
+            } else {
+              player.crystals = (player.crystals || 0) + resourceEarned;
+            }
             gameState.markDirty('players', player.id);
           }
           ore.last_collected = new Date(oreNow).toISOString();

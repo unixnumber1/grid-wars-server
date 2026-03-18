@@ -22,6 +22,7 @@ import { mapRouter } from './routes/map.js';
 import { oreRouter } from './routes/ore.js';
 import { monumentsRouter } from './routes/monuments.js';
 import { collectorsRouter } from './routes/collectors.js';
+import { coresRouter } from './routes/cores.js';
 import { startGameLoop } from './socket/gameLoop.js';
 
 import { log } from './lib/log.js';
@@ -190,6 +191,7 @@ app.use('/api/clan', clanRouter);
 app.use('/api/ore', oreRouter);
 app.use('/api/monuments', monumentsRouter);
 app.use('/api/collectors', collectorsRouter);
+app.use('/api/cores', coresRouter);
 
 // Fallback: serve index.html for any non-API route (SPA)
 app.get('*', (req, res) => {

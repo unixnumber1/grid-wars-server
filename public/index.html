@@ -2532,7 +2532,14 @@
       <span id="crystal-income-display" style="color:#aa88ff;font-size:11px;margin-left:2px;"></span>
     </div>
     <div class="hud-exp-row">
+      <span id="ether-display" style="color:#7DF9FF;font-size:13px;">🌀 0</span>
+      <span id="ether-income-display" style="color:#7DF9FF;font-size:11px;margin-left:2px;"></span>
+    </div>
+    <div class="hud-exp-row">
       <span class="hud-diamonds">💎 <span id="diamond-display-exp">0</span></span>
+    </div>
+    <div class="hud-exp-row">
+      <span id="mine-count-boost-display" style="color:#4CAF50;font-size:11px;display:none;"></span>
     </div>
   </div>
 </div>
@@ -2753,7 +2760,7 @@ const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
 function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 const SMALL_RADIUS = 200;
 const LARGE_RADIUS = 500;
-const H3_RES            = 11;
+const H3_RES            = 10;
 const H3_DISK_K         = 12;
 
 // Formulas (keep in sync with lib/formulas.js)
@@ -2765,20 +2772,27 @@ function getMineUpgradeCost(level) {
 }
 function getMineIncome(level) {
   if (level <= 0) return 0;
-  // Returns coins/sec. Targets: lv1=50/h, lv100=1.1M/h, lv200=5B/h
-  if (level <= 100) return 50 * Math.pow(1.1063, level - 1) / 3600;
-  const base100 = 50 * Math.pow(1.1063, 99) / 3600;
-  return base100 * Math.pow(1.0879, level - 100);
+  // Returns coins/sec. Per hour: 50 * level^2
+  return 50 * Math.pow(level, 2.0) / 3600;
 }
 function getMineCapacity(level) {
   if (level <= 0) return 0;
-  const income = getMineIncome(level);
+  const incomePerHour = Math.floor(50 * Math.pow(level, 2.0));
   let hours;
-  if (level < 50) hours = 6;
+  if (level < 50)       hours = 6;
   else if (level < 100) hours = 168;
+  else if (level < 110) hours = 240;
+  else if (level < 120) hours = 264;
+  else if (level < 130) hours = 288;
+  else if (level < 140) hours = 312;
   else if (level < 150) hours = 336;
-  else hours = 480;
-  return Math.floor(income * hours * 3600);
+  else if (level < 160) hours = 360;
+  else if (level < 170) hours = 384;
+  else if (level < 180) hours = 408;
+  else if (level < 190) hours = 432;
+  else if (level < 200) hours = 456;
+  else                  hours = 480;
+  return Math.floor(incomePerHour * hours);
 }
 const mineRate = getMineIncome;
 const mineUpgradeCost = getMineUpgradeCost;
@@ -3772,6 +3786,45 @@ function showToast(msg, duration = 2500) {
   }, duration);
 }
 
+function showCoreDropAnimation(emoji, name, monumentLevel) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:100000;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s ease;';
+  overlay.innerHTML = `
+    <div style="font-size:80px;animation:bounceIn 0.5s ease;">${emoji}</div>
+    <div style="color:#FFD700;font-size:22px;font-weight:bold;margin-top:16px;text-shadow:0 0 20px #FFD700;">${name}</div>
+    <div style="color:#aaa;font-size:14px;margin-top:8px;">Выпало с монумента Lv.${monumentLevel}!</div>
+    <div style="color:#7DF9FF;font-size:13px;margin-top:4px;">Множитель: x1.5 (Lv.0)</div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 0.5s';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 500);
+  }, 2500);
+}
+
+// Core type info
+const CORE_TYPES = {
+  income:   { emoji: '✴️', name: 'Ядро дохода' },
+  capacity: { emoji: '✳️', name: 'Ядро вместимости' },
+  hp:       { emoji: '❤️', name: 'Ядро здоровья' },
+  regen:    { emoji: '♻️', name: 'Ядро регенерации' },
+};
+
+function getCoreMultiplier(level) {
+  if (level <= 0) return 1.5;
+  return Math.round((1.5 + Math.pow(level / 100, 0.7) * 98.5) * 10) / 10;
+}
+
+function getCoreUpgradeCost(level) {
+  if (level < 10) return 100;
+  if (level < 25) return 400;
+  if (level < 50) return 1500;
+  if (level < 75) return 5000;
+  if (level < 90) return 20000;
+  return 53000;
+}
+
 function setLoadingText(t) {
   document.getElementById('loading-text').textContent = t;
 }
@@ -4523,6 +4576,8 @@ function showHqPopup(hq, isOwn) {
 function showMinePopup(mine, isOwn, canCapture) {
   _currentPopupEntityId = `mine_${mine.id}`;
   _selectMarker(`mine_${mine.id}`);
+  // Pre-fetch cores for this mine (fire-and-forget, will be available on next popup open)
+  if (isOwn && mine.cell_id) fetchMineCores(mine.cell_id).catch(() => {});
   // Merge boosted income from mines_own (server sends clan-boosted income there)
   if (isOwn) {
     const ownMine = (state.mines || []).find(m => m.id === mine.id);
@@ -4617,6 +4672,20 @@ function showMinePopup(mine, isOwn, canCapture) {
           const pct = Math.min(100, Math.round(hp / boostedHp * 100));
           const barColor = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
           return `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(hp)}/${formatNumber(boostedHp)}</span></div>${clanBonusInfo ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${clanBonusInfo.defense}% защита клана</div>` : ''}`;
+        })()]] : []),
+        ...(mine.level > 0 && mine.cell_id ? [['🔮 Ядра', (() => {
+          const cores = (state._mineCores || {})[mine.cell_id] || [];
+          const slotsHtml = [];
+          for (let i = 0; i < 10; i++) {
+            const c = cores.find(x => x.slot_index === i);
+            if (c) {
+              const info = CORE_TYPES[c.core_type] || {};
+              slotsHtml.push(`<span title="${info.name || ''} Lv.${c.level} x${getCoreMultiplier(c.level)}" style="display:inline-block;width:24px;height:24px;text-align:center;line-height:24px;background:#252538;border-radius:6px;font-size:14px;cursor:pointer;" onclick="showCoreDetail('${c.id}')">${info.emoji || '?'}</span>`);
+            } else {
+              slotsHtml.push(`<span style="display:inline-block;width:24px;height:24px;text-align:center;line-height:24px;background:#1a1a2e;border:1px dashed #444;border-radius:6px;font-size:12px;color:#555;cursor:pointer;" onclick="openCoreInstallPicker('${mine.id}','${mine.cell_id}')">+</span>`);
+            }
+          }
+          return `<div style="display:flex;gap:3px;flex-wrap:wrap">${slotsHtml.join('')}</div><div style="font-size:11px;color:#888;margin-top:3px">${cores.length}/10 слотов</div>`;
         })()]] : []),
       ],
       mine.status === 'burning' ? [
@@ -4888,6 +4957,131 @@ async function doSellMine(mineId) {
   }
 }
 
+
+// ── Core management functions ──
+async function fetchMineCores(cellId) {
+  // Fetch cores for a specific mine and cache them
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'inventory', telegram_id: TG_ID }),
+    });
+    if (!state._mineCores) state._mineCores = {};
+    // Group cores by mine_cell_id
+    state._allCores = data.cores || [];
+    for (const c of state._allCores) {
+      if (c.mine_cell_id) {
+        if (!state._mineCores[c.mine_cell_id]) state._mineCores[c.mine_cell_id] = [];
+        // Avoid duplicates
+        const existing = state._mineCores[c.mine_cell_id].find(x => x.id === c.id);
+        if (!existing) state._mineCores[c.mine_cell_id].push(c);
+      }
+    }
+    return state._mineCores[cellId] || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function showCoreDetail(coreId) {
+  const core = (state._allCores || []).find(c => c.id === coreId);
+  if (!core) return;
+  const info = CORE_TYPES[core.core_type] || {};
+  const mul = getCoreMultiplier(core.level);
+  const cost = getCoreUpgradeCost(core.level);
+  const ether = state.player?.ether || 0;
+  openPopup(
+    `${info.emoji} ${info.name} Lv.${core.level}`,
+    `Множитель: x${mul}`,
+    [
+      ['Тип', info.name || core.core_type],
+      ['Уровень', core.level],
+      ['Множитель', `x${mul}`],
+    ],
+    [
+      { label: `⬆️ Прокачать (${cost}🌀)`, cls: ether >= cost ? 'yellow' : 'disabled', disabled: ether < cost, action: () => doCoreUpgrade(coreId) },
+      { label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) },
+      { label: 'Закрыть', isClose: true },
+    ]
+  );
+}
+
+async function doCoreUpgrade(coreId) {
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, core_id: coreId }),
+    });
+    if (data.success) {
+      if (state.player) state.player.ether = data.ether_left;
+      showToast(`✅ Ядро улучшено до Lv.${data.new_level} (x${data.multiplier})`);
+      state._mineCores = {}; // clear cache
+      closePopup();
+    }
+  } catch (e) { showToast(`❌ ${e.message}`); }
+}
+
+async function doCoreUninstall(coreId) {
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'uninstall', telegram_id: TG_ID, core_id: coreId }),
+    });
+    if (data.success) {
+      showToast('✅ Ядро извлечено');
+      state._mineCores = {};
+      closePopup();
+    }
+  } catch (e) { showToast(`❌ ${e.message}`); }
+}
+
+async function openCoreInstallPicker(mineId, cellId) {
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'inventory', telegram_id: TG_ID }),
+    });
+    const inventoryCores = (data.cores || []).filter(c => !c.mine_cell_id);
+    if (inventoryCores.length === 0) {
+      showToast('Нет ядер в инвентаре');
+      return;
+    }
+
+    const stats = inventoryCores.map(c => {
+      const info = CORE_TYPES[c.core_type] || {};
+      return [`${info.emoji} ${info.name}`, `Lv.${c.level} x${getCoreMultiplier(c.level)}`];
+    });
+
+    const actions = inventoryCores.map(c => {
+      const info = CORE_TYPES[c.core_type] || {};
+      return {
+        label: `${info.emoji} Установить ${info.name} Lv.${c.level}`,
+        cls: 'primary',
+        action: () => doCoreInstall(c.id, mineId),
+      };
+    });
+    actions.push({ label: 'Отмена', isClose: true });
+
+    openPopup('🔮 Выбери ядро', `${inventoryCores.length} ядер в инвентаре`, [], actions);
+  } catch (e) { showToast(`❌ ${e.message}`); }
+}
+
+async function doCoreInstall(coreId, mineId) {
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'install', telegram_id: TG_ID, core_id: coreId, mine_id: mineId,
+        lat: state.playerPos?.lat, lng: state.playerPos?.lng,
+      }),
+    });
+    if (data.success) {
+      showToast('✅ Ядро установлено');
+      state._mineCores = {};
+      closePopup();
+    }
+  } catch (e) { showToast(`❌ ${e.message}`); }
+}
 
 async function doBuildHq(lat, lng) {
   const pos = state.playerPos;
@@ -5183,6 +5377,28 @@ function updateCoinDisplay() {
     const oi = state.oreIncome || 0;
     crIncEl.textContent = oi > 0 ? `+${oi}/ч` : '';
   }
+
+  // Ether display
+  const etherEl = document.getElementById('ether-display');
+  if (etherEl) etherEl.textContent = `🌀 ${state.player?.ether || 0}`;
+  const etherIncEl = document.getElementById('ether-income-display');
+  if (etherIncEl) {
+    const ei = state.etherIncome || 0;
+    etherIncEl.textContent = ei > 0 ? `+${ei}/ч` : '';
+  }
+
+  // Mine count boost display
+  const boostEl = document.getElementById('mine-count-boost-display');
+  if (boostEl) {
+    const mcb = state.player?.mine_count_boost || 1;
+    const mineCount = state.player?.mine_count || 0;
+    if (mcb > 1.001) {
+      boostEl.textContent = `+${((mcb - 1) * 100).toFixed(0)}% от ${mineCount} шахт`;
+      boostEl.style.display = '';
+    } else {
+      boostEl.style.display = 'none';
+    }
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -5445,6 +5661,10 @@ function initSocket() {
       // No extra toast — defeat toast is enough
     });
 
+    _socket.on('core:dropped', (data) => {
+      showCoreDropAnimation(data.emoji, data.name, data.monument_level);
+    });
+
     _socket.on('monument:knocked_out', (data) => {
       showToast(`💀 Защитник выбил тебя! Возвращайся через ${Math.floor(data.respawn_in/60)} мин`, 3000);
       stopCombat();
@@ -5529,6 +5749,7 @@ function processTickData(data) {
     _startCoinTick();
   }
   if (data.oreIncome != null) state.oreIncome = data.oreIncome;
+  if (data.etherIncome != null) state.etherIncome = data.etherIncome;
   if (data.baseIncome != null) state.baseIncome = data.baseIncome;
   if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
@@ -9772,8 +9993,11 @@ function showOrePopup(oreId) {
   const expDate = new Date(ore.expires_at);
   const expStr = `${expDate.getDate().toString().padStart(2,'0')}.${(expDate.getMonth()+1).toString().padStart(2,'0')}`;
 
+  const currencyEmoji = ore.currency === 'ether' ? '🌀' : '✨';
+  const currencyName = ore.currency === 'ether' ? 'Эфир' : 'Осколки';
+
   const stats = [
-    ['Доход', `${ore.level} ✨/ч`],
+    ['Доход', `${ore.level} ${currencyEmoji}/ч (${currencyName})`],
     ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
     ['Владелец', isOwned ? (ore.owner_name || 'Игрок') : '<span style="color:#00ff88">Свободен</span>'],
     ['Истекает', expStr],
@@ -9781,9 +10005,13 @@ function showOrePopup(oreId) {
 
   const actions = [];
   if (isMine) {
-    actions.push({ label: '✨ Мой рудник', cls: 'primary', disabled: true });
+    const otherCurrency = ore.currency === 'ether' ? 'shards' : 'ether';
+    const otherEmoji = otherCurrency === 'ether' ? '🌀 Эфир' : '✨ Осколки';
+    actions.push({ label: `Переключить на ${otherEmoji}`, cls: 'yellow', action: () => switchOreCurrency(oreId, otherCurrency) });
   } else if (!isOwned && inRange) {
-    actions.push({ label: '✅ Захватить', cls: 'primary', action: () => captureOre(oreId) });
+    // Currency choice buttons for capturing
+    actions.push({ label: '✨ Захватить (Осколки)', cls: 'primary', action: () => captureOre(oreId, 'shards') });
+    actions.push({ label: '🌀 Захватить (Эфир)', cls: 'primary', action: () => captureOre(oreId, 'ether') });
   } else if (isOwned && inAttackRange) {
     if (ownerOnline) {
       actions.push({ label: '⚔️ Атаковать владельца', cls: 'danger', action: () => attackOreOwnerPvp(ore) });
@@ -9799,15 +10027,16 @@ function showOrePopup(oreId) {
   openPopup(`⛏️ Рудник Ур.${ore.level}`, distLabel, stats, actions);
 }
 
-async function captureOre(oreId) {
+async function captureOre(oreId, currency = 'shards') {
   const pos = state.playerPos;
   if (!pos) return showToast('❌ Нет GPS');
   try {
     const data = await apiFetch('/api/ore', {
       method: 'POST',
-      body: JSON.stringify({ action: 'capture', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'capture', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng, currency }),
     });
-    showToast('⛏️ Рудник захвачен!');
+    const emoji = currency === 'ether' ? '🌀' : '✨';
+    showToast(`⛏️ Рудник захвачен! ${emoji}`);
     closePopup();
   } catch (err) {
     if (err.message?.includes('занят')) {
@@ -9816,6 +10045,18 @@ async function captureOre(oreId) {
       showToast(`❌ ${err.message}`);
     }
   }
+}
+
+async function switchOreCurrency(oreId, currency) {
+  try {
+    await apiFetch('/api/ore', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'switch-currency', telegram_id: TG_ID, ore_node_id: oreId, currency }),
+    });
+    const emoji = currency === 'ether' ? '🌀 Эфир' : '✨ Осколки';
+    showToast(`Переключено на ${emoji}`);
+    closePopup();
+  } catch (e) { showToast(`❌ ${e.message}`); }
 }
 
 function attackOreOwnerPvp(ore) {

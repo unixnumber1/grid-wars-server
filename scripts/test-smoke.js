@@ -114,12 +114,12 @@ async function testFormulas() {
   try {
     const { getMineIncome, getMineUpgradeCost, getMineHp, getMineHpRegen, calcHpRegen, SMALL_RADIUS, LARGE_RADIUS } = await import('../lib/formulas.js');
 
-    // getMineIncome returns coins/sec, lv1 ≈ 50/3600 ≈ 0.0139
+    // getMineIncome returns coins/sec, lv1 = 50/3600 ≈ 0.0139 (formula: 50 * level^2 / 3600)
     const inc1 = getMineIncome(1);
     (inc1 > 0.01 && inc1 < 0.02) ? ok('getMineIncome(1)', `${inc1.toFixed(4)} coins/s ≈ ${Math.round(inc1*3600)}/ч`) : fail('getMineIncome(1)', `${inc1}`);
 
     const inc100 = getMineIncome(100);
-    (inc100 * 3600 > 1000000) ? ok('getMineIncome(100)', `${Math.round(inc100*3600)}/ч`) : fail('getMineIncome(100)', `слишком мало: ${inc100*3600}`);
+    (inc100 * 3600 >= 400000 && inc100 * 3600 <= 600000) ? ok('getMineIncome(100)', `${Math.round(inc100*3600)}/ч`) : fail('getMineIncome(100)', `expected ~500K, got ${Math.round(inc100*3600)}`);
 
     const cost1 = getMineUpgradeCost(1);
     (cost1 === 998) ? ok('getMineUpgradeCost(1)', `${cost1}`) : fail('getMineUpgradeCost(1)', `ожидали 998, получили ${cost1}`);

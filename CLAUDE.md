@@ -40,13 +40,14 @@ CLAUDE.md
   admin.js                   — reward/ban/unban/generate-markets/maintenance-start/end/fix-hq
   monuments.js               — start-raid/attack-shield/attack-monument/attack-defender/open-loot-box
   collectors.js              — build/upgrade/deliver/sell/hit
-  ore.js                     — capture/hit
+  ore.js                     — capture/hit/switch-currency
+  cores.js                   — install/uninstall/upgrade/inventory
   economy.js                 — collect
   shop.js                    — star payments
 /lib
   supabase.js  gameState.js  persist.js  formulas.js  grid.js  haversine.js
   items.js  bots.js  vases.js  xp.js  clans.js  markets.js  monuments.js
-  collectors.js  oreNodes.js  log.js
+  collectors.js  oreNodes.js  cores.js  log.js
 /socket
   gameLoop.js                — 5с тик: боты, курьеры, cleanup, монументы
   events.js                  — socket event handlers
@@ -64,7 +65,7 @@ CLAUDE.md
 
 | Таблица | Ключевые колонки |
 |---------|-----------------|
-| `players` | telegram_id, game_username, avatar, coins(BIGINT), diamonds, level, xp, hp, max_hp, attack, bonus_attack, bonus_crit, bonus_hp, equipped_sword, equipped_shield, shield_until, is_banned, daily_diamonds_claimed_at, clan_id, clan_role, clan_left_at |
+| `players` | telegram_id, game_username, avatar, coins(BIGINT), diamonds, ether(BIGINT), level, xp, hp, max_hp, attack, bonus_attack, bonus_crit, bonus_hp, equipped_sword, equipped_shield, shield_until, is_banned, daily_diamonds_claimed_at, clan_id, clan_role, clan_left_at |
 | `headquarters` | player_id, lat, lng, cell_id, level |
 | `mines` | owner_id, lat, lng, cell_id, level(0-250), last_collected, hp, max_hp, status(normal/under_attack/burning/destroyed), attacker_id, burning_started_at |
 | `items` | player_id, type(sword/axe/shield), rarity, attack, crit_chance, defense, on_market, held_by_courier, held_by_market |
@@ -85,6 +86,7 @@ CLAUDE.md
 | `monument_defenders` | monument_id, emoji, hp, max_hp, attack, wave, lat, lng, alive |
 | `monument_loot_boxes` | monument_id, player_id, player_name, player_avatar, box_type(trophy/gift), monument_level, gems, items(JSONB), opened, lat, lng, expires_at |
 | `collectors` | owner_id, lat, lng, cell_id, level(1-10), hp, max_hp, stored_coins(BIGINT), last_collected_at |
+| `cores` | id, owner_id, mine_cell_id, slot_index(0-9), core_type(income/capacity/hp/regen), level(0-100), created_at |
 
 ## Ключевые механики
 
@@ -338,6 +340,38 @@ CLAUDE.md
 ### Таблица spoof_log
 - player_id, violation_type, speed_kmh, distance_km, from/to координаты, created_at
 
+### Система ядер (lib/cores.js)
+- 4 типа: ✴️ доход, ✳️ вместимость, ❤️ HP, ♻️ реген
+- 10 слотов на шахту (общие для всех типов)
+- Дроп: с монументов lv0, шанс 2-40% зависит от уровня монумента
+- Прокачка: за 🌀 Эфир
+- Эфир: с рудников (выбор при захвате вместо осколков)
+- Множитель: lv0=x1.5, lv10=x21.2, lv50=x62.1, lv100=x100
+- Складываются АДДИТИВНО: 10 ядер lv100 = x1000
+- POST /api/cores action:(install/uninstall/upgrade/inventory)
+- DB: таблица cores (id, owner_id, mine_cell_id, slot_index, core_type, level)
+- gameState.cores Map, getCoresForMine(cell_id), getPlayerCores(playerId)
+
+### Буст от количества шахт
+- +0.1% к доходу ВСЕХ шахт за каждую шахту
+- 1000 шахт = x2 к доходу
+- Считается в map.js handleTick через getMineCountBoost(count)
+
+### H3 Resolution
+- Текущий: 10 (изменён с 11)
+- Диаметр гекса: ~65м
+- В круге 200м: ~6-8 шахт
+
+### Новая формула дохода
+- getMineIncome(level) = 50 * level^2 / 3600 (возвращает coins/sec)
+- lv1: 50/ч, lv100: 500K/ч, lv200: 2M/ч
+- getMineCapacity использует tiered hours (6ч до lv50, до 480ч на lv200+)
+
+### Валюты рудников
+- ore_nodes.currency: 'shards' (по умолчанию) или 'ether'
+- Выбор при захвате, можно менять через action:switch-currency
+- POST /api/ore action:switch-currency
+
 ## TODO
 - [x] Монументы (рейд-боссы)
 - [x] Автосборщики
@@ -345,6 +379,7 @@ CLAUDE.md
 - [x] Аудит и оптимизация (анимации, пассивный доход, логирование, автодеплой)
 - [x] In-Memory Game State (gameState + persist)
 - [x] Защита от DDoS, взлома и GPS спуфинга
+- [x] Система ядер + экономический ребаланс
 
 ## Деплой — ЕДИНСТВЕННЫЙ ПРАВИЛЬНЫЙ МАРШРУТ
 

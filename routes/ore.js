@@ -24,7 +24,7 @@ oreRouter.post('/', rateLimitMw('attack'), async (req, res) => {
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
   if (action === 'capture') {
-    const { ore_node_id, lat, lng } = req.body;
+    const { ore_node_id, lat, lng, currency } = req.body;
     if (!ore_node_id) return res.status(400).json({ error: 'ore_node_id required' });
 
     const player = gameState.getPlayerByTgId(telegram_id);
@@ -38,7 +38,6 @@ oreRouter.post('/', rateLimitMw('attack'), async (req, res) => {
     if (dist > ORE_CAPTURE_RADIUS) return res.status(400).json({ error: 'Подойди ближе (200м)' });
 
     if (ore.owner_id && ore.owner_id !== player.id && String(ore.owner_id) !== String(player.telegram_id)) {
-      // Check if owner is online
       const ONLINE_MS = 3 * 60 * 1000;
       const ownerPlayer = gameState.getPlayerById(ore.owner_id) || gameState.getPlayerByTgId(ore.owner_id);
       const ownerOnline = ownerPlayer?.last_seen ? (Date.now() - new Date(ownerPlayer.last_seen).getTime()) < ONLINE_MS : false;
@@ -51,14 +50,20 @@ oreRouter.post('/', rateLimitMw('attack'), async (req, res) => {
       });
     }
 
-    // Capture!
+    // Capture with currency choice (shards or ether)
+    const selectedCurrency = (currency === 'ether') ? 'ether' : 'shards';
     ore.owner_id = player.id;
     ore.last_collected = new Date().toISOString();
+    ore.currency = selectedCurrency;
     gameState.markDirty('oreNodes', ore.id);
 
-    await supabase.from('ore_nodes').update({ owner_id: player.id, last_collected: ore.last_collected }).eq('id', ore.id);
+    await supabase.from('ore_nodes').update({
+      owner_id: player.id,
+      last_collected: ore.last_collected,
+      currency: selectedCurrency,
+    }).eq('id', ore.id);
 
-    logActivity(player.game_username, 'захватил рудник');
+    logActivity(player.game_username, `захватил рудник (${selectedCurrency})`);
 
     emitToNearby(ore.lat, ore.lng, 1000, 'ore:captured', {
       ore_node_id: ore.id, new_owner: player.id,
@@ -66,6 +71,25 @@ oreRouter.post('/', rateLimitMw('attack'), async (req, res) => {
     });
 
     return res.json({ success: true, ore_node: ore });
+  }
+
+  if (action === 'switch-currency') {
+    const { ore_node_id, currency } = req.body;
+    if (!ore_node_id) return res.status(400).json({ error: 'ore_node_id required' });
+
+    const player = gameState.getPlayerByTgId(telegram_id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const ore = gameState.oreNodes.get(ore_node_id);
+    if (!ore) return res.status(404).json({ error: 'Ore node not found' });
+    if (ore.owner_id !== player.id) return res.status(403).json({ error: 'Не ваш рудник' });
+
+    const selectedCurrency = (currency === 'ether') ? 'ether' : 'shards';
+    ore.currency = selectedCurrency;
+    gameState.markDirty('oreNodes', ore.id);
+    await supabase.from('ore_nodes').update({ currency: selectedCurrency }).eq('id', ore.id);
+
+    return res.json({ success: true, currency: selectedCurrency });
   }
 
   if (action === 'release') {

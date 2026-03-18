@@ -10,6 +10,7 @@ import {
   MONUMENT_LEVELS, MONUMENT_LOOT_TABLE, MONUMENT_ATTACK_RADIUS,
   WAVE_INTERVAL_SECONDS, spawnDefenderWave, defeatMonument, getPlayersNearMonument,
 } from '../lib/monuments.js';
+import { CORE_TYPES, getCoreDropChance, randomCoreType } from '../lib/cores.js';
 
 export const monumentsRouter = Router();
 
@@ -332,10 +333,56 @@ async function handleAttackMonument(req, res) {
 
   // Defeated?
   let defeated = false;
+  let coreDrop = null;
   if (monument.hp <= 0) {
     defeated = true;
     await defeatMonument(monument, io, connectedPlayers);
     logActivity(player.game_username, `defeated monument lv${monument.level} "${monument.name}"`);
+
+    // Core drop chance for top damage dealer
+    try {
+      const dropChance = getCoreDropChance(monument.level);
+      if (Math.random() < dropChance) {
+        const coreType = randomCoreType();
+        // Find top damage dealer
+        const topEntry = [...dmgMap.entries()].sort((a, b) => b[1] - a[1])[0];
+        const topPlayerId = topEntry ? topEntry[0] : tgId;
+        const topPlayer = gameState.getPlayerByTgId(topPlayerId);
+
+        if (topPlayer) {
+          const coreData = {
+            owner_id: Number(topPlayer.telegram_id),
+            mine_cell_id: null,
+            slot_index: null,
+            core_type: coreType,
+            level: 0,
+            created_at: new Date().toISOString(),
+          };
+          const { data: inserted } = await supabase.from('cores').insert(coreData).select().single();
+          if (inserted) {
+            gameState.upsertCore(inserted);
+            coreDrop = {
+              core_type: coreType,
+              emoji: CORE_TYPES[coreType].emoji,
+              name: CORE_TYPES[coreType].name,
+              monument_level: monument.level,
+              player_id: topPlayerId,
+            };
+
+            // Notify top player via socket
+            for (const [sid, info] of connectedPlayers) {
+              if (String(info.telegram_id) === String(topPlayerId)) {
+                io.to(sid).emit('core:dropped', coreDrop);
+                break;
+              }
+            }
+            console.log(`[CORES] ${CORE_TYPES[coreType].emoji} core dropped from monument lv${monument.level}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[CORES] drop error:', e.message);
+    }
   }
 
   return res.json({
@@ -343,6 +390,7 @@ async function handleAttackMonument(req, res) {
     hp: monument.hp, max_hp: monument.max_hp,
     defeated,
     my_damage: dmgMap.get(tgId) || 0,
+    core_drop: coreDrop,
   });
 }
 
