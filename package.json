@@ -1,12 +1,20 @@
 {
-  "name": "grid-wars",
-  "version": "1.0.0",
+  "name": "grid-wars-server",
+  "version": "2.0.0",
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "test": "node scripts/test-smoke.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "h3-js": "^4.4.0"
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "h3-js": "^4.4.0",
+    "socket.io": "^4.7.0"
   }
 }

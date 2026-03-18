@@ -1,10 +1,7 @@
 node_modules/
 .env
-.vercel/
-supabase/.temp/
+.env*.local
 *.log
 .DS_Store
 .claude/
-
-.env*.local
-.vercel
+package-lock.json
