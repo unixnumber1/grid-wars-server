@@ -9,7 +9,6 @@ import { getClanLevel } from '../lib/clans.js';
 import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../server.js';
-import { spawnOreNodesNearHq } from '../lib/oreNodes.js';
 import { logPlayer } from '../lib/logger.js';
 
 export const buildingsRouter = Router();
@@ -74,8 +73,6 @@ async function handleHqPlace(player, body, res) {
       gameState.markDirty('players', p.id);
     }
   }
-  // Spawn ore nodes near new HQ (fire-and-forget)
-  spawnOreNodesNearHq(hqLat, hqLng).catch(e => console.error('[hq] ore spawn error:', e.message));
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
   return res.status(201).json({ headquarters: hq, xp: xpResult, startingBonus: !bonusClaimed, player_coins: (player.coins ?? 0) + startingCoins, player_diamonds: (player.diamonds ?? 0) + startingDiamonds });

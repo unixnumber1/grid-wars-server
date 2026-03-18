@@ -474,6 +474,16 @@ async function start() {
   // Monument game loop (every 5 seconds)
   startMonumentLoop();
 
+  // Ore nodes — auto-spawn if too few
+  if (gameState.loaded && gameState.players.size > 0) {
+    const expectedOres = gameState.players.size * 2.5;
+    if (gameState.oreNodes.size < expectedOres * 0.1) {
+      console.log(`[ORE] Low ore count (${gameState.oreNodes.size}/${Math.round(expectedOres)}), spawning...`);
+      const { spawnOreNodesGlobally } = await import('./lib/oreNodes.js');
+      spawnOreNodesGlobally().catch(e => console.error('[ORE] Initial spawn error:', e.message));
+    }
+  }
+
   // Spawn monuments if empty
   if (gameState.monuments.size === 0 && gameState.headquarters.size > 0) {
     const { spawnMonuments } = await import('./lib/monuments.js');
@@ -533,29 +543,27 @@ async function start() {
     }
   }, 1800000); // 30 min
 
-  // Monthly ore reset check (every hour)
-  setInterval(() => {
-    const now = new Date();
-    const mskHour = (now.getUTCHours() + 3) % 24;
-    if (now.getDate() === 1 && mskHour === 0 && now.getMinutes() < 5) {
-      resetOreNodes();
-    }
-  }, 3600000);
-
-  async function resetOreNodes() {
-    console.log('[ORE] Starting monthly reset...');
+  // Monthly ore reset check (every 5 min)
+  setInterval(async () => {
     try {
+      const now = new Date();
+      const mskNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      if (mskNow.getDate() !== 1 || mskNow.getHours() !== 0 || mskNow.getMinutes() > 5) return;
+      const resetKey = `reset_${mskNow.getFullYear()}_${mskNow.getMonth()}`;
+      if (global._lastOreReset === resetKey) return;
+      global._lastOreReset = resetKey;
+
+      console.log('[ORE] Monthly reset starting...');
       await supabase.from('ore_nodes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       gameState.oreNodes.clear();
-      const { spawnOreNodesNearHq } = await import('./lib/oreNodes.js');
-      for (const hq of gameState.headquarters.values()) {
-        await spawnOreNodesNearHq(hq.lat, hq.lng);
-      }
-      console.log('[ORE] Monthly reset complete, spawned for', gameState.headquarters.size, 'HQs');
+      await new Promise(r => setTimeout(r, 1000));
+      const { spawnOreNodesGlobally } = await import('./lib/oreNodes.js');
+      await spawnOreNodesGlobally();
+      console.log('[ORE] Monthly reset complete');
     } catch (e) {
       console.error('[ORE] Monthly reset error:', e.message);
     }
-  }
+  }, 300000); // 5 min
 
   const PORT = process.env.PORT || 3000;
   httpServer.listen(PORT, () => {
