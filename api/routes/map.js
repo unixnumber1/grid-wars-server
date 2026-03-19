@@ -8,7 +8,7 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, getMineCountBoost } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { gameState } from '../../lib/gameState.js';
-import { calcTotalIncomeWithClanBonus, getClanLevel } from '../../lib/clans.js';
+import { getClanLevel } from '../../lib/clans.js';
 
 // ── Bot constants ────────────────────────────────────────────
 const BOTS_PER_ZONE    = 10;
@@ -471,49 +471,45 @@ async function handleTick(req, res) {
     // Compute mine count boost after playerMines is populated
     mineCountBoost = getMineCountBoost(playerMines.length);
 
+    // ── Single-pass per-mine income (base * mineCountBoost * cores * clan zone * boost) ──
     try {
-      // Apply mine count boost + core boosts to income function
-      const boostedMineIncome = (level, mine) => {
-        let inc = getMineIncome(level) * mineCountBoost;
-        if (gameState.loaded && mine?.cell_id) {
-          const cores = gameState.getCoresForMine(mine.cell_id);
-          if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
-        }
-        return inc;
-      };
-      const incResult = await calcTotalIncomeWithClanBonus(playerMines, boostedMineIncome, player.clan_id, supabase);
-      totalIncome = incResult.total;
-      if (incResult.boostExpiresAt) {
-        _clanBoost = { expires_at: incResult.boostExpiresAt, multiplier: incResult.boostMultiplier };
-      }
-      // Apply boosted income per-mine for correct frontend accumulation display
+      // Clan info
+      let clanCfg = null, clanHqs = [], boostMul = 1;
       if (player.clan_id && gameState.loaded) {
         const pClan = gameState.getClanById(player.clan_id);
         if (pClan) {
-          const cCfg = getClanLevel(pClan.level || 1);
-          const cHqs = [];
-          for (const ch of gameState.clanHqs.values()) { if (ch.clan_id === player.clan_id) cHqs.push(ch); }
+          clanCfg = getClanLevel(pClan.level || 1);
+          for (const ch of gameState.clanHqs.values()) { if (ch.clan_id === player.clan_id) clanHqs.push(ch); }
           const boostActive = pClan.boost_expires_at && new Date(pClan.boost_expires_at).getTime() > Date.now();
-          const boostMul = boostActive ? (pClan.boost_multiplier || 1) : 1;
-          for (const m of playerMines) {
-            const inZone = cHqs.some(h => haversine(m.lat, m.lng, h.lat, h.lng) <= cCfg.radius);
-            let inc = getMineIncome(m.level) * mineCountBoost;
-            // Apply core income boost if installed
-            if (gameState.loaded && m.cell_id) {
-              const cores = gameState.getCoresForMine(m.cell_id);
-              if (cores.length > 0) inc = inc * getCoresTotalBoost(cores, 'income');
-            }
-            if (inZone) {
-              inc = Math.round(inc * (1 + cCfg.income / 100));
-              if (boostMul > 1) inc = Math.round(inc * boostMul);
-            }
-            m.income = inc;
+          boostMul = boostActive ? (pClan.boost_multiplier || 1) : 1;
+          if (boostActive) {
+            _clanBoost = { expires_at: pClan.boost_expires_at, multiplier: pClan.boost_multiplier };
           }
         }
       }
+
+      for (const m of playerMines) {
+        let inc = getMineIncome(m.level) * mineCountBoost;
+        // Core income boost
+        if (gameState.loaded && m.cell_id) {
+          const cores = gameState.getCoresForMine(m.cell_id);
+          if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
+        }
+        // Clan zone bonus + boost
+        if (clanCfg && clanHqs.length > 0) {
+          const inZone = clanHqs.some(h => haversine(m.lat, m.lng, h.lat, h.lng) <= clanCfg.radius);
+          if (inZone) {
+            inc = inc * (1 + (clanCfg.income || 0) / 100);
+            if (boostMul > 1) inc = inc * boostMul;
+          }
+        }
+        m.income = inc;
+      }
+      // totalIncome = exact sum of per-mine incomes (what user sees)
+      totalIncome = playerMines.reduce((sum, m) => sum + m.income, 0);
     } catch (incErr) {
       console.error('[tick] income calc error:', incErr.message);
-      totalIncome = playerMines.reduce((sum, m) => sum + boostedMineIncome(m.level, m), 0);
+      totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
     }
   } catch (_) {}
 
@@ -547,15 +543,15 @@ async function handleTick(req, res) {
     }
   }
 
-  // Base income with mine count boost + core income boosts (without clan bonuses)
+  // Base income = mineCountBoost + cores, WITHOUT clan zone/boost
   const baseIncome = playerMines.reduce((sum, m) => {
-    let inc = getMineIncome(m.level);
+    let inc = getMineIncome(m.level) * mineCountBoost;
     if (gameState.loaded && m.cell_id) {
       const cores = gameState.getCoresForMine(m.cell_id);
       if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
     }
     return sum + inc;
-  }, 0) * mineCountBoost;
+  }, 0);
 
   // Clan color for UI
   let clanColor = null;
