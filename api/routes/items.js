@@ -570,6 +570,44 @@ itemsRouter.post('/', async (req, res) => {
     return res.json({ success: true, cores: createdCores, diamondsLeft: newDiamonds, etherLeft: newEther });
   }
 
+  if (action === 'mass-sell') {
+    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+    const { item_ids } = body;
+    if (!Array.isArray(item_ids) || item_ids.length === 0) return res.status(400).json({ error: 'item_ids required' });
+    if (item_ids.length > 200) return res.status(400).json({ error: 'Максимум 200 предметов за раз' });
+
+    const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
+    if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
+
+    let totalDiamonds = 0;
+    const soldIds = [];
+    for (const itemId of item_ids) {
+      const item = gameState.loaded ? gameState.getItemById(itemId) : null;
+      if (!item) continue;
+      if (item.owner_id !== p.id) continue;
+      if (item.equipped || item.on_market) continue;
+      totalDiamonds += ITEM_SELL_PRICE[item.rarity] ?? 1;
+      soldIds.push(itemId);
+    }
+    if (soldIds.length === 0) return res.status(400).json({ error: 'Нет предметов для продажи' });
+
+    const newDiamonds = (p.diamonds ?? 0) + totalDiamonds;
+
+    // Remove all items and update diamonds in one batch
+    await Promise.all([
+      supabase.from('items').delete().in('id', soldIds),
+      supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id),
+    ]);
+
+    if (gameState.loaded) {
+      for (const id of soldIds) gameState.removeItem(id);
+      const gp = gameState.getPlayerById(p.id);
+      if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); }
+    }
+
+    return res.json({ success: true, sold_count: soldIds.length, diamonds_gained: totalDiamonds, diamonds: newDiamonds });
+  }
+
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
   const selectFields = (action === 'sell' || action === 'open-box' || action === 'craft') ? 'id,level,diamonds' : 'id,level';

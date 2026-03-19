@@ -32,20 +32,20 @@ async function handleHqPlace(player, body, res) {
   if (existingHqs && existingHqs.length > 0) return res.status(409).json({ error: 'Headquarters already placed' });
   const targetCell = getCellId(parseFloat(lat), parseFloat(lng));
   let finalCell = null;
-  const isCellFree = async (cell) => {
-    const [hqRow, mineRow] = await Promise.all([
-      supabase.from('headquarters').select('id').eq('cell_id', cell).maybeSingle(),
-      supabase.from('mines').select('id').eq('cell_id', cell).maybeSingle(),
-    ]);
-    return !hqRow.data && !mineRow.data;
+  const isCellFree = (cell) => {
+    return ![...gameState.mines.values()].some(m => m.cell_id === cell && m.status !== 'destroyed') &&
+           ![...gameState.headquarters.values()].some(h => h.cell_id === cell) &&
+           ![...gameState.collectors.values()].some(c => c.cell_id === cell) &&
+           ![...gameState.clanHqs.values()].some(c => c.cell_id === cell) &&
+           ![...gameState.monuments.values()].some(m => m.cell_id === cell);
   };
-  if (await isCellFree(targetCell)) {
+  if (isCellFree(targetCell)) {
     finalCell = targetCell;
   } else {
     for (let ring = 1; ring <= 5; ring++) {
       const candidates = gridDisk(targetCell, ring).filter(c => c !== targetCell);
       for (const candidate of candidates) {
-        if (await isCellFree(candidate)) { finalCell = candidate; break; }
+        if (isCellFree(candidate)) { finalCell = candidate; break; }
       }
       if (finalCell) break;
     }
@@ -144,10 +144,14 @@ async function handleMineBuild(req, res) {
   if (distance > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(distance)}м > ${SMALL_RADIUS}м)`, distance: Math.round(distance) });
   const targetCell = getCell(mineLat, mineLng);
   const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
-  const { data: existingMine } = await supabase.from('mines').select('id').eq('cell_id', targetCell).maybeSingle();
-  const { data: existingHqOnCell } = await supabase.from('headquarters').select('id').eq('cell_id', targetCell).maybeSingle();
-  if (existingMine) return res.status(409).json({ error: 'A mine already exists on this cell' });
-  if (existingHqOnCell) return res.status(409).json({ error: 'Cell is occupied by a headquarters' });
+  // Check cell is free from ALL building types
+  const cellOccupied =
+    [...gameState.mines.values()].some(m => m.cell_id === targetCell && m.status !== 'destroyed') ||
+    [...gameState.headquarters.values()].some(h => h.cell_id === targetCell) ||
+    [...gameState.collectors.values()].some(c => c.cell_id === targetCell) ||
+    [...gameState.clanHqs.values()].some(c => c.cell_id === targetCell) ||
+    [...gameState.monuments.values()].some(m => m.cell_id === targetCell);
+  if (cellOccupied) return res.status(409).json({ error: 'Клетка уже занята' });
   // Building placed at tap coordinates, cell_id computed from tap
   const { data: mine, error: insertError } = await supabase.from('mines').insert({ owner_id: player.id, original_builder_id: player.id, lat: mineLat, lng: mineLng, cell_id: targetCell, level: 0, hp: 0, max_hp: 0, last_collected: new Date().toISOString() }).select('id,owner_id,original_builder_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level,hp,max_hp,status').single();
   if (insertError) return res.status(500).json({ error: insertError.message });
@@ -234,12 +238,34 @@ async function handleMineCollect(req, res) {
   }
   const collectedAmount = Math.round(totalCoins);
   if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
+  // Per-mine XP: 1% of collected coins with 10% chance, for each mine separately
   const { getCollectXp } = await import('../../game/mechanics/xp.js');
-  const xpGained = collectedAmount > 0 ? getCollectXp(collectedAmount) : 0;
+  const xpEvents = [];
+  let totalXpGained = 0;
+  for (const mine of mines) {
+    const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+    const incBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
+    const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+    let mineCoins = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
+    if (clanIncomeBonus > 0 && clanHqs.length > 0) {
+      const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
+      const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
+      const inZone = clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius);
+      if (inZone) {
+        mineCoins = Math.round(mineCoins * (1 + clanIncomeBonus / 100));
+        if (clanBoostMul > 1) mineCoins = Math.round(mineCoins * clanBoostMul);
+      }
+    }
+    const xp = getCollectXp(mineCoins);
+    if (xp > 0) {
+      totalXpGained += xp;
+      xpEvents.push({ xp, lat: mine.lat, lng: mine.lng, cell_id: mine.cell_id });
+    }
+  }
   let xpResult = null;
-  if (xpGained > 0) { try { xpResult = await addXp(player.id, xpGained); } catch (e) {} }
+  if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) {} }
   const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
-  return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, totalIncome });
+  return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, xp_events: xpEvents, totalIncome });
 }
 
 // ─── Attack handlers ─────────────────────────────────────────────────

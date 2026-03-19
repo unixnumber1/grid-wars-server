@@ -988,6 +988,21 @@
       100% { transform: scale(0)   rotate(0deg);   opacity: 0; }
     }
     .vase-shattering { animation: shatter 0.35s ease-in forwards; }
+    .xp-float-map {
+      position: absolute;
+      color: #FFD700;
+      font-size: 13px;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 9999;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      animation: xpFloatUp 2s ease-out forwards;
+      white-space: nowrap;
+    }
+    @keyframes xpFloatUp {
+      0%   { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-50px); }
+    }
 
     /* Screen shake */
     @keyframes screenShakeAnim {
@@ -3151,6 +3166,17 @@ function showLevelUp(level, xpGained) {
 }
 
 window.testLevelUp = (level = 5) => showLevelUp(level, 250);
+
+function showXpFloatOnMap(xp, lat, lng) {
+  const point = map.latLngToContainerPoint([lat, lng]);
+  const el = document.createElement('div');
+  el.className = 'xp-float-map';
+  el.textContent = `+${formatNumber(xp)} XP`;
+  el.style.left = point.x + 'px';
+  el.style.top = point.y + 'px';
+  document.getElementById('map').appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
 
 function handleXpResult(xp) {
   if (!xp) return;
@@ -5459,6 +5485,11 @@ async function doCollect() {
     if (collected > 0) {
       showToast(`💰 Собрано ${formatCoins(collected)} монет!`);
       if (data.xp) handleXpResult(data.xp);
+      if (data.xp_events?.length) {
+        for (const ev of data.xp_events) {
+          showXpFloatOnMap(ev.xp, ev.lat, ev.lng);
+        }
+      }
       const now = new Date().toISOString();
       for (const mine of (state.mines || [])) mine.last_collected = now;
       for (const mine of (state.mapBuildings.mines || [])) {
@@ -10109,30 +10140,21 @@ async function sellSelectedItems() {
 
   if (!confirm(`Продать ${ids.length} предметов за ~${totalGems} 💎?`)) return;
 
-  let soldCount = 0;
-  let totalSold = 0;
-  const results = await Promise.allSettled(ids.map(id =>
-    apiFetch('/api/items', {
+  try {
+    const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'sell', item_id: id }),
-    }).then(data => ({ id, data }))
-  ));
-  for (const r of results) {
-    if (r.status === 'fulfilled') {
-      const { id, data } = r.value;
-      state.inventory = (state.inventory || []).filter(i => i.id !== id);
-      if (state.player) state.player.diamonds = data.diamonds;
-      soldCount++;
-      totalSold += data.soldFor;
-    } else {
-      console.error('[sell] item error:', r.reason?.message);
-    }
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'mass-sell', item_ids: ids }),
+    });
+    state.inventory = (state.inventory || []).filter(i => !ids.includes(i.id));
+    if (state.player) state.player.diamonds = data.diamonds;
+    updateDiamondDisplay();
+    _renderEquipSlots();
+    exitSelectionMode();
+    showToast(`Продано ${data.sold_count} предметов за ${data.diamonds_gained} 💎`);
+  } catch (e) {
+    showToast(`❌ ${e.message}`);
+    exitSelectionMode();
   }
-
-  updateDiamondDisplay();
-  _renderEquipSlots();
-  exitSelectionMode();
-  showToast(`Продано ${soldCount} предметов за ${totalSold} 💎`);
 }
 
 // ─────────────────────────────────────────────

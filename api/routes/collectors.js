@@ -65,10 +65,14 @@ async function handleBuild(req, res) {
   // Cell ID from tap coordinates
   const cellId = getCellId(tapLat, tapLng);
 
-  // Check cell not occupied
-  const existingMine = gameState.getMineByCellId(cellId);
-  const existingCollector = [...gameState.collectors.values()].find(c => c.cell_id === cellId);
-  if (existingCollector) return res.status(400).json({ error: 'Здесь уже стоит сборщик' });
+  // Check cell not occupied by ANY building type
+  const cellOccupied =
+    [...gameState.mines.values()].some(m => m.cell_id === cellId && m.status !== 'destroyed') ||
+    [...gameState.headquarters.values()].some(h => h.cell_id === cellId) ||
+    [...gameState.collectors.values()].some(c => c.cell_id === cellId) ||
+    [...gameState.clanHqs.values()].some(c => c.cell_id === cellId) ||
+    [...gameState.monuments.values()].some(m => m.cell_id === cellId);
+  if (cellOccupied) return res.status(400).json({ error: 'Клетка уже занята' });
 
   // Check nearby mines of this player (using tap position)
   const nearbyMines = [];
