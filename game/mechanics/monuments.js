@@ -74,9 +74,9 @@ function randomMonumentLevel() {
 function isForbiddenPlace(tags) {
   if (!tags) return false;
   if (tags.religion) return true;
-  if (tags.memorial) return true;
   if (tags.amenity === 'place_of_worship') return true;
-  if (['memorial', 'war_memorial', 'battlefield', 'wayside_cross', 'wayside_shrine'].includes(tags.historic)) return true;
+  if (['war_memorial', 'battlefield', 'wayside_cross', 'wayside_shrine'].includes(tags.historic)) return true;
+  if (tags.historic === 'memorial' && tags.memorial === 'war_memorial') return true;
   if (['church', 'cathedral', 'mosque', 'temple', 'chapel'].includes(tags.building)) return true;
   return false;
 }
@@ -133,6 +133,7 @@ export async function spawnMonuments() {
         nwr["historic"="manor"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
         nwr["historic"="palace"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
         nwr["historic"="monument"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
+        nwr["historic"="memorial"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
         nwr["amenity"="theatre"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
         nwr["amenity"="arts_centre"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
         nwr["amenity"="fountain"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});

@@ -254,7 +254,7 @@ ecosystem.config.cjs       — PM2 конфиг
 
 ### Монументы (рейд-боссы)
 - Спавн: Overpass API (attraction, museum, gallery, viewpoint, castle, fort, ruins, archaeological_site, manor, palace, monument+name, theatre, arts_centre, fountain+name, park+name, civic+name)
-- Запрещённые места: religion, memorial, place_of_worship, war_memorial, battlefield, wayside_cross/shrine, church/cathedral/mosque/temple/chapel
+- Запрещённые места: religion, place_of_worship, war_memorial, battlefield, wayside_cross/shrine, church/cathedral/mosque/temple/chapel
 - 10 уровней: HP 50K-40M (`MONUMENT_HP`), щит 8K-10M (`MONUMENT_SHIELD_HP`)
 - DPS порог щита: `MONUMENT_SHIELD_DPS_THRESHOLD` [400-40000] — рейд должен превысить мин. DPS чтобы наносить урон щиту
 - Эффективный урон = `damage * (totalDps - threshold) / totalDps`

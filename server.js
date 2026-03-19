@@ -293,15 +293,7 @@ function startMonumentLoop() {
           continue;
         }
 
-        // Shield phase — regen
-        if (monument.phase === 'shield') {
-          const cfg = MONUMENT_LEVELS[monument.level];
-          if (monument.shield_hp < cfg.max_shield_hp) {
-            const regen = cfg.shield_regen * 5; // 5 sec tick
-            monument.shield_hp = Math.min(cfg.max_shield_hp, monument.shield_hp + regen);
-            gameState.markDirty('monuments', id);
-          }
-        }
+        // Shield regen is now handled by processMonumentShieldRegen() in gameLoop.js
 
         // Open phase — check 4h timeout (regen shield if not destroyed)
         if (monument.phase === 'open' && monument.shield_broken_at) {
