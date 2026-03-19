@@ -350,9 +350,16 @@ async function handleTick(req, res) {
       ]);
 
       const ONLINE_MS = 3 * 60 * 1000;
+      // Pre-compute best mine level per player (for HQ icons)
+      const bestMineLvl = {};
+      for (const m of (allMines || [])) {
+        if (m.status === 'destroyed' || !m.owner_id) continue;
+        if ((m.level || 0) > (bestMineLvl[m.owner_id] || 0)) bestMineLvl[m.owner_id] = m.level;
+      }
       mapData.headquarters = (allHQ || []).map(hq => ({
         ...hq, is_mine: hq.player_id === currentPlayerId,
         is_online: hq.players?.last_seen ? (nowMs - new Date(hq.players.last_seen).getTime()) < ONLINE_MS : false,
+        best_mine_level: bestMineLvl[hq.player_id] || 0,
       }));
       mapData.clan_hqs = (allClanHqs || []).map(ch => ({
         ...ch,
@@ -809,6 +816,13 @@ mapRouter.get('/', async (req, res) => {
 
   const ONLINE_MS = 3 * 60 * 1000;
 
+  // Pre-compute best mine level per player (for HQ icons)
+  const bestMineLvl = {};
+  for (const m of (allMines || [])) {
+    if (m.status === 'destroyed' || !m.owner_id) continue;
+    if ((m.level || 0) > (bestMineLvl[m.owner_id] || 0)) bestMineLvl[m.owner_id] = m.level;
+  }
+
   const headquarters = (allHQ || []).map((hq) => ({
     id: hq.id, lat: hq.lat, lng: hq.lng, level: hq.level, player_id: hq.player_id,
     players: hq.players,
@@ -816,6 +830,7 @@ mapRouter.get('/', async (req, res) => {
     is_online: hq.players?.last_seen
       ? (Date.now() - new Date(hq.players.last_seen).getTime()) < ONLINE_MS
       : false,
+    best_mine_level: bestMineLvl[hq.player_id] || 0,
   }));
 
   const mines = (allMines || []).map((m) => {

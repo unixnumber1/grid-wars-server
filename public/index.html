@@ -673,18 +673,21 @@
     .marker-hq-own::after {
       content: '';
       position: absolute;
-      inset: -4px;
+      inset: -6px;
       border-radius: 50%;
-      border: 2px solid #3d7a3d;
+      border: 2px solid rgba(255,255,255,0.7);
+      box-shadow: 0 0 12px 4px rgba(255,255,255,0.25),
+                  0 0 24px 8px rgba(255,255,255,0.1);
       pointer-events: none;
     }
 
     .marker-hq-other::after {
       content: '';
       position: absolute;
-      inset: -4px;
+      inset: -6px;
       border-radius: 50%;
-      border: 2px solid #555;
+      border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 0 0 8px 2px rgba(255,255,255,0.1);
       pointer-events: none;
     }
 
@@ -2958,6 +2961,13 @@ function getMineAppearance(level) {
 }
 function getMineEmoji(level) { return getMineAppearance(level).emoji; }
 
+function getPlayerBestMineLevel(playerId) {
+  const mines = Array.isArray(state.mapBuildings.mines) ? state.mapBuildings.mines : [];
+  let best = 0;
+  for (const m of mines) if (m.owner_id === playerId && m.level > best) best = m.level;
+  return best;
+}
+
 function getMineUpgradeCostBulk(currentLevel, count) {
   let total = 0;
   for (let i = 0; i < count; i++) total += mineUpgradeCost(currentLevel + i);
@@ -3084,20 +3094,23 @@ function _addOrUpdateMineMarker(mine) {
 function _addOrUpdateHqMarker(hq) {
   const playerId = state.player?.id;
   const isOwn    = hq.is_mine ?? (hq.player_id === playerId);
+  const bestLvl  = hq.best_mine_level || getPlayerBestMineLevel(hq.player_id);
   const key      = `hq_${hq.id}`;
   const existing = buildingMarkers[key];
   if (existing) {
-    if (existing._gw_isOwn !== isOwn) {
-      existing.setIcon(hqIcon(isOwn));
+    if (existing._gw_isOwn !== isOwn || existing._gw_bestLvl !== bestLvl) {
+      existing.setIcon(hqIcon(isOwn, bestLvl));
       existing._gw_isOwn = isOwn;
+      existing._gw_bestLvl = bestLvl;
     }
     existing.off('click');
     existing.on('click', () => showHqPopup(hq, isOwn));
   } else {
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn), zIndexOffset: 1000 })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn, bestLvl), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     marker._gw_isOwn = isOwn;
+    marker._gw_bestLvl = bestLvl;
     buildingMarkers[key] = marker;
   }
 }
@@ -4210,10 +4223,12 @@ function makeMarkerIcon(html, size = 36) {
   });
 }
 
-function hqIcon(isOwn) {
+function hqIcon(isOwn, bestMineLevel) {
   const ring = isOwn ? 'marker-hq-own' : 'marker-hq-other';
+  const emoji = bestMineLevel > 0 ? getMineEmoji(bestMineLevel) : '⚡';
+  const size = 28 + Math.min(Math.floor(bestMineLevel / 30), 4) * 2;
   return makeMarkerIcon(
-    `<div class="marker-wrap ${ring}"><span style="font-size:24px">&#x26A1;</span></div>`, 40
+    `<div class="marker-wrap ${ring}"><span style="font-size:${size}px">${emoji}</span></div>`, 44
   );
 }
 
@@ -4429,18 +4444,18 @@ function renderBuildings() {
   const playerId = state.player?.id;
   const activeKeys = new Set();
 
-  // HQs — incremental update
-  for (const hq of headquarters) {
-    const key = `hq_${hq.id}`;
-    activeKeys.add(key);
-    _addOrUpdateHqMarker(hq);
-  }
-
-  // Mines — incremental update
+  // Mines first (so HQ can read best mine level)
   for (const mine of mines) {
     const key = `mine_${mine.id}`;
     activeKeys.add(key);
     _addOrUpdateMineMarker(mine);
+  }
+
+  // HQs second
+  for (const hq of headquarters) {
+    const key = `hq_${hq.id}`;
+    activeKeys.add(key);
+    _addOrUpdateHqMarker(hq);
   }
 
   // Remove markers only if far from player (>5km) — prevents viewport flicker

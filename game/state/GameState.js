@@ -189,6 +189,14 @@ class GameState {
     const nowISO = new Date(nowMs).toISOString();
     const ONLINE_MS = 3 * 60 * 1000;
 
+    // Pre-compute best mine level per player (for HQ icons)
+    const bestMineLevelByPlayer = new Map();
+    for (const m of this.mines.values()) {
+      if (m.status === 'destroyed' || !m.owner_id) continue;
+      const cur = bestMineLevelByPlayer.get(m.owner_id) || 0;
+      if (m.level > cur) bestMineLevelByPlayer.set(m.owner_id, m.level);
+    }
+
     // HQs in bbox
     const headquarters = [];
     for (const hq of this.headquarters.values()) {
@@ -199,6 +207,7 @@ class GameState {
           players: owner ? { username: owner.username, game_username: owner.game_username, avatar: owner.avatar, last_seen: owner.last_seen, level: owner.level } : null,
           is_mine: hq.player_id === currentPlayerId,
           is_online: owner?.last_seen ? (nowMs - new Date(owner.last_seen).getTime()) < ONLINE_MS : false,
+          best_mine_level: bestMineLevelByPlayer.get(hq.player_id) || 0,
         });
       }
     }
