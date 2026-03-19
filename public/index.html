@@ -5148,55 +5148,7 @@ function showCoreDetailPopup(coreId) {
     [
       { label: `⬆️ Прокачать за ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       ...(core.mine_cell_id ? [{ label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
-      ...(!core.mine_cell_id ? [{ label: '🏪 Продать на рынке', cls: 'primary', action: () => openCoreListOnMarket(coreId) }] : []),
       { label: 'Закрыть', isClose: true },
-    ]
-  );
-}
-
-function openCoreListOnMarket(coreId) {
-  const core = (state._playerCores || []).find(c => c.id === coreId);
-  if (!core) return;
-  const info = CORE_TYPES[core.core_type] || {};
-  const mul = getCoreMultiplier(core.level);
-  closePopup();
-  openPopup(
-    '🏪 Продать ядро на рынке',
-    `${info.emoji} ${info.name} lv.${core.level} (x${mul})`,
-    [],
-    [
-      {
-        label: '', isCustom: true,
-        html: `<div style="padding:8px 0;">
-          <label style="color:#aaa;font-size:13px;">Цена (мин. 10 💎)</label>
-          <input id="core-market-price" type="number" min="10" max="100000" value="50"
-            style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #444;background:#1a1a2e;color:#fff;font-size:16px;text-align:center;" />
-        </div>`,
-      },
-      {
-        label: '💎 Выставить на продажу', cls: 'primary',
-        action: async () => {
-          const priceEl = document.getElementById('core-market-price');
-          const price = parseInt(priceEl?.value);
-          if (!price || price < 10 || price > 100000) { showToast('Цена от 10 до 100000 💎'); return; }
-          try {
-            const res = await fetch('/api/market', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'list-item', telegram_id: tgId, core_id: coreId, price_diamonds: price }),
-            });
-            const data = await res.json();
-            if (data.success) {
-              showToast('Ядро выставлено на рынок!');
-              core.on_market = true;
-              closePopup();
-            } else {
-              showToast(data.error || 'Ошибка');
-            }
-          } catch (e) { showToast('Ошибка сети'); }
-        },
-      },
-      { label: 'Отмена', isClose: true },
     ]
   );
 }
@@ -5238,22 +5190,32 @@ async function doCoreUpgrade(coreId) {
       if (c) c.level = data.new_level;
       showToast(`✅ Ядро улучшено до Lv.${data.new_level} (x${data.multiplier})`);
       updateCoinDisplay();
-      showCoreDetailPopup(coreId); // refresh popup
+      // Refresh appropriate popup
+      if (c?.mine_cell_id) showInstalledCorePopup(coreId);
+      else showCoreDetailPopup(coreId);
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
 
 async function doCoreUninstall(coreId) {
   try {
+    const c = (state._playerCores || []).find(x => x.id === coreId);
+    const mineCellId = c?.mine_cell_id;
     const data = await apiFetch('/api/cores', {
       method: 'POST',
       body: JSON.stringify({ action: 'uninstall', telegram_id: TG_ID, core_id: coreId }),
     });
     if (data.success) {
-      const c = (state._playerCores || []).find(x => x.id === coreId);
       if (c) { c.mine_cell_id = null; c.slot_index = null; }
       showToast('✅ Ядро извлечено в сумку');
-      closePopup();
+      // Reopen mine popup to show updated core slots
+      const mine = mineCellId && (state.mapBuildings?.mines || []).find(m => m.cell_id === mineCellId);
+      if (mine) {
+        closePopup();
+        showMinePopup(mine, true, false);
+      } else {
+        closePopup();
+      }
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
@@ -5289,7 +5251,14 @@ async function doCoreInstall(coreId, mineId) {
       const c = (state._playerCores || []).find(x => x.id === coreId);
       if (c) { c.mine_cell_id = data.core?.mine_cell_id; c.slot_index = data.slot; }
       showToast('✅ Ядро установлено');
-      closePopup();
+      // Reopen mine popup immediately to show updated core slots
+      const mine = (state.mapBuildings?.mines || []).find(m => m.id === mineId);
+      if (mine) {
+        closePopup();
+        showMinePopup(mine, true, false);
+      } else {
+        closePopup();
+      }
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
@@ -6212,10 +6181,10 @@ function _formatVaseTimer(expiresAt) {
 
 function _vaseIcon() {
   return L.divIcon({
-    className: '',
-    html: `<div class="marker-wrap vase-marker" style="font-size:36px;line-height:1;">🏺</div>`,
-    iconSize:   [44, 44],
-    iconAnchor: [22, 22],
+    className: 'leaflet-interactive',
+    html: `<div class="marker-wrap vase-marker" style="font-size:36px;line-height:1;pointer-events:auto;">🏺</div>`,
+    iconSize:   [52, 52],
+    iconAnchor: [26, 26],
   });
 }
 
