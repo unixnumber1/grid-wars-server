@@ -3083,22 +3083,25 @@ function _addOrUpdateHqMarker(hq) {
   const playerId = state.player?.id;
   const isOwn    = hq.is_mine ?? (hq.player_id === playerId);
   const bestLvl  = hq.best_mine_level || getPlayerBestMineLevel(hq.player_id);
+  const hqLvl    = hq.level || 1;
   const key      = `hq_${hq.id}`;
   const existing = buildingMarkers[key];
   if (existing) {
-    if (existing._gw_isOwn !== isOwn || existing._gw_bestLvl !== bestLvl) {
-      existing.setIcon(hqIcon(isOwn, bestLvl));
+    if (existing._gw_isOwn !== isOwn || existing._gw_bestLvl !== bestLvl || existing._gw_hqLvl !== hqLvl) {
+      existing.setIcon(hqIcon(isOwn, bestLvl, hqLvl));
       existing._gw_isOwn = isOwn;
       existing._gw_bestLvl = bestLvl;
+      existing._gw_hqLvl = hqLvl;
     }
     existing.off('click');
     existing.on('click', () => showHqPopup(hq, isOwn));
   } else {
-    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn, bestLvl), zIndexOffset: 1000 })
+    const marker = L.marker([hq.lat, hq.lng], { icon: hqIcon(isOwn, bestLvl, hqLvl), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showHqPopup(hq, isOwn));
     marker._gw_isOwn = isOwn;
     marker._gw_bestLvl = bestLvl;
+    marker._gw_hqLvl = hqLvl;
     buildingMarkers[key] = marker;
   }
 }
@@ -4211,12 +4214,14 @@ function makeMarkerIcon(html, size = 36) {
   });
 }
 
-function hqIcon(isOwn, bestMineLevel) {
+function hqIcon(isOwn, bestMineLevel, hqLevel) {
   const ring = isOwn ? 'marker-hq-own' : 'marker-hq-other';
   const emoji = bestMineLevel > 0 ? getMineEmoji(bestMineLevel) : '⚡';
-  const size = 28 + Math.min(Math.floor(bestMineLevel / 30), 4) * 2;
+  const lvl = Math.min(Math.max(hqLevel || 1, 1), 10);
+  const fontSize = 26 + lvl * 2;            // 28px at lv1 → 46px at lv10
+  const iconSize = 38 + lvl * 2;            // 40px at lv1 → 58px at lv10
   return makeMarkerIcon(
-    `<div class="marker-wrap ${ring}"><span style="font-size:${size}px">${emoji}</span></div>`, 44
+    `<div class="marker-wrap ${ring}"><span style="font-size:${fontSize}px">${emoji}</span></div>`, iconSize
   );
 }
 
