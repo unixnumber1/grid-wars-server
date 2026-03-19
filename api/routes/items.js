@@ -429,11 +429,11 @@ itemsRouter.post('/', async (req, res) => {
     const diamonds = p.diamonds ?? 0;
     if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: `\u041D\u0443\u0436\u043D\u043E ${MYTHIC_PRICE} \u{1F48E}` });
 
-    // Fixed mid-range stats for mythic
+    // Fixed mythic base stats (matching game/mechanics/items.js)
     const mythicStats = {
-      sword: { attack: 90, crit_chance: 13, defense: 0, block_chance: 0 },
-      axe: { attack: 125, crit_chance: 0, defense: 0, block_chance: 0 },
-      shield: { attack: 0, crit_chance: 0, defense: 790, block_chance: 15 },
+      sword: { attack: 380, crit_chance: 16, defense: 0, block_chance: 0 },
+      axe: { attack: 520, crit_chance: 0, defense: 0, block_chance: 0 },
+      shield: { attack: 0, crit_chance: 0, defense: 3800, block_chance: 15 },
     };
     const stats = mythicStats[weapon_type];
     const names = { sword: '\u0410\u0434\u0441\u043A\u0438\u0439 \u043A\u043B\u0438\u043D\u043E\u043A', axe: '\u0422\u043E\u043F\u043E\u0440 \u0445\u0430\u043E\u0441\u0430', shield: '\u0429\u0438\u0442 \u0442\u0438\u0442\u0430\u043D\u0430' };
@@ -476,9 +476,9 @@ itemsRouter.post('/', async (req, res) => {
     if (diamonds < SET_PRICE) return res.status(400).json({ error: `Нужно ${SET_PRICE} 💎` });
 
     const mythicStats = {
-      sword: { attack: 90, crit_chance: 13, defense: 0, block_chance: 0 },
-      axe: { attack: 125, crit_chance: 0, defense: 0, block_chance: 0 },
-      shield: { attack: 0, crit_chance: 0, defense: 790, block_chance: 15 },
+      sword: { attack: 380, crit_chance: 16, defense: 0, block_chance: 0 },
+      axe: { attack: 520, crit_chance: 0, defense: 0, block_chance: 0 },
+      shield: { attack: 0, crit_chance: 0, defense: 3800, block_chance: 15 },
     };
     const names = { sword: '\u0410\u0434\u0441\u043A\u0438\u0439 \u043A\u043B\u0438\u043D\u043E\u043A', axe: '\u0422\u043E\u043F\u043E\u0440 \u0445\u0430\u043E\u0441\u0430', shield: '\u0429\u0438\u0442 \u0442\u0438\u0442\u0430\u043D\u0430' };
     const emojis = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };

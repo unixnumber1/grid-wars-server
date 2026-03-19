@@ -21,12 +21,16 @@ describe('Core types', () => {
 });
 
 describe('getCoreMultiplier', () => {
-  it('lv0 = x1.5', () => {
-    assert.strictEqual(getCoreMultiplier(0), 1.5);
+  it('lv0 = x1', () => {
+    assert.strictEqual(getCoreMultiplier(0), 1);
   });
 
-  it('lv100 = x100', () => {
-    assert.strictEqual(getCoreMultiplier(100), 100);
+  it('lv50 = x25.5', () => {
+    assert.strictEqual(getCoreMultiplier(50), 25.5);
+  });
+
+  it('lv100 = x50', () => {
+    assert.strictEqual(getCoreMultiplier(100), 50);
   });
 
   it('multiplier increases with level', () => {
@@ -57,7 +61,7 @@ describe('getCoresTotalBoost', () => {
       { core_type: 'income', level: 0 },
     ];
     const boost = getCoresTotalBoost(cores, 'income');
-    assert.strictEqual(boost, 3); // 1.5 + 1.5
+    assert.strictEqual(boost, 2); // 1 + 1
   });
 
   it('ignores non-matching core types', () => {

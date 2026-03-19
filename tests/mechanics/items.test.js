@@ -58,10 +58,22 @@ describe('getUpgradedStats', () => {
     assert.strictEqual(upgraded.attack, 10);
   });
 
-  it('lv10 increases attack by 10%', () => {
+  it('lv10 increases attack by 90% (x1.9)', () => {
     const item = { type: 'sword', rarity: 'common', attack: 100, base_attack: 100, crit_chance: 5, base_crit_chance: 5, upgrade_level: 10 };
     const upgraded = getUpgradedStats(item);
-    assert.strictEqual(upgraded.attack, 110); // 100 * 1.10
+    assert.strictEqual(upgraded.attack, 190); // 100 * 1.90
+  });
+
+  it('crit_chance does not scale with level', () => {
+    const item = { type: 'sword', rarity: 'common', attack: 100, base_attack: 100, crit_chance: 5, base_crit_chance: 5, upgrade_level: 50 };
+    const upgraded = getUpgradedStats(item);
+    assert.strictEqual(upgraded.crit_chance, 5);
+  });
+
+  it('generateItem sword common has fixed attack 20', () => {
+    const item = generateItem('sword', 'common');
+    assert.strictEqual(item.attack, 20);
+    assert.strictEqual(item.crit_chance, 3);
   });
 });
 

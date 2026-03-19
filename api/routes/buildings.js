@@ -234,7 +234,8 @@ async function handleMineCollect(req, res) {
   }
   const collectedAmount = Math.round(totalCoins);
   if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
-  const xpGained = collectedAmount > 0 ? Math.max(1, Math.floor(collectedAmount * 0.001)) : 0;
+  const { getCollectXp } = await import('../../game/mechanics/xp.js');
+  const xpGained = collectedAmount > 0 ? getCollectXp(collectedAmount) : 0;
   let xpResult = null;
   if (xpGained > 0) { try { xpResult = await addXp(player.id, xpGained); } catch (e) {} }
   const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);

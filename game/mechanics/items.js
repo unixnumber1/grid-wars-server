@@ -1,30 +1,35 @@
-// ── Item stat tables (rebalanced) ──
+// ── Item stat tables (fixed values, rebalanced) ──
 const SWORD_STATS = {
-  common:    { attack: [10,15],   crit_chance: [2,4]  },
-  uncommon:  { attack: [20,30],   crit_chance: [4,6]  },
-  rare:      { attack: [35,45],   crit_chance: [6,10] },
-  epic:      { attack: [50,70],   crit_chance: [8,14] },
-  mythic:    { attack: [75,105],  crit_chance: [10,16] },
-  legendary: { attack: [110,150], crit_chance: [14,20] },
+  common:    { attack: 20,  crit_chance: 3  },
+  uncommon:  { attack: 50,  crit_chance: 5  },
+  rare:      { attack: 110, crit_chance: 8  },
+  epic:      { attack: 220, crit_chance: 12 },
+  mythic:    { attack: 380, crit_chance: 16 },
+  legendary: { attack: 580, crit_chance: 20 },
 };
 const AXE_STATS = {
-  common:    { attack: [15,25]   },
-  uncommon:  { attack: [30,40]   },
-  rare:      { attack: [45,65]   },
-  epic:      { attack: [70,100]  },
-  mythic:    { attack: [105,145] },
-  legendary: { attack: [155,210] },
+  common:    { attack: 28  },
+  uncommon:  { attack: 70  },
+  rare:      { attack: 150 },
+  epic:      { attack: 300 },
+  mythic:    { attack: 520 },
+  legendary: { attack: 800 },
 };
 const SHIELD_STATS = {
-  common:    { defense: [65,100]  },
-  uncommon:  { defense: [130,200] },
-  rare:      { defense: [230,330] },
-  epic:      { defense: [400,530] },
-  mythic:    { defense: [650,930],  block_chance: [10,20] },
-  legendary: { defense: [1200,1650], block_chance: [20,35] },
+  common:    { defense: 100  },
+  uncommon:  { defense: 250  },
+  rare:      { defense: 550  },
+  epic:      { defense: 1100 },
+  mythic:    { defense: 3800, block_chance: [10,20] },
+  legendary: { defense: 5800, block_chance: [20,35] },
 };
 
 export const ITEM_STATS = { sword: SWORD_STATS, axe: AXE_STATS, shield: SHIELD_STATS };
+export const WEAPON_BASE_STATS = { sword: SWORD_STATS, axe: AXE_STATS, shield: SHIELD_STATS };
+
+export function getWeaponStatAtLevel(baseStat, level) {
+  return Math.floor(baseStat * (1 + level * 0.09));
+}
 
 const ITEM_NAMES = {
   sword: { common:'Ржавый меч', uncommon:'Стальной меч', rare:'Клинок теней', epic:'Меч демона', mythic:'Адский клинок', legendary:'Экскалибур' },
@@ -41,17 +46,17 @@ export function generateItem(type, rarity) {
   let stats = {};
   if (type === 'sword') {
     const s = SWORD_STATS[rarity];
-    stats.attack = randomInRange(s.attack[0], s.attack[1]);
-    stats.crit_chance = randomInRange(s.crit_chance[0], s.crit_chance[1]);
+    stats.attack = s.attack;
+    stats.crit_chance = s.crit_chance;
     stats.stat_value = stats.attack;
   } else if (type === 'axe') {
     const s = AXE_STATS[rarity];
-    stats.attack = randomInRange(s.attack[0], s.attack[1]);
+    stats.attack = s.attack;
     stats.crit_chance = 0;
     stats.stat_value = stats.attack;
   } else if (type === 'shield') {
     const s = SHIELD_STATS[rarity];
-    stats.defense = randomInRange(s.defense[0], s.defense[1]);
+    stats.defense = s.defense;
     stats.block_chance = s.block_chance ? randomInRange(s.block_chance[0], s.block_chance[1]) : 0;
     stats.crit_chance = 0;
     stats.stat_value = stats.defense;
@@ -82,12 +87,12 @@ export function getUpgradeCost(upgradeLevel) {
 
 export function getUpgradedStats(item) {
   const lvl = item.upgrade_level || 0;
-  const mul = 1 + lvl * 0.01;
+  const mul = 1 + lvl * 0.09;
   const result = { ...item };
 
   if (item.type === 'sword') {
     result.attack = Math.floor((item.base_attack || item.attack) * mul);
-    result.crit_chance = Math.floor((item.base_crit_chance || item.crit_chance || 0) + lvl * 0.17);
+    result.crit_chance = item.base_crit_chance || item.crit_chance || 0;
     if (item.rarity === 'mythic') result.crit_multiplier = 1.5 + (lvl / 90) * 0.7;
     else if (item.rarity === 'legendary') result.crit_multiplier = 1.5 + (lvl / 100) * 1.5;
     else result.crit_multiplier = 1.5;

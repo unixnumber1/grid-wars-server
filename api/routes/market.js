@@ -50,8 +50,8 @@ async function handleListings(req, res) {
     .from('market_listings')
     .select(`
       id, price_diamonds, is_private, private_code, created_at, expires_at,
-      market_id,
-      items!inner(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance),
+      market_id, item_type, core_id,
+      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance),
       seller:players!market_listings_seller_id_fkey(id, username, game_username, avatar)
     `, { count: 'exact' })
     .eq('status', 'active')
@@ -72,9 +72,14 @@ async function handleListings(req, res) {
     return res.status(500).json({ error: error.message });
   }
 
+  // Enrich core listings with core info from gameState
   const cleaned = (listings || []).map(l => {
     const out = { ...l };
     if (l.seller?.id !== player.id) delete out.private_code;
+    if (l.item_type === 'core' && l.core_id && gameState.loaded) {
+      const core = gameState.cores.get(l.core_id);
+      if (core) out.core_info = { core_type: core.core_type, level: core.level };
+    }
     return out;
   });
 
@@ -95,7 +100,7 @@ async function handleMyListings(req, res) {
     .from('market_listings')
     .select(`
       id, price_diamonds, is_private, private_code, status, created_at, expires_at,
-      market_id,
+      market_id, item_type, core_id,
       items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance)
     `)
     .eq('seller_id', player.id)
@@ -106,26 +111,89 @@ async function handleMyListings(req, res) {
     return res.status(500).json({ error: error.message });
   }
 
-  return res.json({ listings: listings || [] });
+  // Enrich core listings
+  const enriched = (listings || []).map(l => {
+    if (l.item_type === 'core' && l.core_id && gameState.loaded) {
+      const core = gameState.cores.get(l.core_id);
+      if (core) l.core_info = { core_type: core.core_type, level: core.level };
+    }
+    return l;
+  });
+
+  return res.json({ listings: enriched });
 }
 
 /* ── Action: list-item (POST) ──────────────────────────────── */
 
 async function handleListItem(req, res) {
-  const { telegram_id, item_id, price_diamonds, is_private, lat, lng } = req.body || {};
-  if (!telegram_id || !item_id || !price_diamonds) {
-    return res.status(400).json({ error: 'telegram_id, item_id, price_diamonds required' });
+  const { telegram_id, item_id, core_id, price_diamonds, is_private, lat, lng } = req.body || {};
+  if (!telegram_id || (!item_id && !core_id) || !price_diamonds) {
+    return res.status(400).json({ error: 'telegram_id, item_id or core_id, price_diamonds required' });
   }
 
   const price = parseInt(price_diamonds, 10);
-  if (isNaN(price) || price < 1 || price > 100000) {
-    return res.status(400).json({ error: 'Price must be 1-100000 diamonds' });
+  if (isNaN(price) || price < 10 || price > 100000) {
+    return res.status(400).json({ error: 'Price must be 10-100000 diamonds' });
   }
 
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
+  const { count } = await supabase
+    .from('market_listings')
+    .select('*', { count: 'exact', head: true })
+    .eq('seller_id', player.id)
+    .in('status', ['active', 'pending']);
+
+  if ((count || 0) >= MAX_ACTIVE_LISTINGS) {
+    return res.status(400).json({ error: `Max ${MAX_ACTIVE_LISTINGS} active listings` });
+  }
+
+  // ── Core listing (instant, no courier) ──
+  if (core_id) {
+    const core = gameState.loaded ? gameState.cores.get(core_id) : null;
+    if (!core) {
+      const { data: dbCore } = await supabase.from('cores').select('*').eq('id', core_id).maybeSingle();
+      if (!dbCore) return res.status(404).json({ error: 'Core not found' });
+      if (dbCore.owner_id !== String(telegram_id)) return res.status(403).json({ error: 'Not your core' });
+      if (dbCore.mine_cell_id) return res.status(400).json({ error: 'Core is installed in a mine' });
+      if (dbCore.on_market) return res.status(400).json({ error: 'Core already on market' });
+    } else {
+      if (core.owner_id !== String(telegram_id)) return res.status(403).json({ error: 'Not your core' });
+      if (core.mine_cell_id) return res.status(400).json({ error: 'Core is installed in a mine' });
+      if (core.on_market) return res.status(400).json({ error: 'Core already on market' });
+    }
+
+    await supabase.from('cores').update({ on_market: true }).eq('id', core_id);
+    if (gameState.loaded && core) { core.on_market = true; gameState.markDirty('cores', core_id); }
+
+    const privateCode = is_private ? generateCode() : null;
+    const expiresAt = new Date(Date.now() + LISTING_TTL_HOURS * 3600 * 1000).toISOString();
+    const listingRow = {
+      seller_id: player.id,
+      item_type: 'core',
+      core_id,
+      item_id: null,
+      price_diamonds: price,
+      is_private: !!is_private,
+      private_code: privateCode,
+      status: 'active',
+      expires_at: expiresAt,
+    };
+
+    const { data: listing, error: lErr } = await supabase.from('market_listings').insert(listingRow).select('id').single();
+    if (lErr) {
+      await supabase.from('cores').update({ on_market: false }).eq('id', core_id);
+      return res.status(500).json({ error: lErr.message });
+    }
+
+    if (gameState.loaded) gameState.upsertListing({ ...listingRow, id: listing.id });
+
+    return res.json({ success: true, listing_id: listing.id, private_code: privateCode });
+  }
+
+  // ── Item listing ──
   const { data: item, error: iErr } = await supabase
     .from('items')
     .select('id, rarity, equipped, on_market, owner_id')
@@ -137,16 +205,6 @@ async function handleListItem(req, res) {
   if (item.owner_id !== player.id) return res.status(403).json({ error: 'Not your item' });
   if (item.equipped) return res.status(400).json({ error: 'Unequip item first' });
   if (item.on_market) return res.status(400).json({ error: 'Item already on market' });
-
-  const { count } = await supabase
-    .from('market_listings')
-    .select('*', { count: 'exact', head: true })
-    .eq('seller_id', player.id)
-    .in('status', ['active', 'pending']);
-
-  if ((count || 0) >= MAX_ACTIVE_LISTINGS) {
-    return res.status(400).json({ error: `Max ${MAX_ACTIVE_LISTINGS} active listings` });
-  }
 
   const privateCode = is_private ? generateCode() : null;
   const expiresAt = new Date(Date.now() + LISTING_TTL_HOURS * 3600 * 1000).toISOString();
@@ -288,6 +346,7 @@ async function handleBuy(req, res) {
     .from('market_listings')
     .select(`
       id, item_id, seller_id, price_diamonds, is_private, private_code, status, expires_at,
+      item_type, core_id,
       items(id, rarity, owner_id),
       market_id,
       markets(lat, lng)
@@ -334,6 +393,37 @@ async function handleBuy(req, res) {
     return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
   }
 
+  // ── Core purchase: instant transfer, no courier ──
+  if (listing.item_type === 'core' && listing.core_id) {
+    await supabase.from('players')
+      .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
+      .eq('id', listing.seller_id);
+
+    // Transfer core ownership
+    await supabase.from('cores')
+      .update({ owner_id: String(telegram_id), on_market: false })
+      .eq('id', listing.core_id);
+
+    // Update gameState
+    if (gameState.loaded) {
+      const bl = gameState.getListingById(listing_id);
+      if (bl) { bl.status = 'sold'; bl.buyer_id = buyer.id; gameState.markDirty('marketListings', bl.id); }
+      const bp = gameState.getPlayerById(buyer.id);
+      if (bp) { bp.diamonds = (buyer.diamonds ?? 0) - price; gameState.markDirty('players', bp.id); }
+      const sp = gameState.getPlayerById(listing.seller_id);
+      if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
+      const core = gameState.cores.get(listing.core_id);
+      if (core) { core.owner_id = String(telegram_id); core.on_market = false; gameState.markDirty('cores', core.id); }
+    }
+
+    notify(listing.seller_id, 'core_sold',
+      `💰 Ваше ядро продано за ${price} 💎 (получено ${sellerPayout} 💎)`,
+      { listing_id: listing.id, price, payout: sellerPayout });
+
+    return res.json({ success: true, price_paid: price, seller_received: sellerPayout });
+  }
+
+  // ── Item purchase ──
   const [{ error: sellerErr }, { error: itemErr }] = await Promise.all([
     supabase.from('players')
       .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
@@ -448,7 +538,7 @@ async function handleCancel(req, res) {
 
   const { data: listing, error: lErr } = await supabase
     .from('market_listings')
-    .select('id, item_id, seller_id, status')
+    .select('id, item_id, seller_id, status, item_type, core_id')
     .eq('id', listing_id)
     .maybeSingle();
 
@@ -457,27 +547,41 @@ async function handleCancel(req, res) {
   if (listing.seller_id !== player.id) return res.status(403).json({ error: 'Not your listing' });
   if (listing.status !== 'active' && listing.status !== 'pending') return res.status(400).json({ error: 'Listing not active' });
 
-  await Promise.all([
+  const cancelOps = [
     supabase.from('market_listings')
       .update({ status: 'cancelled' })
       .eq('id', listing_id),
-    supabase.from('items')
-      .update({ on_market: false, held_by_courier: null, held_by_market: null })
-      .eq('id', listing.item_id),
-    supabase.from('couriers')
-      .update({ status: 'cancelled' })
-      .eq('listing_id', listing_id)
-      .eq('status', 'moving'),
-  ]);
+  ];
+
+  if (listing.item_type === 'core' && listing.core_id) {
+    cancelOps.push(supabase.from('cores').update({ on_market: false }).eq('id', listing.core_id));
+  } else if (listing.item_id) {
+    cancelOps.push(
+      supabase.from('items')
+        .update({ on_market: false, held_by_courier: null, held_by_market: null })
+        .eq('id', listing.item_id),
+      supabase.from('couriers')
+        .update({ status: 'cancelled' })
+        .eq('listing_id', listing_id)
+        .eq('status', 'moving'),
+    );
+  }
+
+  await Promise.all(cancelOps);
 
   // Update gameState
   if (gameState.loaded) {
     const gl = gameState.getListingById(listing_id);
     if (gl) { gl.status = 'cancelled'; gameState.markDirty('marketListings', gl.id); }
-    const gi = gameState.getItemById(listing.item_id);
-    if (gi) { gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
-    for (const c of gameState.couriers.values()) {
-      if (c.listing_id === listing_id && c.status === 'moving') { c.status = 'cancelled'; gameState.markDirty('couriers', c.id); }
+    if (listing.item_type === 'core' && listing.core_id) {
+      const core = gameState.cores.get(listing.core_id);
+      if (core) { core.on_market = false; gameState.markDirty('cores', core.id); }
+    } else if (listing.item_id) {
+      const gi = gameState.getItemById(listing.item_id);
+      if (gi) { gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
+      for (const c of gameState.couriers.values()) {
+        if (c.listing_id === listing_id && c.status === 'moving') { c.status = 'cancelled'; gameState.markDirty('couriers', c.id); }
+      }
     }
   }
 
@@ -911,26 +1015,33 @@ async function handleMoveCouriers(req, res) {
   try {
     const { data: expiredListings } = await supabase
       .from('market_listings')
-      .select('id, item_id, seller_id')
+      .select('id, item_id, seller_id, item_type, core_id')
       .in('status', ['active', 'pending'])
       .lt('expires_at', nowISO)
       .limit(50);
 
     if (expiredListings && expiredListings.length > 0) {
       for (const listing of expiredListings) {
-        await Promise.all([
-          supabase.from('market_listings')
-            .update({ status: 'expired' })
-            .eq('id', listing.id),
-          supabase.from('items')
+        await supabase.from('market_listings')
+          .update({ status: 'expired' })
+          .eq('id', listing.id);
+
+        if (listing.item_type === 'core' && listing.core_id) {
+          await supabase.from('cores').update({ on_market: false }).eq('id', listing.core_id);
+          if (gameState.loaded) {
+            const core = gameState.cores.get(listing.core_id);
+            if (core) { core.on_market = false; gameState.markDirty('cores', core.id); }
+          }
+        } else if (listing.item_id) {
+          await supabase.from('items')
             .update({ on_market: false, held_by_courier: null, held_by_market: null })
-            .eq('id', listing.item_id),
-        ]);
-        // Kill any active courier for this listing
-        await supabase.from('couriers')
-          .update({ status: 'cancelled' })
-          .eq('listing_id', listing.id)
-          .eq('status', 'moving');
+            .eq('id', listing.item_id);
+          // Kill any active courier for this listing
+          await supabase.from('couriers')
+            .update({ status: 'cancelled' })
+            .eq('listing_id', listing.id)
+            .eq('status', 'moving');
+        }
       }
       log(`[move-couriers] expired ${expiredListings.length} listings`);
     }

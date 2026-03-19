@@ -46,8 +46,8 @@ describe('getMineHp', () => {
     assert.strictEqual(getMineHp(0), 0);
   });
 
-  it('lv1 HP = 515', () => {
-    assert.strictEqual(getMineHp(1), 515);
+  it('lv1 HP = 500', () => {
+    assert.strictEqual(getMineHp(1), 500);
   });
 
   it('HP increases with level', () => {
@@ -125,16 +125,23 @@ describe('HQ formulas', () => {
 });
 
 describe('XP/Level system', () => {
-  it('xpForLevel(1) = 100', () => {
-    assert.strictEqual(xpForLevel(1), 100);
+  it('xpForLevel(1) = 800', () => {
+    assert.strictEqual(xpForLevel(1), 800);
   });
 
   it('calculateLevel returns 1 for 0 xp', () => {
     assert.strictEqual(calculateLevel(0), 1);
   });
 
-  it('calculateLevel returns 2 for 100+ xp', () => {
-    assert.strictEqual(calculateLevel(100), 2);
+  it('calculateLevel returns 2 for 800+ xp', () => {
+    assert.strictEqual(calculateLevel(800), 2);
+  });
+
+  it('xpForLevel(100) includes x5 barrier', () => {
+    // level 100: phase=0, levelInPhase=100, base=800, xp = floor(800 * 100^2.15) * 5
+    const xp = xpForLevel(100);
+    assert(xp > 0);
+    assert.strictEqual(xp % 5, 0); // divisible by 5 due to barrier
   });
 });
 

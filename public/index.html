@@ -3089,7 +3089,15 @@ function calcAccumulated(level, lastCollectedISO, customIncome) {
 }
 
 // XP / level helpers (mirrors lib/formulas.js)
-function xpForLevel(level) { return Math.floor(100 * Math.pow(level, 1.9)); }
+function xpForLevel(level) {
+  if (level <= 0) return 0;
+  const phase = Math.floor((level - 1) / 100);
+  const levelInPhase = ((level - 1) % 100) + 1;
+  const base = 800 * Math.pow(15, phase);
+  let xp = Math.floor(base * Math.pow(levelInPhase, 2.15));
+  if (level % 100 === 0) xp *= 5;
+  return xp;
+}
 
 // Inline mirrors of lib/formulas.js (frontend has no imports)
 function _calcMaxHp(_level)      { return 1000; }
@@ -3877,16 +3885,16 @@ const CORE_TYPES = {
 };
 
 function getCoreMultiplier(level) {
-  if (level <= 0) return 1.5;
-  return Math.round((1.5 + Math.pow(level / 100, 0.7) * 98.5) * 10) / 10;
+  if (level <= 0) return 1;
+  return Math.round((1 + level * 0.49) * 100) / 100;
 }
 
 function getCoreUpgradeCost(level) {
-  if (level < 10) return 100;
-  if (level < 25) return 400;
-  if (level < 50) return 1500;
-  if (level < 75) return 5000;
-  if (level < 90) return 20000;
+  if (level <= 10) return 100;
+  if (level <= 25) return 400;
+  if (level <= 50) return 1500;
+  if (level <= 75) return 5000;
+  if (level <= 90) return 20000;
   return 53000;
 }
 
@@ -5136,7 +5144,55 @@ function showCoreDetailPopup(coreId) {
     [
       { label: `⬆️ Прокачать за ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       ...(core.mine_cell_id ? [{ label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
+      ...(!core.mine_cell_id ? [{ label: '🏪 Продать на рынке', cls: 'primary', action: () => openCoreListOnMarket(coreId) }] : []),
       { label: 'Закрыть', isClose: true },
+    ]
+  );
+}
+
+function openCoreListOnMarket(coreId) {
+  const core = (state._playerCores || []).find(c => c.id === coreId);
+  if (!core) return;
+  const info = CORE_TYPES[core.core_type] || {};
+  const mul = getCoreMultiplier(core.level);
+  closePopup();
+  openPopup(
+    '🏪 Продать ядро на рынке',
+    `${info.emoji} ${info.name} lv.${core.level} (x${mul})`,
+    [],
+    [
+      {
+        label: '', isCustom: true,
+        html: `<div style="padding:8px 0;">
+          <label style="color:#aaa;font-size:13px;">Цена (мин. 10 💎)</label>
+          <input id="core-market-price" type="number" min="10" max="100000" value="50"
+            style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #444;background:#1a1a2e;color:#fff;font-size:16px;text-align:center;" />
+        </div>`,
+      },
+      {
+        label: '💎 Выставить на продажу', cls: 'primary',
+        action: async () => {
+          const priceEl = document.getElementById('core-market-price');
+          const price = parseInt(priceEl?.value);
+          if (!price || price < 10 || price > 100000) { showToast('Цена от 10 до 100000 💎'); return; }
+          try {
+            const res = await fetch('/api/market', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'list-item', telegram_id: tgId, core_id: coreId, price_diamonds: price }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              showToast('Ядро выставлено на рынок!');
+              core.on_market = true;
+              closePopup();
+            } else {
+              showToast(data.error || 'Ошибка');
+            }
+          } catch (e) { showToast('Ошибка сети'); }
+        },
+      },
+      { label: 'Отмена', isClose: true },
     ]
   );
 }
@@ -8603,16 +8659,24 @@ async function _loadMarketListings() {
 function _renderMarketCards(listings, grid, isMine) {
   grid.innerHTML = '';
   for (const l of listings) {
+    const isCoreListing = l.item_type === 'core' && l.core_info;
     const item = l.items;
-    if (!item) continue;
+    if (!item && !isCoreListing) continue;
     const card = document.createElement('div');
     card.className = 'market-card';
 
-    const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
-    const isGrad = rarColor.startsWith('linear');
+    let rarColor, isGrad, glowStyle;
+    if (isCoreListing) {
+      rarColor = '#00cfff';
+      isGrad = false;
+      glowStyle = 'filter:drop-shadow(0 0 12px #00cfff)';
+    } else {
+      rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+      isGrad = rarColor.startsWith('linear');
+      glowStyle = `filter:drop-shadow(0 0 12px ${isGrad ? '#FFD700' : rarColor})`;
+    }
     const borderCol = isGrad ? 'rgba(255,215,0,0.25)' : (rarColor + '40');
     card.style.borderColor = borderCol;
-    const glowStyle = `filter:drop-shadow(0 0 12px ${isGrad ? '#FFD700' : rarColor})`;
 
     let statusHtml = '';
     let btnHtml = '';
@@ -8648,17 +8712,34 @@ function _renderMarketCards(listings, grid, isMine) {
       }
     }
 
-    card.innerHTML = `
-      ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
-      <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
-      <div class="market-card-name">${item.name}${item.upgrade_level ? ` <span style="color:#FFD700;font-size:11px;">+${item.upgrade_level}</span>` : ''}</div>
-      <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
-      <div class="market-card-stat">${itemStatLabel(item)}</div>
-      <div class="market-card-price">💎 ${l.price_diamonds}</div>
-      ${!isMine && l.seller ? `<div class="market-card-seller">${l.seller.avatar || '🐺'} ${displayName(l.seller)}</div>` : ''}
-      ${statusHtml}
-      ${btnHtml}
-    `;
+    if (isCoreListing) {
+      const ci = l.core_info;
+      const cInfo = CORE_TYPES[ci.core_type] || {};
+      const cMul = getCoreMultiplier(ci.level);
+      card.innerHTML = `
+        ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
+        <div class="market-card-emoji" style="${glowStyle}">${cInfo.emoji || '🔮'}</div>
+        <div class="market-card-name">${cInfo.name || 'Ядро'} <span style="color:#FFD700;font-size:11px;">lv.${ci.level}</span></div>
+        <div class="market-card-rarity" style="color:#00cfff;">Ядро</div>
+        <div class="market-card-stat">x${cMul} множитель</div>
+        <div class="market-card-price">💎 ${l.price_diamonds}</div>
+        ${!isMine && l.seller ? `<div class="market-card-seller">${l.seller.avatar || '🐺'} ${displayName(l.seller)}</div>` : ''}
+        ${statusHtml}
+        ${btnHtml}
+      `;
+    } else {
+      card.innerHTML = `
+        ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
+        <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
+        <div class="market-card-name">${item.name}${item.upgrade_level ? ` <span style="color:#FFD700;font-size:11px;">+${item.upgrade_level}</span>` : ''}</div>
+        <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
+        <div class="market-card-stat">${itemStatLabel(item)}</div>
+        <div class="market-card-price">💎 ${l.price_diamonds}</div>
+        ${!isMine && l.seller ? `<div class="market-card-seller">${l.seller.avatar || '🐺'} ${displayName(l.seller)}</div>` : ''}
+        ${statusHtml}
+        ${btnHtml}
+      `;
+    }
 
     // Attach events
     grid.appendChild(card);
@@ -8683,18 +8764,30 @@ function _renderMarketCards(listings, grid, isMine) {
 
 // ── Buy confirm ───────────────────────────────
 function showMarketBuyConfirm(listing) {
+  const isCoreListing = listing.item_type === 'core' && listing.core_info;
   const item = listing.items;
   const diamonds = state.player?.diamonds ?? 0;
   const canAfford = diamonds >= listing.price_diamonds;
 
   const preview = document.getElementById('market-buy-item-preview');
-  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
-  const isGrad = rarColor.startsWith('linear');
-  preview.innerHTML = `
-    <div style="font-size:48px;${isGrad ? '' : `filter:drop-shadow(0 0 12px ${rarColor})`}">${item.emoji}</div>
-    <div style="font-size:14px;font-weight:700;margin:4px 0;">${item.name} ${rarityLabel(item.rarity)}</div>
-    <div style="font-size:13px;color:#f5c518;">${itemStatLabel(item)}</div>
-  `;
+  if (isCoreListing) {
+    const ci = listing.core_info;
+    const cInfo = CORE_TYPES[ci.core_type] || {};
+    const cMul = getCoreMultiplier(ci.level);
+    preview.innerHTML = `
+      <div style="font-size:48px;filter:drop-shadow(0 0 12px #00cfff)">${cInfo.emoji || '🔮'}</div>
+      <div style="font-size:14px;font-weight:700;margin:4px 0;">${cInfo.name || 'Ядро'} lv.${ci.level}</div>
+      <div style="font-size:13px;color:#00cfff;">x${cMul} множитель</div>
+    `;
+  } else {
+    const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+    const isGrad = rarColor.startsWith('linear');
+    preview.innerHTML = `
+      <div style="font-size:48px;${isGrad ? '' : `filter:drop-shadow(0 0 12px ${rarColor})`}">${item.emoji}</div>
+      <div style="font-size:14px;font-weight:700;margin:4px 0;">${item.name} ${rarityLabel(item.rarity)}</div>
+      <div style="font-size:13px;color:#f5c518;">${itemStatLabel(item)}</div>
+    `;
+  }
 
   document.getElementById('market-buy-price-row').innerHTML = `
     <div style="text-align:center;">Цена: 💎 <strong>${listing.price_diamonds}</strong> алмазов</div>

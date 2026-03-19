@@ -9,20 +9,20 @@ export const CORE_TYPES = {
 
 export const MAX_CORE_SLOTS = 10;
 
-// Multiplier per core level: lv0=x1.5, lv10=x8, lv50=x40, lv100=x100
-// Formula: 1.5 + (level/100)^0.7 * 98.5
+// Multiplier per core level: lv0=x1, lv50=x25.5, lv100=x50
+// Formula: 1 + level * 0.49
 export function getCoreMultiplier(level) {
-  if (level <= 0) return 1.5;
-  return Math.round((1.5 + Math.pow(level / 100, 0.7) * 98.5) * 10) / 10;
+  if (level <= 0) return 1;
+  return Math.round((1 + level * 0.49) * 100) / 100;
 }
 
 // Upgrade cost in ether
 export function getCoreUpgradeCost(level) {
-  if (level < 10)  return 100;
-  if (level < 25)  return 400;
-  if (level < 50)  return 1500;
-  if (level < 75)  return 5000;
-  if (level < 90)  return 20000;
+  if (level <= 10)  return 100;
+  if (level <= 25)  return 400;
+  if (level <= 50)  return 1500;
+  if (level <= 75)  return 5000;
+  if (level <= 90)  return 20000;
   return 53000;
 }
 

@@ -555,8 +555,9 @@ async function handleOpenLootBox(req, res) {
   }
 
   // XP
+  const { getMonumentXp } = await import('../../game/mechanics/xp.js');
   let xpResult = null;
-  try { xpResult = await addXp(player.id, 200 + box.monument_level * 50); } catch (_) {}
+  try { xpResult = await addXp(player.id, getMonumentXp(box.monument_level)); } catch (_) {}
 
   logActivity(player.game_username, `opened monument loot box (lv${box.monument_level} ${box.box_type})`);
 

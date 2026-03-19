@@ -150,18 +150,38 @@ export function getMineEmoji(level) {
 
 // ─── Player level system ──────────────────────────────────────────────────────
 
-export function xpForLevel(level) {
-  return Math.floor(100 * Math.pow(level, 1.9));
+// Phase-based XP curve: 800 * 15^phase * n^2.15, x5 barrier every 100 levels
+export function getXpForLevel(level) {
+  if (level <= 0) return 0;
+  const phase = Math.floor((level - 1) / 100);
+  const levelInPhase = ((level - 1) % 100) + 1;
+  const base = 800 * Math.pow(15, phase);
+  let xp = Math.floor(base * Math.pow(levelInPhase, 2.15));
+  if (level % 100 === 0) xp *= 5;
+  return xp;
 }
 
-export function calculateLevel(currentXp) {
+export function getTotalXpForLevel(level) {
+  let total = 0;
+  for (let i = 1; i < level; i++) total += getXpForLevel(i);
+  return total;
+}
+
+export function getLevelFromXp(totalXp) {
   let level = 1;
-  let totalXp = 0;
-  while (totalXp + xpForLevel(level) <= currentXp) {
-    totalXp += xpForLevel(level);
+  let accumulated = 0;
+  while (accumulated + getXpForLevel(level) <= totalXp) {
+    accumulated += getXpForLevel(level);
     level++;
+    if (level > 10000) break;
   }
-  return level;
+  return { level, xpIntoLevel: totalXp - accumulated };
+}
+
+// Backward compat aliases
+export const xpForLevel = getXpForLevel;
+export function calculateLevel(currentXp) {
+  return getLevelFromXp(currentXp).level;
 }
 
 export function getBuildRadius(_level) {
@@ -193,12 +213,7 @@ export function getPlayerAttack(_level) {
 
 export function getMineHp(level) {
   if (level <= 0) return 0;
-  if (level <= 100) {
-    return Math.floor(500 + Math.pow(level, 1.4) * 15);
-  } else {
-    const base100 = 500 + Math.pow(100, 1.4) * 15;
-    return Math.floor(base100 + Math.pow(level - 100, 1.6) * 80);
-  }
+  return Math.floor(500 * Math.pow(level, 1.3));
 }
 
 export function getMineHpRegen(level) {
