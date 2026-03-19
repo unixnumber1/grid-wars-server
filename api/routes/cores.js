@@ -13,6 +13,7 @@ coresRouter.post('/', async (req, res) => {
   if (action === 'uninstall') return handleUninstall(req, res);
   if (action === 'upgrade')   return handleUpgrade(req, res);
   if (action === 'sell')      return handleSell(req, res);
+  if (action === 'mass-sell') return handleMassSell(req, res);
   if (action === 'inventory') return handleInventory(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
@@ -157,6 +158,53 @@ async function handleSell(req, res) {
   await supabase.from('players').update({ ether: player.ether }).eq('id', player.id);
 
   return res.json({ success: true, sell_price: sellPrice, ether: player.ether });
+}
+
+// ── mass-sell: sell multiple cores at once ──
+async function handleMassSell(req, res) {
+  const { telegram_id, core_ids } = req.body || {};
+  if (!telegram_id || !core_ids?.length)
+    return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  let totalEther = 0;
+  const soldIds = [];
+
+  for (const coreId of core_ids) {
+    const core = gameState.cores.get(coreId);
+    if (!core) continue;
+    if (Number(core.owner_id) !== Number(player.telegram_id)) continue;
+    if (core.mine_cell_id) continue;
+
+    let sellPrice = 10;
+    if (core.level > 0) {
+      let invested = 0;
+      for (let i = 0; i < core.level; i++) invested += getCoreUpgradeCost(i);
+      sellPrice = Math.max(10, Math.floor(invested * 0.1));
+    }
+
+    totalEther += sellPrice;
+    soldIds.push(coreId);
+    gameState.cores.delete(coreId);
+  }
+
+  if (!soldIds.length)
+    return res.status(400).json({ error: 'Нет доступных ядер' });
+
+  player.ether = (player.ether || 0) + totalEther;
+  gameState.markDirty('players', player.id);
+
+  await supabase.from('cores').delete().in('id', soldIds);
+  await supabase.from('players').update({ ether: player.ether }).eq('id', player.id);
+
+  return res.json({
+    success: true,
+    sold_count: soldIds.length,
+    ether_gained: totalEther,
+    ether_total: player.ether,
+  });
 }
 
 // ── inventory: list all cores owned by player ──

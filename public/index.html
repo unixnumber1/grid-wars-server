@@ -1181,8 +1181,13 @@
       gap: 8px;
     }
     .cores-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-    .core-card { background:#1a1a2e; border-radius:12px; padding:12px 8px; text-align:center; cursor:pointer; border:1px solid #333; }
+    .core-card { background:#1a1a2e; border-radius:12px; padding:12px 8px; text-align:center; cursor:pointer; border:1px solid #333; position:relative; }
     .core-card:active { transform:scale(0.95); }
+    .core-card.selected { border-color:#FFD700; background:#2a2a10; }
+    .core-card.selected::after { content:'✓'; position:absolute; top:2px; right:4px; font-size:10px; color:#FFD700; font-weight:900; }
+    .core-group-header { grid-column:1/-1; font-size:12px; color:#888; padding:8px 4px 4px; border-top:1px solid #222; margin-top:4px; }
+    .core-group-header:first-child { border-top:none; margin-top:0; }
+    .core-mult { font-size:9px; color:#FFD700; }
     .core-emoji { font-size:28px; }
     .core-level { font-size:11px; color:#888; margin-top:4px; }
     .core-multiplier { font-size:10px; color:#FFD700; }
@@ -2003,10 +2008,10 @@
     }
     @keyframes projectileSpinCCW { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
     .projectile-glow-common    { filter: drop-shadow(0 0 6px #888888) drop-shadow(0 0 12px #88888866); }
-    .projectile-glow-uncommon  { filter: drop-shadow(0 0 6px #2979ff) drop-shadow(0 0 12px #2979ff88); }
-    .projectile-glow-rare      { filter: drop-shadow(0 0 8px #00c853) drop-shadow(0 0 16px #00c85388); }
-    .projectile-glow-epic      { filter: drop-shadow(0 0 8px #ff00aa) drop-shadow(0 0 16px #ff00aa88); }
-    .projectile-glow-mythic    { filter: drop-shadow(0 0 10px #8b0000) drop-shadow(0 0 20px #8b000088); }
+    .projectile-glow-uncommon  { filter: drop-shadow(0 0 6px #2e7d32) drop-shadow(0 0 12px #2e7d3288); }
+    .projectile-glow-rare      { filter: drop-shadow(0 0 8px #1565c0) drop-shadow(0 0 16px #1565c088); }
+    .projectile-glow-epic      { filter: drop-shadow(0 0 8px #6a1b9a) drop-shadow(0 0 16px #6a1b9a88); }
+    .projectile-glow-mythic    { filter: drop-shadow(0 0 10px #e65100) drop-shadow(0 0 20px #e6510088); }
     .projectile-glow-legendary { filter: drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 20px #FF8C00aa) drop-shadow(0 0 30px #FFD70066); }
 
     /* ── Combat projectile system ── */
@@ -2180,16 +2185,16 @@
     }
     .inv-cell.selectable .select-check { display: none; }
     .inv-cell.selected .select-check { display: block; }
-    #selection-bar {
+    #selection-bar, #core-selection-bar {
       display: none; position: fixed; bottom: calc(80px + env(safe-area-inset-bottom));
       left: 8px; right: 8px; z-index: 3700;
       background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
       border: 1px solid rgba(255,215,0,0.2); border-radius: 14px;
       padding: 10px 16px; align-items: center; justify-content: space-between;
     }
-    #selection-bar.open { display: flex; }
-    #selection-bar-info { font-size: 13px; color: #aaa; }
-    #selection-bar-info strong { color: #FFD700; }
+    #selection-bar.open, #core-selection-bar.open { display: flex; }
+    #selection-bar-info, #core-selection-bar-info { font-size: 13px; color: #aaa; }
+    #selection-bar-info strong, #core-selection-bar-info strong { color: #FFD700; }
 
     /* ── Clan system ── */
     .clan-hq-label {
@@ -2720,7 +2725,7 @@
           <div class="shop-box-icon">📦</div>
           <div class="shop-box-name">Редкий бокс</div>
           <div class="shop-box-price">💎 8</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(76,175,80,0.2),rgba(76,175,80,0.08));border-color:rgba(76,175,80,0.4);color:#4caf50;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(21,101,192,0.2),rgba(21,101,192,0.08));border-color:rgba(21,101,192,0.4);color:#42a5f5;">Открыть</button>
         </div>
       </div>
       <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr;margin-top:12px;">
@@ -2729,14 +2734,14 @@
           <div class="shop-box-icon">🎁</div>
           <div class="shop-box-name">Эпический бокс</div>
           <div class="shop-box-price">💎 35</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(156,39,176,0.08));border-color:rgba(156,39,176,0.4);color:#ce93d8;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(106,27,154,0.2),rgba(106,27,154,0.08));border-color:rgba(106,27,154,0.4);color:#ce93d8;">Открыть</button>
         </div>
-        <div class="shop-box-card" style="border-color:rgba(90,26,26,1);background:#2a0a0a;position:relative;box-shadow:0 0 24px rgba(139,0,0,0.15);">
+        <div class="shop-box-card" style="border-color:rgba(230,81,0,0.6);background:#2a1500;position:relative;box-shadow:0 0 24px rgba(230,81,0,0.15);">
           <button class="shop-box-info-btn shop-info-btn" data-box="mythic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🏆</div>
           <div class="shop-box-name">Мифический бокс</div>
           <div class="shop-box-price">💎 150</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(139,0,0,0.3),rgba(139,0,0,0.1));border-color:rgba(139,0,0,0.5);color:#ff6666;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;">Открыть</button>
         </div>
       </div>
     </div>
@@ -3225,10 +3230,10 @@ function handleXpResult(xp) {
 // ── Rarity helpers (client-side mirror of lib/items.js) ───────────────────────
 const RARITY_COLORS_CLIENT = {
   common:    '#888888',
-  uncommon:  '#2979ff',
-  rare:      '#00c853',
-  epic:      '#ff00aa',
-  mythic:    '#8b0000',
+  uncommon:  '#2e7d32',
+  rare:      '#1565c0',
+  epic:      '#6a1b9a',
+  mythic:    '#e65100',
   legendary: 'linear-gradient(90deg, #FFD700, #FF8C00, #FFD700)',
 };
 const RARITY_NAMES_CLIENT = {
@@ -3275,7 +3280,7 @@ function rarityLabel(rarity) {
 }
 
 function showItemReveal(item, source) {
-  const REVEAL_COLORS = {common:'#9e9e9e',uncommon:'#4caf50',rare:'#2196f3',epic:'#9c27b0',mythic:'#ff6d00',legendary:'#ffd700'};
+  const REVEAL_COLORS = {common:'#9e9e9e',uncommon:'#2e7d32',rare:'#1565c0',epic:'#6a1b9a',mythic:'#e65100',legendary:'#ffd700'};
   const color = REVEAL_COLORS[item.rarity] || '#888';
 
   let bonusHtml = '';
@@ -3448,9 +3453,11 @@ function _renderEquipSlots() {
 }
 
 function _renderInventoryGrid() {
-  const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) =>
-    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
-  );
+  const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) => {
+    const rd = (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0);
+    if (rd !== 0) return rd;
+    return (b.upgrade_level || 0) - (a.upgrade_level || 0);
+  });
   const titleEl = document.getElementById('inventory-title');
   titleEl.textContent = `Инвентарь (${inv.length} предметов)`;
 
@@ -5167,22 +5174,102 @@ function switchInvTab(tab) {
   }
 }
 
+const CORE_TYPE_ORDER = { income: 0, capacity: 1, hp: 2, regen: 3 };
+let _coreSellMode = false;
+let _selectedCoreIds = new Set();
+
 function renderCoresInventory() {
   const grid = document.getElementById('cores-inv-grid');
   if (!grid) return;
-  const cores = (state._playerCores || []).filter(c => !c.mine_cell_id);
+  const cores = (state._playerCores || []).filter(c => !c.mine_cell_id)
+    .sort((a, b) => {
+      const td = (CORE_TYPE_ORDER[a.core_type] ?? 9) - (CORE_TYPE_ORDER[b.core_type] ?? 9);
+      if (td !== 0) return td;
+      return (b.level || 0) - (a.level || 0);
+    });
+
+  // Header
+  let headerHtml;
+  if (_coreSellMode) {
+    const totalEther = [..._selectedCoreIds].reduce((sum, id) => {
+      const c = cores.find(x => x.id === id);
+      return sum + (c ? getCoreSellPrice(c.level) : 0);
+    }, 0);
+    headerHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:13px;color:#aaa;">${_selectedCoreIds.size} выбрано · ${formatNumber(totalEther)}🌀</span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="sellSelectedCores()" class="btn danger" style="font-size:12px;padding:5px 10px;" ${_selectedCoreIds.size ? '' : 'disabled'}>Продать</button>
+        <button onclick="toggleCoreSellMode()" class="btn" style="font-size:12px;padding:5px 10px;">Отмена</button>
+      </div>
+    </div>`;
+  } else {
+    headerHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-size:13px;color:#aaa;">🔮 Ядра (${cores.length})</span>
+      <button onclick="toggleCoreSellMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
+    </div>`;
+  }
+
   if (cores.length === 0) {
-    grid.innerHTML = '<div class="cores-empty">Нет ядер в сумке<br>Получай с монументов 🏛️</div>';
+    grid.innerHTML = headerHtml + '<div class="cores-empty">Нет ядер в сумке<br>Получай с монументов 🏛️</div>';
     return;
   }
-  grid.innerHTML = `<div class="cores-grid">${cores.map(c => {
+
+  // Render grouped
+  let html = headerHtml + '<div class="cores-grid">';
+  let lastType = null;
+  for (const c of cores) {
+    if (c.core_type !== lastType) {
+      const info = CORE_TYPES[c.core_type] || {};
+      html += `<div class="core-group-header">${info.emoji || '?'} ${info.name || c.core_type}</div>`;
+      lastType = c.core_type;
+    }
     const info = CORE_TYPES[c.core_type] || {};
-    return `<div class="core-card" onclick="showCoreDetailPopup('${c.id}')">
+    const sel = _selectedCoreIds.has(c.id) ? ' selected' : '';
+    html += `<div class="core-card${sel}" onclick="${_coreSellMode ? `handleCoreCardClick('${c.id}')` : `showCoreDetailPopup('${c.id}')`}">
       <div class="core-emoji">${info.emoji || '?'}</div>
       <div class="core-level">lv.${c.level}</div>
-      <div class="core-multiplier">x${getCoreMultiplier(c.level)}</div>
+      <div class="core-mult">x${getCoreMultiplier(c.level)}</div>
     </div>`;
-  }).join('')}</div>`;
+  }
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+function toggleCoreSellMode() {
+  _coreSellMode = !_coreSellMode;
+  _selectedCoreIds.clear();
+  renderCoresInventory();
+}
+
+function handleCoreCardClick(coreId) {
+  if (_selectedCoreIds.has(coreId)) _selectedCoreIds.delete(coreId);
+  else _selectedCoreIds.add(coreId);
+  renderCoresInventory();
+}
+
+async function sellSelectedCores() {
+  if (!_selectedCoreIds.size) return;
+  const coreIds = [..._selectedCoreIds];
+  const totalEther = coreIds.reduce((sum, id) => {
+    const c = (state._playerCores || []).find(x => x.id === id);
+    return sum + (c ? getCoreSellPrice(c.level) : 0);
+  }, 0);
+  if (!confirm(`Продать ${coreIds.length} ядер за ~${formatNumber(totalEther)} 🌀?`)) return;
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'mass-sell', telegram_id: TG_ID, core_ids: coreIds }),
+    });
+    state._playerCores = (state._playerCores || []).filter(c => !coreIds.includes(c.id));
+    if (state.player) state.player.ether = data.ether_total;
+    _selectedCoreIds.clear();
+    _coreSellMode = false;
+    showToast(`✅ Продано ${data.sold_count} ядер за ${formatNumber(data.ether_gained)}🌀`);
+    updateCoinDisplay();
+    renderCoresInventory();
+  } catch (e) {
+    showToast(`❌ ${e.message}`);
+  }
 }
 
 // ── Core detail popup (from inventory) ──
@@ -10295,9 +10382,11 @@ function exitSelectionMode() {
 }
 
 function _renderInventoryGridSelectable() {
-  const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) =>
-    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
-  );
+  const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) => {
+    const rd = (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0);
+    if (rd !== 0) return rd;
+    return (b.upgrade_level || 0) - (a.upgrade_level || 0);
+  });
   const grid = document.getElementById('inventory-grid');
   grid.innerHTML = '';
 
