@@ -81,217 +81,122 @@ function isForbiddenPlace(tags) {
   return false;
 }
 
-// ── Spawn monuments via Overpass API ──
-export async function spawnMonuments() {
-  console.log('[MONUMENTS] Starting spawn...');
+// ── City-based monument count ──
+function getMonumentCountForCity(playerCount) {
+  if (playerCount <= 5)  return Math.floor(Math.random() * 4) + 5;   // 5-8
+  if (playerCount <= 20) return Math.floor(Math.random() * 11) + 10;  // 10-20
+  if (playerCount <= 50) return Math.floor(Math.random() * 16) + 25;  // 25-40
+  return Math.min(100, Math.floor(playerCount * 1.5));                  // 50+
+}
 
-  // Gather all HQ positions as anchor points
-  const allHqs = [...gameState.headquarters.values()].map(h => ({ lat: h.lat, lng: h.lng }));
-  if (!allHqs.length) {
-    console.log('[MONUMENTS] No HQs found, skipping spawn');
-    return;
+// ── Spawn monuments for a single city (by bounding box) ──
+export async function spawnMonumentsForCity(cityKey, bounds, playerCount) {
+  const [minLat, maxLat, minLng, maxLng] = bounds;
+
+  const existingInCity = [...gameState.monuments.values()].filter(m =>
+    m.lat >= minLat && m.lat <= maxLat && m.lng >= minLng && m.lng <= maxLng
+  );
+
+  const targetCount = getMonumentCountForCity(playerCount);
+  const toSpawn = targetCount - existingInCity.length;
+  if (toSpawn <= 0) {
+    console.log(`[MONUMENTS] ${cityKey}: ${existingInCity.length}/${targetCount} — skip`);
+    return [];
   }
 
-  // Existing monuments
-  const existingMonuments = [...gameState.monuments.values()];
-  const MIN_DISTANCE_BETWEEN = 1000; // 1km min between monuments
-  const MAX_DISTANCE = 5000;
+  console.log(`[MONUMENTS] ${cityKey}: spawning ${toSpawn} monuments (players: ${playerCount}, existing: ${existingInCity.length})`);
 
-  let spawned = 0;
+  // Overpass bbox query — only named landmarks, no fallback to traffic signals
+  const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+  const query = `[out:json][timeout:30];(nwr["tourism"~"attraction|museum|gallery|viewpoint"]["name"](${bbox});nwr["historic"~"castle|fort|ruins|palace|manor|monument|memorial"]["name"](${bbox});nwr["amenity"~"theatre|arts_centre"]["name"](${bbox});nwr["leisure"="park"]["name"](${bbox}););out center ${toSpawn * 5};`;
+
+  let candidates = [];
+  try {
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: `data=${encodeURIComponent(query)}`,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(35000),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      candidates = (data.elements || [])
+        .filter(el => el.tags?.name && !isForbiddenPlace(el.tags))
+        .map(el => ({ lat: el.center?.lat ?? el.lat, lng: el.center?.lon ?? el.lon, name: el.tags.name }))
+        .filter(el => el.lat && el.lng);
+    }
+  } catch (e) {
+    console.error(`[MONUMENTS] Overpass error for ${cityKey}:`, e.message);
+  }
+
+  if (!candidates.length) {
+    console.log(`[MONUMENTS] ${cityKey}: no Overpass results`);
+    return [];
+  }
+
+  // Shuffle and spawn
+  candidates.sort(() => Math.random() - 0.5);
   const spawnedList = [];
 
-  // Cluster HQs within 5km
-  const clusters = [];
-  for (const hq of allHqs) {
-    if (!hq.lat || !hq.lng) continue;
-    const existing = clusters.find(c => haversine(hq.lat, hq.lng, c.lat, c.lng) <= MAX_DISTANCE);
-    if (existing) {
-      existing.count++;
-      existing.lat = (existing.lat * (existing.count - 1) + hq.lat) / existing.count;
-      existing.lng = (existing.lng * (existing.count - 1) + hq.lng) / existing.count;
-    } else {
-      clusters.push({ lat: hq.lat, lng: hq.lng, count: 1 });
+  for (const pt of candidates) {
+    if (spawnedList.length >= toSpawn) break;
+
+    // Min 500m from other monuments
+    const tooClose = [...gameState.monuments.values()].some(m => haversine(m.lat, m.lng, pt.lat, pt.lng) < 500);
+    if (tooClose) continue;
+
+    const cellId = getCellId(pt.lat, pt.lng);
+    const [cLat, cLng] = getCellCenter(cellId);
+
+    // Check cell not taken
+    if ([...gameState.monuments.values()].some(m => m.cell_id === cellId)) continue;
+
+    // Replace mine if any
+    const existingMine = gameState.getMineByCellId(cellId);
+    if (existingMine) {
+      gameState.removeMine(existingMine.id);
+      supabase.from('mines').delete().eq('id', existingMine.id).then(() => {}).catch(() => {});
+      if (existingMine.owner_id) {
+        const notif = { id: globalThis.crypto.randomUUID(), player_id: existingMine.owner_id, type: 'mine_destroyed_by_monument', message: `🏛️ Монумент заменил вашу шахту Ур.${existingMine.level}!`, read: false, created_at: new Date().toISOString() };
+        gameState.addNotification(notif);
+        supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+      }
     }
+
+    const level = randomMonumentLevel();
+    const cfg = MONUMENT_LEVELS[level];
+    const monument = {
+      lat: cLat, lng: cLng, cell_id: cellId, level,
+      name: pt.name || 'Древний монумент',
+      hp: cfg.hp, max_hp: cfg.hp,
+      shield_hp: cfg.max_shield_hp, max_shield_hp: cfg.max_shield_hp,
+      phase: 'shield',
+    };
+
+    const { data: inserted, error } = await supabase.from('monuments').insert(monument).select().single();
+    if (error) { console.error('[MONUMENTS] insert error:', error.message); continue; }
+
+    gameState.monuments.set(inserted.id, inserted);
+    spawnedList.push(inserted);
+    console.log(`[MONUMENTS] Spawned lv${level} "${inserted.name}" at ${pt.lat.toFixed(4)},${pt.lng.toFixed(4)}`);
   }
 
-  for (const cluster of clusters) {
-    // Check if already have monuments near this cluster
-    const nearbyMonuments = existingMonuments.filter(m => haversine(cluster.lat, cluster.lng, m.lat, m.lng) <= MAX_DISTANCE);
-    if (nearbyMonuments.length >= 3) continue; // max 3 per cluster
-
-    // Query Overpass for urban landmarks (no religious/memorial places)
-    const a = `around:${MAX_DISTANCE},${cluster.lat},${cluster.lng}`;
-    const query = `
-      [out:json][timeout:15];
-      (
-        nwr["tourism"~"attraction|museum|gallery|viewpoint"](${a});
-        nwr["historic"~"castle|fort|ruins|monument|memorial|palace"]["name"](${a});
-        nwr["amenity"~"theatre|arts_centre"](${a});
-        nwr["leisure"="park"]["name"](${a});
-      );
-      out center 50;
-    `;
-
-    let osmPoints = [];
-    try {
-      const resp = await fetch(
-        `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
-        { signal: AbortSignal.timeout(20000) }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        osmPoints = (data.elements || [])
-          .filter(el => (el.lat && el.lon) || (el.center?.lat && el.center?.lon))
-          .filter(el => !isForbiddenPlace(el.tags || {}))
-          .filter(el => el.tags?.name)
-          .map(el => {
-            const lat = el.center?.lat ?? el.lat;
-            const lng = el.center?.lon ?? el.lon;
-            return { lat, lng, name: el.tags.name };
-          });
-      }
-    } catch (e) {
-      console.error('[MONUMENTS] Overpass error:', e.message);
-    }
-
-    // Fallback: urban infrastructure (intersections, public buildings) — never random coords
-    if (!osmPoints.length) {
-      console.log(`[MONUMENTS] No landmarks near cluster ${cluster.lat.toFixed(4)},${cluster.lng.toFixed(4)}, trying urban fallback`);
-      const fallbackQuery = `
-        [out:json][timeout:15];
-        (
-          node["highway"="traffic_signals"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-          nwr["building"="public"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-          nwr["building"="civic"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-          nwr["amenity"="community_centre"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-          nwr["leisure"="park"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        );
-        out center 50;
-      `;
-      try {
-        const resp2 = await fetch(
-          `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(fallbackQuery)}`,
-          { signal: AbortSignal.timeout(20000) }
-        );
-        if (resp2.ok) {
-          const data2 = await resp2.json();
-          osmPoints = (data2.elements || [])
-            .filter(el => (el.lat && el.lon) || (el.center?.lat && el.center?.lon))
-            .filter(el => !isForbiddenPlace(el.tags || {}))
-            .map(el => ({
-              lat: el.center?.lat ?? el.lat,
-              lng: el.center?.lon ?? el.lon,
-              name: el.tags?.name || null,
-            }));
-        }
-      } catch (e) {
-        console.error('[MONUMENTS] Fallback Overpass error:', e.message);
-      }
-    }
-
-    if (!osmPoints.length) {
-      console.log(`[MONUMENTS] No urban points found near ${cluster.lat.toFixed(4)},${cluster.lng.toFixed(4)}, skipping cluster`);
-      continue;
-    }
-
-    // Sort by distance from cluster center
-    osmPoints.sort((a, b) => haversine(cluster.lat, cluster.lng, a.lat, a.lng) - haversine(cluster.lat, cluster.lng, b.lat, b.lng));
-
-    const toSpawn = 3 - nearbyMonuments.length;
-    let spawnedInCluster = 0;
-
-    for (const pt of osmPoints) {
-      if (spawnedInCluster >= toSpawn) break;
-
-      const dist = haversine(cluster.lat, cluster.lng, pt.lat, pt.lng);
-      if (dist < 200 || dist > MAX_DISTANCE) continue;
-
-      // Check min distance from existing monuments
-      const allMonuments = [...existingMonuments, ...([...gameState.monuments.values()])];
-      const tooClose = allMonuments.some(m => haversine(pt.lat, pt.lng, m.lat, m.lng) < MIN_DISTANCE_BETWEEN);
-      if (tooClose) continue;
-
-      // Snap to hex cell center
-      const cellId = getCellId(pt.lat, pt.lng);
-      const [cLat, cLng] = getCellCenter(cellId);
-
-      // Check cell not taken by another monument
-      const cellTaken = allMonuments.some(m => m.cell_id === cellId);
-      if (cellTaken) continue;
-
-      // Replace mine in this cell if any
-      const existingMine = gameState.getMineByCellId(cellId);
-      if (existingMine) {
-        gameState.removeMine(existingMine.id);
-        supabase.from('mines').delete().eq('id', existingMine.id).then(() => {}).catch(() => {});
-        if (existingMine.owner_id) {
-          const notif = {
-            id: globalThis.crypto.randomUUID(),
-            player_id: existingMine.owner_id,
-            type: 'mine_destroyed_by_monument',
-            message: `🏛️ Монумент заменил вашу шахту Ур.${existingMine.level}!`,
-            read: false,
-            created_at: new Date().toISOString(),
-          };
-          gameState.addNotification(notif);
-          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
-        }
-      }
-
-      const level = randomMonumentLevel();
-      const cfg = MONUMENT_LEVELS[level];
-
-      const monument = {
-        lat: cLat,
-        lng: cLng,
-        cell_id: cellId,
-        level,
-        name: pt.name || 'Древний монумент',
-        hp: cfg.hp,
-        max_hp: cfg.hp,
-        shield_hp: cfg.max_shield_hp,
-        max_shield_hp: cfg.max_shield_hp,
-        phase: 'shield',
-      };
-
-      const { data: inserted, error } = await supabase.from('monuments').insert(monument).select().single();
-      if (error) {
-        console.error('[MONUMENTS] insert error:', error.message);
-        continue;
-      }
-
-      gameState.monuments.set(inserted.id, inserted);
-      existingMonuments.push(inserted);
-      spawnedInCluster++;
-      spawned++;
-      spawnedList.push({ ...inserted, _clusterLat: cluster.lat, _clusterLng: cluster.lng });
-      console.log(`[MONUMENTS] Spawned lv${level} "${inserted.name}" at ${pt.lat.toFixed(4)},${pt.lng.toFixed(4)}`);
-    }
-  }
-
-  console.log(`[MONUMENTS] Spawn complete: ${spawned} new monuments`);
+  console.log(`[MONUMENTS] ${cityKey}: spawned ${spawnedList.length}/${toSpawn}`);
   return spawnedList;
 }
 
 // ── Weekly reset (Sunday midnight MSK) ──
 export async function resetMonuments() {
   console.log('[MONUMENTS] Weekly reset starting...');
-
-  // Delete all from DB
   await supabase.from('monument_defenders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   await supabase.from('monument_raid_damage').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   await supabase.from('monument_loot_boxes').delete().eq('opened', true);
   await supabase.from('monuments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-
-  // Clear gameState
   gameState.monuments.clear();
   gameState.monumentDefenders.clear();
   gameState.monumentDamage.clear();
   gameState.activeWaves.clear();
-
-  // Spawn new
-  await spawnMonuments();
-  console.log('[MONUMENTS] Weekly reset complete');
+  console.log('[MONUMENTS] Weekly reset complete — monuments will respawn as players connect');
 }
 
 // ── Spawn a wave of defenders ──

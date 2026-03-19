@@ -1,63 +1,53 @@
-import { haversine } from '../../lib/haversine.js';
-import { getCellId } from '../../lib/grid.js';
+import { supabase } from '../../lib/supabase.js';
+import { gameState } from '../state/GameState.js';
 
-/**
- * Spawn vases for each HQ: 15-50 random vases within 5km radius.
- * Vases spawn at random positions (not hex centers), and never on top of player mines.
- */
+// ── City-based vase count ──
+function getVaseCountForCity(playerCount) {
+  return playerCount * 10 + Math.floor(Math.random() * playerCount * 5);
+}
+
+// ── Spawn vases for a city by bounding box ──
+export async function spawnVasesForCity(cityKey, bounds, playerCount) {
+  const [minLat, maxLat, minLng, maxLng] = bounds;
+
+  const existingInCity = [...gameState.vases.values()].filter(v =>
+    v.lat >= minLat && v.lat <= maxLat && v.lng >= minLng && v.lng <= maxLng &&
+    !v.broken_by && new Date(v.expires_at) > new Date()
+  );
+
+  const targetCount = getVaseCountForCity(playerCount);
+  const toSpawn = targetCount - existingInCity.length;
+  if (toSpawn <= 0) return 0;
+
+  console.log(`[VASES] ${cityKey}: spawning ${toSpawn} vases (players: ${playerCount}, existing: ${existingInCity.length})`);
+
+  const batch = [];
+  for (let i = 0; i < toSpawn; i++) {
+    const lat = minLat + Math.random() * (maxLat - minLat);
+    const lng = minLng + Math.random() * (maxLng - minLng);
+    batch.push({
+      lat, lng,
+      diamonds_reward: Math.floor(Math.random() * 5) + 1,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+  }
+
+  if (batch.length > 0) {
+    // Insert in chunks of 200
+    for (let i = 0; i < batch.length; i += 200) {
+      const chunk = batch.slice(i, i + 200);
+      const { data: inserted, error } = await supabase.from('vases').insert(chunk).select('*');
+      if (error) { console.error('[VASES] insert error:', error.message); continue; }
+      for (const v of (inserted || [])) gameState.addVase(v);
+    }
+  }
+
+  console.log(`[VASES] ${cityKey}: spawned ${batch.length}`);
+  return batch.length;
+}
+
+// ── Legacy function (kept for backward compat) ──
 export async function spawnVasesForAllHQs(supabase, gameState) {
-  const { data: allHQ } = await supabase.from('headquarters').select('lat, lng, player_id');
-  if (!allHQ || allHQ.length === 0) return 0;
-
-  // Collect occupied cells (mines) to avoid placing vases on them
-  const mineCells = new Set();
-  if (gameState?.loaded) {
-    for (const m of gameState.mines.values()) {
-      if (m.cell_id && m.status !== 'destroyed') mineCells.add(m.cell_id);
-    }
-  }
-
-  let totalSpawned = 0;
-  const allNewVases = [];
-
-  for (const hq of allHQ) {
-    const vaseCount = 15 + Math.floor(Math.random() * 36); // 15-50
-    const cosLat = Math.cos(hq.lat * Math.PI / 180) || 1;
-    const hqVases = [];
-    let attempts = 0;
-
-    while (hqVases.length < vaseCount && attempts < 100) {
-      attempts++;
-      const angle = Math.random() * Math.PI * 2;
-      const distance = 200 + Math.random() * 4800; // 200m - 5km
-      const lat = hq.lat + (distance / 111000) * Math.cos(angle);
-      const lng = hq.lng + (distance / (111000 * cosLat)) * Math.sin(angle);
-
-      // Don't place on player mines
-      const cellId = getCellId(lat, lng);
-      if (mineCells.has(cellId)) continue;
-
-      // Min 300m between vases
-      const tooClose = [...allNewVases, ...hqVases]
-        .some(v => haversine(lat, lng, v.lat, v.lng) < 300);
-      if (tooClose) continue;
-
-      hqVases.push({
-        lat,
-        lng,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        diamonds_reward: Math.floor(Math.random() * 5) + 1,
-      });
-    }
-
-    allNewVases.push(...hqVases);
-  }
-
-  if (allNewVases.length > 0) {
-    const { error } = await supabase.from('vases').insert(allNewVases);
-    if (!error) totalSpawned = allNewVases.length;
-    else console.error('[vases] insert error:', error.message);
-  }
-
-  return totalSpawned;
+  console.log('[VASES] Legacy spawn — delegating to city-based system');
+  return 0;
 }

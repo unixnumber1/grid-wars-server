@@ -224,6 +224,13 @@ io.on('connection', (socket) => {
       lastState: null
     });
     console.log('[socket] Player init:', data.telegram_id, 'db_id:', playerDbId, 'total:', connectedPlayers.size);
+
+    // Update player city cache for city-based spawning
+    if (data.telegram_id && data.lat && data.lng) {
+      import('./lib/geocity.js').then(({ updatePlayerCity }) => {
+        updatePlayerCity(data.telegram_id, data.lat, data.lng).catch(() => {});
+      }).catch(() => {});
+    }
   });
 
   socket.on('player:location', (data) => {
@@ -232,6 +239,12 @@ io.on('connection', (socket) => {
     if (player) {
       player.lat = data.lat;
       player.lng = data.lng;
+      // Update city cache (rate-limited internally to 1h)
+      if (player.telegram_id) {
+        import('./lib/geocity.js').then(({ updatePlayerCity }) => {
+          updatePlayerCity(player.telegram_id, data.lat, data.lng).catch(() => {});
+        }).catch(() => {});
+      }
     }
 
     // Broadcast to nearby players (2km)
@@ -476,33 +489,69 @@ async function start() {
     }
   }
 
-  // Spawn monuments (initial + periodic every hour for new cities)
-  async function monumentSpawnCycle() {
-    if (gameState.headquarters.size === 0) return;
+  // ── City-based spawn cycle (monuments + ore + vases) ──
+  async function citySpawnCycle() {
     try {
-      const { spawnMonuments } = await import('./lib/monuments.js');
-      const spawned = await spawnMonuments();
-      // Notify nearby players about new monuments via Telegram
-      if (spawned?.length) {
-        const { sendTelegramNotification } = await import('./lib/supabase.js');
-        const MAX_NOTIFY_DIST = 10000; // 10km
-        const { haversine: hav } = await import('./lib/haversine.js');
-        const allPlayers = [...gameState.players.values()];
-        for (const m of spawned) {
-          const nearby = allPlayers.filter(p => p.last_lat && p.last_lng && hav(p.last_lat, p.last_lng, m.lat, m.lng) <= MAX_NOTIFY_DIST);
-          for (const p of nearby) {
-            sendTelegramNotification(p.telegram_id,
-              `🏛️ Монумент "${m.name}" (ур.${m.level}) появился в вашем городе! Собирайте рейд!`
-            ).catch(() => {});
+      const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
+      const { spawnMonumentsForCity } = await import('./lib/monuments.js');
+      const { spawnOreNodesForCity } = await import('./lib/oreNodes.js');
+      const { spawnVasesForCity } = await import('./lib/vases.js');
+      const { sendTelegramNotification } = await import('./lib/supabase.js');
+      const { haversine: hav } = await import('./lib/haversine.js');
+
+      const cityKeys = getAllCityKeys();
+      if (!cityKeys.length) { console.log('[SPAWN] No cities in cache yet'); return; }
+
+      for (const cityKey of cityKeys) {
+        const playerCount = getCityPlayerCount(cityKey);
+        if (playerCount <= 0) continue;
+
+        const cityBounds = await getCityBounds(cityKey);
+        if (!cityBounds?.boundingbox) continue;
+
+        const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
+
+        // Monuments
+        const spawned = await spawnMonumentsForCity(cityKey, bounds, playerCount);
+        if (spawned?.length) {
+          const allPlayers = [...gameState.players.values()];
+          for (const m of spawned) {
+            const nearby = allPlayers.filter(p => p.last_lat && p.last_lng && hav(p.last_lat, p.last_lng, m.lat, m.lng) <= 10000);
+            for (const p of nearby) {
+              sendTelegramNotification(p.telegram_id, `🏛️ Монумент "${m.name}" (ур.${m.level}) появился в вашем городе! Собирайте рейд!`).catch(() => {});
+            }
           }
         }
+
+        // Ore nodes
+        await spawnOreNodesForCity(cityKey, bounds, playerCount);
+
+        // Vases
+        await spawnVasesForCity(cityKey, bounds, playerCount);
+
+        // Pause between cities to avoid Nominatim rate limit
+        await new Promise(r => setTimeout(r, 2000));
       }
-    } catch (e) { console.error('[MONUMENTS] spawn cycle error:', e.message); }
+    } catch (e) { console.error('[SPAWN] city cycle error:', e.message); }
   }
-  // Initial spawn after 5s
-  setTimeout(monumentSpawnCycle, 5000);
-  // Check for new cities every hour
-  setInterval(monumentSpawnCycle, 3600000);
+  // Initial spawn after 10s (wait for players to connect and populate city cache)
+  setTimeout(citySpawnCycle, 10000);
+  // Every hour — check all cities
+  setInterval(citySpawnCycle, 3600000);
+  // Every 5 min — top up vases only
+  setInterval(async () => {
+    try {
+      const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
+      const { spawnVasesForCity } = await import('./lib/vases.js');
+      for (const cityKey of getAllCityKeys()) {
+        const pc = getCityPlayerCount(cityKey);
+        if (pc <= 0) continue;
+        const cb = await getCityBounds(cityKey);
+        if (!cb?.boundingbox) continue;
+        await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+      }
+    } catch (e) { console.error('[VASES] top-up error:', e.message); }
+  }, 5 * 60 * 1000);
 
   // Weekly monument reset (Sunday midnight MSK, checked every hour)
   setInterval(async () => {
@@ -526,34 +575,21 @@ async function start() {
     import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(() => {});
   }, 30000);
 
-  // Vase auto-spawn: midnight MSK daily (checked every 30 min)
+  // Vase daily cleanup: midnight MSK remove expired (checked every 30 min)
   setInterval(async () => {
     try {
       const now = new Date();
       const mskHour = (now.getUTCHours() + 3) % 24;
       if (mskHour !== 0 || now.getMinutes() > 30) return;
-
-      // Check last spawn
-      const lastSpawn = gameState.getSetting('last_vases_spawn');
-      if (lastSpawn && Date.now() - parseInt(lastSpawn) < 20 * 60 * 60 * 1000) return; // 20h guard
-
-      console.log('[VASES] Auto-spawn at midnight MSK...');
-      await supabase.from('vases').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      gameState.clearAllVases();
-
-      const { spawnVasesForAllHQs } = await import('./lib/vases.js');
-      const spawned = await spawnVasesForAllHQs(supabase, gameState);
-
-      gameState.setSetting('last_vases_spawn', Date.now().toString());
-      await supabase.from('app_settings').upsert({ key: 'last_vases_spawn', value: Date.now().toString() }, { onConflict: 'key' });
-
-      // Reload vases into gameState
-      const { data: newVases } = await supabase.from('vases').select('*').is('broken_by', null);
-      for (const v of (newVases || [])) gameState.addVase(v);
-
-      console.log(`[VASES] Spawned ${spawned} vases`);
+      // Clean expired vases from DB
+      await supabase.from('vases').delete().lt('expires_at', new Date().toISOString());
+      // Clean from gameState
+      for (const [id, v] of gameState.vases) {
+        if (new Date(v.expires_at) < new Date() || v.broken_by) gameState.vases.delete(id);
+      }
+      console.log('[VASES] Cleaned expired vases');
     } catch (e) {
-      console.error('[VASES] Auto-spawn error:', e.message);
+      console.error('[VASES] Cleanup error:', e.message);
     }
   }, 1800000); // 30 min
 
@@ -571,9 +607,8 @@ async function start() {
       await supabase.from('ore_nodes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       gameState.oreNodes.clear();
       await new Promise(r => setTimeout(r, 1000));
-      const { spawnOreNodesGlobally } = await import('./lib/oreNodes.js');
-      await spawnOreNodesGlobally();
-      console.log('[ORE] Monthly reset complete');
+      // Ore will respawn via citySpawnCycle when players connect
+      console.log('[ORE] Monthly reset complete — ores will respawn via city cycle');
     } catch (e) {
       console.error('[ORE] Monthly reset error:', e.message);
     }
