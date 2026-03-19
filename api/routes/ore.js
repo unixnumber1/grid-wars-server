@@ -127,7 +127,7 @@ oreRouter.post('/', async (req, res) => {
     const items = gameState.getPlayerItems(player.id);
     const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
     const weaponType = weapon ? weapon.type : 'none';
-    const cdMs = WEAPON_COOLDOWNS[weaponType] || 500;
+    const cdMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
     const now = Date.now();
     const last = lastAttackTime.get(String(telegram_id)) || 0;
     if (now - last < cdMs) return res.status(429).json({ error: 'Cooldown' });

@@ -146,7 +146,7 @@ async function handleAttackShield(req, res) {
   const attackerItems = gameState.getPlayerItems(player.id);
   const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] || 1500;
+  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
@@ -178,8 +178,8 @@ async function handleAttackShield(req, res) {
   const dmg = gameState.monumentDamage.get(monument.id);
   if (!dmg.has(Number(telegram_id))) dmg.set(Number(telegram_id), 0);
 
-  // DPS tracking
-  const playerDps = damage / (cooldownMs / 1000);
+  // DPS tracking (use 0.1s minimum to avoid division by zero)
+  const playerDps = damage / (Math.max(cooldownMs, 100) / 1000);
   const attackers = getMonumentAttackers(monument);
   const prev = attackers.get(String(telegram_id));
   attackers.set(String(telegram_id), {
@@ -279,7 +279,7 @@ async function handleAttackMonument(req, res) {
   const attackerItems = gameState.getPlayerItems(player.id);
   const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] || 1500;
+  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
@@ -453,7 +453,7 @@ async function handleAttackDefender(req, res) {
   const attackerItems = gameState.getPlayerItems(player.id);
   const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] || 1500;
+  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)

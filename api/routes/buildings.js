@@ -519,7 +519,7 @@ async function handleMineHit(req, res) {
 
   // Rate limit by weapon cooldown
   const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] || 1500;
+  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
