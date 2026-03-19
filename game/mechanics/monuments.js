@@ -120,10 +120,14 @@ export async function spawnMonumentsForCity(cityKey, bounds, playerCount) {
     });
     if (resp.ok) {
       const data = await resp.json();
+      if (data.remark) console.log(`[MONUMENTS] Overpass remark for ${cityKey}: ${data.remark}`);
       candidates = (data.elements || [])
         .filter(el => el.tags?.name && !isForbiddenPlace(el.tags))
         .map(el => ({ lat: el.center?.lat ?? el.lat, lng: el.center?.lon ?? el.lon, name: el.tags.name }))
         .filter(el => el.lat && el.lng);
+    } else {
+      const body = await resp.text().catch(() => '');
+      console.error(`[MONUMENTS] Overpass HTTP ${resp.status} for ${cityKey}: ${body.slice(0, 200)}`);
     }
   } catch (e) {
     console.error(`[MONUMENTS] Overpass error for ${cityKey}:`, e.message);
