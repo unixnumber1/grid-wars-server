@@ -215,7 +215,7 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   }
 }
 
-const WEAPON_COOLDOWNS = { sword: 0, axe: 0, none: 0 };
+const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 
 async function handlePvpAttack(req, res) {
   const { telegram_id, target_telegram_id, lat, lng } = req.body || {};

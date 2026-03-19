@@ -9501,7 +9501,7 @@ async function doAttackMine(mineId) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = 0;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   closePopup();
   showCombatHUD(mine, 'mine');
@@ -9767,7 +9767,7 @@ function updateMineHpBar(data) {
 
 let _pvpAutoFire = null;
 let _pvpTarget = null;
-let _pvpCdMs = 0;
+let _pvpCdMs = 200;
 let _pvpLastHit = 0;
 
 function startPvpCombat(target) {
@@ -9776,7 +9776,7 @@ function startPvpCombat(target) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = 0;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   // Show floating attack button
   showCombatHUD(target, 'pvp');
@@ -10427,7 +10427,7 @@ function attackOreOwnerPvp(ore) {
 
 function attackOreNode(ore) {
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = 0;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
   closePopup();
   showCombatHUD(ore, 'ore');
 }
@@ -11529,7 +11529,7 @@ function doStartMonumentCombat(monumentId, mode) {
   if (!m) return;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = 0;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   closePopup();
   showCombatHUD({ id: monumentId, level: m.level, name: m.name, _monumentMode: mode }, 'monument');
@@ -11553,7 +11553,7 @@ function doStartSingleDefenderCombat(defenderId) {
   if (!d) return;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = 0;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
 
   closePopup();
   showCombatHUD({ id: defenderId, emoji: d.emoji, _defenderMode: true, monument_id: d.monument_id }, 'defender');
@@ -11854,7 +11854,7 @@ function doStartCollectorCombat(collectorId) {
   const c = collectorData[collectorId];
   if (!c) return;
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = 0;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
   closePopup();
   showCombatHUD({ id: collectorId, level: c.level, _collectorMode: true }, 'collector');
 }

@@ -14,7 +14,7 @@ import {
 
 export const collectorsRouter = Router();
 
-const WEAPON_COOLDOWNS = { sword: 0, axe: 0, none: 0 };
+const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 const COURIER_SPEED_PLAYER = 0.0002; // 🚶 ~20 km/h (player courier = pedestrian)
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {

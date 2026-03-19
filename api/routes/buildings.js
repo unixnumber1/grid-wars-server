@@ -13,7 +13,7 @@ import { logPlayer } from '../../lib/logger.js';
 
 export const buildingsRouter = Router();
 
-const WEAPON_COOLDOWNS = { sword: 0, axe: 0, none: 0 };
+const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
