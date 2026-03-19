@@ -534,8 +534,20 @@ async function start() {
       }
     } catch (e) { console.error('[SPAWN] city cycle error:', e.message); }
   }
-  // Initial spawn after 10s (wait for players to connect and populate city cache)
-  setTimeout(citySpawnCycle, 10000);
+  // Populate city cache from all players with coordinates, then spawn
+  setTimeout(async () => {
+    try {
+      const { updatePlayerCity } = await import('./lib/geocity.js');
+      const players = [...gameState.players.values()].filter(p => p.last_lat && p.last_lng);
+      console.log(`[GEOCITY] Populating city cache for ${players.length} players...`);
+      for (const p of players) {
+        await updatePlayerCity(p.telegram_id, p.last_lat, p.last_lng);
+        await new Promise(r => setTimeout(r, 1100)); // Nominatim: 1 req/sec
+      }
+      console.log('[GEOCITY] City cache populated, starting spawn cycle');
+      await citySpawnCycle();
+    } catch (e) { console.error('[GEOCITY] init error:', e.message); }
+  }, 5000);
   // Every hour — check all cities
   setInterval(citySpawnCycle, 3600000);
   // Every 5 min — top up vases only
