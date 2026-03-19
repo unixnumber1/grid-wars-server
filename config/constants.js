@@ -96,6 +96,21 @@ export const MONUMENT_SHIELD_DPS_THRESHOLD = [
   12000, 20000, 30000, 38000, 40000,
 ];
 export const MONUMENT_DPS_WINDOW_MS = 3000;
+
+// Monument core drop table: chance (0-1), min/max cores per raid
+export const MONUMENT_CORE_DROP = [
+  null, // index 0 unused
+  { chance: 0.10, min: 1, max: 1 }, // lv1
+  { chance: 0.15, min: 1, max: 1 }, // lv2
+  { chance: 0.25, min: 1, max: 2 }, // lv3
+  { chance: 0.35, min: 1, max: 2 }, // lv4
+  { chance: 0.45, min: 1, max: 3 }, // lv5
+  { chance: 0.55, min: 2, max: 3 }, // lv6
+  { chance: 0.65, min: 2, max: 4 }, // lv7
+  { chance: 0.75, min: 2, max: 4 }, // lv8
+  { chance: 0.85, min: 3, max: 5 }, // lv9
+  { chance: 0.95, min: 3, max: 5 }, // lv10
+];
 export function getShieldRegen(level) {
   return (MONUMENT_SHIELD_DPS_THRESHOLD[level] || 0) * 1.2;
 }

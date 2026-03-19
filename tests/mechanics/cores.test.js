@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CORE_TYPES, MAX_CORE_SLOTS,
   getCoreMultiplier, getCoreUpgradeCost, getCoresTotalBoost,
-  getCoreDropChance, randomCoreType,
+  getCoreDropConfig, randomCoreType,
 } from '../../game/mechanics/cores.js';
 
 describe('Core types', () => {
@@ -72,13 +72,24 @@ describe('getCoresTotalBoost', () => {
   });
 });
 
-describe('getCoreDropChance', () => {
-  it('lv1 = 2%', () => {
-    assert.strictEqual(getCoreDropChance(1), 0.02);
+describe('getCoreDropConfig', () => {
+  it('lv1 = 10% chance, 1 core', () => {
+    const cfg = getCoreDropConfig(1);
+    assert.strictEqual(cfg.chance, 0.10);
+    assert.strictEqual(cfg.min, 1);
+    assert.strictEqual(cfg.max, 1);
   });
 
-  it('lv10 = 40%', () => {
-    assert.strictEqual(getCoreDropChance(10), 0.40);
+  it('lv10 = 95% chance, 3-5 cores', () => {
+    const cfg = getCoreDropConfig(10);
+    assert.strictEqual(cfg.chance, 0.95);
+    assert.strictEqual(cfg.min, 3);
+    assert.strictEqual(cfg.max, 5);
+  });
+
+  it('returns default for invalid level', () => {
+    const cfg = getCoreDropConfig(99);
+    assert.strictEqual(cfg.chance, 0.10);
   });
 });
 

@@ -1,4 +1,5 @@
 // ── Core types and formulas ──────────────────────────────────────────────────
+import { MONUMENT_CORE_DROP } from '../../config/constants.js';
 
 export const CORE_TYPES = {
   income:   { emoji: '✴️', name: 'Ядро дохода',       affects: 'income'   },
@@ -41,10 +42,9 @@ export function getCoresTotalBoost(cores, type) {
   return relevant.reduce((sum, c) => sum + getCoreMultiplier(c.level), 0);
 }
 
-// Drop chance from monument by level
-export function getCoreDropChance(monumentLevel) {
-  const chances = { 1:0.02, 2:0.03, 3:0.05, 4:0.10, 5:0.12, 6:0.15, 7:0.20, 8:0.25, 9:0.30, 10:0.40 };
-  return chances[monumentLevel] || 0.02;
+// Core drop config from monument by level (returns { chance, min, max })
+export function getCoreDropConfig(monumentLevel) {
+  return MONUMENT_CORE_DROP[monumentLevel] || { chance: 0.10, min: 1, max: 1 };
 }
 
 // Random core type (equal probability)

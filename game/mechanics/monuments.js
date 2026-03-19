@@ -3,6 +3,7 @@ import { gameState } from '../state/GameState.js';
 import { haversine } from '../../lib/haversine.js';
 import { getCellId, getCellCenter } from '../../lib/grid.js';
 import { generateItem } from './items.js';
+import { getCoreDropConfig, randomCoreType, CORE_TYPES } from './cores.js';
 import {
   MONUMENT_HP, MONUMENT_SHIELD_HP, MONUMENT_SHIELD_DPS_THRESHOLD,
   MONUMENT_DPS_WINDOW_MS,
@@ -386,6 +387,9 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     }
   }
 
+  // Drop cores proportionally to participants
+  await dropCoresAfterRaid(monument, participants, totalDamage, io, connectedPlayers);
+
   // Clean up defenders
   for (const [did, d] of gameState.monumentDefenders) {
     if (d.monument_id === monument.id) {
@@ -396,6 +400,97 @@ export async function defeatMonument(monument, io, connectedPlayers) {
   gameState.monumentDamage.delete(monument.id);
 
   console.log(`[MONUMENTS] Monument lv${monument.level} "${monument.name}" defeated! ${participants.length} participants`);
+}
+
+// ── Drop cores after raid — distributed proportionally by damage ──
+export async function dropCoresAfterRaid(monument, participants, totalDamage, io, connectedPlayers) {
+  const dropCfg = getCoreDropConfig(monument.level);
+  if (Math.random() >= dropCfg.chance) {
+    console.log(`[CORES] Монумент lv${monument.level} — ядра не выпали (шанс ${Math.round(dropCfg.chance * 100)}%)`);
+    return [];
+  }
+
+  const totalCores = dropCfg.min + Math.floor(Math.random() * (dropCfg.max - dropCfg.min + 1));
+
+  // Distribute cores proportionally by damage; top-1 always gets at least one
+  const assignments = []; // [{ player_id, player, core_type }]
+  let remaining = totalCores;
+
+  for (let i = 0; i < participants.length && remaining > 0; i++) {
+    const { player_id, damage } = participants[i];
+    const player = gameState.getPlayerByTgId(player_id) || gameState.getPlayerById(player_id);
+    if (!player) continue;
+
+    let count;
+    if (i === 0) {
+      // Top player gets proportional share, minimum 1
+      count = Math.max(1, Math.round(totalCores * (damage / totalDamage)));
+      count = Math.min(count, remaining);
+    } else {
+      count = Math.max(1, Math.round(totalCores * (damage / totalDamage)));
+      count = Math.min(count, remaining);
+    }
+
+    for (let j = 0; j < count; j++) {
+      assignments.push({ player_id, player, core_type: randomCoreType() });
+    }
+    remaining -= count;
+  }
+
+  // If any remaining (rounding), give to top player
+  if (remaining > 0 && participants.length > 0) {
+    const top = participants[0];
+    const topPlayer = gameState.getPlayerByTgId(top.player_id) || gameState.getPlayerById(top.player_id);
+    if (topPlayer) {
+      for (let j = 0; j < remaining; j++) {
+        assignments.push({ player_id: top.player_id, player: topPlayer, core_type: randomCoreType() });
+      }
+    }
+  }
+
+  // Insert all cores and notify
+  const droppedCores = [];
+  // Group by player for socket emission
+  const perPlayer = new Map(); // player_id -> [core info]
+
+  for (const { player_id, player, core_type } of assignments) {
+    const coreData = {
+      owner_id: Number(player.telegram_id),
+      mine_cell_id: null,
+      slot_index: null,
+      core_type,
+      level: 0,
+      created_at: new Date().toISOString(),
+    };
+    const { data: inserted } = await supabase.from('cores').insert(coreData).select().single();
+    if (inserted) {
+      gameState.upsertCore(inserted);
+      const info = { core_type, emoji: CORE_TYPES[core_type].emoji, name: CORE_TYPES[core_type].name };
+      droppedCores.push({ ...info, player_id });
+      if (!perPlayer.has(player_id)) perPlayer.set(player_id, []);
+      perPlayer.get(player_id).push(info);
+    }
+  }
+
+  // Emit core:dropped to each recipient
+  if (io && connectedPlayers) {
+    for (const [pid, cores] of perPlayer) {
+      const socketId = _findPlayerSocket(connectedPlayers, pid);
+      if (socketId) {
+        for (const core of cores) {
+          io.to(socketId).emit('core:dropped', {
+            ...core,
+            monument_level: monument.level,
+            player_id: pid,
+          });
+        }
+      }
+    }
+  }
+
+  const recipientList = [...perPlayer.entries()].map(([pid, cores]) => `${pid}:${cores.length}`).join(', ');
+  console.log(`[CORES] Монумент lv${monument.level} — выпало ${droppedCores.length} ядер! [${recipientList}]`);
+  return droppedCores;
 }
 
 // ── Helper: find socket ID for a telegram_id ──
