@@ -98,6 +98,7 @@ export async function spawnMonuments() {
   const MAX_DISTANCE = 5000;
 
   let spawned = 0;
+  const spawnedList = [];
 
   // Cluster HQs within 5km
   const clusters = [];
@@ -263,11 +264,13 @@ export async function spawnMonuments() {
       existingMonuments.push(inserted);
       spawnedInCluster++;
       spawned++;
+      spawnedList.push({ ...inserted, _clusterLat: cluster.lat, _clusterLng: cluster.lng });
       console.log(`[MONUMENTS] Spawned lv${level} "${inserted.name}" at ${pt.lat.toFixed(4)},${pt.lng.toFixed(4)}`);
     }
   }
 
   console.log(`[MONUMENTS] Spawn complete: ${spawned} new monuments`);
+  return spawnedList;
 }
 
 // ── Weekly reset (Sunday midnight MSK) ──

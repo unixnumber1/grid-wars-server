@@ -476,11 +476,33 @@ async function start() {
     }
   }
 
-  // Spawn monuments if empty
-  if (gameState.monuments.size === 0 && gameState.headquarters.size > 0) {
-    const { spawnMonuments } = await import('./lib/monuments.js');
-    spawnMonuments().catch(e => console.error('[MONUMENTS] Initial spawn error:', e.message));
+  // Spawn monuments (initial + periodic every hour for new cities)
+  async function monumentSpawnCycle() {
+    if (gameState.headquarters.size === 0) return;
+    try {
+      const { spawnMonuments } = await import('./lib/monuments.js');
+      const spawned = await spawnMonuments();
+      // Notify nearby players about new monuments via Telegram
+      if (spawned?.length) {
+        const { sendTelegramNotification } = await import('./lib/supabase.js');
+        const MAX_NOTIFY_DIST = 10000; // 10km
+        const { haversine: hav } = await import('./lib/haversine.js');
+        const allPlayers = [...gameState.players.values()];
+        for (const m of spawned) {
+          const nearby = allPlayers.filter(p => p.last_lat && p.last_lng && hav(p.last_lat, p.last_lng, m.lat, m.lng) <= MAX_NOTIFY_DIST);
+          for (const p of nearby) {
+            sendTelegramNotification(p.telegram_id,
+              `🏛️ Монумент "${m.name}" (ур.${m.level}) появился в вашем городе! Собирайте рейд!`
+            ).catch(() => {});
+          }
+        }
+      }
+    } catch (e) { console.error('[MONUMENTS] spawn cycle error:', e.message); }
   }
+  // Initial spawn after 5s
+  setTimeout(monumentSpawnCycle, 5000);
+  // Check for new cities every hour
+  setInterval(monumentSpawnCycle, 3600000);
 
   // Weekly monument reset (Sunday midnight MSK, checked every hour)
   setInterval(async () => {
