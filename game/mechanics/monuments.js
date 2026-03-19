@@ -119,28 +119,16 @@ export async function spawnMonuments() {
     if (nearbyMonuments.length >= 3) continue; // max 3 per cluster
 
     // Query Overpass for urban landmarks (no religious/memorial places)
+    const a = `around:${MAX_DISTANCE},${cluster.lat},${cluster.lng}`;
     const query = `
       [out:json][timeout:15];
       (
-        nwr["tourism"="attraction"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["tourism"="museum"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["tourism"="gallery"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["tourism"="viewpoint"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="castle"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="fort"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="ruins"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="archaeological_site"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="manor"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="palace"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="monument"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["historic"="memorial"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["amenity"="theatre"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["amenity"="arts_centre"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["amenity"="fountain"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["leisure"="park"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
-        nwr["building"="civic"]["name"](around:${MAX_DISTANCE},${cluster.lat},${cluster.lng});
+        nwr["tourism"~"attraction|museum|gallery|viewpoint"](${a});
+        nwr["historic"~"castle|fort|ruins|monument|memorial|palace"]["name"](${a});
+        nwr["amenity"~"theatre|arts_centre"](${a});
+        nwr["leisure"="park"]["name"](${a});
       );
-      out center 100;
+      out center 50;
     `;
 
     let osmPoints = [];
