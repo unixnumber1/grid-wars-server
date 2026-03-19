@@ -4778,10 +4778,9 @@ function showMinePopup(mine, isOwn, canCapture) {
           : [
               ['Доход', clanBonusInfo
                 ? (() => {
-                    let boosted = rate * (1 + clanBonusInfo.income / 100);
                     let tags = `+${clanBonusInfo.income}%`;
-                    if (clanBonusInfo.boost) { boosted *= clanBonusInfo.boost; tags += ` · x${clanBonusInfo.boost} 🚀`; }
-                    return `${formatCoins(Math.round(boosted))}/ч <span style="color:#D500F9">(${tags})</span>`;
+                    if (clanBonusInfo.boost) tags += ` · x${clanBonusInfo.boost} 🚀`;
+                    return `${formatCoins(rate)}/ч <span style="color:#D500F9">(${tags})</span>`;
                   })()
                 : `${formatCoins(rate)}/ч`],
               ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
