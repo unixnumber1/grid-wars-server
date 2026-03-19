@@ -283,8 +283,12 @@ async function handleTick(req, res) {
       if (hasPos) playerRange = getCellsInRange(pLat, pLng);
 
       snapshot.mines = snapshot.mines.map(m => {
-        const computedMaxHp = getMineHp(m.level);
-        const regenPerHour = getMineHpRegen(m.level);
+        const cores = gameState.loaded && m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+        const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+        const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+        const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+        const computedMaxHp = Math.round(getMineHp(m.level) * bHp);
+        const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
         const regenedHp = canRegen ? calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, m.last_hp_update) : rawHp;
@@ -294,7 +298,7 @@ async function handleTick(req, res) {
           hp: regenedHp,
           hp_regen: regenPerHour,
           income: getMineIncome(m.level),
-          capacity: getMineCapacity(m.level),
+          capacity: Math.round(getMineCapacity(m.level) * bCap),
           can_capture: playerRange ? m.owner_id !== currentPlayerId && playerRange.has(m.cell_id) : false,
         };
       });
@@ -361,8 +365,12 @@ async function handleTick(req, res) {
       }));
       mapData.mines = (allMines || []).map(m => {
         if (m.status === 'destroyed') return null;
-        const computedMaxHp = getMineHp(m.level);
-        const regenPerHour = getMineHpRegen(m.level);
+        const cores = gameState.loaded && m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+        const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+        const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+        const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+        const computedMaxHp = Math.round(getMineHp(m.level) * bHp);
+        const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
         const regenedHp = canRegen ? calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, m.last_hp_update) : rawHp;
@@ -372,7 +380,7 @@ async function handleTick(req, res) {
           hp: regenedHp,
           hp_regen: regenPerHour,
           income: getMineIncome(m.level),
-          capacity: getMineCapacity(m.level),
+          capacity: Math.round(getMineCapacity(m.level) * bCap),
           is_mine: m.owner_id === currentPlayerId,
           can_capture: playerRange ? m.owner_id !== currentPlayerId && playerRange.has(m.cell_id) : false,
         };
@@ -421,8 +429,12 @@ async function handleTick(req, res) {
   try {
     if (gameState.loaded) {
       playerMines = gameState.getPlayerMines(currentPlayerId).map(m => {
-        const cMax = getMineHp(m.level);
-        const rph = getMineHpRegen(m.level);
+        const cores = m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+        const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+        const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+        const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+        const cMax = Math.round(getMineHp(m.level) * bHp);
+        const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
         return {
@@ -431,7 +443,7 @@ async function handleTick(req, res) {
           hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp,
           hp_regen: rph,
           income: getMineIncome(m.level),
-          capacity: getMineCapacity(m.level),
+          capacity: Math.round(getMineCapacity(m.level) * bCap),
         };
       });
       inventory = gameState.getPlayerItems(currentPlayerId);
@@ -441,11 +453,15 @@ async function handleTick(req, res) {
         supabase.from('items').select('id,type,rarity,name,emoji,stat_value,attack,crit_chance,defense,block_chance,equipped,on_market,obtained_at,upgrade_level,base_attack,base_crit_chance,base_defense').eq('owner_id', currentPlayerId).eq('on_market', false).order('obtained_at', { ascending: false }),
       ]);
       playerMines = (pm || []).filter(m => m.status !== 'destroyed').map(m => {
-        const cMax = getMineHp(m.level);
-        const rph = getMineHpRegen(m.level);
+        const cores = gameState.loaded && m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+        const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+        const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+        const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+        const cMax = Math.round(getMineHp(m.level) * bHp);
+        const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
-        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level), capacity: getMineCapacity(m.level) };
+        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level), capacity: Math.round(getMineCapacity(m.level) * bCap) };
       });
       inventory = inv || [];
     }
@@ -525,8 +541,15 @@ async function handleTick(req, res) {
     }
   }
 
-  // Base income with mine count boost (without clan bonuses)
-  const baseIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0) * mineCountBoost;
+  // Base income with mine count boost + core income boosts (without clan bonuses)
+  const baseIncome = playerMines.reduce((sum, m) => {
+    let inc = getMineIncome(m.level);
+    if (gameState.loaded && m.cell_id) {
+      const cores = gameState.getCoresForMine(m.cell_id);
+      if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
+    }
+    return sum + inc;
+  }, 0) * mineCountBoost;
 
   // Clan color for UI
   let clanColor = null;
@@ -663,8 +686,12 @@ mapRouter.get('/', async (req, res) => {
     const snapshot = gameState.getMapSnapshot(n, s, e, w, currentPlayerId, nowMs);
 
     snapshot.mines = snapshot.mines.map(m => {
-      const computedMaxHp = getMineHp(m.level);
-      const regenPerHour = getMineHpRegen(m.level);
+      const cores = m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+      const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+      const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+      const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+      const computedMaxHp = Math.round(getMineHp(m.level) * bHp);
+      const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
       const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
       const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
       const regenedHp = canRegen ? calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, m.last_hp_update) : rawHp;
@@ -674,7 +701,7 @@ mapRouter.get('/', async (req, res) => {
         hp: regenedHp,
         hp_regen: regenPerHour,
         income: getMineIncome(m.level),
-        capacity: getMineCapacity(m.level),
+        capacity: Math.round(getMineCapacity(m.level) * bCap),
         can_capture: playerRange ? m.owner_id !== currentPlayerId && playerRange.has(m.cell_id) : false,
       };
     });
@@ -791,8 +818,12 @@ mapRouter.get('/', async (req, res) => {
 
   const mines = (allMines || []).map((m) => {
     if (m.status === 'destroyed') return null;
-    const computedMaxHp = getMineHp(m.level);
-    const regenPerHour = getMineHpRegen(m.level);
+    const cores = gameState.loaded && m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+    const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+    const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+    const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+    const computedMaxHp = Math.round(getMineHp(m.level) * bHp);
+    const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
     const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
     const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
     const regenedHp = canRegen ? calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, m.last_hp_update) : rawHp;
@@ -801,7 +832,7 @@ mapRouter.get('/', async (req, res) => {
       cell_id: m.cell_id, last_collected: m.last_collected,
       upgrade_finish_at: m.upgrade_finish_at, pending_level: m.pending_level,
       hp: regenedHp, max_hp: computedMaxHp, hp_regen: regenPerHour,
-      income: getMineIncome(m.level), capacity: getMineCapacity(m.level),
+      income: getMineIncome(m.level), capacity: Math.round(getMineCapacity(m.level) * bCap),
       status: m.status || 'normal', burning_started_at: m.burning_started_at,
       attacker_id: m.attacker_id, attack_ends_at: m.attack_ends_at,
       players: m.players,

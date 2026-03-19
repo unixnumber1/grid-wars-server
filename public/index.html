@@ -4462,7 +4462,17 @@ function openPopup(title, subtitle, stats, actions) {
   if (stats && stats.length > 0) {
     html += '<div style="display:flex;flex-direction:column;gap:5px">';
     for (const [label, val] of stats) {
-      html += `<div class="hq-stat-card"><span>${label}</span><span class="val">${val}</span></div>`;
+      if (label === '__dual__') {
+        html += '<div style="display:flex;gap:5px">';
+        for (const [l, v] of val) {
+          html += `<div class="hq-stat-card" style="flex:1"><span>${l}</span><span class="val">${v}</span></div>`;
+        }
+        html += '</div>';
+      } else if (label === '__fullwidth__') {
+        html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin:0">${val}</div>`;
+      } else {
+        html += `<div class="hq-stat-card"><span>${label}</span><span class="val">${val}</span></div>`;
+      }
     }
     html += '</div>';
   }
@@ -4755,16 +4765,20 @@ function showMinePopup(mine, isOwn, canCapture) {
                 : `${formatCoins(rate)}/ч`],
               ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
             ]),
-        ...(mine.level > 0 && mine.hp != null && mine.max_hp ? [['❤️ HP', (() => {
+        ...(mine.level > 0 && mine.hp != null && mine.max_hp ? [['__dual__', (() => {
           const hp = Math.round(mine.hp); const mhp = mine.max_hp;
           const boostedHp = clanBonusInfo ? Math.round(mhp * (1 + clanBonusInfo.defense / 100)) : mhp;
           const pct = Math.min(100, Math.round(hp / boostedHp * 100));
           const barColor = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
-          return `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(hp)}/${formatNumber(boostedHp)}</span></div>${clanBonusInfo ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${clanBonusInfo.defense}% защита клана</div>` : ''}`;
+          const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(hp)}/${formatNumber(boostedHp)}</span></div>${clanBonusInfo ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${clanBonusInfo.defense}%</div>` : ''}`;
+          const regenPerHour = mine.hp_regen || 0;
+          const regenHtml = `${formatNumber(regenPerHour)}/ч`;
+          return [['❤️ HP', hpHtml], ['♻️ Реген', regenHtml]];
         })()]] : []),
-        ...(mine.level > 0 && mine.cell_id ? [['🔮 Ядра', (() => {
+        ...(mine.level > 0 && mine.cell_id ? [['__fullwidth__', (() => {
           const cores = getCoresForMine(mine.cell_id);
-          let slotsHtml = '<div class="mine-cores-grid">';
+          let slotsHtml = `<div style="font-size:12px;font-weight:600;color:#aaa;margin-bottom:8px">🔮 Ядра ${cores.length}/10</div>`;
+          slotsHtml += '<div class="mine-cores-grid">';
           for (let i = 0; i < 10; i++) {
             const c = cores.find(x => x.slot_index === i);
             if (c) {
@@ -4782,7 +4796,7 @@ function showMinePopup(mine, isOwn, canCapture) {
             const lines = Object.entries(byType).map(([t, v]) => `${(CORE_TYPES[t]||{}).emoji||''} x${v.toFixed(1)}`).join('  ');
             slotsHtml += `<div class="cores-total-boost">${lines}</div>`;
           }
-          return `${slotsHtml}<div style="font-size:11px;color:#555;margin-top:4px">${cores.length}/10</div>`;
+          return slotsHtml;
         })()]] : []),
       ],
       mine.status === 'burning' ? [
@@ -7515,6 +7529,7 @@ async function buyMythic(weaponType) {
     if (state.player) state.player.diamonds = data.diamondsLeft;
     if (data.item) state.inventory = [data.item, ...(state.inventory || [])];
     updateDiamondDisplay();
+    document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
     _renderEquipSlots();
     if (data.item) showItemReveal(data.item, 'mythic');
   } catch (err) {
@@ -7623,6 +7638,7 @@ async function buyMythicSet() {
     if (state.player) state.player.diamonds = data.diamondsLeft;
     if (data.items) state.inventory = [...data.items, ...(state.inventory || [])];
     updateDiamondDisplay();
+    document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
     _renderEquipSlots();
     showToast('🗡️🪓🛡️ Мифический комплект получен!');
   } catch (err) {
@@ -7656,6 +7672,12 @@ function _renderCorePacks() {
 
 async function buyCorePack(packIndex) {
   if (!confirm('Купить пак ядер?')) return;
+  const CORE_PACKS = [
+    { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 300 },
+    { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 750 },
+    { label: '🌀 Продвинутый', cores: 3, core_level: 5, ether: 2000, price: 1500 },
+    { label: '🌀 Элитный', cores: 5, core_level: 10, ether: 5000, price: 3000, badge: 'ТОП' },
+  ];
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
@@ -7667,7 +7689,11 @@ async function buyCorePack(packIndex) {
     }
     updateDiamondDisplay();
     updateCoinDisplay();
-    showToast(`🌀 Получено ${data.cores.length} ядер!`);
+    document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
+    document.getElementById('shop-coins').textContent = formatCoins(state.player?.coins ?? 0);
+    const pack = CORE_PACKS[packIndex];
+    const etherMsg = pack && pack.ether > 0 ? ` + ${pack.ether}🌀 эфира` : '';
+    showToast(`🌀 Получено ${data.cores.length} ядер${etherMsg}!`);
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }

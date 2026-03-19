@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
+import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
+import { getCoresTotalBoost } from '../../lib/cores.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getClanLevel } from '../../lib/clans.js';
@@ -199,7 +200,10 @@ async function handleMineCollect(req, res) {
   }
   let totalCoins = 0;
   for (const mine of mines) {
-    let acc = calcAccumulatedCoins(mine.level, mine.last_collected);
+    const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+    const incBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
+    const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+    let acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
     if (clanIncomeBonus > 0 && clanHqs.length > 0) {
       const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
       const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
@@ -244,7 +248,7 @@ async function handleAttackStart(req, res) {
   if (!telegram_id || !mine_id || lat == null || lng == null) return res.status(400).json({ error: 'Missing required fields: telegram_id, mine_id, lat, lng' });
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id,game_username,bonus_attack,bonus_crit');
   if (playerError || !player) return res.status(404).json({ error: 'Player not found' });
-  const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,hp,max_hp,last_hp_update,status,lat,lng').eq('id', mine_id).maybeSingle();
+  const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,cell_id,hp,max_hp,last_hp_update,status,lat,lng').eq('id', mine_id).maybeSingle();
   if (mineError || !mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать свою шахту' });
   if (mine.status !== 'normal') return res.status(400).json({ error: 'Шахта уже атакована' });
@@ -258,8 +262,11 @@ async function handleAttackStart(req, res) {
   const weaponAttack = weapon?.attack || 0;
   const critChance = weapon?.type === 'sword' ? (weapon.crit_chance || 0) : 0;
   const avgDamage = (baseAttack + weaponAttack) * (1 + critChance / 100);
-  const computedMaxHp = getMineHp(mine.level);
-  const regenPerHour = getMineHpRegen(mine.level);
+  const atkCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+  const atkCoreHp = atkCores.length > 0 ? getCoresTotalBoost(atkCores, 'hp') : 1;
+  const atkCoreRegen = atkCores.length > 0 ? getCoresTotalBoost(atkCores, 'regen') : 1;
+  const computedMaxHp = Math.round(getMineHp(mine.level) * atkCoreHp);
+  const regenPerHour = Math.round(getMineHpRegen(mine.level) * atkCoreRegen);
   const rawHp = Math.min(mine.hp ?? computedMaxHp, computedMaxHp);
   const currentHp = calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, mine.last_hp_update);
   const attackDuration = Math.max(3, Math.ceil(currentHp / avgDamage));
@@ -285,7 +292,7 @@ async function handleAttackFinish(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,bonus_attack,bonus_crit');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: mine, error: mErr } = await supabase.from('mines').select('id,owner_id,level,hp,max_hp,status,attacker_id,attack_started_at,attack_ends_at').eq('id', mine_id).maybeSingle();
+  const { data: mine, error: mErr } = await supabase.from('mines').select('id,owner_id,level,cell_id,hp,max_hp,status,attacker_id,attack_started_at,attack_ends_at').eq('id', mine_id).maybeSingle();
   if (mErr) return res.status(500).json({ error: mErr.message });
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.status !== 'under_attack') return res.status(400).json({ error: 'Шахта не атакуется' });
@@ -328,7 +335,9 @@ async function handleAttackFinish(req, res) {
       const gm = gameState.getMineById(mine_id);
       if (gm) { Object.assign(gm, { status: 'normal', hp: remainingHp, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: hpUpdateTime }); gameState.markDirty('mines', mine_id); }
     }
-    return res.json({ success: true, result: 'survived', remainingHp, maxHp: getMineHp(mine.level) });
+    const finCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+    const finCoreHp = finCores.length > 0 ? getCoresTotalBoost(finCores, 'hp') : 1;
+    return res.json({ success: true, result: 'survived', remainingHp, maxHp: Math.round(getMineHp(mine.level) * finCoreHp) });
   }
 }
 
@@ -372,11 +381,14 @@ async function handleAttackSellMine(req, res) {
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, coins');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,last_collected,lat,lng').eq('id', mine_id).maybeSingle();
+  const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,cell_id,last_collected,lat,lng').eq('id', mine_id).maybeSingle();
   if (mineError) return res.status(500).json({ error: mineError.message });
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'You do not own this mine' });
-  const collected = calcAccumulatedCoins(mine.level, mine.last_collected);
+  const sellCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+  const sellIncBoost = sellCores.length > 0 ? getCoresTotalBoost(sellCores, 'income') : 1;
+  const sellCapBoost = sellCores.length > 0 ? getCoresTotalBoost(sellCores, 'capacity') : 1;
+  const collected = calcAccumulatedCoins(mine.level, mine.last_collected, sellIncBoost, sellCapBoost);
   const refund = calcSellRefund(mine.level);
   const total = collected + refund;
   const newCoins = (player.coins ?? 0) + Math.round(total);
@@ -528,8 +540,13 @@ async function handleMineHit(req, res) {
     else if (weapon.rarity === 'legendary') execChance = 13 + (wLvl / 100) * 7;
   }
 
+  // Apply core HP/regen boosts
+  const mineCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+  const coreHpBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'hp') : 1;
+  const coreRegenBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'regen') : 1;
+
   // Apply clan defense bonus to mine HP
-  let computedMaxHp = getMineHp(mine.level);
+  let computedMaxHp = Math.round(getMineHp(mine.level) * coreHpBoost);
   if (mine.owner_id && gameState.loaded) {
     const mineOwner = gameState.getPlayerById(mine.owner_id);
     if (mineOwner?.clan_id) {
@@ -548,7 +565,7 @@ async function handleMineHit(req, res) {
   }
 
   // Apply HP regen first, then subtract damage
-  const regenPerHour = getMineHpRegen(mine.level);
+  const regenPerHour = Math.round(getMineHpRegen(mine.level) * coreRegenBoost);
   const rawHp = Math.min(mine.hp ?? computedMaxHp, computedMaxHp);
   let currentHp = calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, mine.last_hp_update);
 

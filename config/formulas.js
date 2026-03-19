@@ -48,11 +48,11 @@ export function getMineCountBoost(mineCount) {
   return 1 + (mineCount * 0.001);
 }
 
-export function calcAccumulatedCoins(level, lastCollectedISO) {
+export function calcAccumulatedCoins(level, lastCollectedISO, incomeBoost = 1, capacityBoost = 1) {
   if (level <= 0) return 0;
   const elapsedSec = (Date.now() - new Date(lastCollectedISO).getTime()) / 1000;
-  const raw = getMineIncome(level) * Math.max(0, elapsedSec);
-  return Math.min(Math.round(raw), getMineCapacity(level));
+  const raw = getMineIncome(level) * incomeBoost * Math.max(0, elapsedSec);
+  return Math.min(Math.round(raw), Math.round(getMineCapacity(level) * capacityBoost));
 }
 
 export function getMineUpgradeCostBulk(currentLevel, count) {
