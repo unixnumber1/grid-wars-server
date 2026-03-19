@@ -125,20 +125,20 @@ describe('HQ formulas', () => {
 });
 
 describe('XP/Level system', () => {
-  it('xpForLevel(1) = 800', () => {
-    assert.strictEqual(xpForLevel(1), 800);
+  it('xpForLevel(1) = 80', () => {
+    assert.strictEqual(xpForLevel(1), 80);
   });
 
   it('calculateLevel returns 1 for 0 xp', () => {
     assert.strictEqual(calculateLevel(0), 1);
   });
 
-  it('calculateLevel returns 2 for 800+ xp', () => {
-    assert.strictEqual(calculateLevel(800), 2);
+  it('calculateLevel returns 2 for 80+ xp', () => {
+    assert.strictEqual(calculateLevel(80), 2);
   });
 
   it('xpForLevel(100) includes x5 barrier', () => {
-    // level 100: phase=0, levelInPhase=100, base=800, xp = floor(800 * 100^2.15) * 5
+    // level 100: phase=0, levelInPhase=100, base=80, xp = floor(80 * 100^2.15) * 5
     const xp = xpForLevel(100);
     assert(xp > 0);
     assert.strictEqual(xp % 5, 0); // divisible by 5 due to barrier
