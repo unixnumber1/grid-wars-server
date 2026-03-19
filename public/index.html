@@ -6291,6 +6291,7 @@ function onPosition(pos) {
       weight: 1.5,
       fill: false,
       dashArray: '8, 5',
+      interactive: false,
     }).addTo(map);
     // Build zone (small blue dashed circle — 5% fill)
     playerZoneCircle = L.circle([lat, lng], {
@@ -6300,6 +6301,7 @@ function onPosition(pos) {
       fillColor: 'rgba(100, 200, 255, 0.15)',
       fillOpacity: 0.05,
       dashArray: '6, 4',
+      interactive: false,
     }).addTo(map);
     if (!pinMode) {
       state.playerPos = { lat, lng };
