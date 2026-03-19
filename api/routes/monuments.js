@@ -8,7 +8,9 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
   MONUMENT_LEVELS, MONUMENT_LOOT_TABLE, MONUMENT_ATTACK_RADIUS,
   WAVE_INTERVAL_SECONDS, spawnDefenderWave, defeatMonument, getPlayersNearMonument,
+  getMonumentAttackers, calcRaidDps,
 } from '../../lib/monuments.js';
+import { MONUMENT_SHIELD_DPS_THRESHOLD, MONUMENT_DPS_WINDOW_MS } from '../../config/constants.js';
 import { CORE_TYPES, getCoreDropChance, randomCoreType } from '../../lib/cores.js';
 
 export const monumentsRouter = Router();
@@ -71,6 +73,7 @@ monumentsRouter.get('/', async (req, res) => {
     participants,
     my_damage: myDamage,
     wave: gameState.activeWaves.get(monument_id)?.wave_number || 0,
+    dps_threshold: MONUMENT_SHIELD_DPS_THRESHOLD[monument.level] || 0,
   });
 });
 
@@ -168,10 +171,6 @@ async function handleAttackShield(req, res) {
     }
   }
 
-  // Apply damage to shield
-  monument.shield_hp = Math.max(0, monument.shield_hp - damage);
-  gameState.markDirty('monuments', monument.id);
-
   // Auto-join raid tracking (so shield attackers get notifications)
   if (!gameState.monumentDamage.has(monument.id)) {
     gameState.monumentDamage.set(monument.id, new Map());
@@ -179,11 +178,38 @@ async function handleAttackShield(req, res) {
   const dmg = gameState.monumentDamage.get(monument.id);
   if (!dmg.has(Number(telegram_id))) dmg.set(Number(telegram_id), 0);
 
-  // Emit projectile
+  // DPS tracking
+  const playerDps = damage / (cooldownMs / 1000);
+  const attackers = getMonumentAttackers(monument);
+  const prev = attackers.get(String(telegram_id));
+  attackers.set(String(telegram_id), {
+    lastAttackAt: now,
+    dps: playerDps,
+    totalDamage: (prev?.totalDamage || 0) + damage,
+  });
+
+  const totalDps = calcRaidDps(monument);
+  const threshold = MONUMENT_SHIELD_DPS_THRESHOLD[monument.level] || 0;
+
+  // DPS check — must exceed threshold to deal damage
+  let effectiveDamage = 0;
+  let dpsCheckPassed = false;
+  if (totalDps >= threshold) {
+    dpsCheckPassed = true;
+    effectiveDamage = Math.floor(damage * (totalDps - threshold) / totalDps);
+  }
+
+  // Apply effective damage to shield
+  if (effectiveDamage > 0) {
+    monument.shield_hp = Math.max(0, monument.shield_hp - effectiveDamage);
+    gameState.markDirty('monuments', monument.id);
+  }
+
+  // Emit projectile (always, even with 0 damage for visual feedback)
   emitToNearbyPlayers(monument.lat, monument.lng, 1000, 'projectile', {
     from_lat: pLat, from_lng: pLng,
     to_lat: monument.lat, to_lng: monument.lng,
-    damage, crit: isCrit,
+    damage: effectiveDamage, crit: isCrit,
     target_type: 'monument_shield', target_id: monument.id,
     weapon_type: weaponType,
     attacker_id: player.id,
@@ -214,11 +240,17 @@ async function handleAttackShield(req, res) {
     monument_id: monument.id,
     shield_hp: monument.shield_hp,
     max_shield_hp: monument.max_shield_hp,
+    current_dps: Math.round(totalDps),
+    required_dps: threshold,
   });
 
   return res.json({
-    damage, crit: isCrit, shield_hp: monument.shield_hp, max_shield_hp: monument.max_shield_hp,
+    damage: effectiveDamage, crit: isCrit,
+    shield_hp: monument.shield_hp, max_shield_hp: monument.max_shield_hp,
     shield_broken: shieldBroken,
+    dps_check: dpsCheckPassed,
+    current_dps: Math.round(totalDps),
+    required_dps: threshold,
   });
 }
 

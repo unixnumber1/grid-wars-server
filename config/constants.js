@@ -82,6 +82,24 @@ export const SHIELD_RESPAWN_HOURS = 168;            // 7 days
 export const OPEN_PHASE_TIMEOUT_HOURS = 4;
 export const WAVE_INTERVAL_SECONDS = 60;
 
+// Monument HP/Shield arrays by level (index 0 unused)
+export const MONUMENT_HP = [
+  0, 50000, 120000, 280000, 600000, 1200000,
+  2500000, 5000000, 10000000, 22000000, 40000000,
+];
+export const MONUMENT_SHIELD_HP = [
+  0, 8000, 20000, 50000, 120000, 300000,
+  700000, 1500000, 3500000, 6000000, 10000000,
+];
+export const MONUMENT_SHIELD_DPS_THRESHOLD = [
+  0, 400, 900, 1800, 3500, 7000,
+  12000, 20000, 30000, 38000, 40000,
+];
+export const MONUMENT_DPS_WINDOW_MS = 3000;
+export function getShieldRegen(level) {
+  return (MONUMENT_SHIELD_DPS_THRESHOLD[level] || 0) * 1.2;
+}
+
 // ── Clans ──
 export const CLAN_HQ_COST = 10_000_000;
 export const CLAN_CREATE_COST = 0;

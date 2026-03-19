@@ -6,6 +6,8 @@ import { haversine } from '../../lib/haversine.js';
 import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, xpForLevel, SMALL_RADIUS, LARGE_RADIUS } from '../../config/formulas.js';
 import { getCellsInRange } from '../../lib/grid.js';
 import { dailyMarketCheck } from '../mechanics/market.js';
+import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/constants.js';
+import { calcRaidDps } from '../mechanics/monuments.js';
 
 const TICK_INTERVAL = 5000;
 const BOTS_PER_ZONE = 10;
@@ -35,15 +37,18 @@ export function startGameLoop(io, connectedPlayers) {
       // ── 1. Move bots globally ──────────────────────────────
       await moveBots(nowMs, nowISO);
 
-      // ── 2. Move couriers ───────────────────────────────────
+      // ── 2. Monument shield regen ─────────────────────────
+      processMonumentShieldRegen();
+
+      // ── 3. Move couriers ───────────────────────────────────
       await moveCouriers(nowMs, nowISO);
 
-      // ── 3. Periodic cleanup every 60 ticks (~5 min) ───────
+      // ── 4. Periodic cleanup every 60 ticks (~5 min) ───────
       if (_tickCount % 60 === 0) {
         await periodicCleanup(nowMs, nowISO);
       }
 
-      // ── 4. Send state to each connected player ─────────────
+      // ── 5. Send state to each connected player ─────────────
       for (const [socketId, playerInfo] of connectedPlayers) {
         if (!playerInfo.lat || !playerInfo.lng) continue;
 
@@ -61,6 +66,21 @@ export function startGameLoop(io, connectedPlayers) {
       console.error('[gameLoop] tick error:', e.message);
     }
   }, TICK_INTERVAL);
+}
+
+function processMonumentShieldRegen() {
+  for (const [id, monument] of gameState.monuments) {
+    if (monument.phase !== 'shield') continue;
+    if (monument.shield_hp >= monument.max_shield_hp) continue;
+    const totalDps = calcRaidDps(monument);
+    const threshold = MONUMENT_SHIELD_DPS_THRESHOLD[monument.level] || 0;
+    if (totalDps < threshold) {
+      const regenPerSec = getShieldRegen(monument.level);
+      const regenAmount = Math.floor(regenPerSec * 5); // 5s tick
+      monument.shield_hp = Math.min(monument.max_shield_hp, monument.shield_hp + regenAmount);
+      gameState.markDirty('monuments', id);
+    }
+  }
 }
 
 async function moveBots(nowMs, nowISO) {

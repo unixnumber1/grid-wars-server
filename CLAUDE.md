@@ -109,6 +109,7 @@ ecosystem.config.cjs       — PM2 конфиг
   recalc-player-levels.js    — пересчёт уровней по новой XP кривой
   recalc-items.js            — пересчёт предметов по новым базовым статам + формуле апгрейда
   recalc-mines.js            — пересчёт HP шахт по новой формуле (с сохранением % HP)
+  recalc-monuments.js        — пересчёт HP/щитов монументов по новым значениям
 ```
 
 ---
@@ -252,12 +253,17 @@ ecosystem.config.cjs       — PM2 конфиг
 - Продажа штаба клана доступна даже из клана
 
 ### Монументы (рейд-боссы)
-- Спавн: Overpass API, городская инфраструктура, 3 на кластер
-- 10 уровней: HP 30K-20M, щит 5K-2.5M
+- Спавн: Overpass API (attraction, museum, gallery, viewpoint, castle, fort, ruins, archaeological_site, manor, palace, monument+name, theatre, arts_centre, fountain+name, park+name, civic+name)
+- Запрещённые места: religion, memorial, place_of_worship, war_memorial, battlefield, wayside_cross/shrine, church/cathedral/mosque/temple/chapel
+- 10 уровней: HP 50K-40M (`MONUMENT_HP`), щит 8K-10M (`MONUMENT_SHIELD_HP`)
+- DPS порог щита: `MONUMENT_SHIELD_DPS_THRESHOLD` [400-40000] — рейд должен превысить мин. DPS чтобы наносить урон щиту
+- Эффективный урон = `damage * (totalDps - threshold) / totalDps`
+- Реген щита: `threshold * 1.2/sec` когда DPS рейда ниже порога (в gameLoop каждый тик)
 - Фазы: shield -> open (защитники) -> defeated (7 дней респавн)
 - Open >4ч без слома -> полная регенерация
 - Лут: пропорционально урону, trophy/gift, гемы + предметы + ядра
 - Еженедельный ресет: воскресенье 00:00 МСК
+- Рекалькуляция: `node scripts/recalc-monuments.js`
 
 ### Автосборщики
 - 75 алмазов, автосбор каждый час с шахт в 200м

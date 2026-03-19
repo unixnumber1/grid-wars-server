@@ -2332,6 +2332,9 @@
     .monument-bar-fill.bar-shield { background:linear-gradient(90deg,#4488ff,#66bbff); }
     .monument-bar-fill.bar-hp { background:linear-gradient(90deg,#cc2222,#ff4444); }
 
+    .shield-dps-warning { background:#2a0a0a; border:1px solid #8b0000; border-radius:10px; padding:12px; text-align:center; color:#ff4444; margin-top:8px; }
+    .shield-breaking { background:#0a1a2a; border:1px solid #0066cc; border-radius:10px; padding:12px; text-align:center; color:#4488ff; margin-top:8px; }
+
     .defender-marker { display:flex; flex-direction:column; align-items:center; }
     .defender-hp-bar { width:36px; height:4px; background:#333; border-radius:2px; overflow:hidden; }
     .defender-hp-bar div { height:100%; background:#ff6600; transition:width 0.3s; }
@@ -2826,6 +2829,7 @@ function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVE
 const SMALL_RADIUS = 200;
 const LARGE_RADIUS = 500;
 const H3_RES            = 10;
+const MONUMENT_SHIELD_DPS_THRESHOLD = [0, 400, 900, 1800, 3500, 7000, 12000, 20000, 30000, 38000, 40000];
 const H3_DISK_K         = 12;
 
 // Formulas (keep in sync with lib/formulas.js)
@@ -5888,7 +5892,13 @@ function initSocket() {
 
     _socket.on('monument:shield_update', (data) => {
       const m = monumentData[data.monument_id];
-      if (m) { m.shield_hp = data.shield_hp; m.max_shield_hp = data.max_shield_hp; updateMonumentMarkerIcon(data.monument_id); }
+      if (m) {
+        m.shield_hp = data.shield_hp;
+        m.max_shield_hp = data.max_shield_hp;
+        if (data.current_dps != null) m._current_dps = data.current_dps;
+        if (data.required_dps != null) m.dps_threshold = data.required_dps;
+        updateMonumentMarkerIcon(data.monument_id);
+      }
     });
 
     _socket.on('monument:hp_update', (data) => {
@@ -11428,6 +11438,8 @@ function showMonumentPopup(monumentId) {
   if (m.phase === 'shield') {
     const pct = m.max_shield_hp > 0 ? Math.round(m.shield_hp / m.max_shield_hp * 100) : 0;
     stats.push(['🛡️ Щит', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
+    const dpsThresh = m.dps_threshold || MONUMENT_SHIELD_DPS_THRESHOLD[m.level] || 0;
+    if (dpsThresh > 0) stats.push(['DPS порог', `⚡ ${formatNumber(dpsThresh)}`]);
   } else if (m.phase === 'open') {
     const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
     stats.push(['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
@@ -11554,7 +11566,16 @@ async function doMonumentShieldHit(target) {
       body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     const m = monumentData[target.id];
-    if (m) { m.shield_hp = data.shield_hp; m.max_shield_hp = data.max_shield_hp; updateMonumentMarkerIcon(target.id); }
+    if (m) {
+      m.shield_hp = data.shield_hp;
+      m.max_shield_hp = data.max_shield_hp;
+      if (data.current_dps != null) m._current_dps = data.current_dps;
+      if (data.required_dps != null) m.dps_threshold = data.required_dps;
+      updateMonumentMarkerIcon(target.id);
+    }
+    if (data.dps_check === false) {
+      showToast(`⚠️ Мало DPS: ${formatNumber(data.current_dps)}/${formatNumber(data.required_dps)}`);
+    }
     if (data.shield_broken) { stopCombat(); showToast('💥 Щит пробит! Появились защитники!'); }
   } catch (err) {
     const msg = err.message || '';
