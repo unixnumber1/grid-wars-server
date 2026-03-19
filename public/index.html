@@ -2442,7 +2442,7 @@
 <!-- Ban screen -->
 <div id="ban-screen">
   <div id="ban-grave-wrap">
-    <div id="ban-avatar-circle"><span id="ban-avatar-emoji">🐺</span></div>
+    <div id="ban-avatar-circle"><span id="ban-avatar-emoji">🎮</span></div>
     <div id="ban-gravestone"></div>
     <div id="ban-grave-base"></div>
     <div id="ban-grave-ground"></div>
@@ -4052,7 +4052,7 @@ async function doTeleportToHq() {
     map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
     apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng }),
+      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng, pin_mode: true }),
     }).catch(() => {});
     loadVisibleBuildings();
     updatePinButton();
@@ -4066,7 +4066,7 @@ async function doTeleportToHq() {
       map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
       apiFetch('/api/player/init', {
         method: 'POST',
-        body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng }),
+        body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng, pin_unpin: true }),
       }).catch(() => {});
     }
     loadVisibleBuildings();
@@ -6831,7 +6831,7 @@ document.getElementById('btn-maintenance-toggle').addEventListener('click', asyn
 //  Ban screen
 // ─────────────────────────────────────────────
 function showBanScreen(data) {
-  const avatar = data.avatar || '🐺';
+  const avatar = data.avatar || state.player?.avatar || localStorage.getItem('gw_avatar') || '🎮';
   document.getElementById('ban-avatar-emoji').textContent = avatar;
   document.getElementById('ban-reason-text').textContent = `"${data.reason || 'Не указана'}"`;
   if (data.until) {

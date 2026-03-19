@@ -186,3 +186,8 @@ export function resetSpoofRecord(telegramId) {
   suspiciousActivity.delete(`spoof:${telegramId}`);
   positionHistory.delete(telegramId);
 }
+
+// Reset only position history (for pin/unpin transitions)
+export function resetPositionHistory(telegramId) {
+  positionHistory.delete(telegramId);
+}

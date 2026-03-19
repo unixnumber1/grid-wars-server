@@ -60,13 +60,19 @@ async function handleAvatar(req, res) {
 }
 
 async function handleLocation(req, res) {
-  const { telegram_id, lat, lng, pin_mode } = req.body;
+  const { telegram_id, lat, lng, pin_mode, pin_unpin } = req.body;
   if (!telegram_id || lat == null || lng == null) return res.status(400).json({ error: 'telegram_id, lat, lng are required' });
   const playerLat = parseFloat(lat), playerLng = parseFloat(lng);
   if (isNaN(playerLat) || isNaN(playerLng)) return res.status(400).json({ error: 'lat and lng must be numbers' });
 
+  // Pin unpin — player returning from pin to GPS, reset position history to avoid false speed violation
+  if (pin_unpin === true) {
+    const { resetPositionHistory } = await import('../../lib/antispoof.js');
+    if (resetPositionHistory) resetPositionHistory(telegram_id);
+  }
+
   // GPS antispoof validation
-  const isPinMode = pin_mode === true;
+  const isPinMode = pin_mode === true || pin_unpin === true;
   const validation = validatePosition(telegram_id, playerLat, playerLng, isPinMode);
   if (!validation.valid) {
     if (validation.reason === 'impossible_speed') {
