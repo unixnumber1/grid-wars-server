@@ -18,10 +18,10 @@ export const MINE_MAX_LEVEL = 200;
 export const HQ_MAX_LEVEL = 10;
 export const HQ_COIN_LIMIT = 1_000_000;
 
-// ── Weapon cooldowns (ms) ──
-export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
-export const ATTACK_COOLDOWN_SWORD = 500;
-export const ATTACK_COOLDOWN_AXE = 700;
+// ── Weapon cooldowns (ms) — disabled ──
+export const WEAPON_COOLDOWNS = { sword: 0, axe: 0, none: 0 };
+export const ATTACK_COOLDOWN_SWORD = 0;
+export const ATTACK_COOLDOWN_AXE = 0;
 
 // ── Player base stats ──
 export const BASE_PLAYER_ATTACK = 10;
@@ -40,8 +40,8 @@ export const TICK_INTERVAL = 5000;
 export const PERSIST_INTERVAL = 30_000;
 
 // ── PvP ──
-export const PVP_SHIELD_DURATION_MS = 2 * 60 * 1000;     // 2 minutes after death
-export const PVP_COOLDOWN_MS = 30 * 60 * 1000;           // 30 minutes
+export const PVP_SHIELD_DURATION_MS = 0;                   // disabled
+export const PVP_COOLDOWN_MS = 0;                          // disabled
 export const PVP_COIN_LOSS_PERCENT = 0.10;                // 10% coins lost
 export const PVP_COIN_WINNER_SHARE = 0.50;                // 50% of lost goes to winner
 

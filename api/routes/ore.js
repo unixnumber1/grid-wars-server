@@ -9,7 +9,7 @@ import { addXp } from '../../lib/xp.js';
 
 export const oreRouter = Router();
 
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
+const WEAPON_COOLDOWNS = { sword: 0, axe: 0, none: 0 };
 
 function emitToNearby(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
