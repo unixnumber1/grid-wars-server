@@ -9,8 +9,58 @@ import { haversine } from '../../lib/haversine.js';
 import { dailyMarketCheck } from '../../lib/markets.js';
 import { resetSpoofRecord } from '../../lib/antispoof.js';
 import { getPlayerLogs, logPlayer } from '../../lib/logger.js';
+import { suspiciousActivity } from '../../security/rateLimit.js';
 
 export const adminRouter = Router();
+
+function getBannedPlayers() {
+  const banned = [];
+  for (const p of gameState.players.values()) {
+    if (p.is_banned) {
+      banned.push({
+        telegram_id: p.telegram_id,
+        game_username: p.game_username || p.username,
+        ban_reason: p.ban_reason,
+        ban_until: p.ban_until,
+      });
+      if (banned.length >= 10) break;
+    }
+  }
+  return banned;
+}
+
+function getSuspiciousPlayers() {
+  const result = [];
+  const seen = new Set();
+  for (const [key, data] of suspiciousActivity) {
+    const isSpoof = key.startsWith('spoof:');
+    const tgId = isSpoof ? key.slice(6) : key;
+    if (seen.has(tgId)) {
+      const existing = result.find(r => String(r.telegram_id) === String(tgId));
+      if (existing && isSpoof) {
+        existing.spoof_violations = data.totalViolations || 0;
+      }
+      continue;
+    }
+    seen.add(tgId);
+    const player = gameState.getPlayerByTgId(tgId);
+    const spoofKey = `spoof:${tgId}`;
+    const spoofData = !isSpoof ? suspiciousActivity.get(spoofKey) : null;
+    result.push({
+      telegram_id: tgId,
+      username: player?.game_username || player?.username || '???',
+      violations: isSpoof ? 0 : (data.count || 0),
+      spoof_violations: isSpoof ? (data.totalViolations || 0) : (spoofData?.totalViolations || 0),
+      last_at: data.lastAt ? new Date(data.lastAt).toLocaleTimeString('ru') : null,
+      is_banned: player?.is_banned || false,
+    });
+  }
+  return result
+    .filter(p => !p.telegram_id.startsWith('spoof:'))
+    .filter(p => p.violations > 0 || p.spoof_violations > 0)
+    .sort((a, b) => (b.violations + b.spoof_violations) - (a.violations + a.spoof_violations))
+    .slice(0, 10);
+}
 
 const ADMIN_TG_ID = 560013667;
 
@@ -117,8 +167,24 @@ adminRouter.get('/stats', async (req, res) => {
     ore_nodes_loaded: gameState.loaded ? gameState.oreNodes.size : 0,
     players_loaded: gameState.loaded ? gameState.players.size : 0,
     connected_sockets: connectedPlayers.size,
+    gamestate: {
+      mines: gameState.mines.size,
+      bots: gameState.bots.size,
+      ore_nodes: gameState.oreNodes.size,
+      players: gameState.players.size,
+      monuments_total: gameState.monuments.size,
+      monuments_active: [...gameState.monuments.values()].filter(m => m.phase === 'open').length,
+      monuments_shield: [...gameState.monuments.values()].filter(m => m.phase === 'shield').length,
+      monuments_defeated: [...gameState.monuments.values()].filter(m => m.phase === 'defeated').length,
+      vases: gameState.vases.size,
+      clans: gameState.clans.size,
+      cores: gameState.cores.size,
+    },
+    online_history: global.onlineHistory || [],
     recent_errors: (global.recentErrors || []).slice(0, 50),
     recent_activity: (global.recentActivity || []).slice(0, 30),
+    recent_bans: getBannedPlayers(),
+    suspicious_players: getSuspiciousPlayers(),
   });
 });
 

@@ -37,6 +37,7 @@ const __dirname = dirname(__filename);
 // ── Admin monitoring ──
 global.recentErrors = [];
 global.recentActivity = [];
+global.onlineHistory = [];
 
 process.on('unhandledRejection', (err) => {
   console.error('[unhandledRejection]', err?.message || err);
@@ -193,6 +194,25 @@ app.use('/api/monuments', monumentsRouter);
 app.use('/api/collectors', collectorsRouter);
 app.use('/api/cores', coresRouter);
 
+// Catch unhandled route errors
+app.use((err, req, res, next) => {
+  const telegramId = req.body?.telegram_id || req.query?.telegram_id;
+  const player = telegramId ? gameState.getPlayerByTgId(telegramId) : null;
+  global.recentErrors.unshift({
+    id: Date.now(),
+    time: new Date().toLocaleTimeString('ru'),
+    date: new Date().toLocaleDateString('ru'),
+    message: String(err?.message || err).slice(0, 300),
+    stack: err?.stack || 'No stack trace',
+    type: 'route_error',
+    player: player?.game_username || null,
+    endpoint: req.path,
+  });
+  if (global.recentErrors.length > 100) global.recentErrors.pop();
+  console.error(`[ROUTE ERROR] ${req.path}:`, err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // Fallback: serve index.html for any non-API route (SPA)
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api/') && !req.path.startsWith('/socket.io/')) {
@@ -202,6 +222,14 @@ app.get('*', (req, res) => {
 
 // Connected players map
 export const connectedPlayers = new Map();
+
+// Online history (5min snapshots, keep 288 = 24h)
+setInterval(() => {
+  const now = new Date();
+  const time = now.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+  global.onlineHistory.push({ time, count: connectedPlayers.size });
+  if (global.onlineHistory.length > 288) global.onlineHistory.shift();
+}, 5 * 60 * 1000);
 
 // Rate-limit map for projectile attacks (telegram_id -> timestamp)
 export const lastAttackTime = new Map();

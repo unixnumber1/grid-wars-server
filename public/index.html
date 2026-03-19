@@ -2311,6 +2311,31 @@
     .activity-time { color:#666; min-width:45px; }
     .activity-player { color:#FFD700; min-width:70px; }
     .activity-action { color:#aaa; flex:1; }
+    .online-chart { background:#111; border-radius:8px; padding:8px; margin-bottom:8px; }
+    .chart-title { font-size:12px; color:#888; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
+    .error-item { background:#1a1015; border:1px solid #331a1a; border-radius:8px; padding:8px; margin-bottom:6px; }
+    .error-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .error-time-full { color:#666; font-size:11px; }
+    .error-type { font-size:10px; padding:2px 6px; border-radius:4px; background:#332; color:#aa8; }
+    .error-player { font-size:11px; color:#FFD700; }
+    .error-endpoint { font-size:11px; color:#888; }
+    .error-message { color:#f44336; font-size:12px; margin:4px 0; word-break:break-word; }
+    .error-stack { display:none; background:#111; border-radius:4px; padding:6px; margin-top:4px; font-size:10px; color:#888; white-space:pre-wrap; word-break:break-all; max-height:200px; overflow-y:auto; }
+    .error-stack.visible { display:block; }
+    .error-actions { display:flex; gap:6px; margin-top:4px; }
+    .btn-small { padding:3px 8px; border-radius:6px; border:1px solid #333; background:#222; color:#ccc; font-size:11px; cursor:pointer; }
+    .btn-small:active { background:#333; }
+    .btn-small-danger { padding:3px 8px; border-radius:6px; border:1px solid #633; background:#311; color:#f66; font-size:11px; cursor:pointer; }
+    .btn-small-success { padding:3px 8px; border-radius:6px; border:1px solid #363; background:#131; color:#6f6; font-size:11px; cursor:pointer; }
+    .ban-item { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #222; font-size:12px; }
+    .suspicious-item { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #222; font-size:12px; }
+    .sus-username { color:#fff; font-weight:600; }
+    .sus-stats { color:#ff9800; }
+    .sus-time { color:#666; font-size:11px; }
+    .banned-label { color:#f44336; font-size:10px; font-weight:600; }
+    .no-data { color:#666; font-size:12px; text-align:center; padding:8px; }
+    .monument-stats { display:flex; gap:8px; justify-content:center; font-size:11px; color:#aaa; margin-top:6px; }
+    .monument-stats span { display:flex; align-items:center; gap:3px; }
 
     /* ── Monument markers ── */
     .monument-marker { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
@@ -7385,24 +7410,128 @@ function renderAdminStats(s) {
   const upD = Math.floor(s.uptime_seconds / 86400);
   const upH = Math.floor((s.uptime_seconds % 86400) / 3600);
   const upM = Math.floor((s.uptime_seconds % 3600) / 60);
-  const uptime = upD + '\u0434 ' + upH + '\u0447 ' + upM + '\u043C';
+  const uptime = upD + 'д ' + upH + 'ч ' + upM + 'м';
   const ramPct = Math.round(s.memory_used_mb / s.memory_total_mb * 100);
   const ramColor = ramPct > 85 ? '#f44336' : ramPct > 60 ? '#ff9800' : '#4caf50';
   const cpuColor = s.cpu_load < 1 ? '#4caf50' : s.cpu_load < 2 ? '#ff9800' : '#f44336';
 
+  const gs = s.gamestate || {};
+
+  // Online chart SVG
+  const hist = s.online_history || [];
+  let chartHtml = '';
+  if (hist.length > 1) {
+    const maxCount = Math.max(...hist.map(h => h.count), 1);
+    const w = 280, h2 = 60, pad = 2;
+    const step = (w - pad * 2) / (hist.length - 1);
+    const points = hist.map((h, i) => {
+      const x = pad + i * step;
+      const y = h2 - pad - (h.count / maxCount) * (h2 - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const labels = [];
+    const labelStep = Math.max(1, Math.floor(hist.length / 5));
+    for (let i = 0; i < hist.length; i += labelStep) {
+      const x = pad + i * step;
+      labels.push('<text x="' + x.toFixed(1) + '" y="' + (h2 - 1) + '" fill="#666" font-size="8" text-anchor="middle">' + hist[i].time + '</text>');
+    }
+    chartHtml = '<div class="online-chart">' +
+      '<div class="chart-title">Онлайн за ' + hist.length * 5 + ' мин (макс: ' + maxCount + ')</div>' +
+      '<svg width="100%" viewBox="0 0 ' + w + ' ' + (h2 + 2) + '" preserveAspectRatio="none">' +
+        '<polyline points="' + points + '" fill="none" stroke="#4caf50" stroke-width="1.5" stroke-linejoin="round"/>' +
+        labels.join('') +
+      '</svg></div>';
+  } else {
+    chartHtml = '<div class="online-chart"><div class="chart-title">Онлайн</div><div class="no-data">Данные накапливаются (каждые 5 мин)</div></div>';
+  }
+
+  // Errors section
+  const errors = s.recent_errors || [];
+  let errorsHtml = '';
+  if (errors.length > 0) {
+    errorsHtml = '<div class="monitor-section">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<div class="monitor-title" style="color:#f44336;margin-bottom:0;">Ошибки (' + errors.length + ')</div>' +
+        '<button class="btn-small-danger" onclick="clearAdminErrors()">Очистить</button>' +
+      '</div>' +
+      errors.slice(0, 10).map(function(e, i) {
+        const meta = [];
+        if (e.type) meta.push('<span class="error-type">' + e.type + '</span>');
+        if (e.player) meta.push('<span class="error-player">' + e.player + '</span>');
+        if (e.endpoint) meta.push('<span class="error-endpoint">' + e.endpoint + '</span>');
+        return '<div class="error-item">' +
+          '<div class="error-header">' +
+            '<span class="error-time-full">' + (e.date || '') + ' ' + e.time + '</span>' +
+            '<span>' + meta.join(' ') + '</span>' +
+          '</div>' +
+          '<div class="error-message">' + e.message + '</div>' +
+          '<div class="error-actions">' +
+            '<button class="btn-small" onclick="toggleAdminStack(' + e.id + ')">Stack</button>' +
+            '<button class="btn-small" onclick="copyAdminStack(' + e.id + ')">Copy</button>' +
+          '</div>' +
+          '<div class="error-stack" id="stack-' + e.id + '">' + (e.stack || 'No stack trace') + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  } else {
+    errorsHtml = '<div class="monitor-section" style="color:#4caf50;text-align:center;padding:12px;">Ошибок нет</div>';
+  }
+
+  // Bans section
+  const bans = s.recent_bans || [];
+  let bansHtml = '<div class="monitor-section">' +
+    '<div class="monitor-title">Баны (' + bans.length + ')</div>';
+  if (bans.length > 0) {
+    bansHtml += bans.map(function(b) {
+      const until = b.ban_until ? new Date(b.ban_until).toLocaleDateString('ru') : 'навсегда';
+      return '<div class="ban-item">' +
+        '<div><span style="color:#fff;">' + (b.game_username || b.telegram_id) + '</span>' +
+        '<div style="color:#888;font-size:11px;">' + (b.ban_reason || '—') + ' | до ' + until + '</div></div>' +
+        '<button class="btn-small-success" onclick="adminUnbanPlayer(\'' + b.telegram_id + '\')">Разбан</button>' +
+      '</div>';
+    }).join('');
+  } else {
+    bansHtml += '<div class="no-data">Нет забаненных</div>';
+  }
+  bansHtml += '</div>';
+
+  // Suspicious section
+  const sus = s.suspicious_players || [];
+  let susHtml = '<div class="monitor-section">' +
+    '<div class="monitor-title" style="color:#ff9800;">Подозрительные (' + sus.length + ')</div>';
+  if (sus.length > 0) {
+    susHtml += sus.map(function(p) {
+      const stats = [];
+      if (p.violations > 0) stats.push('RL:' + p.violations);
+      if (p.spoof_violations > 0) stats.push('GPS:' + p.spoof_violations);
+      return '<div class="suspicious-item">' +
+        '<div>' +
+          '<span class="sus-username">' + p.username + '</span>' +
+          (p.is_banned ? ' <span class="banned-label">БАН</span>' : '') +
+          '<div><span class="sus-stats">' + stats.join(' | ') + '</span>' +
+          (p.last_at ? ' <span class="sus-time">' + p.last_at + '</span>' : '') + '</div>' +
+        '</div>' +
+        (!p.is_banned ? '<button class="btn-small-danger" onclick="adminBanPlayer(\'' + p.telegram_id + '\')">Бан</button>' : '') +
+      '</div>';
+    }).join('');
+  } else {
+    susHtml += '<div class="no-data">Нет подозрительных</div>';
+  }
+  susHtml += '</div>';
+
   el.innerHTML = '<div class="admin-monitor-card">' +
-    '<div class="monitor-header">\uD83D\uDCCA \u041C\u043E\u043D\u0438\u0442\u043E\u0440\u0438\u043D\u0433 <button onclick="loadAdminStats()">\u21BB</button></div>' +
+    '<div class="monitor-header">Мониторинг <button onclick="loadAdminStats()">↻</button></div>' +
     '<div class="monitor-grid">' +
       '<div class="monitor-section">' +
-        '<div class="monitor-title">\uD83D\uDFE2 \u0418\u0433\u0440\u043E\u043A\u0438</div>' +
-        '<div class="monitor-row"><span>\u041E\u043D\u043B\u0430\u0439\u043D</span><b>' + s.online_now + '</b></div>' +
-        '<div class="monitor-row"><span>\u0417\u0430 24\u0447</span><b>' + s.online_today + '</b></div>' +
-        '<div class="monitor-row"><span>\u0412\u0441\u0435\u0433\u043E</span><b>' + s.total_players + '</b></div>' +
-        '<div class="monitor-row"><span>\u041D\u043E\u0432\u044B\u0445</span><b style="color:#4caf50">+' + s.new_today + '</b></div>' +
-        '<div class="monitor-row"><span>\u0421\u043E\u043A\u0435\u0442\u044B</span><b>' + s.connected_sockets + '</b></div>' +
+        '<div class="monitor-title">Игроки</div>' +
+        '<div class="monitor-row"><span>Онлайн</span><b>' + s.online_now + '</b></div>' +
+        '<div class="monitor-row"><span>За 24ч</span><b>' + s.online_today + '</b></div>' +
+        '<div class="monitor-row"><span>Всего</span><b>' + s.total_players + '</b></div>' +
+        '<div class="monitor-row"><span>Новых</span><b style="color:#4caf50">+' + s.new_today + '</b></div>' +
+        '<div class="monitor-row"><span>Сокеты</span><b>' + s.connected_sockets + '</b></div>' +
       '</div>' +
       '<div class="monitor-section">' +
-        '<div class="monitor-title">\uD83D\uDCBE \u0421\u0435\u0440\u0432\u0435\u0440</div>' +
+        '<div class="monitor-title">Сервер</div>' +
         '<div class="monitor-row"><span>RAM</span><b>' + s.memory_used_mb + '/' + s.memory_total_mb + ' MB</b></div>' +
         '<div class="monitor-bar"><div style="width:' + ramPct + '%;background:' + ramColor + '"></div></div>' +
         '<div class="monitor-row"><span>CPU</span><b style="color:' + cpuColor + '">' + s.cpu_load.toFixed(2) + '</b></div>' +
@@ -7411,27 +7540,91 @@ function renderAdminStats(s) {
       '</div>' +
     '</div>' +
     '<div class="monitor-section">' +
-      '<div class="monitor-title">\uD83D\uDDC4\uFE0F GameState</div>' +
+      '<div class="monitor-title">GameState</div>' +
       '<div class="monitor-grid-4">' +
-        '<div class="stat-chip">\u26CF\uFE0F \u0428\u0430\u0445\u0442\u044B<br><b>' + s.mines_loaded + '</b></div>' +
-        '<div class="stat-chip">\uD83D\uDC7A \u0411\u043E\u0442\u044B<br><b>' + s.bots_loaded + '</b></div>' +
-        '<div class="stat-chip">\uD83D\uDC8E \u0420\u0443\u0434\u043D\u0438\u043A\u0438<br><b>' + s.ore_nodes_loaded + '</b></div>' +
-        '<div class="stat-chip">\uD83D\uDC65 \u0418\u0433\u0440\u043E\u043A\u0438<br><b>' + s.players_loaded + '</b></div>' +
+        '<div class="stat-chip">Шахты<br><b>' + (gs.mines || s.mines_loaded || 0) + '</b></div>' +
+        '<div class="stat-chip">Боты<br><b>' + (gs.bots || s.bots_loaded || 0) + '</b></div>' +
+        '<div class="stat-chip">Рудники<br><b>' + (gs.ore_nodes || s.ore_nodes_loaded || 0) + '</b></div>' +
+        '<div class="stat-chip">Игроки<br><b>' + (gs.players || s.players_loaded || 0) + '</b></div>' +
       '</div>' +
+      (gs.monuments_total != null ? '<div class="monument-stats">' +
+        '<span>Монументы: <b>' + gs.monuments_total + '</b></span>' +
+        '<span style="color:#ff9800;">Щит: ' + gs.monuments_shield + '</span>' +
+        '<span style="color:#4caf50;">Открыт: ' + gs.monuments_active + '</span>' +
+        '<span style="color:#666;">Побежд: ' + gs.monuments_defeated + '</span>' +
+      '</div>' : '') +
+      (gs.vases != null ? '<div class="monument-stats">' +
+        '<span>Вазы: <b>' + gs.vases + '</b></span>' +
+        '<span>Кланы: <b>' + gs.clans + '</b></span>' +
+        '<span>Ядра: <b>' + gs.cores + '</b></span>' +
+      '</div>' : '') +
     '</div>' +
-    (s.recent_errors && s.recent_errors.length > 0 ?
-      '<div class="monitor-section">' +
-        '<div class="monitor-title" style="color:#f44336">\uD83D\uDD34 \u041E\u0448\u0438\u0431\u043A\u0438 (' + s.recent_errors.length + ')</div>' +
-        s.recent_errors.slice(0,5).map(function(e) { return '<div class="error-row"><span class="error-time">' + e.time + '</span><span class="error-msg">' + e.message + '</span></div>'; }).join('') +
-      '</div>'
-      : '<div class="monitor-section" style="color:#4caf50;text-align:center;padding:12px;">\u2705 \u041E\u0448\u0438\u0431\u043E\u043A \u043D\u0435\u0442</div>') +
+    chartHtml +
+    errorsHtml +
+    bansHtml +
+    susHtml +
     '<div class="monitor-section">' +
-      '<div class="monitor-title">\uD83D\uDCCB \u041F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F</div>' +
+      '<div class="monitor-title">Последние действия</div>' +
       ((s.recent_activity || []).length > 0 ?
         (s.recent_activity || []).slice(0,8).map(function(a) { return '<div class="activity-row"><span class="activity-time">' + a.time + '</span><span class="activity-player">' + a.player + '</span><span class="activity-action">' + a.action + '</span></div>'; }).join('')
-        : '<div style="color:#666;font-size:12px;">\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445</div>') +
+        : '<div class="no-data">Нет данных</div>') +
     '</div>' +
   '</div>';
+}
+
+function toggleAdminStack(id) {
+  const el = document.getElementById('stack-' + id);
+  if (el) el.classList.toggle('visible');
+}
+
+function copyAdminStack(id) {
+  const el = document.getElementById('stack-' + id);
+  if (el) {
+    navigator.clipboard.writeText(el.textContent).then(() => showToast('Stack trace скопирован'));
+  }
+}
+
+async function clearAdminErrors() {
+  try {
+    await apiFetch('/api/admin', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'clear-errors' }),
+    });
+    showToast('Ошибки очищены');
+    loadAdminStats();
+  } catch (e) { showToast('Ошибка: ' + e.message); }
+}
+
+async function adminBanPlayer(telegramId) {
+  if (!confirm('Забанить игрока ' + telegramId + ' на 30 дней за подозрительную активность?')) return;
+  try {
+    const player = await findPlayerByTgId(telegramId);
+    if (!player) return showToast('Игрок не найден');
+    await apiFetch('/api/admin', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: player.id, reason: 'Подозрительная активность', duration_days: 30 }),
+    });
+    showToast('Игрок забанен на 30д');
+    loadAdminStats();
+  } catch (e) { showToast('Ошибка: ' + e.message); }
+}
+
+async function adminUnbanPlayer(telegramId) {
+  try {
+    const player = await findPlayerByTgId(telegramId);
+    if (!player) return showToast('Игрок не найден');
+    await apiFetch('/api/admin', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: player.id }),
+    });
+    showToast('Игрок разбанен');
+    loadAdminStats();
+  } catch (e) { showToast('Ошибка: ' + e.message); }
+}
+
+async function findPlayerByTgId(telegramId) {
+  const data = await apiFetch('/api/admin/player-search?telegram_id=' + TG_ID + '&q=' + telegramId);
+  return (data.players || [])[0] || null;
 }
 
 const MAP_STYLES = [
