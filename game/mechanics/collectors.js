@@ -3,7 +3,7 @@ import { haversine } from '../../lib/haversine.js';
 import { getMineIncome } from '../../config/formulas.js';
 import { supabase } from '../../lib/supabase.js';
 
-export const COLLECTOR_COST_DIAMONDS = 75;
+export const COLLECTOR_COST_DIAMONDS = 50;
 export const COLLECTOR_SELL_DIAMONDS = 37;
 export const COLLECTOR_RADIUS = 200; // meters
 export const COLLECTOR_DELIVERY_COMMISSION = 0.10; // 10%

@@ -118,7 +118,7 @@ async function handleUpgrade(req, res) {
   if (collector.level >= 10) return res.status(400).json({ error: 'Максимальный уровень' });
 
   const nextLevel = collector.level + 1;
-  const diamondCosts = [0,0,50,100,200,400,750,1200,2000,3500,6000];
+  const diamondCosts = [0,0,30,50,75,100,130,160,200,250,300];
   const cost = diamondCosts[nextLevel] || 50;
 
   if ((player.diamonds || 0) < cost) return res.status(400).json({ error: `Нужно ${cost} 💎` });

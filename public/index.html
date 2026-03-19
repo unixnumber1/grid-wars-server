@@ -29,6 +29,21 @@
       overflow: hidden;
     }
 
+    :root {
+      --popup-bg: #1a1a2e;
+      --card-bg: #252538;
+      --card-radius: 12px;
+      --text-primary: #ffffff;
+      --text-secondary: #888888;
+      --text-success: #4caf50;
+      --text-danger: #f44336;
+      --text-gold: #FFD700;
+      --btn-primary: #2196f3;
+      --btn-danger: #f44336;
+      --btn-dark: #333333;
+      --btn-radius: 12px;
+    }
+
     /* Top currency block */
     #hud-top-pill {
       position: fixed;
@@ -1155,20 +1170,20 @@
     .core-level { font-size:11px; color:#888; margin-top:4px; }
     .core-multiplier { font-size:10px; color:#FFD700; }
     .cores-empty { grid-column:1/-1; text-align:center; color:#555; padding:40px 20px; font-size:14px; }
-    .mine-cores-section { background:#1a1a2e; border-radius:12px; padding:12px; margin-top:12px; }
-    .mine-cores-header { font-size:14px; font-weight:600; color:#fff; margin-bottom:10px; display:flex; justify-content:space-between; }
-    .cores-count { color:#888; font-weight:400; }
-    .mine-cores-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
-    .core-slot { aspect-ratio:1; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
-    .core-slot.installed { background:#252538; border:1px solid #444; }
+    .mine-cores-section { background:var(--card-bg); border-radius:var(--card-radius); padding:14px; margin-top:10px; }
+    .mine-cores-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:14px; font-weight:600; color:var(--text-primary); }
+    .cores-count { color:var(--text-secondary); font-weight:400; }
+    .mine-cores-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+    .core-slot { aspect-ratio:1; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; min-height:56px; }
+    .core-slot.installed { background:#1e1e35; border:1px solid #444; }
     .core-slot.installed:active { transform:scale(0.93); }
-    .core-slot.empty { background:#111; border:1px dashed #333; }
-    .core-slot.empty:active { background:#1a1a2e; }
-    .slot-emoji { font-size:20px; }
-    .slot-level { font-size:9px; color:#888; }
-    .slot-mult { font-size:9px; color:#FFD700; }
-    .slot-plus { font-size:22px; color:#444; }
-    .cores-total-boost { margin-top:8px; font-size:12px; color:#888; text-align:center; }
+    .core-slot.empty { background:#111; border:2px dashed #333; }
+    .core-slot.empty:active { border-color:#555; background:#1a1a2e; }
+    .slot-emoji { font-size:22px; line-height:1; }
+    .slot-level { font-size:10px; color:var(--text-secondary); margin-top:2px; }
+    .slot-mult { font-size:9px; color:var(--text-gold); }
+    .slot-plus { font-size:24px; color:#333; line-height:1; }
+    .cores-total-boost { margin-top:8px; font-size:12px; color:var(--text-secondary); text-align:center; }
     .inv-cell {
       width: 100%;
       aspect-ratio: 1;
@@ -2535,33 +2550,37 @@
 
 <!-- Top currency pill -->
 <div id="hud-top-pill">
-  <div class="hud-collapsed">
+  <div class="hud-collapsed" onclick="toggleHud()">
     <span class="hud-coins">💰 <span id="coin-display">—</span></span>
     <span class="hud-sep">·</span>
     <span class="hud-income" id="income-display-collapsed" style="font-size:12px;color:#00E676;"></span>
     <span class="hud-sep">·</span>
     <span class="hud-diamonds">💎 <span id="diamond-display">0</span></span>
-    <button class="hud-toggle-btn" id="hud-toggle-btn" onclick="toggleHud()">▼</button>
+    <span class="hud-toggle-btn" id="hud-toggle-btn">▼</span>
   </div>
   <div class="hud-expanded" id="hud-expanded">
     <div class="hud-exp-row" style="margin-top:6px;">
       <span class="hud-coins">💰 <span id="coin-display-exp">—</span></span>
+    </div>
+    <div class="hud-exp-row" style="color:#4caf50;">
       <span class="hud-income" id="income-display"></span>
     </div>
     <div class="hud-exp-row">
+      <span id="mine-count-boost-display" style="color:var(--text-secondary);font-size:11px;display:none;"></span>
+    </div>
+    <div style="height:1px;background:#333;margin:6px 0;"></div>
+    <div class="hud-exp-row">
       <span id="crystal-display" style="color:#FFD700;font-size:13px;">✨ 0</span>
-      <span id="crystal-income-display" style="color:#aa88ff;font-size:11px;margin-left:2px;"></span>
+      <span id="crystal-income-display" style="color:var(--text-secondary);font-size:11px;margin-left:2px;"></span>
     </div>
     <div class="hud-exp-row">
       <span id="ether-display" style="color:#7DF9FF;font-size:13px;">🌀 0</span>
-      <span id="ether-income-display" style="color:#7DF9FF;font-size:11px;margin-left:2px;"></span>
+      <span id="ether-income-display" style="color:var(--text-secondary);font-size:11px;margin-left:2px;"></span>
     </div>
     <div class="hud-exp-row">
       <span class="hud-diamonds">💎 <span id="diamond-display-exp">0</span></span>
     </div>
-    <div class="hud-exp-row">
-      <span id="mine-count-boost-display" style="color:#4CAF50;font-size:11px;display:none;"></span>
-    </div>
+    <div style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:6px;cursor:pointer;" onclick="toggleHud()">▲ закрыть</div>
   </div>
 </div>
 
@@ -2639,26 +2658,43 @@
   </div>
   <div id="shop-tabs">
     <button class="shop-tab active" data-tab="boxes">📦 Боксы</button>
+    <button class="shop-tab" data-tab="cores">🔮 Ядра</button>
     <button class="shop-tab" data-tab="stars">⭐ Stars</button>
     <button class="shop-tab" data-tab="bonus">🎁 Бонус</button>
   </div>
   <div id="shop-body">
     <!-- Boxes tab -->
     <div id="shop-tab-boxes" class="shop-tab-content active">
-      <div class="shop-boxes-row">
-        <div class="shop-box-card" style="border-color:rgba(76,175,80,0.35);background:#1a1a1a;box-shadow:0 0 24px rgba(76,175,80,0.08);position:relative;">
+      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr;">
+        <div class="shop-box-card" style="border-color:rgba(136,136,136,0.35);background:#1a1a1a;position:relative;">
+          <button class="shop-box-info-btn shop-info-btn" data-box="common" onclick="event.stopPropagation()">i</button>
+          <div class="shop-box-icon">📦</div>
+          <div class="shop-box-name">Обычный бокс</div>
+          <div class="shop-box-price">💎 3</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="common" style="background:linear-gradient(135deg,rgba(136,136,136,0.2),rgba(136,136,136,0.08));border-color:rgba(136,136,136,0.4);color:#aaa;">Открыть</button>
+        </div>
+        <div class="shop-box-card" style="border-color:rgba(76,175,80,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="rare" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
           <div class="shop-box-name">Редкий бокс</div>
-          <div class="shop-box-price">💎 5</div>
+          <div class="shop-box-price">💎 8</div>
           <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(76,175,80,0.2),rgba(76,175,80,0.08));border-color:rgba(76,175,80,0.4);color:#4caf50;">Открыть</button>
         </div>
-        <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;box-shadow:0 0 24px rgba(156,39,176,0.08);position:relative;">
+      </div>
+      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr;margin-top:12px;">
+        <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="epic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🎁</div>
           <div class="shop-box-name">Эпический бокс</div>
-          <div class="shop-box-price">💎 30</div>
+          <div class="shop-box-price">💎 35</div>
           <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(156,39,176,0.2),rgba(156,39,176,0.08));border-color:rgba(156,39,176,0.4);color:#ce93d8;">Открыть</button>
+        </div>
+        <div class="shop-box-card" style="border-color:rgba(139,0,0,0.5);background:#1a0a0a;position:relative;box-shadow:0 0 24px rgba(139,0,0,0.15);">
+          <button class="shop-box-info-btn shop-info-btn" data-box="mythic" onclick="event.stopPropagation()">i</button>
+          <div class="shop-box-icon">💜</div>
+          <div class="shop-box-name">Мифический бокс</div>
+          <div class="shop-box-price">💎 150</div>
+          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(139,0,0,0.3),rgba(139,0,0,0.1));border-color:rgba(139,0,0,0.5);color:#ff6666;">Открыть</button>
         </div>
       </div>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
@@ -2668,19 +2704,26 @@
             <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
             <div style="font-size:32px;">🗡️</div>
             <div style="font-size:11px;font-weight:600;color:#fff;">Меч</div>
-            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
           </div>
           <div class="shop-mythic-card" onclick="buyMythic('axe')" style="position:relative;">
             <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('axe')">i</button>
             <div style="font-size:32px;">🪓</div>
             <div style="font-size:11px;font-weight:600;color:#fff;">Топор</div>
-            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
           </div>
           <div class="shop-mythic-card" onclick="buyMythic('shield')" style="position:relative;">
             <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
             <div style="font-size:32px;">🛡️</div>
             <div style="font-size:11px;font-weight:600;color:#fff;">Щит</div>
-            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 500</div>
+            <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
+          </div>
+        </div>
+        <div class="shop-mythic-card" onclick="buyMythicSet()" style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;">
+          <span style="font-size:24px;">🗡️🪓🛡️</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#fff;">Мифический комплект</div>
+            <div style="font-size:12px;color:#ff6d00;font-weight:700;">💎 1500 <span style="color:#4caf50;font-size:11px;">(экономия 300)</span></div>
           </div>
         </div>
       </div>
@@ -2699,6 +2742,11 @@
         <div id="daily-timer" style="font-size:12px;color:#888;text-align:center;margin-top:6px;"></div>
         <button class="shop-daily-claim-btn" id="btn-daily-diamonds" onclick="claimDailyDiamonds()" style="margin-top:12px;">Забрать 5 💎</button>
       </div>
+    </div>
+    <!-- Cores tab -->
+    <div id="shop-tab-cores" class="shop-tab-content">
+      <div class="shop-section-title">ПАКИ ЯДЕР</div>
+      <div id="shop-cores-grid" style="display:flex;flex-direction:column;gap:12px;"></div>
     </div>
   </div>
 </div>
@@ -7360,10 +7408,12 @@ function _applyMapStyle(styleId) {
 // ─────────────────────────────────────────────
 //  Shop
 // ─────────────────────────────────────────────
-const SHOP_BOX_PRICES = { rare: 5, epic: 30 };
+const SHOP_BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
 const SHOP_BOX_ODDS = {
+  common: { common: 70, uncommon: 25, rare: 5 },
   rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
   epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
+  mythic: { rare: 20, epic: 40, mythic: 30, legendary: 10 },
 };
 
 function openShop() {
@@ -7373,15 +7423,16 @@ function openShop() {
   document.getElementById('shop-modal').classList.add('open');
   checkDailyDiamonds();
   _renderStarsPacks();
+  _renderCorePacks();
 }
 
 const STAR_PACKS = [
-  { diamonds: 100, stars: 15 },
-  { diamonds: 550, stars: 75 },
-  { diamonds: 1200, stars: 150 },
-  { diamonds: 2500, stars: 300, badge: 'ПОПУЛЯРНЫЙ', badgeColor: '#FFD700', borderColor: 'rgba(255,215,0,0.5)' },
-  { diamonds: 6500, stars: 750 },
-  { diamonds: 15000, stars: 1500, badge: 'ВЫГОДНО 👑', badgeColor: '#9C27B0', borderColor: 'rgba(123,47,190,0.5)' },
+  { diamonds: 100,  stars: 75,   label: 'Стартовый' },
+  { diamonds: 300,  stars: 200,  label: 'Базовый' },
+  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', badge: 'ПОПУЛЯРНЫЙ', badgeColor: '#FFD700', borderColor: 'rgba(255,215,0,0.5)' },
+  { diamonds: 1500, stars: 800,  label: 'Продвинутый' },
+  { diamonds: 3500, stars: 1800, label: 'Премиум' },
+  { diamonds: 8000, stars: 4000, label: 'Кит', badge: 'ВЫГОДНО 👑', badgeColor: '#9C27B0', borderColor: 'rgba(123,47,190,0.5)' },
 ];
 
 function _renderStarsPacks() {
@@ -7392,6 +7443,7 @@ function _renderStarsPacks() {
     const badgeHtml = p.badge ? `<div class="star-badge" style="background:${p.badgeColor};color:#000;">${p.badge}</div>` : '';
     return `<div class="shop-star-card" style="${borderStyle}" onclick="buyStars(${p.diamonds}, ${p.stars})">
       ${badgeHtml}
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">${p.label || ''}</div>
       <div class="shop-star-diamonds">💎 ${p.diamonds.toLocaleString()}</div>
       <div class="shop-star-price">⭐ ${p.stars} Stars</div>
       <button class="shop-star-buy-btn">Купить</button>
@@ -7419,7 +7471,8 @@ const RARITY_NAMES_RU = { common: 'Обычный', uncommon: 'Необычны�
 
 function _showBoxInfo(boxType) {
   const odds = SHOP_BOX_ODDS[boxType];
-  const title = boxType === 'rare' ? '📦 Редкий бокс' : '🎁 Эпический бокс';
+  const titles = { common: '📦 Обычный бокс', rare: '📦 Редкий бокс', epic: '🎁 Эпический бокс', mythic: '💜 Мифический бокс' };
+  const title = titles[boxType] || '📦 Бокс';
   const stats = Object.entries(odds).map(([r, pct]) => [RARITY_NAMES_RU[r] || r, `${pct}%`]);
   stats.unshift(['Содержимое', '⚔️ Меч · 🪓 Топор · 🛡️ Щит']);
   openPopup(title, 'Случайный предмет одного из типов', stats, [{ label: 'Понятно', isClose: true }]);
@@ -7456,7 +7509,7 @@ function showMythicInfo(type) {
 }
 
 async function buyMythic(weaponType) {
-  if (!confirm(`Купить мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} за 500 💎?`)) return;
+  if (!confirm(`Купить мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} за 600 💎?`)) return;
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
@@ -7530,7 +7583,7 @@ async function doOpenBox(boxType) {
 function _animateBoxOpen(boxType, item) {
   return new Promise(resolve => {
     const overlay = document.getElementById('box-open-overlay');
-    const boxEmoji = boxType === 'rare' ? '📦' : '🎁';
+    const boxEmoji = { common: '📦', rare: '📦', epic: '🎁', mythic: '💜' }[boxType] || '📦';
     const rarityColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
 
     // Phase 1: Show box
@@ -7561,6 +7614,65 @@ function _animateBoxOpen(boxType, item) {
       resolve();
     }, 1200);
   });
+}
+
+async function buyMythicSet() {
+  if (!confirm('Купить мифический комплект (меч + топор + щит) за 1500 💎?')) return;
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'buy-mythic-set', telegram_id: TG_ID }),
+    });
+    if (state.player) state.player.diamonds = data.diamondsLeft;
+    if (data.items) state.inventory = [...data.items, ...(state.inventory || [])];
+    updateDiamondDisplay();
+    _renderEquipSlots();
+    showToast('🗡️🪓🛡️ Мифический комплект получен!');
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function _renderCorePacks() {
+  const grid = document.getElementById('shop-cores-grid');
+  if (!grid) return;
+  const CORE_PACKS = [
+    { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 100 },
+    { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 250 },
+    { label: '🌀 Продвинутый', cores: 3, core_level: 5, ether: 2000, price: 500 },
+    { label: '🌀 Элитный', cores: 5, core_level: 10, ether: 5000, price: 1000 },
+  ];
+  grid.innerHTML = CORE_PACKS.map((p, i) => {
+    const etherLine = p.ether > 0 ? `+ ${p.ether}🌀 эфира` : '';
+    return `<div style="background:var(--card-bg);border-radius:var(--card-radius);padding:16px;cursor:pointer;" onclick="buyCorePack(${i})">
+      <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">${p.label}</div>
+      <div style="font-size:13px;color:var(--text-secondary);">${p.cores} ядер lv${p.core_level} ${etherLine}</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">Случайный тип каждое</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+        <span style="font-size:15px;font-weight:700;color:#64B5F6;">💎 ${p.price}</span>
+        <button style="background:var(--btn-primary);color:#fff;border:none;border-radius:var(--btn-radius);padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;">Купить</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function buyCorePack(packIndex) {
+  if (!confirm('Купить пак ядер?')) return;
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'buy-core-pack', telegram_id: TG_ID, pack_index: packIndex }),
+    });
+    if (state.player) {
+      state.player.diamonds = data.diamondsLeft;
+      if (data.etherLeft != null) state.player.ether = data.etherLeft;
+    }
+    updateDiamondDisplay();
+    updateCoinDisplay();
+    showToast(`🌀 Получено ${data.cores.length} ядер!`);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
 }
 
 document.getElementById('btn-shop-hud').addEventListener('click', openShop);

@@ -50,7 +50,7 @@ export const RENAME_COST_DIAMONDS = 10;
 export const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
 
 // ── Items ──
-export const BOX_PRICES = { rare: 5, epic: 30 };
+export const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
 export const ITEM_TYPES = ['sword', 'axe', 'shield'];
 
 // ── Market ──
@@ -71,7 +71,7 @@ export const ORE_MIN_DISTANCE = 200;
 export const ORE_ZONE_RADIUS = 5000;               // 5km zone for clustering
 
 // ── Collectors ──
-export const COLLECTOR_COST_DIAMONDS = 75;
+export const COLLECTOR_COST_DIAMONDS = 50;
 export const COLLECTOR_SELL_DIAMONDS = 37;
 export const COLLECTOR_RADIUS = 200;               // meters
 export const COLLECTOR_DELIVERY_COMMISSION = 0.10;  // 10%
@@ -93,3 +93,55 @@ export const BREAK_RADIUS = 200;
 
 // ── Defender movement ──
 export const DEFENDER_SPEED = 20; // meters per tick (5s)
+
+// ── Gear direct purchase ──
+export const GEAR_PRICES = {
+  mythic_sword: 600,
+  mythic_axe: 600,
+  mythic_shield: 600,
+  mythic_set: 1500,
+};
+
+// ── Star packs ──
+export const STAR_PACKS = [
+  { diamonds: 100,  stars: 75,   label: 'Стартовый' },
+  { diamonds: 300,  stars: 200,  label: 'Базовый' },
+  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', badge: 'ПОПУЛЯРНЫЙ' },
+  { diamonds: 1500, stars: 800,  label: 'Продвинутый' },
+  { diamonds: 3500, stars: 1800, label: 'Премиум' },
+  { diamonds: 8000, stars: 4000, label: 'Кит', badge: 'ВЫГОДНО 👑' },
+];
+
+// ── Core packs ──
+export const CORE_PACKS = [
+  { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 100 },
+  { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 250 },
+  { label: '🌀 Продвинутый', cores: 3, core_level: 5, ether: 2000, price: 500 },
+  { label: '🌀 Элитный', cores: 5, core_level: 10, ether: 5000, price: 1000 },
+];
+
+// ── Cosmetic prices ──
+export const COSMETIC_PRICES = {
+  rename_player: 50,
+  reavatar_player: 50,
+  rename_clan: 150,
+  reavatar_clan: 150,
+};
+
+// ── Inventory slots ──
+export const INVENTORY_BASE_SLOTS = 200;
+export const INVENTORY_SLOT_PACKS = [
+  { slots: 10,  price: 20 },
+  { slots: 50,  price: 80 },
+  { slots: 100, price: 140 },
+  { slots: 200, price: 250 },
+];
+export const INVENTORY_MAX_SLOTS = 600;
+
+// ── Clan HQ upgrade costs ──
+export const CLAN_HQ_UPGRADE_COSTS = [0, 2000, 4000, 8000, 14000, 24000, 40000, 66000, 108000, 234000];
+export const CLAN_MAX_MEMBERS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+export const CLAN_BOOST_PRICES = [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500];
+
+// ── Collector upgrade prices ──
+export const COLLECTOR_UPGRADE_PRICES = [0, 30, 50, 75, 100, 130, 160, 200, 250, 300];

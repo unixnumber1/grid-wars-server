@@ -7,10 +7,12 @@ import { gameState } from '../../lib/gameState.js';
 export const itemsRouter = Router();
 
 // ── Shop box constants ────────────────────────────────────────
-const BOX_PRICES = { rare: 5, epic: 30 };
+const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
 const BOX_ODDS = {
+  common: { common: 70, uncommon: 25, rare: 5 },
   rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
   epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
+  mythic: { rare: 20, epic: 40, mythic: 30, legendary: 10 },
 };
 const ITEM_TYPES = ['sword', 'axe', 'shield'];
 
@@ -227,12 +229,12 @@ async function handleDailyDiamonds(req, res) {
 }
 
 const STAR_PACKS = [
-  { diamonds: 100, stars: 15 },
-  { diamonds: 550, stars: 75 },
-  { diamonds: 1200, stars: 150 },
-  { diamonds: 2500, stars: 300 },
-  { diamonds: 6500, stars: 750 },
-  { diamonds: 15000, stars: 1500 },
+  { diamonds: 100,  stars: 75,   label: 'Стартовый' },
+  { diamonds: 300,  stars: 200,  label: 'Базовый' },
+  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', badge: 'ПОПУЛЯРНЫЙ' },
+  { diamonds: 1500, stars: 800,  label: 'Продвинутый' },
+  { diamonds: 3500, stars: 1800, label: 'Премиум' },
+  { diamonds: 8000, stars: 4000, label: 'Кит', badge: 'ВЫГОДНО 👑' },
 ];
 
 async function handleStarsInvoice(req, res) {
@@ -423,7 +425,7 @@ itemsRouter.post('/', async (req, res) => {
     const { weapon_type } = body;
     if (!['sword', 'axe', 'shield'].includes(weapon_type)) return res.status(400).json({ error: 'Invalid weapon_type' });
 
-    const MYTHIC_PRICE = 500;
+    const MYTHIC_PRICE = 600;
     const diamonds = p.diamonds ?? 0;
     if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: `\u041D\u0443\u0436\u043D\u043E ${MYTHIC_PRICE} \u{1F48E}` });
 
@@ -462,6 +464,110 @@ itemsRouter.post('/', async (req, res) => {
     }
 
     return res.json({ success: true, item: newItem, diamondsLeft: newDiamonds });
+  }
+
+  if (action === 'buy-mythic-set') {
+    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+    const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
+    if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
+
+    const SET_PRICE = 1500;
+    const diamonds = p.diamonds ?? 0;
+    if (diamonds < SET_PRICE) return res.status(400).json({ error: `Нужно ${SET_PRICE} 💎` });
+
+    const mythicStats = {
+      sword: { attack: 90, crit_chance: 13, defense: 0, block_chance: 0 },
+      axe: { attack: 125, crit_chance: 0, defense: 0, block_chance: 0 },
+      shield: { attack: 0, crit_chance: 0, defense: 790, block_chance: 15 },
+    };
+    const names = { sword: '\u0410\u0434\u0441\u043A\u0438\u0439 \u043A\u043B\u0438\u043D\u043E\u043A', axe: '\u0422\u043E\u043F\u043E\u0440 \u0445\u0430\u043E\u0441\u0430', shield: '\u0429\u0438\u0442 \u0442\u0438\u0442\u0430\u043D\u0430' };
+    const emojis = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };
+
+    const newDiamonds = diamonds - SET_PRICE;
+    const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
+    if (!diamOk) return res.status(409).json({ error: '\u041A\u043E\u043D\u0444\u043B\u0438\u043A\u0442' });
+
+    const createdItems = [];
+    for (const wt of ['sword', 'axe', 'shield']) {
+      const stats = mythicStats[wt];
+      const insertData = {
+        type: wt, rarity: 'mythic', name: names[wt], emoji: emojis[wt],
+        stat_value: stats.attack || stats.defense,
+        attack: stats.attack, crit_chance: stats.crit_chance, defense: stats.defense,
+        block_chance: stats.block_chance,
+        base_attack: stats.attack, base_crit_chance: stats.crit_chance, base_defense: stats.defense,
+        upgrade_level: 0, owner_id: p.id, equipped: false,
+      };
+      const { data: newItem, error: insErr } = await supabase.from('items').insert(insertData).select().single();
+      if (insErr) {
+        // Refund and return error
+        await supabase.from('players').update({ diamonds }).eq('id', p.id);
+        return res.status(500).json({ error: 'Failed to create items' });
+      }
+      createdItems.push(newItem);
+      if (gameState.loaded && newItem) gameState.upsertItem(newItem);
+    }
+
+    if (gameState.loaded) {
+      const gp = gameState.getPlayerById(p.id);
+      if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); }
+    }
+
+    return res.json({ success: true, items: createdItems, diamondsLeft: newDiamonds });
+  }
+
+  if (action === 'buy-core-pack') {
+    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+    const { pack_index } = body;
+    const { CORE_PACKS } = await import('../../config/constants.js');
+    const pack = CORE_PACKS[pack_index];
+    if (!pack) return res.status(400).json({ error: 'Invalid pack' });
+
+    const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds,ether');
+    if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
+
+    const diamonds = p.diamonds ?? 0;
+    if (diamonds < pack.price) return res.status(400).json({ error: `Нужно ${pack.price} 💎` });
+
+    const newDiamonds = diamonds - pack.price;
+    const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
+    if (!diamOk) return res.status(409).json({ error: 'Конфликт' });
+
+    // Create cores
+    const { randomCoreType } = await import('../../game/mechanics/cores.js');
+    const createdCores = [];
+    for (let i = 0; i < pack.cores; i++) {
+      const coreData = {
+        owner_id: String(telegram_id),
+        core_type: randomCoreType(),
+        level: pack.core_level,
+        mine_cell_id: null,
+        slot_index: null,
+      };
+      const { data: core, error: cErr } = await supabase.from('cores').insert(coreData).select().single();
+      if (!cErr && core) {
+        createdCores.push(core);
+        if (gameState.loaded) gameState.cores.set(core.id, core);
+      }
+    }
+
+    // Add ether if pack includes it
+    let newEther = p.ether || 0;
+    if (pack.ether > 0) {
+      newEther += pack.ether;
+      await supabase.from('players').update({ ether: newEther }).eq('id', p.id);
+    }
+
+    if (gameState.loaded) {
+      const gp = gameState.getPlayerById(p.id);
+      if (gp) {
+        gp.diamonds = newDiamonds;
+        if (pack.ether > 0) gp.ether = newEther;
+        gameState.markDirty('players', gp.id);
+      }
+    }
+
+    return res.json({ success: true, cores: createdCores, diamondsLeft: newDiamonds, etherLeft: newEther });
   }
 
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });

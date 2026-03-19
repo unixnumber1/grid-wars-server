@@ -12,7 +12,7 @@ import { logPlayer } from '../../lib/logger.js';
 export const playerRouter = Router();
 
 const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
-const RENAME_COST_DIAMONDS = 10;
+const RENAME_COST_DIAMONDS = 50;
 
 async function handleSetUsername(req, res) {
   const { telegram_id, username } = req.body || {};

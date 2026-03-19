@@ -734,12 +734,12 @@ async function handleEdit(req, res) {
     const { data: dup } = await supabase.from('clans').select('id').eq('name', trimName).neq('id', clan.id).maybeSingle();
     if (dup) return res.status(409).json({ error: 'Название уже занято' });
     update.name = trimName;
-    diamondCost += 100;
+    diamondCost += 150;
   }
   if (symbol && symbol !== clan.symbol) {
     if (symbol.length > 4) return res.status(400).json({ error: 'Символ: один emoji' });
     update.symbol = symbol;
-    diamondCost += 100;
+    diamondCost += 150;
   }
 
   if (Object.keys(update).length === 0) return res.status(400).json({ error: 'Нечего менять' });

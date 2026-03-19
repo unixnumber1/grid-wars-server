@@ -2,16 +2,16 @@ import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../state/GameState.js';
 
 export const CLAN_LEVELS = [
-  { level: 1,  radius: 75,  income: 5,  defense: 10, maxMembers: 10,  cost: 0,        boostCost: 500,  boostMul: 2.0 },
-  { level: 2,  radius: 100, income: 8,  defense: 15, maxMembers: 15,  cost: 5000,     boostCost: 1000, boostMul: 2.5 },
-  { level: 3,  radius: 125, income: 11, defense: 20, maxMembers: 20,  cost: 15000,    boostCost: 1500, boostMul: 3.0 },
-  { level: 4,  radius: 150, income: 14, defense: 26, maxMembers: 27,  cost: 40000,    boostCost: 2000, boostMul: 3.5 },
-  { level: 5,  radius: 175, income: 17, defense: 32, maxMembers: 35,  cost: 100000,   boostCost: 2500, boostMul: 4.0 },
-  { level: 6,  radius: 200, income: 20, defense: 38, maxMembers: 45,  cost: 250000,   boostCost: 3000, boostMul: 4.5 },
-  { level: 7,  radius: 225, income: 23, defense: 45, maxMembers: 57,  cost: 600000,   boostCost: 3500, boostMul: 5.0 },
-  { level: 8,  radius: 250, income: 26, defense: 52, maxMembers: 72,  cost: 1500000,  boostCost: 4000, boostMul: 5.5 },
-  { level: 9,  radius: 275, income: 28, defense: 62, maxMembers: 90,  cost: 4000000,  boostCost: 4500, boostMul: 6.0 },
-  { level: 10, radius: 300, income: 30, defense: 75, maxMembers: 120, cost: 10000000, boostCost: 5000, boostMul: 6.5 },
+  { level: 1,  radius: 75,  income: 5,  defense: 10, maxMembers: 5,   cost: 0,      boostCost: 250,  boostMul: 2.0 },
+  { level: 2,  radius: 100, income: 8,  defense: 15, maxMembers: 10,  cost: 2000,   boostCost: 500,  boostMul: 2.0 },
+  { level: 3,  radius: 125, income: 11, defense: 20, maxMembers: 15,  cost: 4000,   boostCost: 750,  boostMul: 2.0 },
+  { level: 4,  radius: 150, income: 14, defense: 26, maxMembers: 20,  cost: 8000,   boostCost: 1000, boostMul: 2.0 },
+  { level: 5,  radius: 175, income: 17, defense: 32, maxMembers: 25,  cost: 14000,  boostCost: 1250, boostMul: 2.0 },
+  { level: 6,  radius: 200, income: 20, defense: 38, maxMembers: 30,  cost: 24000,  boostCost: 1500, boostMul: 2.0 },
+  { level: 7,  radius: 225, income: 23, defense: 45, maxMembers: 35,  cost: 40000,  boostCost: 1750, boostMul: 2.0 },
+  { level: 8,  radius: 250, income: 26, defense: 52, maxMembers: 40,  cost: 66000,  boostCost: 2000, boostMul: 2.0 },
+  { level: 9,  radius: 275, income: 28, defense: 62, maxMembers: 45,  cost: 108000, boostCost: 2250, boostMul: 2.0 },
+  { level: 10, radius: 300, income: 30, defense: 75, maxMembers: 50,  cost: 234000, boostCost: 2500, boostMul: 2.0 },
 ];
 
 export const CLAN_HQ_COST = 10000000;
