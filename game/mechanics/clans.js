@@ -44,7 +44,7 @@ export const ALLOWED_CLAN_COLORS = [
  * @returns {{ total: number, boostExpiresAt: string|null, boostMultiplier: number|null }}
  */
 export async function calcTotalIncomeWithClanBonus(playerMines, getMineIncome, clanId, supabase) {
-  let baseTotal = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+  let baseTotal = playerMines.reduce((sum, m) => sum + getMineIncome(m.level, m), 0);
   let boostExpiresAt = null;
   let boostMultiplier = null;
 
@@ -76,7 +76,7 @@ export async function calcTotalIncomeWithClanBonus(playerMines, getMineIncome, c
 
   let total = 0;
   for (const mine of playerMines) {
-    let inc = getMineIncome(mine.level);
+    let inc = getMineIncome(mine.level, mine);
     // Apply income_bonus if mine is in ANY clan HQ zone
     if (clanHqList.length > 0 && incomeBonus > 0) {
       const inZone = clanHqList.some(hq => haversine(mine.lat, mine.lng, hq.lat, hq.lng) <= clanCfg.radius);

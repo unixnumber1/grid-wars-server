@@ -433,6 +433,7 @@ async function handleTick(req, res) {
         const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+        const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
         const cMax = Math.round(getMineHp(m.level) * bHp);
         const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
@@ -442,7 +443,7 @@ async function handleTick(req, res) {
           max_hp: cMax,
           hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp,
           hp_regen: rph,
-          income: getMineIncome(m.level),
+          income: getMineIncome(m.level) * bInc,
           capacity: Math.round(getMineCapacity(m.level) * bCap),
         };
       });
@@ -457,11 +458,12 @@ async function handleTick(req, res) {
         const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+        const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
         const cMax = Math.round(getMineHp(m.level) * bHp);
         const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
-        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level), capacity: Math.round(getMineCapacity(m.level) * bCap) };
+        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level) * bInc, capacity: Math.round(getMineCapacity(m.level) * bCap) };
       });
       inventory = inv || [];
     }
@@ -471,9 +473,13 @@ async function handleTick(req, res) {
 
     try {
       // Apply mine count boost + core boosts to income function
-      const boostedMineIncome = (level) => {
-        let inc = getMineIncome(level);
-        return inc * mineCountBoost;
+      const boostedMineIncome = (level, mine) => {
+        let inc = getMineIncome(level) * mineCountBoost;
+        if (gameState.loaded && mine?.cell_id) {
+          const cores = gameState.getCoresForMine(mine.cell_id);
+          if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
+        }
+        return inc;
       };
       const incResult = await calcTotalIncomeWithClanBonus(playerMines, boostedMineIncome, player.clan_id, supabase);
       totalIncome = incResult.total;
@@ -507,7 +513,7 @@ async function handleTick(req, res) {
       }
     } catch (incErr) {
       console.error('[tick] income calc error:', incErr.message);
-      totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+      totalIncome = playerMines.reduce((sum, m) => sum + boostedMineIncome(m.level, m), 0);
     }
   } catch (_) {}
 
