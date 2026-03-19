@@ -420,7 +420,11 @@ async function handleBuy(req, res) {
       `💰 Ваше ядро продано за ${price} 💎 (получено ${sellerPayout} 💎)`,
       { listing_id: listing.id, price, payout: sellerPayout });
 
-    return res.json({ success: true, price_paid: price, seller_received: sellerPayout });
+    const boughtCore = gameState.loaded ? gameState.cores.get(listing.core_id) : null;
+    return res.json({
+      success: true, price_paid: price, seller_received: sellerPayout,
+      core: boughtCore ? { id: boughtCore.id, core_type: boughtCore.core_type, level: boughtCore.level, mine_cell_id: boughtCore.mine_cell_id || null, slot_index: boughtCore.slot_index ?? null } : null,
+    });
   }
 
   // ── Item purchase ──

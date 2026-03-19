@@ -500,6 +500,13 @@ playerRouter.post('/init', async (req, res) => {
   }
   logActivity(player.game_username || player.username, 'вошёл в игру');
   logPlayer(tgId, 'login', 'Вошёл в игру');
+  // Load player cores from gameState (instant, no DB query)
+  const playerCores = gameState.loaded
+    ? gameState.getPlayerCores(Number(tgId)).concat(gameState.getPlayerCores(player.id))
+        .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
+        .map(c => ({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id || null, slot_index: c.slot_index ?? null }))
+    : [];
+
   return res.status(200).json({
     needUsername,
     player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0 },
@@ -507,6 +514,7 @@ playerRouter.post('/init', async (req, res) => {
     mines: mines || [],
     totalIncome,
     inventory: inventory || [],
+    player_cores: playerCores,
     notifications: unreadNotifs,
   });
 });

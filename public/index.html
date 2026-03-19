@@ -5732,6 +5732,7 @@ async function refreshAll() {
     state.mines       = data.mines;
     state.totalIncome = data.totalIncome ?? 0;
     state.inventory   = data.inventory   ?? [];
+    if (data.player_cores) state._playerCores = data.player_cores;
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -7217,6 +7218,7 @@ async function boot() {
     state.mines       = data.mines;
     state.totalIncome = data.totalIncome ?? 0;
     state.inventory   = data.inventory   ?? [];
+    if (data.player_cores) state._playerCores = data.player_cores;
     if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
     updatePlayerDisplay();
 
@@ -7975,6 +7977,15 @@ async function buyCorePack(packIndex) {
     updateCoinDisplay();
     document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
     document.getElementById('shop-coins').textContent = formatCoins(state.player?.coins ?? 0);
+    // Add cores to state immediately
+    if (data.cores && data.cores.length) {
+      state._playerCores = state._playerCores || [];
+      for (const c of data.cores) {
+        if (!state._playerCores.find(x => x.id === c.id)) {
+          state._playerCores.push({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id || null, slot_index: c.slot_index ?? null });
+        }
+      }
+    }
     const pack = CORE_PACKS[packIndex];
     const etherMsg = pack && pack.ether > 0 ? ` + ${pack.ether}🌀 эфира` : '';
     showToast(`🌀 Получено ${data.cores.length} ядер${etherMsg}!`);
@@ -9076,6 +9087,14 @@ async function doBuyListing(listing) {
       state.player.diamonds = (state.player.diamonds ?? 0) - data.price_paid;
       updateDiamondDisplay();
       document.getElementById('market-diamonds').textContent = state.player.diamonds;
+    }
+
+    // Instant core add to inventory
+    if (data.core) {
+      state._playerCores = state._playerCores || [];
+      if (!state._playerCores.find(c => c.id === data.core.id)) {
+        state._playerCores.push(data.core);
+      }
     }
   } catch (err) {
     // Rollback: re-add listing and re-render
