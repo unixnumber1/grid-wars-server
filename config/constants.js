@@ -114,10 +114,10 @@ export const STAR_PACKS = [
 
 // ── Core packs ──
 export const CORE_PACKS = [
-  { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 100 },
-  { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 250 },
-  { label: '🌀 Продвинутый', cores: 3, core_level: 5, ether: 2000, price: 500 },
-  { label: '🌀 Элитный', cores: 5, core_level: 10, ether: 5000, price: 1000 },
+  { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 300 },
+  { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 750 },
+  { label: '🌀 Продвинутый', cores: 3, core_level: 5, ether: 2000, price: 1500 },
+  { label: '🌀 Элитный', cores: 5, core_level: 10, ether: 5000, price: 3000, badge: 'ТОП' },
 ];
 
 // ── Cosmetic prices ──

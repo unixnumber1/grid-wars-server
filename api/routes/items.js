@@ -12,7 +12,7 @@ const BOX_ODDS = {
   common: { common: 70, uncommon: 25, rare: 5 },
   rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
   epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
-  mythic: { rare: 20, epic: 40, mythic: 30, legendary: 10 },
+  mythic: { rare: 20, epic: 40, mythic: 39, legendary: 1 },
 };
 const ITEM_TYPES = ['sword', 'axe', 'shield'];
 
