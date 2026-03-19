@@ -12,6 +12,7 @@ coresRouter.post('/', async (req, res) => {
   if (action === 'install')   return handleInstall(req, res);
   if (action === 'uninstall') return handleUninstall(req, res);
   if (action === 'upgrade')   return handleUpgrade(req, res);
+  if (action === 'sell')      return handleSell(req, res);
   if (action === 'inventory') return handleInventory(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
@@ -120,6 +121,42 @@ async function handleUpgrade(req, res) {
     multiplier: getCoreMultiplier(core.level),
     ether_left: player.ether,
   });
+}
+
+// ── sell: sell core for ether (10% of invested resources) ──
+async function handleSell(req, res) {
+  const { telegram_id, core_id } = req.body || {};
+  if (!telegram_id || !core_id)
+    return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const core = gameState.cores.get(core_id);
+  if (!core) return res.status(404).json({ error: 'Core not found' });
+  if (String(core.owner_id) !== String(player.telegram_id) && String(core.owner_id) !== String(player.id))
+    return res.status(403).json({ error: 'Not your core' });
+  if (core.mine_cell_id)
+    return res.status(400).json({ error: 'Сначала извлеки ядро из шахты' });
+
+  // Calculate sell price: lv0 = 10 ether, otherwise 10% of invested ether
+  let sellPrice = 10;
+  if (core.level > 0) {
+    let invested = 0;
+    for (let i = 0; i < core.level; i++) invested += getCoreUpgradeCost(i);
+    sellPrice = Math.max(10, Math.floor(invested * 0.1));
+  }
+
+  // Grant ether
+  player.ether = (player.ether || 0) + sellPrice;
+  gameState.markDirty('players', player.id);
+
+  // Remove core
+  gameState.cores.delete(core_id);
+  await supabase.from('cores').delete().eq('id', core_id);
+  await supabase.from('players').update({ ether: player.ether }).eq('id', player.id);
+
+  return res.json({ success: true, sell_price: sellPrice, ether: player.ether });
 }
 
 // ── inventory: list all cores owned by player ──

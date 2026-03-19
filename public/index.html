@@ -307,6 +307,8 @@
       box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
       width: 100%;
       max-width: 480px;
+      max-height: 85vh;
+      overflow-y: auto;
       padding: 20px;
       animation: slideUp 0.2s ease-out;
     }
@@ -3902,6 +3904,13 @@ function getCoreUpgradeCost(level) {
   return 53000;
 }
 
+function getCoreSellPrice(level) {
+  if (level <= 0) return 10;
+  let invested = 0;
+  for (let i = 0; i < level; i++) invested += getCoreUpgradeCost(i);
+  return Math.max(10, Math.floor(invested * 0.1));
+}
+
 function setLoadingText(t) {
   document.getElementById('loading-text').textContent = t;
 }
@@ -5148,6 +5157,7 @@ function showCoreDetailPopup(coreId) {
     [
       { label: `⬆️ Прокачать за ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       ...(core.mine_cell_id ? [{ label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
+      ...(!core.mine_cell_id ? [{ label: `🗑️ Продать за ${getCoreSellPrice(core.level)}🌀`, cls: 'danger', action: () => doCoreSell(coreId) }] : []),
       { label: 'Закрыть', isClose: true },
     ]
   );
@@ -5216,6 +5226,22 @@ async function doCoreUninstall(coreId) {
       } else {
         closePopup();
       }
+    }
+  } catch (e) { showToast(`❌ ${e.message}`); }
+}
+
+async function doCoreSell(coreId) {
+  try {
+    const data = await apiFetch('/api/cores', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, core_id: coreId }),
+    });
+    if (data.success) {
+      if (state.player) state.player.ether = data.ether;
+      state._playerCores = (state._playerCores || []).filter(c => c.id !== coreId);
+      showToast(`✅ Ядро продано за ${data.sell_price}🌀`);
+      updateCoinDisplay();
+      closePopup();
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }

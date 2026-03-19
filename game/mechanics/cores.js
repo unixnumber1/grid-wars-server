@@ -26,6 +26,14 @@ export function getCoreUpgradeCost(level) {
   return 53000;
 }
 
+// Sell price: lv0 = 10, otherwise 10% of invested ether
+export function getCoreSellPrice(level) {
+  if (level <= 0) return 10;
+  let invested = 0;
+  for (let i = 0; i < level; i++) invested += getCoreUpgradeCost(i);
+  return Math.max(10, Math.floor(invested * 0.1));
+}
+
 // Total boost from all cores of a given type on a mine (additive)
 export function getCoresTotalBoost(cores, type) {
   const relevant = cores.filter(c => c.core_type === type);
