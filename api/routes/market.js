@@ -156,11 +156,11 @@ async function handleListItem(req, res) {
     if (!core) {
       const { data: dbCore } = await supabase.from('cores').select('*').eq('id', core_id).maybeSingle();
       if (!dbCore) return res.status(404).json({ error: 'Core not found' });
-      if (dbCore.owner_id !== String(telegram_id)) return res.status(403).json({ error: 'Not your core' });
+      if (Number(dbCore.owner_id) !== Number(telegram_id)) return res.status(403).json({ error: 'Not your core' });
       if (dbCore.mine_cell_id) return res.status(400).json({ error: 'Core is installed in a mine' });
       if (dbCore.on_market) return res.status(400).json({ error: 'Core already on market' });
     } else {
-      if (core.owner_id !== String(telegram_id)) return res.status(403).json({ error: 'Not your core' });
+      if (Number(core.owner_id) !== Number(telegram_id)) return res.status(403).json({ error: 'Not your core' });
       if (core.mine_cell_id) return res.status(400).json({ error: 'Core is installed in a mine' });
       if (core.on_market) return res.status(400).json({ error: 'Core already on market' });
     }
@@ -401,7 +401,7 @@ async function handleBuy(req, res) {
 
     // Transfer core ownership
     await supabase.from('cores')
-      .update({ owner_id: String(telegram_id), on_market: false })
+      .update({ owner_id: Number(telegram_id), on_market: false })
       .eq('id', listing.core_id);
 
     // Update gameState
@@ -413,7 +413,7 @@ async function handleBuy(req, res) {
       const sp = gameState.getPlayerById(listing.seller_id);
       if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
       const core = gameState.cores.get(listing.core_id);
-      if (core) { core.owner_id = String(telegram_id); core.on_market = false; gameState.markDirty('cores', core.id); }
+      if (core) { core.owner_id = Number(telegram_id); core.on_market = false; gameState.markDirty('cores', core.id); }
     }
 
     notify(listing.seller_id, 'core_sold',

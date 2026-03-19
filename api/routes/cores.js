@@ -28,7 +28,7 @@ async function handleInstall(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (String(core.owner_id) !== String(player.telegram_id) && String(core.owner_id) !== String(player.id))
+  if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
   if (core.mine_cell_id) return res.status(400).json({ error: 'Core already installed' });
 
@@ -72,7 +72,7 @@ async function handleUninstall(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (String(core.owner_id) !== String(player.telegram_id) && String(core.owner_id) !== String(player.id))
+  if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
   if (!core.mine_cell_id) return res.status(400).json({ error: 'Core not installed' });
 
@@ -96,7 +96,7 @@ async function handleUpgrade(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (String(core.owner_id) !== String(player.telegram_id) && String(core.owner_id) !== String(player.id))
+  if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
 
   const cost = getCoreUpgradeCost(core.level);
@@ -134,7 +134,7 @@ async function handleSell(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (String(core.owner_id) !== String(player.telegram_id) && String(core.owner_id) !== String(player.id))
+  if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
   if (core.mine_cell_id)
     return res.status(400).json({ error: 'Сначала извлеки ядро из шахты' });

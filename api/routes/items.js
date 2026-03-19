@@ -538,7 +538,7 @@ itemsRouter.post('/', async (req, res) => {
     const createdCores = [];
     for (let i = 0; i < pack.cores; i++) {
       const coreData = {
-        owner_id: String(telegram_id),
+        owner_id: Number(telegram_id),
         core_type: randomCoreType(),
         level: pack.core_level,
         mine_cell_id: null,

@@ -61,7 +61,7 @@ async function grantLevelUpRewards(playerId, level) {
   // Grant core if earned
   if (rewards.core) {
     const coreRow = {
-      owner_id: playerId,
+      owner_id: Number((gameState.getPlayerById(playerId))?.telegram_id || playerId),
       mine_cell_id: null,
       slot_index: null,
       core_type: rewards.core_type,

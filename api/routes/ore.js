@@ -36,9 +36,9 @@ oreRouter.post('/', async (req, res) => {
     const dist = haversine(pLat, pLng, ore.lat, ore.lng);
     if (dist > ORE_CAPTURE_RADIUS) return res.status(400).json({ error: 'Подойди ближе (200м)' });
 
-    if (ore.owner_id && ore.owner_id !== player.id && String(ore.owner_id) !== String(player.telegram_id)) {
+    if (ore.owner_id && ore.owner_id !== player.id) {
       const ONLINE_MS = 3 * 60 * 1000;
-      const ownerPlayer = gameState.getPlayerById(ore.owner_id) || gameState.getPlayerByTgId(ore.owner_id);
+      const ownerPlayer = gameState.getPlayerById(ore.owner_id);
       const ownerOnline = ownerPlayer?.last_seen ? (Date.now() - new Date(ownerPlayer.last_seen).getTime()) < ONLINE_MS : false;
       return res.status(400).json({
         error: 'Рудник занят',
