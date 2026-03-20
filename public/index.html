@@ -1178,6 +1178,23 @@
     .profile-stat-row .stat-value { color: #fff; font-weight: 600; }
     .profile-stat-row .bonus { color: #888; font-size: 11px; margin-left: 4px; }
 
+    .ps-columns { display: flex; gap: 8px; }
+    .ps-col {
+      flex: 1; background: #111; border: 1px solid #222;
+      border-radius: 10px; padding: 10px;
+    }
+    .ps-col-title {
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .ps-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; padding: 4px 0;
+    }
+    .ps-row:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .ps-label { color: rgba(255,255,255,0.6); }
+    .ps-val { color: #fff; font-weight: 600; }
+
     .profile-inv-tabs {
       display: flex; align-items: center;
       margin: 0 16px; padding: 0 16px;
@@ -3753,7 +3770,6 @@ async function doUnequipItem(itemId) {
 function _refreshProfileStats() {
   const p = state.player;
   if (!p) return;
-  const level    = p.level ?? 1;
   const maxHp    = p.max_hp ?? 1000;
   const hp       = Math.min(p.hp ?? maxHp, maxHp);
   const hpPct    = Math.round(Math.max(0, Math.min(1, hp / maxHp)) * 100);
@@ -3761,24 +3777,35 @@ function _refreshProfileStats() {
 
   const inv = (state.inventory || []).filter(i => !i.on_market);
   const equippedWeapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const equippedShield = inv.find(i => i.type === 'shield' && i.equipped);
 
-  // Crit — read directly from weapon, don't add bonus_crit (it IS the weapon's crit)
+  // Crit from sword
   const critChance = equippedWeapon?.type === 'sword' ? (equippedWeapon.crit_chance || 0) : 0;
 
-  // Execution chance for axe
-  const upgLvl = equippedWeapon?.upgrade_level || 0;
+  // Execution from axe
+  const wUpg = equippedWeapon?.upgrade_level || 0;
   let execChance = 0;
   if (equippedWeapon?.type === 'axe') {
-    if (equippedWeapon.rarity === 'mythic') execChance = 7 + (upgLvl / 90) * 10;
-    else if (equippedWeapon.rarity === 'legendary') execChance = 13 + (upgLvl / 100) * 7;
+    if (equippedWeapon.rarity === 'mythic') execChance = 7 + (wUpg / 90) * 10;
+    else if (equippedWeapon.rarity === 'legendary') execChance = 13 + (wUpg / 100) * 7;
   }
 
-  // HP regen: 25% per hour = ~0.007% per sec
-  const hpRegen = Math.floor(maxHp * 0.25);
+  // Block from shield
+  const sUpg = equippedShield?.upgrade_level || 0;
+  let blockChance = 0;
+  if (equippedShield) {
+    blockChance = equippedShield.block_chance || 0;
+    if (!blockChance && (equippedShield.rarity === 'mythic' || equippedShield.rarity === 'legendary')) {
+      const base = equippedShield.base_block_chance || 0;
+      if (equippedShield.rarity === 'mythic') blockChance = base + (sUpg / 90) * 5;
+      else blockChance = base + (sUpg / 100) * 6;
+    }
+  }
 
   const barColor = hpPct > 60 ? '#00E676' : hpPct > 30 ? '#ff9800' : '#f44336';
   const statsEl = document.getElementById('profile-stat-rows');
 
+  // HP bar (full width)
   let html = `
     <div style="margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;">
@@ -3790,17 +3817,24 @@ function _refreshProfileStats() {
     </div>
   `;
 
-  const rows = [
-    ['⚔️ Атака', totalAtk],
-  ];
-  if (critChance > 0) rows.push(['💥 Крит шанс', `${critChance.toFixed(1)}%`]);
-  if (execChance > 0) rows.push(['💀 Казнь', `${execChance.toFixed(1)}%`]);
-  rows.push(['💚 Реген HP', `${formatNumber(hpRegen)}/ч`]);
-  rows.push(['🏆 Уровень', level]);
+  // Two columns: defense | attack
+  let defRows = `<div class="ps-row"><span class="ps-label">💚 Реген</span><span class="ps-val">10/с</span></div>`;
+  if (blockChance > 0) defRows += `<div class="ps-row"><span class="ps-label">🔰 Блок</span><span class="ps-val">${blockChance.toFixed(1)}%</span></div>`;
 
-  for (const [label, val] of rows) {
-    html += `<div class="profile-stat-row"><span class="stat-label">${label}</span><span class="stat-value">${val}</span></div>`;
-  }
+  let atkRows = `<div class="ps-row"><span class="ps-label">⚔️ Атака</span><span class="ps-val">${totalAtk}</span></div>`;
+  if (critChance > 0) atkRows += `<div class="ps-row"><span class="ps-label">💥 Крит</span><span class="ps-val">${critChance.toFixed(1)}%</span></div>`;
+  if (execChance > 0) atkRows += `<div class="ps-row"><span class="ps-label">💀 Казнь</span><span class="ps-val">${execChance.toFixed(1)}%</span></div>`;
+
+  html += `<div class="ps-columns">
+    <div class="ps-col">
+      <div class="ps-col-title">🛡️ Защита</div>
+      ${defRows}
+    </div>
+    <div class="ps-col">
+      <div class="ps-col-title">⚔️ Урон</div>
+      ${atkRows}
+    </div>
+  </div>`;
 
   statsEl.innerHTML = html;
 }
