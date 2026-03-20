@@ -29,6 +29,22 @@ export function isInClanZone(playerLat, playerLng, hqLat, hqLng, clanLevel) {
   return dist <= config.radius;
 }
 
+export function getClanDefenseForMine(ownerId, mineLat, mineLng) {
+  if (!ownerId || !gameState.loaded) return 1;
+  const owner = gameState.getPlayerById(ownerId);
+  if (!owner?.clan_id) return 1;
+  const clan = gameState.clans.get(owner.clan_id);
+  if (!clan?.level) return 1;
+  const cfg = CLAN_LEVELS.find(c => c.level === clan.level);
+  if (!cfg) return 1;
+  for (const ch of gameState.clanHqs.values()) {
+    if (ch.clan_id === owner.clan_id && haversine(mineLat, mineLng, ch.lat, ch.lng) <= cfg.radius) {
+      return 1 + cfg.defense / 100;
+    }
+  }
+  return 1;
+}
+
 export const ALLOWED_CLAN_COLORS = [
   '#FF1744', '#FF6D00', '#FFD700', '#00E676',
   '#00B0FF', '#2979FF', '#651FFF', '#D500F9',

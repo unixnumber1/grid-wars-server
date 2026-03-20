@@ -8,7 +8,7 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, getMineCountBoost } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { gameState } from '../../lib/gameState.js';
-import { getClanLevel, CLAN_LEVELS } from '../../lib/clans.js';
+import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 
 // ── Bot constants ────────────────────────────────────────────
 const BOTS_PER_ZONE    = 10;
@@ -16,16 +16,6 @@ const BOT_TTL_MS       = 5 * 60 * 1000;
 const GLOBAL_BOT_CAP   = 20;
 const SPEED_METERS     = { slow: 15, medium: 30, fast: 55, very_fast: 90 };
 const DRAIN_LIMITS     = { goblin: 150 };
-
-function getClanDefenseMultiplier(ownerId) {
-  if (!ownerId) return 1;
-  const owner = gameState.getPlayerById(ownerId);
-  if (!owner?.clan_id) return 1;
-  const clan = gameState.clans?.get(owner.clan_id);
-  if (!clan?.level) return 1;
-  const cfg = CLAN_LEVELS.find(c => c.level === clan.level);
-  return cfg ? 1 + cfg.defense / 100 : 1;
-}
 
 async function handleLeaderboard(req, res) {
   const { telegram_id } = req.query;
@@ -297,7 +287,7 @@ async function handleTick(req, res) {
         const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
-        const clanDef = getClanDefenseMultiplier(m.owner_id);
+        const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
         const computedMaxHp = Math.round(getMineHp(m.level) * bHp * clanDef);
         const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
@@ -387,7 +377,7 @@ async function handleTick(req, res) {
         const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
-        const clanDef = getClanDefenseMultiplier(m.owner_id);
+        const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
         const computedMaxHp = Math.round(getMineHp(m.level) * bHp * clanDef);
         const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
@@ -453,7 +443,7 @@ async function handleTick(req, res) {
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
         const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
-        const clanDef = getClanDefenseMultiplier(m.owner_id);
+        const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
         const cMax = Math.round(getMineHp(m.level) * bHp * clanDef);
         const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
@@ -479,7 +469,7 @@ async function handleTick(req, res) {
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
         const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
-        const clanDef = getClanDefenseMultiplier(m.owner_id);
+        const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
         const cMax = Math.round(getMineHp(m.level) * bHp * clanDef);
         const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);

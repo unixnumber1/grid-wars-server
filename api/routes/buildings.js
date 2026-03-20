@@ -5,7 +5,7 @@ import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulate
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
-import { getClanLevel } from '../../lib/clans.js';
+import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
@@ -292,7 +292,8 @@ async function handleAttackStart(req, res) {
   const atkCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
   const atkCoreHp = atkCores.length > 0 ? getCoresTotalBoost(atkCores, 'hp') : 1;
   const atkCoreRegen = atkCores.length > 0 ? getCoresTotalBoost(atkCores, 'regen') : 1;
-  const computedMaxHp = Math.round(getMineHp(mine.level) * atkCoreHp);
+  const clanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+  const computedMaxHp = Math.round(getMineHp(mine.level) * atkCoreHp * clanDef);
   const regenPerHour = Math.round(getMineHpRegen(mine.level) * atkCoreRegen);
   const rawHp = Math.min(mine.hp ?? computedMaxHp, computedMaxHp);
   const currentHp = calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, mine.last_hp_update);
@@ -364,7 +365,8 @@ async function handleAttackFinish(req, res) {
     }
     const finCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
     const finCoreHp = finCores.length > 0 ? getCoresTotalBoost(finCores, 'hp') : 1;
-    return res.json({ success: true, result: 'survived', remainingHp, maxHp: Math.round(getMineHp(mine.level) * finCoreHp) });
+    const finClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+    return res.json({ success: true, result: 'survived', remainingHp, maxHp: Math.round(getMineHp(mine.level) * finCoreHp * finClanDef) });
   }
 }
 
@@ -374,7 +376,7 @@ async function handleAttackExtinguish(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: mine, error: mErr } = await supabase.from('mines').select('id,owner_id,level,status,burning_started_at').eq('id', mine_id).maybeSingle();
+  const { data: mine, error: mErr } = await supabase.from('mines').select('id,owner_id,level,cell_id,lat,lng,status,burning_started_at').eq('id', mine_id).maybeSingle();
   if (mErr) return res.status(500).json({ error: mErr.message });
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'Не ваша шахта' });
@@ -384,7 +386,10 @@ async function handleAttackExtinguish(req, res) {
     if (gameState.loaded) { const gm = gameState.getMineById(mine_id); if (gm) { gm.status = 'destroyed'; gameState.markDirty('mines', mine_id); } }
     return res.json({ success: false, error: 'Шахта сгорела — слишком поздно' });
   }
-  const computedMaxHp = getMineHp(mine.level);
+  const extCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+  const extCoreHp = extCores.length > 0 ? getCoresTotalBoost(extCores, 'hp') : 1;
+  const extClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+  const computedMaxHp = Math.round(getMineHp(mine.level) * extCoreHp * extClanDef);
   const restoredHp = Math.round(computedMaxHp * 0.25);
   const hpUpdateTime = new Date().toISOString();
   await supabase.from('mines').update({ status: 'normal', hp: restoredHp, max_hp: computedMaxHp, burning_started_at: null, last_hp_update: hpUpdateTime }).eq('id', mine_id);
@@ -442,12 +447,15 @@ async function handleUpgradeGet(req, res) {
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: readyMines, error } = await supabase.from('mines').select('id, owner_id, level, pending_level').eq('owner_id', player.id).not('pending_level', 'is', null).lte('upgrade_finish_at', new Date().toISOString());
+  const { data: readyMines, error } = await supabase.from('mines').select('id, owner_id, level, pending_level, cell_id, lat, lng').eq('owner_id', player.id).not('pending_level', 'is', null).lte('upgrade_finish_at', new Date().toISOString());
   if (error) return res.status(500).json({ error: error.message });
   if (!readyMines || readyMines.length === 0) return res.json({ completed: [] });
   const completed = [];
   for (const mine of readyMines) {
-    const newMaxHp = getMineHp(mine.pending_level);
+    const upgCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+    const upgCoreHp = upgCores.length > 0 ? getCoresTotalBoost(upgCores, 'hp') : 1;
+    const upgClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+    const newMaxHp = Math.round(getMineHp(mine.pending_level) * upgCoreHp * upgClanDef);
     const { data: updated, error: upErr } = await supabase.from('mines').update({ level: mine.pending_level, pending_level: null, upgrade_finish_at: null, hp: newMaxHp, max_hp: newMaxHp }).eq('id', mine.id).select().single();
     if (upErr) continue;
     let xpResult = null;
@@ -573,23 +581,8 @@ async function handleMineHit(req, res) {
   const coreRegenBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'regen') : 1;
 
   // Apply clan defense bonus to mine HP
-  let computedMaxHp = Math.round(getMineHp(mine.level) * coreHpBoost);
-  if (mine.owner_id && gameState.loaded) {
-    const mineOwner = gameState.getPlayerById(mine.owner_id);
-    if (mineOwner?.clan_id) {
-      const ownerClan = gameState.getClanById(mineOwner.clan_id);
-      if (ownerClan) {
-        const clanCfg = getClanLevel(ownerClan.level || 1);
-        // Check if mine is in clan zone
-        for (const ch of gameState.clanHqs.values()) {
-          if (ch.clan_id === mineOwner.clan_id && haversine(mine.lat, mine.lng, ch.lat, ch.lng) <= clanCfg.radius) {
-            computedMaxHp = Math.round(computedMaxHp * (1 + clanCfg.defense / 100));
-            break;
-          }
-        }
-      }
-    }
-  }
+  const clanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+  let computedMaxHp = Math.round(getMineHp(mine.level) * coreHpBoost * clanDef);
 
   // Apply HP regen first, then subtract damage
   const regenPerHour = Math.round(getMineHpRegen(mine.level) * coreRegenBoost);
