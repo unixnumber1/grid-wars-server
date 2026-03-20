@@ -3691,6 +3691,7 @@ async function doUpgradeItem(item) {
     openItemDetailPopup(item);
     updateCrystalDisplay();
     _renderEquipSlots();
+    _renderInventoryGrid();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -3737,7 +3738,10 @@ async function doEquipItem(itemId) {
     // Update state
     const item = state.inventory.find(i => i.id === itemId);
     if (item) {
-      state.inventory.forEach(i => { if (i.type === item.type) i.equipped = false; });
+      const isWeapon = item.type === 'sword' || item.type === 'axe';
+      state.inventory.forEach(i => {
+        if (isWeapon ? (i.type === 'sword' || i.type === 'axe') : i.type === item.type) i.equipped = false;
+      });
       item.equipped = true;
     }
     if (state.player) {
