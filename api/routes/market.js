@@ -36,7 +36,7 @@ function generateCode() {
 /* ── Action: listings (GET) ────────────────────────────────── */
 
 async function handleListings(req, res) {
-  const { telegram_id, sort = 'new', page = '0' } = req.query;
+  const { telegram_id, sort = 'new', page = '0', item_type } = req.query;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id');
@@ -56,6 +56,9 @@ async function handleListings(req, res) {
     `, { count: 'exact' })
     .eq('status', 'active')
     .gt('expires_at', nowISO);
+
+  if (item_type === 'core') query = query.eq('item_type', 'core');
+  else if (item_type === 'item') query = query.or(`item_type.is.null,item_type.neq.core`);
 
   query = query.or(`is_private.eq.false,seller_id.eq.${player.id}`);
 

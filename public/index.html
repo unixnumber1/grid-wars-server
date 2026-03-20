@@ -1696,6 +1696,16 @@
       -webkit-tap-highlight-color: transparent;
     }
     .market-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+    #market-subtabs {
+      display: flex; padding: 0 16px; background: #111; gap: 4px; padding-bottom: 8px;
+    }
+    .market-subtab {
+      flex: 1; padding: 8px 0; text-align: center; font-size: 12px; font-weight: 600;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: #888; cursor: pointer; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .market-subtab.active { background: rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.4); color: #FFD700; }
     #market-sort-row {
       display: flex; gap: 6px; padding: 10px 16px;
     }
@@ -1706,6 +1716,16 @@
       -webkit-tap-highlight-color: transparent;
     }
     .market-sort-btn.active { background: rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.4); color: #FFD700; }
+    #market-sort-row-cores {
+      display: flex; gap: 6px; padding: 10px 16px;
+    }
+    .market-sort-btn-core {
+      flex: 1; padding: 8px 4px; font-size: 12px; border-radius: 10px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: #aaa; cursor: pointer; text-align: center; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .market-sort-btn-core.active { background: rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.4); color: #FFD700; }
     #market-body { padding: 0 16px 100px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     #market-grid {
       display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
@@ -8631,9 +8651,12 @@ const dropData       = {}; // id → drop object
 let _marketSort = 'new';
 let _marketPage = 0;
 let _marketTab  = 'browse';
+let _marketSubtab = 'items';
+let _marketCoreSort = 'new';
 let _marketListings = [];
 let _myListings = [];
 let _listSelectedItem = null;
+let _listSelectedCore = null;
 let _listIsPrivate = false;
 let _listPrivateCode = null;
 let _buyTargetListing = null;
@@ -9001,6 +9024,7 @@ function openMarket() {
   document.getElementById('market-coins').textContent = formatCoins(state.player?.coins ?? 0);
   document.getElementById('market-diamonds').textContent = state.player?.diamonds ?? 0;
   _marketTab = 'browse';
+  _marketSubtab = 'items';
   _marketPage = 0;
   _marketListings = [];
   document.getElementById('market-modal').classList.add('open');
@@ -9018,9 +9042,15 @@ function _updateMarketTabs() {
   document.querySelectorAll('.market-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === _marketTab);
   });
-  document.getElementById('market-sort-row').style.display = _marketTab === 'browse' ? 'flex' : 'none';
+  const isBrowse = _marketTab === 'browse';
+  document.getElementById('market-subtabs').style.display = isBrowse ? 'flex' : 'none';
+  document.getElementById('market-sort-row').style.display = (isBrowse && _marketSubtab === 'items') ? 'flex' : 'none';
+  document.getElementById('market-sort-row-cores').style.display = (isBrowse && _marketSubtab === 'cores') ? 'flex' : 'none';
   document.getElementById('market-fab').style.display =
     document.getElementById('market-modal').classList.contains('open') ? 'block' : 'none';
+  document.querySelectorAll('.market-subtab').forEach(t => {
+    t.classList.toggle('active', t.dataset.subtab === _marketSubtab);
+  });
 }
 
 async function _loadMarketListings() {
@@ -9032,11 +9062,19 @@ async function _loadMarketListings() {
 
   try {
     if (_marketTab === 'browse') {
+      const currentSort = _marketSubtab === 'cores' ? _marketCoreSort : _marketSort;
       const params = new URLSearchParams({
-        action: 'listings', telegram_id: TG_ID, sort: _marketSort, page: _marketPage
+        action: 'listings', telegram_id: TG_ID,
+        sort: currentSort === 'level' ? 'new' : currentSort,
+        page: _marketPage,
+        item_type: _marketSubtab === 'cores' ? 'core' : 'item',
       });
       const data = await apiFetch(`/api/market?${params}`);
-      _marketListings = _marketPage === 0 ? data.listings : [..._marketListings, ...data.listings];
+      let fetched = data.listings || [];
+      if (_marketSubtab === 'cores' && _marketCoreSort === 'level') {
+        fetched.sort((a, b) => (b.core_info?.level || 0) - (a.core_info?.level || 0));
+      }
+      _marketListings = _marketPage === 0 ? fetched : [..._marketListings, ...fetched];
       empty.style.display = _marketListings.length === 0 ? 'block' : 'none';
       loadMore.style.display = data.listings.length >= 20 ? 'block' : 'none';
       _renderMarketCards(_marketListings, grid, false);
@@ -9311,42 +9349,100 @@ async function doCancelListing(listingId) {
 }
 
 // ── List item flow ────────────────────────────
+let _listFlowTab = 'items';
+
 function openListItemFlow() {
   _listSelectedItem = null;
+  _listSelectedCore = null;
   _listIsPrivate = false;
   _listPrivateCode = null;
+  _listFlowTab = 'items';
   document.getElementById('market-list-step1').style.display = 'block';
   document.getElementById('market-list-step2').style.display = 'none';
   document.getElementById('market-list-private-toggle').classList.remove('on');
   document.getElementById('market-list-code-row').style.display = 'none';
   document.getElementById('market-list-price-input').value = '';
 
-  // Build inventory grid
+  _renderListFlowStep1();
+  document.getElementById('market-list-overlay').classList.add('open');
+}
+
+function _renderListFlowStep1() {
+  const step1 = document.getElementById('market-list-step1');
   const grid = document.getElementById('market-list-inv-grid');
   grid.innerHTML = '';
-  const inv = (state.inventory || []).slice().sort((a, b) =>
-    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
-  );
-  for (const item of inv) {
-    const cell = document.createElement('div');
-    const disabled = item.equipped || item.on_market;
-    cell.className = `market-inv-cell ${rarityClass(item.rarity)}${disabled ? ' disabled' : ''}`;
-    cell.innerHTML = `<span>${item.emoji}</span><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.8);color:#FFD700;font-size:9px;padding:1px 4px;border-radius:3px;">lv.${item.upgrade_level || 0}</span>`;
-    if (!disabled) {
-      cell.addEventListener('click', () => _selectListItem(item));
-    }
-    grid.appendChild(cell);
-  }
 
-  document.getElementById('market-list-overlay').classList.add('open');
+  // Subtabs
+  let tabsEl = document.getElementById('market-list-subtabs');
+  if (!tabsEl) {
+    tabsEl = document.createElement('div');
+    tabsEl.id = 'market-list-subtabs';
+    tabsEl.style.cssText = 'display:flex;gap:4px;margin-bottom:12px;';
+    step1.insertBefore(tabsEl, step1.firstChild);
+  }
+  tabsEl.innerHTML = `
+    <button class="market-subtab ${_listFlowTab === 'items' ? 'active' : ''}" data-ltab="items">⚔️ Снаряга</button>
+    <button class="market-subtab ${_listFlowTab === 'cores' ? 'active' : ''}" data-ltab="cores">🔮 Ядра</button>
+  `;
+  tabsEl.querySelectorAll('.market-subtab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _listFlowTab = btn.dataset.ltab;
+      _renderListFlowStep1();
+    });
+  });
+
+  if (_listFlowTab === 'items') {
+    const inv = (state.inventory || []).slice().sort((a, b) =>
+      (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
+    );
+    for (const item of inv) {
+      const cell = document.createElement('div');
+      const disabled = item.equipped || item.on_market;
+      cell.className = `market-inv-cell ${rarityClass(item.rarity)}${disabled ? ' disabled' : ''}`;
+      cell.innerHTML = `<span>${item.emoji}</span><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.8);color:#FFD700;font-size:9px;padding:1px 4px;border-radius:3px;">lv.${item.upgrade_level || 0}</span>`;
+      if (!disabled) {
+        cell.addEventListener('click', () => _selectListItem(item));
+      }
+      grid.appendChild(cell);
+    }
+  } else {
+    const cores = (state._playerCores || []).filter(c => !c.mine_cell_id && !c.on_market);
+    cores.sort((a, b) => (b.level || 0) - (a.level || 0));
+    for (const core of cores) {
+      const info = CORE_TYPES[core.core_type] || {};
+      const cell = document.createElement('div');
+      cell.className = 'market-inv-cell';
+      cell.style.borderColor = 'rgba(0,207,255,0.3)';
+      cell.innerHTML = `<span style="filter:drop-shadow(0 0 8px #00cfff)">${info.emoji || '🔮'}</span><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.8);color:#00cfff;font-size:9px;padding:1px 4px;border-radius:3px;">lv.${core.level}</span>`;
+      cell.addEventListener('click', () => _selectListCore(core));
+      grid.appendChild(cell);
+    }
+    if (cores.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:20px;font-size:13px;">Нет свободных ядер</div>';
+    }
+  }
 }
 
 function closeListItemFlow() {
   document.getElementById('market-list-overlay').classList.remove('open');
 }
 
+function _selectListCore(core) {
+  _listSelectedItem = null;
+  _listSelectedCore = core;
+  document.getElementById('market-list-step1').style.display = 'none';
+  document.getElementById('market-list-step2').style.display = 'block';
+  const info = CORE_TYPES[core.core_type] || {};
+  document.getElementById('market-list-preview-emoji').innerHTML =
+    `<span style="filter:drop-shadow(0 0 16px #00cfff)">${info.emoji || '🔮'}</span>`;
+  document.getElementById('market-list-preview-name').textContent = `${info.name || 'Ядро'} lv.${core.level}`;
+  document.getElementById('market-list-preview-rarity').innerHTML = '<span style="color:#00cfff">Ядро</span>';
+  document.getElementById('market-list-preview-stat').textContent = `x${getCoreMultiplier(core.level)} множитель`;
+}
+
 function _selectListItem(item) {
   _listSelectedItem = item;
+  _listSelectedCore = null;
   document.getElementById('market-list-step1').style.display = 'none';
   document.getElementById('market-list-step2').style.display = 'block';
 
@@ -9421,6 +9517,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  document.querySelectorAll('.market-subtab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      _marketSubtab = tab.dataset.subtab;
+      _marketPage = 0;
+      _updateMarketTabs();
+      _loadMarketListings();
+    });
+  });
+
+  document.querySelectorAll('.market-sort-btn-core').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _marketCoreSort = btn.dataset.sort;
+      _marketPage = 0;
+      document.querySelectorAll('.market-sort-btn-core').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _loadMarketListings();
+    });
+  });
+
   document.getElementById('market-load-more')?.addEventListener('click', () => {
     _marketPage++;
     _loadMarketListings();
@@ -9453,7 +9568,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Submit listing (optimistic UI)
   document.getElementById('market-list-submit')?.addEventListener('click', async () => {
-    if (!_listSelectedItem) return;
+    if (!_listSelectedItem && !_listSelectedCore) return;
     const priceStr = document.getElementById('market-list-price-input').value;
     const price = parseInt(priceStr, 10);
     if (isNaN(price) || price < 10 || price > 100000) {
@@ -9464,26 +9579,41 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     btn.textContent = '⏳...';
 
-    // Optimistic: mark item as on_market immediately so it hides from inventory
-    const listedId = _listSelectedItem.id;
-    const invItem = (state.inventory || []).find(i => i.id === listedId);
-    if (invItem) invItem.on_market = true;
-    _renderEquipSlots();
-    _renderInventoryGrid();
+    const isCore = !!_listSelectedCore;
+    let invItem = null;
+    let listedCoreId = null;
+
+    if (isCore) {
+      listedCoreId = _listSelectedCore.id;
+      const coreObj = (state._playerCores || []).find(c => c.id === listedCoreId);
+      if (coreObj) coreObj.on_market = true;
+    } else {
+      const listedId = _listSelectedItem.id;
+      invItem = (state.inventory || []).find(i => i.id === listedId);
+      if (invItem) invItem.on_market = true;
+      _renderEquipSlots();
+      _renderInventoryGrid();
+    }
     closeListItemFlow();
 
     try {
       const pos = state.playerPos;
+      const body = {
+        action: 'list-item',
+        telegram_id: TG_ID,
+        price_diamonds: price,
+        is_private: _listIsPrivate,
+        lat: pos?.lat, lng: pos?.lng,
+      };
+      if (isCore) {
+        body.core_id = listedCoreId;
+      } else {
+        body.item_id = _listSelectedItem.id;
+      }
+
       const data = await apiFetch('/api/market', {
         method: 'POST',
-        body: JSON.stringify({
-          action: 'list-item',
-          telegram_id: TG_ID,
-          item_id: listedId,
-          price_diamonds: price,
-          is_private: _listIsPrivate,
-          lat: pos?.lat, lng: pos?.lng,
-        }),
+        body: JSON.stringify(body),
       });
 
       showToast('🎪 Товар выставлен на рынок!');
@@ -9496,10 +9626,15 @@ document.addEventListener('DOMContentLoaded', () => {
       _updateMarketTabs();
       _loadMarketListings();
     } catch (err) {
-      // Rollback: un-mark on_market so it reappears
-      if (invItem) invItem.on_market = false;
-      _renderEquipSlots();
-      _renderInventoryGrid();
+      // Rollback
+      if (isCore) {
+        const coreObj = (state._playerCores || []).find(c => c.id === listedCoreId);
+        if (coreObj) coreObj.on_market = false;
+      } else {
+        if (invItem) invItem.on_market = false;
+        _renderEquipSlots();
+        _renderInventoryGrid();
+      }
       showToast(`❌ ${err.message}`);
     } finally {
       btn.disabled = false;
@@ -12707,10 +12842,20 @@ async function doCollectorSell(collectorId) {
     <button class="market-tab active" data-tab="browse">🌍 Рынок</button>
     <button class="market-tab" data-tab="my">📦 Мои лоты</button>
   </div>
+  <div id="market-subtabs">
+    <button class="market-subtab active" data-subtab="items">⚔️ Снаряга</button>
+    <button class="market-subtab" data-subtab="cores">🔮 Ядра</button>
+  </div>
   <div id="market-sort-row">
     <button class="market-sort-btn" data-sort="cheap">💰 Дешевле</button>
     <button class="market-sort-btn" data-sort="expensive">💎 Дороже</button>
     <button class="market-sort-btn active" data-sort="new">🆕 Новые</button>
+  </div>
+  <div id="market-sort-row-cores" style="display:none">
+    <button class="market-sort-btn-core active" data-sort="new">🆕 Новые</button>
+    <button class="market-sort-btn-core" data-sort="cheap">💰 Дешевле</button>
+    <button class="market-sort-btn-core" data-sort="expensive">💎 Дороже</button>
+    <button class="market-sort-btn-core" data-sort="level">📈 Уровень</button>
   </div>
   <div id="market-body">
     <div id="market-grid"></div>
@@ -12755,7 +12900,6 @@ async function doCollectorSell(collectorId) {
   </div>
   <div id="market-list-body">
     <div id="market-list-step1">
-      <p style="color:#aaa;font-size:13px;margin-bottom:12px;">Выберите предмет:</p>
       <div id="market-list-inv-grid"></div>
     </div>
     <div id="market-list-step2">
