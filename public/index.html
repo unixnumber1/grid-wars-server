@@ -2226,8 +2226,17 @@
       transition: opacity 0.1s;
     }
     .btn-attack-universal .popup-atk-cd.active { opacity: 1; }
-    #popup-overlay.combat-mode { pointer-events: none; }
-    #popup-overlay.combat-mode #popup-card { pointer-events: auto; }
+    #popup-overlay.combat-mode {
+      pointer-events: none;
+      background: transparent !important;
+      transition: background 0.2s;
+    }
+    #popup-overlay.combat-mode #popup-card {
+      pointer-events: auto;
+      max-height: none;
+      padding: 14px;
+      max-width: 360px;
+    }
     .popup-hp-live {
       display: flex;
       align-items: center;
@@ -4979,6 +4988,10 @@ function showMinePopup(mine, isOwn, canCapture) {
     const isBurning = mine.status === 'burning';
     const isUnderAttack = mine.status === 'under_attack';
     const canAttack = inCombatZone && mine.level > 0 && (mine.status === 'normal' || mine.status === 'under_attack');
+    // Multitouch: if holding attack, switch to mine immediately
+    if (combatState.isHolding && canAttack) {
+      return openCombatPopup(`⛏️ Шахта Ур.${mine.level}`, mine.id, 'mine', mine);
+    }
     const attackActions = [];
     if (canAttack) {
       attackActions.push({
@@ -5955,6 +5968,8 @@ function initSocket() {
     _socket.on('mine:hp_update', (data) => {
       // data: {mine_id, cell_id, hp, max_hp, status}
       updateMineHpBar(data);
+      if (combatState.currentTarget?.type === 'mine' && combatState.currentTarget.id === data.mine_id)
+        updatePopupHp(data.hp, data.max_hp);
     });
 
     _socket.on('courier:removed', ({ courier_id }) => {
@@ -5982,6 +5997,8 @@ function initSocket() {
         ore.max_hp = data.max_hp;
         if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
       }
+      if (combatState.currentTarget?.type === 'ore' && combatState.currentTarget.id === data.ore_node_id)
+        updatePopupHp(data.hp, data.max_hp);
     });
 
     _socket.on('pvp:hit', (data) => {
@@ -6046,6 +6063,9 @@ function initSocket() {
     _socket.on('monument:shield_broken', (data) => {
       showToast(`💥 ${data.breaker_name} пробил щит монумента!`, 3000);
       updateMonumentPhase(data.monument_id, 'open');
+      if (combatState.currentTarget?.type === 'monument_shield' && combatState.currentTarget.id === data.monument_id) {
+        stopPopupCombat(); closePopup();
+      }
       try { Telegram.WebApp.HapticFeedback.notificationOccurred('warning'); } catch(_){}
     });
 
@@ -6081,6 +6101,9 @@ function initSocket() {
       if (data.loot_boxes) {
         for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
       }
+      if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id) {
+        stopPopupCombat(); closePopup();
+      }
     });
 
     _socket.on('monument:loot_dropped', (data) => {
@@ -6103,6 +6126,9 @@ function initSocket() {
 
     _socket.on('monument:shield_restored', (data) => {
       updateMonumentPhase(data.monument_id, 'shield');
+      if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id) {
+        stopPopupCombat(); closePopup(); showToast('🛡️ Щит восстановлен!');
+      }
     });
 
     _socket.on('monument:shield_update', (data) => {
@@ -6114,11 +6140,15 @@ function initSocket() {
         if (data.required_dps != null) m.dps_threshold = data.required_dps;
         updateMonumentMarkerIcon(data.monument_id);
       }
+      if (combatState.currentTarget?.type === 'monument_shield' && combatState.currentTarget.id === data.monument_id)
+        updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
     });
 
     _socket.on('monument:hp_update', (data) => {
       const m = monumentData[data.monument_id];
       if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(data.monument_id); }
+      if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id)
+        updatePopupHp(data.hp, data.max_hp);
     });
 
     _socket.on('monument:defender_killed', (data) => {
@@ -6138,11 +6168,16 @@ function initSocket() {
     _socket.on('collector:hp_update', (data) => {
       const c = collectorData[data.collector_id];
       if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(data.collector_id); }
+      if (combatState.currentTarget?.type === 'collector' && combatState.currentTarget.id === data.collector_id)
+        updatePopupHp(data.hp, data.max_hp);
     });
 
     _socket.on('collector:destroyed', (data) => {
       if (collectorMarkers[data.collector_id]) { map.removeLayer(collectorMarkers[data.collector_id]); delete collectorMarkers[data.collector_id]; delete collectorData[data.collector_id]; }
       if (data.stolen_coins > 0) showToast(`💥 Сборщик уничтожен ${data.attacker_name}! Украдено ${formatCoins(data.stolen_coins)} монет`);
+      if (combatState.currentTarget?.type === 'collector' && combatState.currentTarget.id === data.collector_id) {
+        stopPopupCombat(); closePopup();
+      }
     });
 
     _socket.on('disconnect', () => {
@@ -6750,31 +6785,38 @@ function renderBots(bots) {
 function showBotPopup(botId) {
   const bot = botData[botId];
   if (!bot) return;
-  const wasHolding = combatState.isHolding;
   const pos = state.playerPos;
   const dist = (pos && bot.lat != null) ? haversine(pos.lat, pos.lng, bot.lat, bot.lng) : null;
+  const inRange = dist !== null && dist <= LARGE_RADIUS;
+
+  // Multitouch: if holding attack, switch target immediately
+  if (combatState.isHolding && inRange) {
+    return openCombatPopup(`👺 Гоблин`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
+  }
+
+  // In range — compact combat popup
+  if (inRange) {
+    return openCombatPopup(`👺 Гоблин`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
+  }
+
+  // Out of range — info popup
   const botHp = bot.hp ?? 50;
   const botMaxHp = bot.max_hp ?? 50;
-  const pHp = state.player?.hp ?? 100;
-  const pMaxHp = state.player?.max_hp ?? 100;
   const hpPct = Math.round(botHp / botMaxHp * 100);
-  const pHpPct = Math.round(pHp / pMaxHp * 100);
   const botState = bot.state || bot.status || 'roaming';
   const stateLabel = (botState === 'aggro' || botState === 'attacking') ? '⚠️ Агрессивный' : (botState === 'fleeing' || botState === 'leaving') ? '💰 Убегает с добычей' : '😴 Бродит';
 
   const stats = [
     ['Состояние', stateLabel],
     ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${botHp}/${botMaxHp}</span></div>`],
-    ['Твои HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pHpPct}%;background:#4caf50;border-radius:4px"></div></div>${pHp}/${pMaxHp}</div>`],
   ];
   if (bot.state === 'fleeing' && (bot.stolen_coins || 0) > 0) {
     stats.push(['💰 Несёт', `${formatNumber(bot.stolen_coins)} монет`]);
   }
-  stats.push(['__fullwidth__', getAttackButton(botId, 'bot')]);
 
-  openPopup(`👺 Гоблин`, dist ? `📍 ${Math.round(dist)}м` : '', stats, []);
-  if (wasHolding) combatState.isHolding = true;
-  bindAttackButton('bot', { id: botId });
+  openPopup(`👺 Гоблин`, dist ? `📍 ${Math.round(dist)}м — подойди ближе` : '', stats, [
+    { label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true },
+  ]);
 }
 
 function showFloatingText(latLng, text, color) {
@@ -9638,25 +9680,26 @@ function renderLeaderboard(data) {
 //  PvP System
 // ─────────────────────────────────────────────
 function showOtherPlayerPopup(p) {
-  const wasHolding = combatState.isHolding;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, p.last_lat, p.last_lng) : null;
   const inRange = dist !== null && dist <= LARGE_RADIUS;
   const hasShield = p.shield_until && new Date(p.shield_until) > new Date();
+  const canAttack = inRange && !hasShield;
+
+  // Multitouch or in range: compact combat popup
+  if (canAttack) {
+    return openCombatPopup(
+      `${p.avatar || '🐺'} ${displayName(p)} Ур.${p.level ?? 1}`,
+      p.telegram_id, 'player', p,
+      { hp: p.hp ?? 100, maxHp: p.max_hp ?? 100 }
+    );
+  }
+
+  // Out of range or shielded — info popup
   const distLabel = dist !== null
     ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
     : '<span style="color:#888">📍 GPS...</span>';
   const shieldLabel = hasShield ? ' 🛡️ Щит активен' : '';
-
-  const pHp = p.hp ?? 100;
-  const pMaxHp = p.max_hp ?? 100;
-  const hpPct = Math.round(pHp / pMaxHp * 100);
-
-  const stats = [];
-  if (inRange && !hasShield) {
-    stats.push(['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${pHp}/${pMaxHp}</span></div>`]);
-    stats.push(['__fullwidth__', getAttackButton(p.telegram_id, 'player')]);
-  }
 
   const actions = [];
   if (hasShield) {
@@ -9668,13 +9711,9 @@ function showOtherPlayerPopup(p) {
   openPopup(
     `${p.avatar || '🐺'} ${displayName(p)}`,
     `Ур. ${p.level ?? 1} ${distLabel}${shieldLabel}`,
-    stats,
+    [],
     actions
   );
-  if (inRange && !hasShield) {
-    if (wasHolding) combatState.isHolding = true;
-    bindAttackButton('player', p);
-  }
 }
 
 function showPvpPreview(defender) {
@@ -9886,13 +9925,7 @@ async function doAttackMine(mineId) {
   if (String(mineId).startsWith('_opt_')) return;
   const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
   if (!mine) return showToast('❌ Шахта не найдена');
-
-  // Determine weapon CD
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
-
-  closePopup();
-  showCombatHUD(mine, 'mine');
+  openCombatPopup(`⛏️ Шахта Ур.${mine.level}`, mine.id, 'mine', mine);
 }
 
 async function doMineHit(mine) {
@@ -9903,7 +9936,7 @@ async function doMineHit(mine) {
   const pos = state.playerPos;
   if (!pos) return;
 
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) {
     cdOverlay.classList.add('active');
     setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
@@ -9922,14 +9955,14 @@ async function doMineHit(mine) {
     });
 
     if (data.burned) {
-      stopCombat();
+      stopPopupCombat(); stopCombat(); closePopup();
       showToast('🔥 Шахта горит!');
     }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
-    stopCombat();
+    stopPopupCombat(); stopCombat(); closePopup();
   }
 }
 
@@ -9939,7 +9972,7 @@ async function doOreHit(target) {
   _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   try {
     const data = await apiFetch('/api/ore', {
@@ -9947,14 +9980,14 @@ async function doOreHit(target) {
       body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.captured) {
-      stopCombat();
+      stopPopupCombat(); stopCombat(); closePopup();
       showToast('⛏️ Рудник захвачен!');
     }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
-    stopCombat();
+    stopPopupCombat(); stopCombat(); closePopup();
   }
 }
 
@@ -10250,7 +10283,7 @@ function stopCombat() {
 // ── Popup Combat System ──
 const combatState = {
   isHolding: false,
-  currentTarget: null,   // { id, type: 'bot'|'player'|'defender', data }
+  currentTarget: null,   // { id, type: 'bot'|'player'|'defender'|'mine'|'ore'|'monument_shield'|'monument_body'|'collector', data }
   attackInterval: null,
   touchId: null,
 };
@@ -10263,6 +10296,10 @@ function getTargetCoords(id, type) {
     return p ? { lat: p.last_lat, lng: p.last_lng } : null;
   }
   if (type === 'defender') { const d = defenderData[id]; return d ? { lat: d.lat, lng: d.lng } : null; }
+  if (type === 'mine') { const m = (state.mapBuildings?.mines || []).find(x => x.id === id); return m ? { lat: m.lat, lng: m.lng } : null; }
+  if (type === 'ore') { const o = oreData[id]; return o ? { lat: o.lat, lng: o.lng } : null; }
+  if (type === 'monument_shield' || type === 'monument_body') { const m = monumentData[id]; return m ? { lat: m.lat, lng: m.lng } : null; }
+  if (type === 'collector') { const c = collectorData[id]; return c ? { lat: c.lat, lng: c.lng } : null; }
   return null;
 }
 
@@ -10295,6 +10332,11 @@ function bindAttackButton(targetType, target) {
     if (t.type === 'bot') doAttackBot(t.id);
     else if (t.type === 'player') doPvpHit(t.data);
     else if (t.type === 'defender') doDefenderHit(t.data);
+    else if (t.type === 'mine') doMineHit(t.data);
+    else if (t.type === 'ore') doOreHit(t.data);
+    else if (t.type === 'monument_shield') doMonumentShieldHit(t.data);
+    else if (t.type === 'monument_body') doMonumentBodyHit(t.data);
+    else if (t.type === 'collector') doCollectorHit(t.data);
   }
 
   function startHold(touchIdentifier) {
@@ -10360,6 +10402,45 @@ function stopPopupCombat() {
   document.getElementById('popup-overlay')?.classList.remove('combat-mode');
   const btn = document.getElementById('popup-atk-btn');
   if (btn) btn.classList.remove('attacking');
+}
+
+function openCombatPopup(title, targetId, targetType, target, opts = {}) {
+  const hp = opts.hp ?? target.hp ?? 0;
+  const maxHp = opts.maxHp ?? target.max_hp ?? 1;
+  const hpPct = maxHp > 0 ? Math.round(hp / maxHp * 100) : 0;
+  const barColor = opts.barColor || '#e06060';
+  const extraHtml = opts.extraHtml || '';
+
+  // Clear timers from previous popups without calling closePopup (preserves isHolding)
+  if (_upgradeCountdownTimer) { clearInterval(_upgradeCountdownTimer); _upgradeCountdownTimer = null; }
+  if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+  if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+
+  const card = document.getElementById('popup-card');
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:15px;font-weight:600;color:#fff">${title}</div>
+      <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:18px;cursor:pointer;padding:0 0 0 8px">✕</button>
+    </div>
+    <div class="popup-hp-live" style="margin-bottom:8px">
+      <span style="color:#aaa;font-size:12px;min-width:20px">HP</span>
+      <div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:${barColor}"></div></div>
+      <span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${formatNumber(hp)}/${formatNumber(maxHp)}</span>
+    </div>
+    ${extraHtml}
+    ${getAttackButton(targetId, targetType)}
+  `;
+
+  const overlay = document.getElementById('popup-overlay');
+  overlay.classList.add('open', 'combat-mode');
+
+  const wasHolding = combatState.isHolding;
+
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+
+  bindAttackButton(targetType, target);
+  if (wasHolding) combatState.isHolding = true;
 }
 
 function showDeathScreen(killerName, coinsLost) {
@@ -10873,6 +10954,11 @@ function showOrePopup(oreId) {
   const isMine = ore.is_mine;
   const ownerOnline = ore.owner_online;
 
+  // Multitouch: if holding attack and can attack this ore, switch immediately
+  if (combatState.isHolding && isOwned && !isMine && inAttackRange && !ownerOnline) {
+    return openCombatPopup(`⛏️ Рудник Ур.${ore.level}`, ore.id, 'ore', ore);
+  }
+
   const distLabel = dist !== null
     ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
     : '<span style="color:#888">📍 GPS...</span>';
@@ -10962,10 +11048,7 @@ function attackOreOwnerPvp(ore) {
 }
 
 function attackOreNode(ore) {
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
-  closePopup();
-  showCombatHUD(ore, 'ore');
+  openCombatPopup(`⛏️ Рудник Ур.${ore.level}`, ore.id, 'ore', ore);
 }
 
 // ── Clan HQ popup (minimal) ──
@@ -11973,6 +12056,16 @@ function showMonumentPopup(monumentId) {
   const dist = pos ? haversine(pos.lat, pos.lng, m.lat, m.lng) : null;
   const inRange = dist !== null && dist <= 500;
 
+  // Multitouch: if holding attack, switch immediately
+  if (combatState.isHolding && inRange) {
+    if (m.phase === 'shield') return doStartMonumentCombat(monumentId, 'shield');
+    if (m.phase === 'open') {
+      const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
+      if (defenders.length > 0) return doStartDefenderCombat(monumentId);
+      return doStartMonumentCombat(monumentId, 'body');
+    }
+  }
+
   const phaseLabel = m.phase === 'shield' ? '🛡️ Щит' : m.phase === 'open' ? '🔥 Открыт' : '💀 Повержен';
   const distLabel = dist !== null
     ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
@@ -12020,27 +12113,21 @@ function showMonumentPopup(monumentId) {
 function showDefenderPopup(defenderId) {
   const d = defenderData[defenderId];
   if (!d) return;
-  const wasHolding = combatState.isHolding;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, d.lat, d.lng) : null;
   const inRange = dist !== null && dist <= 500;
-  const hpPct = d.max_hp > 0 ? Math.round(d.hp / d.max_hp * 100) : 0;
 
-  const stats = [
-    ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#ff6600"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${formatNumber(d.hp)}/${formatNumber(d.max_hp)}</span></div>`],
-    ['__fullwidth__', getAttackButton(defenderId, 'defender')],
-  ];
-
-  const actions = [];
-  if (!inRange) {
-    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
-  }
-
-  openPopup(`${d.emoji} Защитник монумента`, dist ? `📍 ${Math.round(dist)}м` : '', stats, actions);
+  // In range or multitouch: compact combat popup
   if (inRange) {
-    if (wasHolding) combatState.isHolding = true;
-    bindAttackButton('defender', { id: defenderId, monument_id: d.monument_id, emoji: d.emoji });
+    return openCombatPopup(`${d.emoji} Защитник`, defenderId, 'defender',
+      { id: defenderId, monument_id: d.monument_id, emoji: d.emoji, hp: d.hp, max_hp: d.max_hp },
+      { barColor: '#ff6600' });
   }
+
+  // Out of range — info popup
+  openPopup(`${d.emoji} Защитник монумента`, dist ? `📍 ${Math.round(dist)}м` : '', [], [
+    { label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true },
+  ]);
 }
 
 // ── Loot box popup ──
@@ -12063,12 +12150,14 @@ function showLootBoxPopup(boxId) {
 function doStartMonumentCombat(monumentId, mode) {
   const m = monumentData[monumentId];
   if (!m) return;
-
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
-
-  closePopup();
-  showCombatHUD({ id: monumentId, level: m.level, name: m.name, _monumentMode: mode }, 'monument');
+  const targetType = mode === 'shield' ? 'monument_shield' : 'monument_body';
+  const hp = mode === 'shield' ? m.shield_hp : m.hp;
+  const maxHp = mode === 'shield' ? m.max_shield_hp : m.max_hp;
+  const barColor = mode === 'shield' ? '#4488ff' : '#ff4444';
+  const extraHtml = mode === 'shield' && m.dps_threshold
+    ? `<div style="font-size:11px;color:#888;margin-bottom:6px">DPS порог: ${formatNumber(m.dps_threshold)}</div>` : '';
+  const target = { id: monumentId, level: m.level, name: m.name, _monumentMode: mode };
+  openCombatPopup(`🏛️ ${m.name || 'Монумент'} Lv.${m.level}`, monumentId, targetType, target, { hp, maxHp, barColor, extraHtml });
 }
 
 function doStartDefenderCombat(monumentId) {
@@ -12087,12 +12176,9 @@ function doStartDefenderCombat(monumentId) {
 function doStartSingleDefenderCombat(defenderId) {
   const d = defenderData[defenderId];
   if (!d) return;
-
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
-
-  closePopup();
-  showCombatHUD({ id: defenderId, emoji: d.emoji, _defenderMode: true, monument_id: d.monument_id }, 'defender');
+  openCombatPopup(`${d.emoji} Защитник`, defenderId, 'defender',
+    { id: defenderId, monument_id: d.monument_id, emoji: d.emoji, hp: d.hp, max_hp: d.max_hp },
+    { barColor: '#ff6600' });
 }
 
 // ── Extend showCombatHUD for monument/defender modes ──
@@ -12109,7 +12195,7 @@ async function doMonumentShieldHit(target) {
   const pos = state.playerPos;
   if (!pos) return;
 
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
   try {
@@ -12128,11 +12214,11 @@ async function doMonumentShieldHit(target) {
     if (data.dps_check === false) {
       showToast(`⚠️ Мало DPS: ${formatNumber(data.current_dps)}/${formatNumber(data.required_dps)}`);
     }
-    if (data.shield_broken) { stopCombat(); showToast('💥 Щит пробит! Появились защитники!'); }
+    if (data.shield_broken) { stopPopupCombat(); stopCombat(); closePopup(); showToast('💥 Щит пробит! Появились защитники!'); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopCombat();
+    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
   }
 }
 
@@ -12143,7 +12229,7 @@ async function doMonumentBodyHit(target) {
   const pos = state.playerPos;
   if (!pos) return;
 
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
   try {
@@ -12154,12 +12240,12 @@ async function doMonumentBodyHit(target) {
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const m = monumentData[target.id];
     if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
-    if (data.defeated) { stopCombat(); showToast('🏆 Монумент повержен! Награды на карте!'); }
+    if (data.defeated) { stopPopupCombat(); stopCombat(); closePopup(); showToast('🏆 Монумент повержен! Награды на карте!'); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopCombat(); showToast('⚔️ ' + msg); return; }
-    showToast(`❌ ${msg}`); stopCombat();
+    if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopPopupCombat(); stopCombat(); closePopup(); showToast('⚔️ ' + msg); return; }
+    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
   }
 }
 
@@ -12213,7 +12299,7 @@ async function doDefenderHit(target) {
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat();
+    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
   }
 }
 
@@ -12337,6 +12423,11 @@ function showCollectorPopup(collectorId) {
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, c.lat, c.lng) : null;
   const inAttackRange = dist !== null && dist <= 500;
+
+  // Multitouch: if holding attack on enemy collector, switch immediately
+  if (combatState.isHolding && !c.is_mine && inAttackRange) {
+    return doStartCollectorCombat(collectorId);
+  }
   const capacity = c._capacity || 1;
   const coins = c.stored_coins || 0;
   const fillPct = capacity > 0 ? Math.min(100, Math.round(coins / capacity * 100)) : 0;
@@ -12402,10 +12493,7 @@ function showCollectorPopup(collectorId) {
 function doStartCollectorCombat(collectorId) {
   const c = collectorData[collectorId];
   if (!c) return;
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
-  closePopup();
-  showCombatHUD({ id: collectorId, level: c.level, _collectorMode: true }, 'collector');
+  openCombatPopup(`🧲 Сборщик Ур.${c.level}`, collectorId, 'collector', { id: collectorId, level: c.level, hp: c.hp, max_hp: c.max_hp });
 }
 
 async function doCollectorHit(target) {
@@ -12414,7 +12502,7 @@ async function doCollectorHit(target) {
   _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   try {
     const data = await apiFetch('/api/collectors', {
@@ -12424,7 +12512,7 @@ async function doCollectorHit(target) {
     const c = collectorData[target.id];
     if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
     if (data.destroyed) {
-      stopCombat();
+      stopPopupCombat(); stopCombat(); closePopup();
       if (collectorMarkers[target.id]) { map.removeLayer(collectorMarkers[target.id]); delete collectorMarkers[target.id]; delete collectorData[target.id]; }
       showToast(`💥 Сборщик уничтожен! +${formatCoins(data.stolen_coins)} монет`);
       _setPlayerCoins((state.player?.coins || 0) + data.stolen_coins);
@@ -12432,7 +12520,7 @@ async function doCollectorHit(target) {
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopCombat();
+    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
   }
 }
 
