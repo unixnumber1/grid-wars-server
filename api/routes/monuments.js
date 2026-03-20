@@ -8,8 +8,9 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
   MONUMENT_LEVELS, MONUMENT_LOOT_TABLE, MONUMENT_ATTACK_RADIUS,
   WAVE_INTERVAL_SECONDS, spawnDefenderWave, defeatMonument, getPlayersNearMonument,
-  getMonumentAttackers, calcRaidDps,
+  getMonumentAttackers, calcRaidDps, checkWaveTrigger, checkWaveComplete,
 } from '../../lib/monuments.js';
+import { MONUMENT_WAVE_TRIGGERS } from '../../config/constants.js';
 import { MONUMENT_SHIELD_DPS_THRESHOLD, MONUMENT_DPS_WINDOW_MS } from '../../config/constants.js';
 
 export const monumentsRouter = Router();
@@ -136,6 +137,7 @@ async function handleAttackShield(req, res) {
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (player.is_dead) return res.status(400).json({ error: 'Вы мертвы!' });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
@@ -220,11 +222,11 @@ async function handleAttackShield(req, res) {
     shieldBroken = true;
     monument.phase = 'open';
     monument.shield_broken_at = new Date().toISOString();
+    monument.waves_triggered = [];
     gameState.markDirty('monuments', monument.id);
 
-    // Start first wave of defenders
-    gameState.activeWaves.set(monument.id, { wave_number: 1, last_wave_at: now, last_attack_at: 0, last_hp_decile: 10 });
-    await spawnDefenderWave(monument, 1, io, connectedPlayers);
+    // Start tracking for waves
+    gameState.activeWaves.set(monument.id, { wave_number: 0, last_wave_at: now, last_attack_at: 0 });
 
     emitToRaidParticipants(monument.id, 'monument:shield_broken', {
       monument_id: monument.id,
@@ -261,6 +263,12 @@ async function handleAttackMonument(req, res) {
 
   const monument = gameState.monuments.get(monument_id);
   if (!monument) return res.status(404).json({ error: 'Monument not found' });
+
+  // Block attacks when invulnerable (wave active)
+  if (monument.invulnerable) {
+    return res.json({ ok: true, blocked: true, message: '⚠️ Убейте защитников!' });
+  }
+
   if (monument.phase !== 'open') return res.status(400).json({ error: 'Монумент не открыт для атаки' });
 
   // Check no alive defenders
@@ -269,6 +277,7 @@ async function handleAttackMonument(req, res) {
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (player.is_dead) return res.status(400).json({ error: 'Вы мертвы!' });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
@@ -343,21 +352,17 @@ async function handleAttackMonument(req, res) {
     max_hp: monument.max_hp,
   });
 
-  // Wave spawn on every 10% HP threshold crossed
+  // Wave trigger on HP thresholds (75/50/25%)
   let waveSpawned = false;
   if (monument.hp > 0) {
-    const wave = gameState.activeWaves.get(monument.id);
-    if (wave) {
-      const hpPct = Math.floor(monument.hp / monument.max_hp * 10); // 0-10 (deciles)
-      const prevPct = wave.last_hp_decile ?? 10;
-      if (hpPct < prevPct) {
-        // Crossed a 10% threshold — spawn a wave
-        wave.last_hp_decile = hpPct;
-        wave.wave_number++;
-        wave.last_wave_at = Date.now();
-        await spawnDefenderWave(monument, wave.wave_number, io, connectedPlayers);
-        waveSpawned = true;
-      }
+    const waveNumber = checkWaveTrigger(monument);
+    if (waveNumber) {
+      if (!monument.waves_triggered) monument.waves_triggered = [];
+      monument.waves_triggered.push(MONUMENT_WAVE_TRIGGERS[waveNumber - 1]);
+      monument.invulnerable = true;
+      gameState.markDirty('monuments', monument.id);
+      await spawnDefenderWave(monument, waveNumber, io, connectedPlayers);
+      waveSpawned = true;
     }
   }
 
@@ -396,6 +401,7 @@ async function handleAttackDefender(req, res) {
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (player.is_dead) return res.status(400).json({ error: 'Вы мертвы!' });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, defender.lat, defender.lng);
@@ -457,14 +463,21 @@ async function handleAttackDefender(req, res) {
       monument_id: defender.monument_id,
     });
 
-    // Check if all defenders for this monument are dead
-    const aliveDefenders = [...gameState.monumentDefenders.values()]
+    // Check if all defenders for this monument are dead → clear wave
+    const remainingAlive = [...gameState.monumentDefenders.values()]
       .filter(d => d.monument_id === defender.monument_id && d.alive);
 
-    if (aliveDefenders.length === 0) {
-      emitToRaidParticipants(defender.monument_id, 'monument:vulnerable', {
-        monument_id: defender.monument_id,
-      });
+    if (remainingAlive.length === 0) {
+      const monument = gameState.monuments.get(defender.monument_id);
+      if (monument) {
+        monument.phase = 'open';
+        monument.invulnerable = false;
+        gameState.markDirty('monuments', monument.id);
+        emitToRaidParticipants(defender.monument_id, 'monument:wave_cleared', {
+          monument_id: defender.monument_id,
+          wave: monument.waves_triggered?.length || 0,
+        });
+      }
     }
 
     // XP for killing defender

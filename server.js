@@ -309,14 +309,38 @@ io.on('connection', (socket) => {
 // Export io for push events
 export { io, gameState };
 
+// Lazy-loaded constants for monument loop
+let _monumentConstants = null;
+
 // ── Monument game loop ──
 function startMonumentLoop() {
   setInterval(async () => {
     if (!require_monuments) return;
-    const { MONUMENT_LEVELS, MONUMENT_ATTACK_RADIUS, WAVE_INTERVAL_SECONDS, spawnDefenderWave, getPlayersNearMonument } = require_monuments;
+    if (!_monumentConstants) _monumentConstants = await import('./config/constants.js');
+    const { MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_DEFENDER_DAMAGE, MONUMENT_DEFENDER_ATTACK_CD, PLAYER_RESPAWN_TIME } = _monumentConstants;
+    const { MONUMENT_LEVELS, MONUMENT_ATTACK_RADIUS, getPlayersNearMonument, checkWaveComplete } = require_monuments;
+    const now = Date.now();
+
+    // ── Auto-respawn dead players ──
+    for (const player of gameState.players.values()) {
+      if (!player.is_dead || !player.respawn_at) continue;
+      if (now < new Date(player.respawn_at).getTime()) continue;
+      player.is_dead = false;
+      player.hp = 1000 + (player.bonus_hp || 0);
+      player.respawn_at = null;
+      gameState.markDirty('players', player.id);
+      // Find socket and emit respawn
+      for (const [sid, info] of connectedPlayers) {
+        if (String(info.telegram_id) === String(player.telegram_id)) {
+          io.to(sid).emit('player:respawned', {});
+          break;
+        }
+      }
+    }
+
     for (const [id, monument] of gameState.monuments) {
       try {
-        // Respawn shield after 8h
+        // Respawn shield after 7d
         if (monument.phase === 'defeated' && monument.respawn_at) {
           if (new Date() > new Date(monument.respawn_at)) {
             const cfg = MONUMENT_LEVELS[monument.level];
@@ -326,6 +350,8 @@ function startMonumentLoop() {
             monument.raid_started_at = null;
             monument.shield_broken_at = null;
             monument.respawn_at = null;
+            monument.waves_triggered = [];
+            monument.invulnerable = false;
             gameState.markDirty('monuments', id);
             gameState.monumentDamage.delete(id);
             io.emit('monument:shield_restored', { monument_id: id });
@@ -336,9 +362,9 @@ function startMonumentLoop() {
 
         // Shield regen is now handled by processMonumentShieldRegen() in gameLoop.js
 
-        // Open phase — check 4h timeout (regen shield if not destroyed)
-        if (monument.phase === 'open' && monument.shield_broken_at) {
-          const openMs = Date.now() - new Date(monument.shield_broken_at).getTime();
+        // Open/wave phase — check 4h timeout (regen shield if not destroyed)
+        if ((monument.phase === 'open' || monument.phase === 'wave') && monument.shield_broken_at) {
+          const openMs = now - new Date(monument.shield_broken_at).getTime();
           if (openMs > 4 * 60 * 60 * 1000) { // 4 hours
             const cfg = MONUMENT_LEVELS[monument.level];
             monument.phase = 'shield';
@@ -346,6 +372,8 @@ function startMonumentLoop() {
             monument.hp = cfg.hp;
             monument.raid_started_at = null;
             monument.shield_broken_at = null;
+            monument.invulnerable = false;
+            monument.waves_triggered = [];
             gameState.markDirty('monuments', id);
             gameState.monumentDamage.delete(id);
             gameState.activeWaves.delete(id);
@@ -359,26 +387,53 @@ function startMonumentLoop() {
           }
         }
 
-        // Open phase — defender attacks
-        if (monument.phase === 'open') {
-          const wave = gameState.activeWaves.get(id);
-          if (!wave) continue;
-
-          const now = Date.now();
-
+        // Wave phase — regen monument HP while defenders alive + safety timeout
+        if (monument.phase === 'wave') {
           const aliveDefenders = [...gameState.monumentDefenders.values()]
             .filter(d => d.monument_id === id && d.alive);
 
-          // ── Move defenders ──
+          if (aliveDefenders.length > 0) {
+            // Regen HP: 1%/sec * 5s tick = 5% per tick
+            const regenAmount = monument.max_hp * MONUMENT_WAVE_REGEN_PERCENT * 5;
+            monument.hp = Math.min(monument.max_hp, monument.hp + regenAmount);
+            gameState.markDirty('monuments', id);
+            emitToNearbyMonument(monument.lat, monument.lng, 1000, 'monument:hp_update', {
+              monument_id: id, hp: monument.hp, max_hp: monument.max_hp, regen: true,
+            });
+
+            // Safety timeout: if wave phase > 30min with no nearby players, clear wave
+            const nearbyPlayers = getPlayersNearMonument(monument, connectedPlayers);
+            if (nearbyPlayers.length === 0 && monument.wave_started_at && (now - monument.wave_started_at > 30 * 60 * 1000)) {
+              for (const def of aliveDefenders) {
+                def.alive = false;
+                def.hp = 0;
+              }
+              monument.phase = 'open';
+              monument.invulnerable = false;
+              gameState.markDirty('monuments', id);
+              console.log(`[MONUMENTS] Wave safety timeout — cleared defenders for lv${monument.level} "${monument.name}"`);
+            }
+          } else {
+            // All defenders dead — fallback check
+            checkWaveComplete(monument, gameState, io, connectedPlayers);
+          }
+        }
+
+        // Open and wave phases — defender movement + per-defender attacks
+        if (monument.phase === 'open' || monument.phase === 'wave') {
+          const aliveDefenders = [...gameState.monumentDefenders.values()]
+            .filter(d => d.monument_id === id && d.alive);
+          if (aliveDefenders.length === 0) continue;
+
           const nearbyPlayers = getPlayersNearMonument(monument, connectedPlayers);
           const DEFENDER_SPEED = 20; // meters per tick (5s)
           const cosLat = Math.cos(monument.lat * Math.PI / 180) || 1;
 
           for (const defender of aliveDefenders) {
+            // ── Movement ──
             let targetLat, targetLng;
 
             if (nearbyPlayers.length > 0) {
-              // Chase closest player
               let closest = nearbyPlayers[0], closestDist = Infinity;
               for (const p of nearbyPlayers) {
                 const d = haversine(defender.lat, defender.lng, p.last_lat, p.last_lng);
@@ -387,7 +442,6 @@ function startMonumentLoop() {
               targetLat = closest.last_lat;
               targetLng = closest.last_lng;
             } else {
-              // Roam within 200m of monument
               if (!defender._roamAngle) defender._roamAngle = Math.random() * Math.PI * 2;
               if (Math.random() < 0.15) defender._roamAngle += (Math.random() - 0.5) * 1.2;
               const roamDist = 30 + Math.random() * 100;
@@ -395,7 +449,6 @@ function startMonumentLoop() {
               targetLng = monument.lng + (roamDist / (111320 * cosLat)) * Math.sin(defender._roamAngle);
             }
 
-            // Move toward target
             const dLat = targetLat - defender.lat;
             const dLng = targetLng - defender.lng;
             const dist = Math.sqrt(dLat * dLat + dLng * dLng);
@@ -413,60 +466,61 @@ function startMonumentLoop() {
               defender.lat = monument.lat + (450 / 111320) * Math.cos(backAngle);
               defender.lng = monument.lng + (450 / (111320 * cosLat)) * Math.sin(backAngle);
             }
-          }
 
-          // ── Defenders attack nearby players every ~4 seconds (2 ticks) ──
-          if (now - (wave.last_attack_at || 0) >= 4000) {
-            if (nearbyPlayers.length > 0 && aliveDefenders.length > 0) {
-              const defAtk = MONUMENT_LEVELS[monument.level].defender_attack;
-              for (const defender of aliveDefenders) {
-                // Attack closest player within 50m of this defender
-                let target = null, bestDist = 50;
-                for (const p of nearbyPlayers) {
-                  const d = haversine(defender.lat, defender.lng, p.last_lat, p.last_lng);
-                  if (d < bestDist) { target = p; bestDist = d; }
-                }
-                if (!target) continue;
+            // ── Per-defender attack ──
+            if (now - (defender.last_attack || 0) < (defender.attack_cd || MONUMENT_DEFENDER_ATTACK_CD)) continue;
+            if (nearbyPlayers.length === 0) continue;
 
-                const damage = defAtk;
-                const maxHp = 1000 + (target.bonus_hp || 0);
-                let hp = target.hp ?? maxHp;
-                hp = Math.max(0, hp - damage);
-                target.hp = hp;
-                gameState.markDirty('players', target.id);
+            // Find closest player within 50m
+            let target = null, bestDist = 50;
+            for (const p of nearbyPlayers) {
+              const d = haversine(defender.lat, defender.lng, p.last_lat, p.last_lng);
+              if (d < bestDist) { target = p; bestDist = d; }
+            }
+            if (!target) continue;
 
-                emitToNearbyMonument(monument.lat, monument.lng, 1000, 'projectile', {
-                  from_lat: defender.lat, from_lng: defender.lng,
-                  to_lat: target.last_lat, to_lng: target.last_lng,
-                  damage, crit: false,
-                  target_type: 'player', target_id: target.id,
-                  attacker_type: 'defender',
-                  weapon_type: 'defender',
-                  emoji: defender.emoji,
+            defender.last_attack = now;
+            const damage = defender.attack || MONUMENT_DEFENDER_DAMAGE;
+            const maxHp = 1000 + (target.bonus_hp || 0);
+            let hp = target.hp ?? maxHp;
+            hp = Math.max(0, hp - damage);
+            target.hp = hp;
+            gameState.markDirty('players', target.id);
+
+            emitToNearbyMonument(monument.lat, monument.lng, 1000, 'projectile', {
+              from_lat: defender.lat, from_lng: defender.lng,
+              to_lat: target.last_lat, to_lng: target.last_lng,
+              damage, crit: false,
+              target_type: 'player', target_id: target.id,
+              attacker_type: 'defender',
+              weapon_type: 'defender',
+              emoji: defender.emoji,
+            });
+
+            if (target._socketId) {
+              io.to(target._socketId).emit('pvp:hit', {
+                attacker_name: defender.emoji + ' Защитник',
+                damage,
+                hp_left: hp,
+                max_hp: maxHp,
+              });
+            }
+
+            // Player death → 30s respawn
+            if (hp <= 0) {
+              target.hp = 0;
+              target.is_dead = true;
+              target.respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();
+              gameState.markDirty('players', target.id);
+              if (target._socketId) {
+                io.to(target._socketId).emit('player:died', {
+                  respawn_in: 30,
+                  killer: defender.emoji + ' Защитник',
                 });
-
-                if (target._socketId) {
-                  io.to(target._socketId).emit('pvp:hit', {
-                    attacker_name: defender.emoji + ' Защитник',
-                    damage,
-                    hp_left: hp,
-                    max_hp: maxHp,
-                  });
-                }
-
-                if (hp <= 0) {
-                  target.hp = maxHp;
-                  target.shield_until = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-                  gameState.markDirty('players', target.id);
-                  if (target._socketId) {
-                    io.to(target._socketId).emit('monument:knocked_out', {
-                      monument_id: id,
-                      respawn_in: 300,
-                    });
-                  }
-                }
               }
-              wave.last_attack_at = now;
+              // Remove from nearbyPlayers so other defenders don't attack
+              const idx = nearbyPlayers.indexOf(target);
+              if (idx !== -1) nearbyPlayers.splice(idx, 1);
             }
           }
         }

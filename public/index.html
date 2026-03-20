@@ -1057,7 +1057,7 @@
       position: fixed;
       inset: 0;
       background: #0d0d0d;
-      z-index: 3000;
+      z-index: 8000;
       flex-direction: column;
       overflow-y: auto;
       transform: translateY(100%);
@@ -1665,6 +1665,7 @@
       text-align: center;
       display: flex; flex-direction: column; align-items: center; gap: 6px;
       position: relative;
+      min-height: 200px;
     }
     .market-card-emoji { font-size: 36px; line-height: 1; margin: 4px 0; }
     .market-card-name { font-size: 11px; font-weight: 600; color: #fff; line-height: 1.2; }
@@ -1673,13 +1674,13 @@
     .market-card-price { font-size: 15px; font-weight: 800; color: #64B5F6; margin: 2px 0; }
     .market-card-seller { font-size: 9px; color: #888; }
     .market-card .market-buy-btn {
-      width: 100%; margin-top: 4px; padding: 8px; font-size: 13px; font-weight: 600;
+      width: 100%; margin-top: auto; padding: 8px; font-size: 13px; font-weight: 600;
       border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent;
       background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.3); color: #00E676;
       transition: background 0.2s;
     }
     .market-card .market-buy-btn:active { background: rgba(0,230,118,0.25); }
-    .market-card .btn { width: 100%; margin-top: 4px; padding: 8px; font-size: 13px; border-radius: 8px; }
+    .market-card .btn { width: 100%; margin-top: auto; padding: 8px; font-size: 13px; border-radius: 8px; }
     .market-card-lock {
       position: absolute; top: 8px; right: 8px; font-size: 14px;
     }
@@ -1759,7 +1760,7 @@
     }
     .market-inv-cell {
       aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-      font-size: 28px; border-radius: 10px;
+      font-size: 28px; border-radius: 10px; position: relative;
       border: 1px solid rgba(255,255,255,0.1);
       background: rgba(255,255,255,0.04);
       cursor: pointer; transition: opacity 0.2s;
@@ -2151,6 +2152,10 @@
     #death-screen .death-text { font-size: 24px; font-weight: 900; color: #f44336; text-transform: uppercase; letter-spacing: 2px; }
     #death-screen .death-timer { font-size: 48px; font-weight: 900; color: #FFD700; font-variant-numeric: tabular-nums; }
     #death-screen .death-info { font-size: 14px; color: #888; }
+    @keyframes waveFlash {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
     /* Kill animation on map marker */
     @keyframes killShrink {
       0% { transform: scale(1); opacity: 1; }
@@ -3364,6 +3369,8 @@ function showItemReveal(item, source) {
 }
 
 function showProfilePopup() {
+  stopCombat();
+  document.querySelectorAll('.floating-damage,.floating-xp,.combat-projectile').forEach(el => el.remove());
   const p = state.player;
   if (!p) return;
 
@@ -5918,6 +5925,14 @@ function initSocket() {
       updateMineHpBar(data);
     });
 
+    _socket.on('courier:removed', ({ courier_id }) => {
+      if (courierMarkers[courier_id]) {
+        courierLayer.removeLayer(courierMarkers[courier_id]);
+        delete courierMarkers[courier_id];
+        delete courierData[courier_id];
+      }
+    });
+
     _socket.on('ore:captured', (data) => {
       const ore = oreData[data.ore_node_id];
       if (ore) {
@@ -6006,8 +6021,21 @@ function initSocket() {
       try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
     });
 
-    _socket.on('monument:vulnerable', (data) => {
-      showToast(`⚡ Монумент уязвим! Атакуйте!`, 2500);
+    _socket.on('monument:wave_started', (data) => {
+      showToast(data.message || `⚠️ Волна ${data.wave}!`, 3000);
+      if (data.defenders) {
+        for (const d of data.defenders) addDefenderMarkerImmediate(d);
+      }
+      // Red flash
+      const flash = document.createElement('div');
+      flash.style.cssText = 'position:fixed;inset:0;z-index:19999;background:rgba(255,0,0,0.3);pointer-events:none;animation:waveFlash 0.6s ease-out forwards;';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 700);
+      try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
+    });
+
+    _socket.on('monument:wave_cleared', (data) => {
+      showToast(`✅ Волна уничтожена! Атакуйте монумент!`, 3000);
       try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
     });
 
@@ -6027,9 +6055,14 @@ function initSocket() {
       showCoreDropAnimation(data.emoji, data.name, data.monument_level);
     });
 
-    _socket.on('monument:knocked_out', (data) => {
-      showToast(`💀 Защитник выбил тебя! Возвращайся через ${Math.floor(data.respawn_in/60)} мин`, 3000);
+    _socket.on('player:died', (data) => {
       stopCombat();
+      showMonumentDeathOverlay(data.respawn_in || 30, data.killer || 'Защитник');
+    });
+
+    _socket.on('player:respawned', () => {
+      removeMonumentDeathOverlay();
+      showToast('✅ Вы возродились!');
     });
 
     _socket.on('monument:shield_restored', (data) => {
@@ -9067,7 +9100,7 @@ function _renderMarketCards(listings, grid, isMine) {
       card.innerHTML = `
         ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
         <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
-        <div class="market-card-name">${item.name}${item.upgrade_level ? ` <span style="color:#FFD700;font-size:11px;">+${item.upgrade_level}</span>` : ''}</div>
+        <div class="market-card-name">${item.name} <span style="color:#FFD700;font-size:11px;">lv.${item.upgrade_level || 0}</span></div>
         <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
         <div class="market-card-stat">${itemStatLabel(item)}</div>
         <div class="market-card-price">💎 ${l.price_diamonds}</div>
@@ -9270,7 +9303,7 @@ function openListItemFlow() {
     const cell = document.createElement('div');
     const disabled = item.equipped || item.on_market;
     cell.className = `market-inv-cell ${rarityClass(item.rarity)}${disabled ? ' disabled' : ''}`;
-    cell.innerHTML = `<span>${item.emoji}</span>`;
+    cell.innerHTML = `<span>${item.emoji}</span><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.8);color:#FFD700;font-size:9px;padding:1px 4px;border-radius:3px;">lv.${item.upgrade_level || 0}</span>`;
     if (!disabled) {
       cell.addEventListener('click', () => _selectListItem(item));
     }
@@ -9395,8 +9428,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!_listSelectedItem) return;
     const priceStr = document.getElementById('market-list-price-input').value;
     const price = parseInt(priceStr, 10);
-    if (isNaN(price) || price < 1 || price > 100000) {
-      return showToast('❌ Цена от 1 до 100 000');
+    if (isNaN(price) || price < 10 || price > 100000) {
+      return showToast('❌ Цена от 10 до 100 000 💎');
     }
 
     const btn = document.getElementById('market-list-submit');
@@ -10185,6 +10218,32 @@ function showDeathScreen(killerName, coinsLost) {
       showToast('🔄 Возрождение!');
     }
   }, 1000);
+}
+
+let _monumentDeathTimer = null;
+function showMonumentDeathOverlay(seconds, killer) {
+  const screen = document.getElementById('death-screen');
+  const timerEl = document.getElementById('death-timer');
+  const infoEl = document.getElementById('death-info');
+  infoEl.textContent = `💀 ${killer} убил вас`;
+  screen.classList.add('open');
+  let sec = seconds;
+  timerEl.textContent = sec;
+  if (_monumentDeathTimer) clearInterval(_monumentDeathTimer);
+  _monumentDeathTimer = setInterval(() => {
+    sec--;
+    timerEl.textContent = Math.max(0, sec);
+    if (sec <= 0) {
+      clearInterval(_monumentDeathTimer);
+      _monumentDeathTimer = null;
+      // Don't auto-close — wait for server 'player:respawned'
+    }
+  }, 1000);
+}
+function removeMonumentDeathOverlay() {
+  if (_monumentDeathTimer) { clearInterval(_monumentDeathTimer); _monumentDeathTimer = null; }
+  const screen = document.getElementById('death-screen');
+  if (screen) screen.classList.remove('open');
 }
 
 async function doPvpHit(target) {
@@ -11926,13 +11985,14 @@ async function doMonumentBodyHit(target) {
       method: 'POST',
       body: JSON.stringify({ action: 'attack-monument', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
+    if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const m = monumentData[target.id];
     if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
     if (data.defeated) { stopCombat(); showToast('🏆 Монумент повержен! Награды на карте!'); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    if (msg.includes('защитников') || msg.includes('Сначала')) { stopCombat(); showToast('⚔️ ' + msg); return; }
+    if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopCombat(); showToast('⚔️ ' + msg); return; }
     showToast(`❌ ${msg}`); stopCombat();
   }
 }
@@ -12427,7 +12487,7 @@ async function doCollectorSell(collectorId) {
       <div id="market-list-preview-rarity" style="text-align:center;margin:4px 0;"></div>
       <div id="market-list-preview-stat" style="text-align:center;font-size:14px;color:#f5c518;margin-bottom:16px;"></div>
       <p style="color:#aaa;font-size:13px;margin-bottom:4px;">Цена (алмазы):</p>
-      <input id="market-list-price-input" type="number" min="1" max="100000" placeholder="от 1 до 100 000" />
+      <input id="market-list-price-input" type="number" min="10" max="100000" placeholder="от 10 до 100 000" />
       <div class="market-list-toggle-row">
         <span>🔓 Приватный лот</span>
         <button class="market-list-toggle" id="market-list-private-toggle"></button>

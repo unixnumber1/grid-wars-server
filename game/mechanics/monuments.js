@@ -7,6 +7,9 @@ import { getCoreDropConfig, randomCoreType, CORE_TYPES } from './cores.js';
 import {
   MONUMENT_HP, MONUMENT_SHIELD_HP, MONUMENT_SHIELD_DPS_THRESHOLD,
   MONUMENT_DPS_WINDOW_MS,
+  MONUMENT_WAVE_COUNTS, MONUMENT_DEFENDER_HP, MONUMENT_DEFENDER_DAMAGE,
+  MONUMENT_DEFENDER_SPEED, MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_WAVE_TRIGGERS,
+  MONUMENT_DEFENDER_ATTACK_CD, WAVE_EMOJIS,
 } from '../../config/constants.js';
 
 // ── Emojis for defenders ──
@@ -204,15 +207,59 @@ export async function resetMonuments() {
   console.log('[MONUMENTS] Weekly reset complete — monuments will respawn as players connect');
 }
 
+// ── Check if a wave should trigger based on HP thresholds ──
+export function checkWaveTrigger(monument) {
+  const hpPercent = (monument.hp / monument.max_hp) * 100;
+  if (!monument.waves_triggered) monument.waves_triggered = [];
+  for (let i = 0; i < MONUMENT_WAVE_TRIGGERS.length; i++) {
+    const threshold = MONUMENT_WAVE_TRIGGERS[i];
+    if (hpPercent <= threshold && !monument.waves_triggered.includes(threshold)) {
+      return i + 1; // waveNumber 1/2/3
+    }
+  }
+  return null;
+}
+
+// ── Check if all defenders of current wave are dead ──
+export function checkWaveComplete(monument, gameState, io, connectedPlayers) {
+  const aliveCount = [...gameState.monumentDefenders.values()]
+    .filter(d => d.monument_id === monument.id && d.alive).length;
+  if (aliveCount > 0) return false;
+
+  monument.phase = 'open';
+  monument.invulnerable = false;
+  gameState.markDirty('monuments', monument.id);
+
+  // Emit to raid participants
+  if (io && connectedPlayers) {
+    const dmgMap = gameState.monumentDamage.get(monument.id);
+    if (dmgMap) {
+      for (const [sid, info] of connectedPlayers) {
+        if (!info.telegram_id) continue;
+        if (dmgMap.has(Number(info.telegram_id)) || dmgMap.has(String(info.telegram_id))) {
+          io.to(sid).emit('monument:wave_cleared', {
+            monument_id: monument.id,
+            wave: monument.waves_triggered?.length || 0,
+          });
+        }
+      }
+    }
+  }
+
+  console.log(`[MONUMENTS] Wave cleared for monument lv${monument.level} "${monument.name}"`);
+  return true;
+}
+
 // ── Spawn a wave of defenders ──
 export async function spawnDefenderWave(monument, waveNumber, io, connectedPlayers) {
-  const levelConfig = MONUMENT_LEVELS[monument.level];
-  const [minCount, maxCount] = levelConfig.defenders_per_wave;
-  const count = Math.min(maxCount, minCount + Math.floor(waveNumber / 3));
+  const waveCounts = MONUMENT_WAVE_COUNTS[monument.level] || MONUMENT_WAVE_COUNTS[1];
+  const count = waveCounts[waveNumber - 1] || waveCounts[0];
+  const defHp = MONUMENT_DEFENDER_HP[monument.level] || MONUMENT_DEFENDER_HP[1];
+  const waveEmojiList = WAVE_EMOJIS[waveNumber] || WAVE_EMOJIS[1];
 
   const defenders = [];
   for (let i = 0; i < count; i++) {
-    const emoji = MONUMENT_EMOJIS[Math.floor(Math.random() * MONUMENT_EMOJIS.length)];
+    const emoji = waveEmojiList[Math.floor(Math.random() * waveEmojiList.length)];
     const angle = Math.random() * 2 * Math.PI;
     const dist = 50 + Math.random() * 150;
     const cosLat = Math.cos(monument.lat * Math.PI / 180);
@@ -223,30 +270,40 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
       id: globalThis.crypto.randomUUID(),
       monument_id: monument.id,
       emoji,
-      hp: levelConfig.defender_hp,
-      max_hp: levelConfig.defender_hp,
-      attack: levelConfig.defender_attack,
+      hp: defHp,
+      max_hp: defHp,
+      attack: MONUMENT_DEFENDER_DAMAGE,
       wave: waveNumber,
       lat, lng,
       alive: true,
+      last_attack: 0,
+      speed: MONUMENT_DEFENDER_SPEED,
+      attack_cd: MONUMENT_DEFENDER_ATTACK_CD,
     };
     defenders.push(defender);
     gameState.monumentDefenders.set(defender.id, defender);
   }
 
+  // Set monument to wave phase
+  monument.phase = 'wave';
+  monument.invulnerable = true;
+  monument.wave_started_at = Date.now();
+  gameState.markDirty('monuments', monument.id);
+
   // Save to DB (fire-and-forget)
   supabase.from('monument_defenders').insert(defenders).then(() => {}).catch(e => console.error('[MONUMENTS] defender insert error:', e.message));
 
-  // Emit only to raid participants
+  // Emit to raid participants
   if (io && connectedPlayers) {
     const dmgMap = gameState.monumentDamage.get(monument.id);
     if (dmgMap) {
       for (const [sid, info] of connectedPlayers) {
         if (!info.telegram_id) continue;
         if (dmgMap.has(Number(info.telegram_id)) || dmgMap.has(String(info.telegram_id))) {
-          io.to(sid).emit('monument:wave_spawn', {
+          io.to(sid).emit('monument:wave_started', {
             monument_id: monument.id,
             wave: waveNumber,
+            message: `⚠️ Волна ${waveNumber}! ${count} защитников!`,
             defenders: defenders.map(d => ({ id: d.id, emoji: d.emoji, lat: d.lat, lng: d.lng, hp: d.hp, max_hp: d.max_hp })),
           });
         }
@@ -254,7 +311,7 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
     }
   }
 
-  console.log(`[MONUMENTS] Wave ${waveNumber} spawned for monument lv${monument.level}: ${count} defenders`);
+  console.log(`[MONUMENTS] Wave ${waveNumber} spawned for monument lv${monument.level}: ${count} defenders (HP: ${defHp})`);
   return defenders;
 }
 
@@ -512,6 +569,7 @@ export function getPlayersNearMonument(monument, connectedPlayers) {
     if (dist <= MONUMENT_ATTACK_RADIUS) {
       const player = gameState.getPlayerByTgId(info.telegram_id);
       if (!player) continue;
+      if (player.is_dead) continue;
       const maxHp = 1000 + (player.bonus_hp || 0);
       const hp = player.hp ?? maxHp;
       if (hp <= 0) continue;

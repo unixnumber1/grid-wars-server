@@ -18,12 +18,14 @@ const DRAIN_LIMITS = { goblin: 150 };
 
 let _tickCount = 0;
 let _lastDailyMarketCheck = 0; // timestamp of last daily market check
+let _io = null;
 
 function hasChanged(prev, curr) {
   return JSON.stringify(prev) !== JSON.stringify(curr);
 }
 
 export function startGameLoop(io, connectedPlayers) {
+  _io = io;
   log('[gameLoop] Starting game loop, interval:', TICK_INTERVAL, 'ms');
 
   setInterval(async () => {
@@ -327,6 +329,11 @@ async function moveCouriers(nowMs, nowISO) {
           supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
         }
       } catch (e) { console.error('[gameLoop] courier delivery error:', e.message); }
+
+      // Remove delivered courier from memory immediately + notify clients
+      gameState.couriers.delete(dc.id);
+      supabase.from('couriers').delete().eq('id', dc.id).then(() => {}).catch(() => {});
+      if (_io) _io.emit('courier:removed', { courier_id: dc.id });
     }
   } catch (e) {
     console.error('[gameLoop] courier move error:', e.message);

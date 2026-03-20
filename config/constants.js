@@ -115,6 +115,27 @@ export function getShieldRegen(level) {
   return (MONUMENT_SHIELD_DPS_THRESHOLD[level] || 0) * 1.2;
 }
 
+// ── Monument wave system ──
+export const MONUMENT_WAVE_COUNTS = {
+  1:[5,7,10], 2:[5,8,11], 3:[6,9,13], 4:[7,10,15], 5:[8,12,18],
+  6:[9,14,21], 7:[10,16,25], 8:[12,19,30], 9:[13,22,35], 10:[15,25,40],
+};
+export const MONUMENT_DEFENDER_HP = {
+  1:200, 2:400, 3:800, 4:1500, 5:3000,
+  6:5000, 7:8000, 8:12000, 9:15000, 10:17500,
+};
+export const MONUMENT_DEFENDER_DAMAGE = 100;
+export const MONUMENT_DEFENDER_ATTACK_CD = 2000;
+export const MONUMENT_DEFENDER_SPEED = 4;        // м/с (= 20м за 5с тик)
+export const MONUMENT_WAVE_REGEN_PERCENT = 0.01; // 1%/сек
+export const MONUMENT_WAVE_TRIGGERS = [75, 50, 25];
+export const PLAYER_RESPAWN_TIME = 30000;         // 30с
+export const WAVE_EMOJIS = {
+  1: ['🧟','🧟‍♂️','🧟‍♀️','👻','💀'],
+  2: ['👹','😡','🧌','👿','☠️'],
+  3: ['☠️','💀','🧛🏻‍♂️','🐲','👾'],
+};
+
 // ── Clans ──
 export const CLAN_HQ_COST = 10_000_000;
 export const CLAN_CREATE_COST = 0;
@@ -123,9 +144,6 @@ export const LEADER_INACTIVE_DAYS = 7;
 
 // ── Vases ──
 export const BREAK_RADIUS = 200;
-
-// ── Defender movement ──
-export const DEFENDER_SPEED = 20; // meters per tick (5s)
 
 // ── Gear direct purchase ──
 export const GEAR_PRICES = {
