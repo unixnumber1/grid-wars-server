@@ -1322,7 +1322,7 @@
     /* Craft screen */
     #craft-overlay {
       display: none; position: fixed; inset: 0;
-      background: #0d0d1a; z-index: 3600;
+      background: #0d0d1a; z-index: 8500;
       flex-direction: column; overflow-y: auto;
     }
     #craft-overlay.open { display: flex; }
@@ -1371,7 +1371,7 @@
     /* Craft pick overlay */
     #craft-pick-overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.85); z-index: 3700;
+      background: rgba(0,0,0,0.85); z-index: 8600;
       flex-direction: column;
     }
     #craft-pick-overlay.open { display: flex; }
@@ -2183,7 +2183,7 @@
     .inv-cell.selected .select-check { display: block; }
     #selection-bar, #core-selection-bar {
       display: none; position: fixed; bottom: calc(80px + env(safe-area-inset-bottom));
-      left: 8px; right: 8px; z-index: 3700;
+      left: 8px; right: 8px; z-index: 8100;
       background: rgba(0,0,0,0.9); backdrop-filter: blur(10px);
       border: 1px solid rgba(255,215,0,0.2); border-radius: 14px;
       padding: 10px 16px; align-items: center; justify-content: space-between;
@@ -3530,44 +3530,27 @@ function getItemSellPrice(rarity, upgradeLevel = 0) {
   return base + Math.floor(invested * 0.1);
 }
 
-// ── Item detail sheet ─────────────────────────────────────────────────────────
+// ── Item detail popup (via openPopup, same as cores) ─────────────────────────
 let _currentItemId = null;
 
 function showItemDetail(itemId) {
   const item = (state.inventory || []).find(i => i.id === itemId);
   if (!item) return;
   _currentItemId = itemId;
-  openItemDetail(item);
+  openItemDetailPopup(item);
 }
 
-// ── Item detail card ──
-function openItemDetail(item) {
-  const ov = document.getElementById('item-detail-overlay');
-  const card = document.getElementById('item-detail-card');
-  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
-  const isGrad = rarColor.startsWith('linear');
-  const borderStyle = isGrad ? `border-image:${rarColor} 1` : `border-color:${rarColor}`;
-
+function openItemDetailPopup(item) {
+  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity] || '';
+  const typeLabel = {sword:'Меч',axe:'Топор',shield:'Щит'}[item.type] || '';
   const maxLvl = { common:10, uncommon:25, rare:50, epic:75, mythic:90, legendary:100 }[item.rarity] || 10;
   const upgLvl = item.upgrade_level || 0;
-  const upgPct = Math.round(upgLvl / maxLvl * 100);
-
-  // Upgrade cost
-  function getUpgCost(lvl) {
-    if (lvl <= 10) return 40;
-    if (lvl <= 25) return 120;
-    if (lvl <= 50) return 300;
-    if (lvl <= 75) return 800;
-    if (lvl <= 90) return 2000;
-    return 5000;
-  }
-  const nextCost = upgLvl < maxLvl ? getUpgCost(upgLvl + 1) : 0;
+  const nextCost = upgLvl < maxLvl ? getItemUpgradeCost(upgLvl + 1) : 0;
   const crystals = state.player?.crystals || 0;
   const canAfford = crystals >= nextCost;
   const isMaxed = upgLvl >= maxLvl;
 
-  // Compute dynamic stats (execution_chance, crit_multiplier — not stored in DB)
-  const mul = 1 + upgLvl * 0.01;
+  // Compute dynamic stats
   let computedCritMul = 1.5;
   let computedExec = 0;
   let computedBlock = item.block_chance || 0;
@@ -3585,157 +3568,77 @@ function openItemDetail(item) {
     else computedBlock = baseBlock + (upgLvl / 100) * 6;
   }
 
-  // Stats
-  let statsHtml = '';
+  // Build stats rows
+  const stats = [];
+  stats.push(['Уровень', `${upgLvl} / ${maxLvl}`]);
   if (item.type === 'sword' || item.type === 'axe') {
-    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">⚔️ Атака</span><span class="idc-stat-value">${item.attack}</span></div>`;
+    stats.push(['⚔️ Атака', `<span style="color:#ff6b6b">${item.attack}</span>`]);
   }
   if (item.type === 'sword') {
     const critVal = typeof item.crit_chance === 'number' ? item.crit_chance : 0;
-    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💥 Крит шанс</span><span class="idc-stat-value">${critVal.toFixed(1)}%</span></div>`;
-    if (computedCritMul > 1.5) {
-      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">✨ Крит урон</span><span class="idc-stat-value">×${computedCritMul.toFixed(2)}</span></div>`;
-    }
+    stats.push(['💥 Крит шанс', `${critVal.toFixed(1)}%`]);
+    if (computedCritMul > 1.5) stats.push(['✨ Крит урон', `<span style="color:#FFD700">×${computedCritMul.toFixed(2)}</span>`]);
   }
   if (item.type === 'axe' && computedExec > 0) {
-    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">💀 Казнь</span><span class="idc-stat-value">${computedExec.toFixed(1)}%</span></div>`;
+    stats.push(['💀 Казнь', `<span style="color:#D500F9">${computedExec.toFixed(1)}%</span>`]);
   }
   if (item.type === 'shield') {
-    statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🛡️ Защита HP</span><span class="idc-stat-value">+${item.defense}</span></div>`;
-    if (computedBlock > 0) {
-      statsHtml += `<div class="idc-stat-row"><span class="idc-stat-label">🔰 Блок</span><span class="idc-stat-value">${computedBlock.toFixed(1)}%</span></div>`;
-    }
+    stats.push(['🛡️ Защита HP', `<span style="color:#4caf50">+${item.defense}</span>`]);
+    if (computedBlock > 0) stats.push(['🔰 Блок', `${computedBlock.toFixed(1)}%`]);
   }
+  if (!isMaxed) stats.push(['Стоимость прокачки', `${nextCost} ✨`]);
 
-  // Features
-  let featHtml = '';
-  if (item.type === 'sword' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Крит множитель растёт до ×2.2 при прокачке</div>';
-  if (item.type === 'sword' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Крит множитель растёт до ×3.0 при прокачке</div>';
-  if (item.type === 'axe' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Казнь: мгновенное убийство врага &lt;50% HP (до 17%)</div>';
-  if (item.type === 'axe' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Казнь: мгновенное убийство врага &lt;50% HP (до 20%)</div>';
-  if (item.type === 'shield' && item.rarity === 'mythic') featHtml = '<div class="idc-feature">🔥 Блок удара растёт до ~25% при прокачке</div>';
-  if (item.type === 'shield' && item.rarity === 'legendary') featHtml = '<div class="idc-feature">👑 Блок удара растёт до ~41% при прокачке</div>';
-
-  // Upgrade button
-  let upgBtnHtml = '';
-  if (isMaxed) {
-    upgBtnHtml = '<button class="idc-upgrade-btn maxed">✅ Максимальный уровень</button>';
-  } else if (canAfford) {
-    upgBtnHtml = `<button class="idc-upgrade-btn can-afford" id="idc-upg-btn" data-item-id="${item.id}">✨ Прокачать за ${nextCost} осколков</button>`;
-  } else {
-    upgBtnHtml = `<button class="idc-upgrade-btn cant-afford">✨ Нужно ${nextCost} осколков (есть ${crystals})</button>`;
+  // Build actions
+  const actions = [];
+  if (!isMaxed) {
+    actions.push({ label: `✨ Прокачать за ${nextCost}✨`, cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
   }
-
-  // Action buttons (equip/unequip/sell)
-  let actionsHtml = '';
   if (item.on_market) {
-    actionsHtml = '<div style="text-align:center;color:#ffaa00;font-size:13px;margin:8px 0;">🚚 Предмет в пути (доставка курьером)</div>';
+    // no actions — item in transit
   } else if (item.equipped) {
-    actionsHtml = '<div class="idc-actions"><button class="btn" id="idc-unequip-btn">Снять</button></div>';
+    actions.push({ label: '📤 Снять', action: () => { closePopup(); doUnequipItem(item.id); } });
   } else {
-    const sellPrice = getItemSellPrice(item.rarity, item.upgrade_level || 0);
-    actionsHtml = `<div class="idc-actions"><button class="btn primary" id="idc-equip-btn">Надеть</button></div>
-    <button class="btn-sell-item" id="idc-sell-btn">Продать за ${sellPrice} ✨</button>`;
+    actions.push({ label: '🗡️ Надеть', cls: 'primary', action: () => { closePopup(); doEquipItem(item.id); } });
+    const sellPrice = getItemSellPrice(item.rarity, upgLvl);
+    actions.push({ label: `🗑️ Продать за ${sellPrice}✨`, cls: 'danger', action: () => doSellItemDirect(item, sellPrice) });
   }
+  actions.push({ label: 'Закрыть', isClose: true });
 
-  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity] || '';
-  const typeLabel = {sword:'Меч',axe:'Топор',shield:'Щит'}[item.type] || '';
+  const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
+  const isGrad = rarColor.startsWith('linear');
+  const colorStyle = isGrad ? 'color:#FFD700' : `color:${rarColor}`;
 
-  // Cost table for info tab
-  const costTable = [
-    ['1-10', '40✨'], ['11-25', '120✨'], ['26-50', '300✨'],
-    ['51-75', '800✨'], ['76-90', '2000✨'], ['91-100', '5000✨']
-  ].filter(([range]) => {
-    const max = parseInt(range.split('-')[1]);
-    return max <= maxLvl;
-  }).map(([range, cost]) => `<div class="idc-stat-row"><span class="idc-stat-label">Ур. ${range}</span><span class="idc-stat-value">${cost}</span></div>`).join('');
-
-  card.style = isGrad ? `border-image:${rarColor} 1` : `border-color:${rarColor}`;
-  card.innerHTML = `
-    <button class="idc-close" onclick="closeItemDetail()">✕</button>
-    <div class="idc-header">
-      <div class="idc-emoji" style="${isGrad ? '' : `filter:drop-shadow(0 0 12px ${rarColor})`}">${item.emoji}</div>
-      <div class="idc-name">${item.name}</div>
-      <div class="idc-rarity" style="color:${isGrad ? '#FFD700' : rarColor}">${rarLabel} ${typeLabel}</div>
-      <div class="idc-level">Ур. ${upgLvl} / ${maxLvl}</div>
-      <div class="idc-upgrade-bar"><div class="idc-upgrade-fill" style="width:${upgPct}%"></div></div>
-    </div>
-    <div class="idc-tabs">
-      <div class="idc-tab active" data-tab="stats" onclick="switchItemTab('stats')">Статы</div>
-      <div class="idc-tab" data-tab="info" onclick="switchItemTab('info')">Инфо</div>
-    </div>
-    <div class="idc-tab-content active" id="idc-stats">
-      ${statsHtml}
-      ${featHtml}
-      ${upgBtnHtml}
-      ${actionsHtml}
-    </div>
-    <div class="idc-tab-content" id="idc-info">
-      <div style="font-size:13px;color:#aaa;margin-bottom:8px;">Стоимость прокачки:</div>
-      ${costTable}
-      <div style="font-size:13px;color:#aaa;margin-top:12px;">Макс. уровень: ${maxLvl}</div>
-    </div>
-  `;
-
-  // Bind upgrade button
-  const upgBtn = document.getElementById('idc-upg-btn');
-  if (upgBtn) {
-    upgBtn.addEventListener('click', () => doUpgradeItem(item));
-  }
-
-  // Bind equip/unequip/sell buttons
-  const equipBtn = document.getElementById('idc-equip-btn');
-  if (equipBtn) equipBtn.addEventListener('click', () => doEquipItem(item.id));
-  const unequipBtn = document.getElementById('idc-unequip-btn');
-  if (unequipBtn) unequipBtn.addEventListener('click', () => doUnequipItem(item.id));
-  const sellBtn = document.getElementById('idc-sell-btn');
-  if (sellBtn) {
-    const sellPrice = getItemSellPrice(item.rarity, item.upgrade_level || 0);
-    sellBtn.addEventListener('click', () => showSellConfirm(item, sellPrice));
-  }
-
-  ov.classList.add('open');
+  openPopup(
+    `${item.emoji} ${item.name}`,
+    `<span style="${colorStyle}">${rarLabel}</span> ${typeLabel}`,
+    stats,
+    actions
+  );
 }
 
 function closeItemDetail() {
-  document.getElementById('item-detail-overlay').classList.remove('open');
+  closePopup();
   _currentItemId = null;
 }
 
-function switchItemTab(tab) {
-  document.querySelectorAll('.idc-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.getElementById('idc-stats').classList.toggle('active', tab === 'stats');
-  document.getElementById('idc-info').classList.toggle('active', tab === 'info');
-}
-
 async function doUpgradeItem(item) {
-  const btn = document.getElementById('idc-upg-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
       body: JSON.stringify({ action: 'upgrade-item', telegram_id: TG_ID, item_id: item.id }),
     });
-    // Update local item
     if (data.stats) Object.assign(item, data.stats);
     item.upgrade_level = data.upgrade_level;
     if (state.player) state.player.crystals = data.crystals_left;
-    // Update inventory
     const inv = (state.inventory || []).find(i => i.id === item.id);
     if (inv) Object.assign(inv, item);
-    // Flash animation
-    const card = document.getElementById('item-detail-card');
-    if (card) { card.classList.add('upgrade-flash'); setTimeout(() => card.classList.remove('upgrade-flash'), 500); }
-    // Haptic
     if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
     showToast(`✨ Ур.${data.upgrade_level}! Атака: ${data.stats?.attack || item.attack}`);
-    // Reopen with updated data
-    openItemDetail(item);
+    openItemDetailPopup(item);
     updateCrystalDisplay();
     _renderEquipSlots();
   } catch (err) {
     showToast(`❌ ${err.message}`);
-    if (btn) { btn.disabled = false; btn.textContent = '✨ Прокачать'; }
   }
 }
 
@@ -3744,38 +3647,30 @@ function updateCrystalDisplay() {
   if (el) el.textContent = `✨ ${state.player?.crystals || 0}`;
 }
 
-function showSellConfirm(item, price) {
-  const overlay = document.getElementById('sell-confirm-overlay');
-  document.getElementById('sell-confirm-emoji').textContent = item.emoji;
-  document.getElementById('sell-confirm-name').textContent  = item.name;
-  document.getElementById('sell-confirm-price').textContent = `Вы получите: ${price} ✨`;
-  const confirmBtn = document.getElementById('sell-confirm-btn');
-  confirmBtn.onclick = () => doSellItem(item.id, price);
-  overlay.classList.add('open');
-}
-
-function closeSellConfirm() {
-  document.getElementById('sell-confirm-overlay').classList.remove('open');
-}
-
-async function doSellItem(itemId, price) {
-  closeSellConfirm();
-  closeItemDetail();
-  try {
-    const data = await apiFetch('/api/items', {
-      method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'sell', item_id: itemId }),
-    });
-    // Remove from local state
-    state.inventory = (state.inventory || []).filter(i => i.id !== itemId);
-    if (state.player) state.player.crystals = data.crystals;
-    _renderEquipSlots();
-    _renderInventoryGrid();
-    updateCrystalDisplay();
-    showToast(`Продано за ${data.soldFor} ✨`);
-  } catch (err) {
-    showToast(`❌ ${err.message}`);
-  }
+function doSellItemDirect(item, price) {
+  openPopup(
+    `🗑️ Продать ${item.emoji} ${item.name}?`,
+    `Вы получите: ${price} ✨`,
+    [],
+    [
+      { label: '✅ Продать', cls: 'danger', action: async () => {
+        closePopup();
+        try {
+          const data = await apiFetch('/api/items', {
+            method: 'POST',
+            body: JSON.stringify({ telegram_id: TG_ID, action: 'sell', item_id: item.id }),
+          });
+          state.inventory = (state.inventory || []).filter(i => i.id !== item.id);
+          if (state.player) state.player.crystals = data.crystals;
+          _renderEquipSlots();
+          _renderInventoryGrid();
+          updateCrystalDisplay();
+          showToast(`Продано за ${data.soldFor} ✨`);
+        } catch (err) { showToast(`❌ ${err.message}`); }
+      }},
+      { label: 'Отмена', isClose: true },
+    ]
+  );
 }
 
 async function doEquipItem(itemId) {
