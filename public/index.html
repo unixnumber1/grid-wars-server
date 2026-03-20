@@ -2187,6 +2187,65 @@
       50% { box-shadow: 0 0 0 8px rgba(255,23,68,0); }
     }
 
+    /* ── Popup combat button ── */
+    .btn-attack-universal {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #c62828, #e53935);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-attack-universal:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: #444;
+    }
+    .btn-attack-universal.attacking {
+      animation: attackPulse 0.4s ease-in-out infinite;
+    }
+    @keyframes attackPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,0.5); }
+      50% { box-shadow: 0 0 0 10px rgba(229,57,53,0); }
+    }
+    .btn-attack-universal .popup-atk-cd {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      border-radius: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    .btn-attack-universal .popup-atk-cd.active { opacity: 1; }
+    #popup-overlay.combat-mode { pointer-events: none; }
+    #popup-overlay.combat-mode #popup-card { pointer-events: auto; }
+    .popup-hp-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .popup-hp-live .hp-bar-bg {
+      flex: 1;
+      background: #222;
+      border-radius: 4px;
+      height: 10px;
+      overflow: hidden;
+    }
+    .popup-hp-live .hp-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.15s;
+    }
+
     /* ── Death screen ── */
     #death-screen {
       display: none;
@@ -4621,6 +4680,7 @@ function _selectMarker(key) {
 }
 
 function closePopup() {
+  stopPopupCombat();
   document.getElementById('popup-overlay').classList.remove('open');
   if (_upgradeCountdownTimer) {
     clearInterval(_upgradeCountdownTimer);
@@ -5965,10 +6025,14 @@ function initSocket() {
       if (data.winner_id === myId) {
         showToast(`⚔️ Победа! +${formatCoins(data.coins_transferred)} монет`);
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
+        stopPopupCombat();
         stopCombat();
+        closePopup();
       } else if (data.loser_id === myId) {
         // I died — show death screen
+        stopPopupCombat();
         stopCombat();
+        closePopup();
         const coinsLost = Math.round(data.coins_transferred * 2);
         _setPlayerCoins(Math.max(0, (state.player.coins || 0) - coinsLost));
         state.player.shield_until = data.shield_until;
@@ -6063,6 +6127,10 @@ function initSocket() {
         map.removeLayer(ref);
         delete defenderMarkers[data.defender_id];
         delete defenderData[data.defender_id];
+      }
+      // If we were attacking this defender via popup, clear target (but keep isHolding for switch)
+      if (combatState.currentTarget?.id === data.defender_id) {
+        combatState.currentTarget = null;
       }
     });
 
@@ -6682,9 +6750,9 @@ function renderBots(bots) {
 function showBotPopup(botId) {
   const bot = botData[botId];
   if (!bot) return;
+  const wasHolding = combatState.isHolding;
   const pos = state.playerPos;
   const dist = (pos && bot.lat != null) ? haversine(pos.lat, pos.lng, bot.lat, bot.lng) : null;
-  const inRange = dist !== null && dist <= LARGE_RADIUS;
   const botHp = bot.hp ?? 50;
   const botMaxHp = bot.max_hp ?? 50;
   const pHp = state.player?.hp ?? 100;
@@ -6696,21 +6764,17 @@ function showBotPopup(botId) {
 
   const stats = [
     ['Состояние', stateLabel],
-    ['HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#e06060;border-radius:4px"></div></div>${botHp}/${botMaxHp}</div>`],
+    ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${botHp}/${botMaxHp}</span></div>`],
     ['Твои HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pHpPct}%;background:#4caf50;border-radius:4px"></div></div>${pHp}/${pMaxHp}</div>`],
   ];
   if (bot.state === 'fleeing' && (bot.stolen_coins || 0) > 0) {
     stats.push(['💰 Несёт', `${formatNumber(bot.stolen_coins)} монет`]);
   }
+  stats.push(['__fullwidth__', getAttackButton(botId, 'bot')]);
 
-  const actions = [];
-  if (inRange) {
-    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => { closePopup(); doAttackBot(botId); }, hold: () => { closePopup(); _startBotAutoAttack(botId); } });
-  } else {
-    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
-  }
-
-  openPopup(`👺 Гоблин`, dist ? `📍 ${Math.round(dist)}м` : '', stats, actions);
+  openPopup(`👺 Гоблин`, dist ? `📍 ${Math.round(dist)}м` : '', stats, []);
+  if (wasHolding) combatState.isHolding = true;
+  bindAttackButton('bot', { id: botId });
 }
 
 function showFloatingText(latLng, text, color) {
@@ -6776,6 +6840,7 @@ async function doAttackBot(botId) {
     }
     if (data.botDefeated) {
       if (ref?.marker) { botLayer.removeLayer(ref.marker); delete botMarkers[botId]; delete botData[botId]; }
+      stopPopupCombat();
       closePopup();
       const xpGained = data.xp?.xpGained || 0;
       const diamonds = data.diamondReward || 0;
@@ -6791,9 +6856,9 @@ async function doAttackBot(botId) {
       if (state.player && (coinDrop > 0 || coinReward > 0)) { _setPlayerCoins(data.player_coins ?? (state.player.coins || 0)); }
       updateDiamondDisplay();
     } else {
-      // Update bot HP in popup
+      // Update bot HP in popup (lightweight — no redraw)
       if (botData[botId]) { botData[botId].hp = data.botHp; botData[botId].max_hp = data.botMaxHp; }
-      showBotPopup(botId);
+      updatePopupHp(data.botHp, data.botMaxHp, '#e06060');
     }
   } catch (err) { showToast(err.message); }
 }
@@ -9573,6 +9638,7 @@ function renderLeaderboard(data) {
 //  PvP System
 // ─────────────────────────────────────────────
 function showOtherPlayerPopup(p) {
+  const wasHolding = combatState.isHolding;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, p.last_lat, p.last_lng) : null;
   const inRange = dist !== null && dist <= LARGE_RADIUS;
@@ -9582,14 +9648,18 @@ function showOtherPlayerPopup(p) {
     : '<span style="color:#888">📍 GPS...</span>';
   const shieldLabel = hasShield ? ' 🛡️ Щит активен' : '';
 
-  const actions = [];
+  const pHp = p.hp ?? 100;
+  const pMaxHp = p.max_hp ?? 100;
+  const hpPct = Math.round(pHp / pMaxHp * 100);
+
+  const stats = [];
   if (inRange && !hasShield) {
-    actions.push({
-      label: '⚔️ Напасть',
-      cls: 'danger',
-      action: () => startPvpCombat(p),
-    });
-  } else if (hasShield) {
+    stats.push(['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${pHp}/${pMaxHp}</span></div>`]);
+    stats.push(['__fullwidth__', getAttackButton(p.telegram_id, 'player')]);
+  }
+
+  const actions = [];
+  if (hasShield) {
     actions.push({ label: '🛡️ Игрок под защитой', cls: '', disabled: true });
   } else if (!inRange) {
     actions.push({ label: '⚔️ Слишком далеко', cls: 'danger', disabled: true });
@@ -9598,9 +9668,13 @@ function showOtherPlayerPopup(p) {
   openPopup(
     `${p.avatar || '🐺'} ${displayName(p)}`,
     `Ур. ${p.level ?? 1} ${distLabel}${shieldLabel}`,
-    [],
+    stats,
     actions
   );
+  if (inRange && !hasShield) {
+    if (wasHolding) combatState.isHolding = true;
+    bindAttackButton('player', p);
+  }
 }
 
 function showPvpPreview(defender) {
@@ -10173,6 +10247,121 @@ function stopCombat() {
   if (hud) hud.remove();
 }
 
+// ── Popup Combat System ──
+const combatState = {
+  isHolding: false,
+  currentTarget: null,   // { id, type: 'bot'|'player'|'defender', data }
+  attackInterval: null,
+  touchId: null,
+};
+
+function getTargetCoords(id, type) {
+  if (type === 'bot') { const b = botData[id]; return b ? { lat: b.lat, lng: b.lng } : null; }
+  if (type === 'player') {
+    const players = state.mapBuildings?.online_players || [];
+    const p = players.find(x => x.telegram_id === id || x.id === id);
+    return p ? { lat: p.last_lat, lng: p.last_lng } : null;
+  }
+  if (type === 'defender') { const d = defenderData[id]; return d ? { lat: d.lat, lng: d.lng } : null; }
+  return null;
+}
+
+function getAttackButton(targetId, targetType) {
+  const pos = state.playerPos;
+  const coords = getTargetCoords(targetId, targetType);
+  const dist = (pos && coords) ? haversine(pos.lat, pos.lng, coords.lat, coords.lng) : null;
+  const inRange = dist !== null && dist <= LARGE_RADIUS;
+
+  if (!inRange) {
+    return `<button class="btn-attack-universal" disabled>${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}</button>`;
+  }
+  return `<button class="btn-attack-universal" id="popup-atk-btn">⚔️ Атаковать<div class="popup-atk-cd" id="popup-atk-cd"></div></button>`;
+}
+
+function bindAttackButton(targetType, target) {
+  const btn = document.getElementById('popup-atk-btn');
+  if (!btn) return;
+
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  _pvpCdMs = cd;
+
+  const targetId = targetType === 'player' ? target.telegram_id : target.id;
+  combatState.currentTarget = { id: targetId, type: targetType, data: target };
+
+  function executePopupAttack() {
+    if (!combatState.currentTarget) return;
+    const t = combatState.currentTarget;
+    if (t.type === 'bot') doAttackBot(t.id);
+    else if (t.type === 'player') doPvpHit(t.data);
+    else if (t.type === 'defender') doDefenderHit(t.data);
+  }
+
+  function startHold(touchIdentifier) {
+    combatState.isHolding = true;
+    combatState.touchId = touchIdentifier ?? null;
+    btn.classList.add('attacking');
+    document.getElementById('popup-overlay')?.classList.add('combat-mode');
+    executePopupAttack();
+    if (combatState.attackInterval) clearInterval(combatState.attackInterval);
+    combatState.attackInterval = setInterval(executePopupAttack, cd + 50);
+  }
+
+  function stopHold() {
+    combatState.isHolding = false;
+    combatState.touchId = null;
+    btn.classList.remove('attacking');
+    if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+  }
+
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startHold(e.touches[0]?.identifier);
+  }, { passive: false });
+
+  btn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    // Only stop if the lifted finger is the one on the button
+    for (const t of e.changedTouches) {
+      if (combatState.touchId === t.identifier) { stopHold(); return; }
+    }
+  }, { passive: false });
+
+  btn.addEventListener('touchcancel', () => stopHold(), { passive: false });
+  btn.addEventListener('mousedown', (e) => { e.preventDefault(); startHold(); });
+  btn.addEventListener('mouseup', () => stopHold());
+  btn.addEventListener('mouseleave', () => { if (combatState.isHolding && combatState.touchId == null) stopHold(); });
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // If already holding (multitouch target switch), start attacking immediately
+  if (combatState.isHolding) {
+    if (combatState.attackInterval) clearInterval(combatState.attackInterval);
+    executePopupAttack();
+    combatState.attackInterval = setInterval(executePopupAttack, cd + 50);
+  }
+}
+
+function updatePopupHp(hp, maxHp, color) {
+  const fill = document.getElementById('popup-target-hp-bar');
+  const text = document.getElementById('popup-target-hp-text');
+  if (!fill || !text) return;
+  const pct = maxHp > 0 ? Math.max(0, Math.min(100, hp / maxHp * 100)) : 0;
+  fill.style.width = pct + '%';
+  fill.style.background = color || (pct > 60 ? '#e06060' : pct > 30 ? '#ff9800' : '#f44336');
+  text.textContent = `${formatNumber(hp)}/${formatNumber(maxHp)}`;
+}
+
+function stopPopupCombat() {
+  combatState.isHolding = false;
+  combatState.currentTarget = null;
+  combatState.touchId = null;
+  if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+  document.getElementById('popup-overlay')?.classList.remove('combat-mode');
+  const btn = document.getElementById('popup-atk-btn');
+  if (btn) btn.classList.remove('attacking');
+}
+
 function showDeathScreen(killerName, coinsLost) {
   const screen = document.getElementById('death-screen');
   const timerEl = document.getElementById('death-timer');
@@ -10226,8 +10415,10 @@ async function doPvpHit(target) {
   const pos = state.playerPos;
   if (!pos) return;
 
-  // Show CD on button
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  // Show CD on popup button or HUD button
+  const popupCd = document.getElementById('popup-atk-cd');
+  const hudCd = document.getElementById('combat-cd-overlay');
+  const cdOverlay = popupCd || hudCd;
   if (cdOverlay) {
     cdOverlay.classList.add('active');
     setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
@@ -10246,7 +10437,9 @@ async function doPvpHit(target) {
     });
 
     if (data.killed) {
+      stopPopupCombat();
       stopCombat();
+      closePopup();
       showToast(`⚔️ Победа! +${formatCoins(data.coins_won)} монет`);
       _setPlayerCoins((state.player.coins || 0) + data.coins_won);
     }
@@ -10255,6 +10448,7 @@ async function doPvpHit(target) {
     // Ignore cooldown / rate-limit errors silently
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
+    stopPopupCombat();
     stopCombat();
   }
 }
@@ -11826,23 +12020,27 @@ function showMonumentPopup(monumentId) {
 function showDefenderPopup(defenderId) {
   const d = defenderData[defenderId];
   if (!d) return;
+  const wasHolding = combatState.isHolding;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, d.lat, d.lng) : null;
   const inRange = dist !== null && dist <= 500;
   const hpPct = d.max_hp > 0 ? Math.round(d.hp / d.max_hp * 100) : 0;
 
   const stats = [
-    ['HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff6600;border-radius:4px"></div></div>${formatNumber(d.hp)}/${formatNumber(d.max_hp)}</div>`],
+    ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#ff6600"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${formatNumber(d.hp)}/${formatNumber(d.max_hp)}</span></div>`],
+    ['__fullwidth__', getAttackButton(defenderId, 'defender')],
   ];
 
   const actions = [];
-  if (inRange) {
-    actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => { closePopup(); doStartSingleDefenderCombat(defenderId); } });
-  } else {
+  if (!inRange) {
     actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
   }
 
   openPopup(`${d.emoji} Защитник монумента`, dist ? `📍 ${Math.round(dist)}м` : '', stats, actions);
+  if (inRange) {
+    if (wasHolding) combatState.isHolding = true;
+    bindAttackButton('defender', { id: defenderId, monument_id: d.monument_id, emoji: d.emoji });
+  }
 }
 
 // ── Loot box popup ──
@@ -11972,7 +12170,10 @@ async function doDefenderHit(target) {
   const pos = state.playerPos;
   if (!pos) return;
 
-  const cdOverlay = document.getElementById('combat-cd-overlay');
+  // Show CD on popup button or HUD button
+  const popupCd = document.getElementById('popup-atk-cd');
+  const hudCd = document.getElementById('combat-cd-overlay');
+  const cdOverlay = popupCd || hudCd;
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
   try {
@@ -11989,21 +12190,30 @@ async function doDefenderHit(target) {
         // Switch to next closest defender
         const pos2 = state.playerPos;
         remaining.sort((a, b) => haversine(pos2.lat, pos2.lng, a.lat, a.lng) - haversine(pos2.lat, pos2.lng, b.lat, b.lng));
-        stopCombat();
-        doStartSingleDefenderCombat(remaining[0].id || Object.keys(defenderData).find(k => defenderData[k].monument_id === target.monument_id));
+        const nextId = remaining[0].id || Object.keys(defenderData).find(k => defenderData[k].monument_id === target.monument_id);
+        if (combatState.isHolding) {
+          // Popup combat: switch target in popup without losing hold state
+          showDefenderPopup(nextId);
+        } else {
+          stopCombat();
+          doStartSingleDefenderCombat(nextId);
+        }
       } else {
+        stopPopupCombat();
         stopCombat();
+        closePopup();
         showToast('⚡ Все защитники убиты! Атакуйте монумент!');
       }
     } else {
       // Update defender HP
       const d = defenderData[target.id];
       if (d) { d.hp = data.defender_hp; d.max_hp = data.defender_max_hp; if (defenderMarkers[target.id]) defenderMarkers[target.id].setIcon(defenderIcon(d)); }
+      updatePopupHp(data.defender_hp, data.defender_max_hp, '#ff6600');
     }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopCombat();
+    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat();
   }
 }
 
