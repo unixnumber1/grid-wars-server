@@ -10547,13 +10547,17 @@ function clanHqIcon(ch) {
 function renderClanHqs(clanHqs) {
   const activeIds = new Set((clanHqs || []).map(ch => ch.id));
 
-  // Remove markers not present in current data
+  // Remove markers not present in current data — only if outside visible bounds
+  const bounds = map.getBounds().pad(0.3);
   for (const id of Object.keys(clanHqMarkers)) {
     if (!activeIds.has(id)) {
-      map.removeLayer(clanHqMarkers[id]);
-      delete clanHqMarkers[id];
-      if (clanHqCircles[id]) { map.removeLayer(clanHqCircles[id]); delete clanHqCircles[id]; }
-      if (clanHqLabels[id]) { map.removeLayer(clanHqLabels[id]); delete clanHqLabels[id]; }
+      const pos = clanHqMarkers[id].getLatLng();
+      if (!bounds.contains(pos)) {
+        map.removeLayer(clanHqMarkers[id]);
+        delete clanHqMarkers[id];
+        if (clanHqCircles[id]) { map.removeLayer(clanHqCircles[id]); delete clanHqCircles[id]; }
+        if (clanHqLabels[id]) { map.removeLayer(clanHqLabels[id]); delete clanHqLabels[id]; }
+      }
     }
   }
 
@@ -11468,6 +11472,13 @@ async function doSellClanHq() {
         const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'sell-hq' }) });
         _setPlayerCoins(data.player_coins);
         showToast(`🏰 Штаб продан за ${formatCoins(data.refund)} монет`);
+        // Remove all own clan HQ markers immediately
+        for (const id of Object.keys(clanHqMarkers)) {
+          map.removeLayer(clanHqMarkers[id]);
+          delete clanHqMarkers[id];
+          if (clanHqCircles[id]) { map.removeLayer(clanHqCircles[id]); delete clanHqCircles[id]; }
+          if (clanHqLabels[id]) { map.removeLayer(clanHqLabels[id]); delete clanHqLabels[id]; }
+        }
         loadVisibleBuildings(true);
       } catch (err) { showToast(err.message); }
     }},
