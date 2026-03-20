@@ -6530,35 +6530,20 @@ function showVasePopup(vaseId) {
   const dist = pos ? haversine(pos.lat, pos.lng, vase.lat, vase.lng) : Infinity;
   const near = dist <= SMALL_RADIUS;
 
-  document.getElementById('popup-title').innerHTML = '🏺 Древняя ваза';
-  document.getElementById('popup-subtitle').textContent = near
-    ? 'Внутри что-то ценное!' : `📍 До вазы: ${Math.round(dist)}м`;
+  const stats = [
+    ['💎 Награда', '???'],
+    ['__fullwidth__', `<span id="vase-popup-timer" data-vase-id="${vaseId}">${_formatVaseTimer(vase.expires_at)}</span>`],
+  ];
 
-  const statsEl = document.getElementById('popup-stats');
-  statsEl.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:13px;margin-bottom:8px;">
-      <span style="color:#aaa;">💎 Награда</span><span style="text-align:right;color:#FFD700;letter-spacing:2px;">???</span>
-      <span style="color:#aaa;" id="vase-popup-timer" data-vase-id="${vaseId}">${_formatVaseTimer(vase.expires_at)}</span><span></span>
-    </div>`;
-
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
+  const actions = [];
   if (near) {
-    const breakBtn = document.createElement('button');
-    breakBtn.className = 'btn danger';
-    breakBtn.style.cssText = 'width:100%;margin-bottom:8px;';
-    breakBtn.textContent = '💥 Разбить!';
-    breakBtn.addEventListener('click', () => doBreakVase(vaseId));
-    actEl.appendChild(breakBtn);
+    actions.push({ label: '💥 Разбить!', cls: 'danger', action: () => doBreakVase(vaseId) });
   }
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
+  actions.push({ label: 'Закрыть', isClose: true });
 
-  document.getElementById('popup-overlay').classList.add('open');
+  openPopup('🏺 Древняя ваза',
+    near ? 'Внутри что-то ценное!' : `📍 До вазы: ${Math.round(dist)}м`,
+    stats, actions);
 }
 
 async function doBreakVase(vaseId) {
@@ -8827,49 +8812,28 @@ function _showCourierPopup(courierId) {
   const near = dist <= SMALL_RADIUS;
   const emoji = c.type === 'delivery' ? '🚚' : '🚶';
   const hpPct = Math.round(Math.max(0, c.hp / c.max_hp) * 100);
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
-  document.getElementById('popup-title').innerHTML = `${emoji} Курьер`;
-  document.getElementById('popup-subtitle').textContent =
-    isOwn ? 'Ваш курьер' : `Курьер другого игрока`;
+  const stats = [
+    ['__fullwidth__', `<div style="margin-bottom:4px"><div style="background:#222;border-radius:4px;height:10px;overflow:hidden"><div id="courier-hp-bar" style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><div id="courier-hp-label" style="text-align:center;margin-top:3px;font-size:12px;color:#aaa">❤️ ${c.hp} / ${c.max_hp} HP</div></div>`],
+  ];
 
-  document.getElementById('popup-stats').innerHTML = `
-    <div style="margin-bottom:8px;">
-      <div class="hp-bar-container"><div class="hp-bar-fill bot" id="courier-hp-bar" style="width:${hpPct}%"></div></div>
-      <div class="hp-label" style="text-align:center;margin-top:3px;" id="courier-hp-label">❤️ ${c.hp} / ${c.max_hp} HP</div>
-    </div>`;
-
-  const actEl = document.getElementById('popup-actions');
-  actEl.innerHTML = '';
-
-  if (!isOwn) {
-    const atkBtn = document.createElement('button');
-    atkBtn.className = 'btn danger';
-    atkBtn.style.cssText = 'width:100%;margin-bottom:8px;';
-    if (!near) {
-      atkBtn.innerHTML = `📍 Подойди ближе (${Math.round(dist)}м)`;
-      atkBtn.disabled = true;
-    } else {
-      atkBtn.innerHTML = '⚔️ Атаковать';
-    }
-    atkBtn.addEventListener('click', () => doAttackCourier(courierId));
-    actEl.appendChild(atkBtn);
+  const actions = [];
+  if (!isOwn && near) {
+    actions.push({ label: '⚔️ Атаковать', cls: 'danger', noClose: true, action: () => doAttackCourier(courierId) });
+  } else if (!isOwn && !near) {
+    actions.push({ label: `📍 Подойди ближе (${Math.round(dist)}м)`, cls: '', disabled: true });
   }
+  actions.push({ label: 'Закрыть', isClose: true });
 
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'btn';
-  closeBtn.style.cssText = 'width:100%;';
-  closeBtn.textContent = 'Закрыть';
-  closeBtn.addEventListener('click', closePopup);
-  actEl.appendChild(closeBtn);
-
-  document.getElementById('popup-overlay').classList.add('open');
+  openPopup(`${emoji} Курьер`, isOwn ? 'Ваш курьер' : 'Курьер другого игрока', stats, actions);
 }
 
 async function doAttackCourier(courierId) {
   const pos = state.playerPos;
   if (!pos) return showToast('❌ Нет GPS');
 
-  const atkBtn = document.querySelector('#popup-actions .btn.danger');
+  const atkBtn = document.querySelector('#popup-card [data-popup-btn]');
   if (atkBtn) { atkBtn.disabled = true; atkBtn.textContent = '⏳ Атака...'; }
 
   try {
@@ -8985,41 +8949,26 @@ function showDropPopup(dropId) {
     const dist = pos ? haversine(pos.lat, pos.lng, drop.lat, drop.lng) : Infinity;
     const near = dist <= SMALL_RADIUS;
 
-    document.getElementById('popup-title').innerHTML = isDelivery ? '📦 Ваш заказ прибыл!' : '📦 Потерянная посылка';
-    document.getElementById('popup-subtitle').textContent = near ? '' : ('До посылки: ' + Math.round(dist) + 'м');
-
-    const statsEl = document.getElementById('popup-stats');
+    const stats = [];
     const item = drop.items;
     if (item) {
       const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
       const glow = rc.startsWith('linear') ? '' : 'filter:drop-shadow(0 0 12px ' + rc + ')';
-      statsEl.innerHTML = '<div style="text-align:center;margin:8px 0;">' +
-        '<div style="font-size:40px;' + glow + '">' + item.emoji + '</div>' +
-        '<div style="font-size:14px;font-weight:700;margin:4px 0;">' + item.name + ' ' + rarityLabel(item.rarity) + '</div>' +
-        '<div style="font-size:12px;color:#ccc;">' + itemStatLabel(item) + '</div>' +
-        '</div>';
+      stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px;${glow}">${item.emoji}</div><div style="font-size:14px;font-weight:700;margin:4px 0">${item.name} ${rarityLabel(item.rarity)}</div><div style="font-size:12px;color:#ccc">${itemStatLabel(item)}</div></div>`]);
     } else {
-      statsEl.innerHTML = '<div style="text-align:center;font-size:13px;color:#FFD700;margin:8px 0;">Внутри что-то ценное!</div>';
+      stats.push(['__fullwidth__', '<div style="text-align:center;font-size:13px;color:#FFD700">Внутри что-то ценное!</div>']);
     }
 
-    const actEl = document.getElementById('popup-actions');
-    actEl.innerHTML = '';
+    const actions = [];
     if (near) {
-      const pickBtn = document.createElement('button');
-      pickBtn.className = 'btn primary';
-      pickBtn.style.cssText = 'width:100%;margin-bottom:8px;';
-      pickBtn.textContent = isDelivery ? '🎁 Открыть посылку' : '🎒 Подобрать';
-      pickBtn.addEventListener('click', function() { doPickupDrop(dropId); });
-      actEl.appendChild(pickBtn);
+      actions.push({ label: isDelivery ? '🎁 Открыть посылку' : '🎒 Подобрать', cls: 'primary', action: () => doPickupDrop(dropId) });
     }
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'btn';
-    closeBtn.style.cssText = 'width:100%;';
-    closeBtn.textContent = 'Закрыть';
-    closeBtn.addEventListener('click', closePopup);
-    actEl.appendChild(closeBtn);
+    actions.push({ label: 'Закрыть', isClose: true });
 
-    document.getElementById('popup-overlay').classList.add('open');
+    openPopup(
+      isDelivery ? '📦 Ваш заказ прибыл!' : '📦 Потерянная посылка',
+      near ? '' : `До посылки: ${Math.round(dist)}м`,
+      stats, actions);
   } catch (err) {
     console.error('[drop-popup] error:', err);
   }
