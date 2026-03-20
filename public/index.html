@@ -11413,7 +11413,6 @@ window.doClanJoin = async function doClanJoin(clanId) {
 }
 
 async function doClanLeave() {
-  closeClanScreen();
   openPopup('🚪 Покинуть клан?', 'Вы уверены?', [], [
     { label: '🚪 Покинуть', cls: 'danger', action: async () => {
       closePopup();
@@ -11428,7 +11427,6 @@ async function doClanLeave() {
 }
 
 async function doClanBoost(config) {
-  closeClanScreen();
   openPopup('🚀 Активировать буст?', `x${config.boostMul} доход на 24 часа`, [['Стоимость', `${config.boostCost} 💎 из казны`]], [
     { label: `🚀 Активировать (${config.boostCost} 💎)`, cls: 'yellow', action: async () => {
       closePopup();
@@ -11443,7 +11441,6 @@ async function doClanBoost(config) {
 }
 
 async function doClanDisband() {
-  closeClanScreen();
   openPopup('💀 Распустить клан?', 'Все участники будут исключены. Это необратимо!', [], [
     { label: '💀 Распустить', cls: 'danger', action: async () => {
       closePopup();
@@ -11458,26 +11455,18 @@ async function doClanDisband() {
 }
 
 async function doClanDonate() {
-  closeClanScreen();
   const currentDiamonds = state.player?.diamonds ?? 0;
-  openPopup('💎 Пополнить казну', `У вас: ${currentDiamonds} 💎`, [], [
-    { label: '💎 Отправить', cls: 'primary', noClose: true, action: () => {
-      const val = parseInt(document.getElementById('donate-amount-input')?.value);
-      if (!val || val <= 0) { showToast('Введите количество'); return; }
-      if (val > currentDiamonds) { showToast('❌ Недостаточно алмазов'); return; }
-      closePopup(); _executeDonate(val, currentDiamonds);
-    }},
-    { label: 'Отмена', isClose: true },
-  ]);
-  // Insert input before actions
-  const card = document.getElementById('popup-card');
-  const actionsDiv = card.querySelector('.popup-actions');
-  if (actionsDiv) {
-    const inputDiv = document.createElement('div');
-    inputDiv.style.cssText = 'padding:8px 0';
-    inputDiv.innerHTML = `<input id="donate-amount-input" type="number" min="1" max="${currentDiamonds}" placeholder="Количество алмазов" style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;text-align:center;outline:none;" />`;
-    card.insertBefore(inputDiv, actionsDiv);
-  }
+  openPopup('💎 Пополнить казну', `У вас: ${currentDiamonds} 💎`,
+    [['__fullwidth__', `<input id="donate-amount-input" type="number" min="1" max="${currentDiamonds}" placeholder="Количество алмазов" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;text-align:center;outline:none;box-sizing:border-box;" />`]],
+    [
+      { label: '💎 Отправить', cls: 'primary', noClose: true, action: () => {
+        const val = parseInt(document.getElementById('donate-amount-input')?.value);
+        if (!val || val <= 0) { showToast('Введите количество'); return; }
+        if (val > currentDiamonds) { showToast('❌ Недостаточно алмазов'); return; }
+        closePopup(); _executeDonate(val, currentDiamonds);
+      }},
+      { label: 'Отмена', isClose: true },
+    ]);
   setTimeout(() => document.getElementById('donate-amount-input')?.focus(), 100);
 }
 
