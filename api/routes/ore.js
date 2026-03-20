@@ -6,6 +6,7 @@ import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.
 import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
 import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const oreRouter = Router();
 
@@ -34,14 +35,15 @@ oreRouter.post('/', async (req, res) => {
 
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
     const dist = haversine(pLat, pLng, ore.lat, ore.lng);
-    if (dist > ORE_CAPTURE_RADIUS) return res.status(400).json({ error: 'Подойди ближе (200м)' });
+    const lang = getLang(gameState, telegram_id);
+    if (dist > ORE_CAPTURE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_closer', { radius: ORE_CAPTURE_RADIUS }) });
 
     if (ore.owner_id && ore.owner_id !== player.id) {
       const ONLINE_MS = 3 * 60 * 1000;
       const ownerPlayer = gameState.getPlayerById(ore.owner_id);
       const ownerOnline = ownerPlayer?.last_seen ? (Date.now() - new Date(ownerPlayer.last_seen).getTime()) < ONLINE_MS : false;
       return res.status(400).json({
-        error: 'Рудник занят',
+        error: ts(lang, 'err.ore_occupied'),
         owner_id: ownerPlayer?.id,
         owner_tg: ownerPlayer?.telegram_id,
         owner_name: ownerPlayer?.game_username || ownerPlayer?.username,
@@ -81,7 +83,7 @@ oreRouter.post('/', async (req, res) => {
 
     const ore = gameState.oreNodes.get(ore_node_id);
     if (!ore) return res.status(404).json({ error: 'Ore node not found' });
-    if (ore.owner_id !== player.id) return res.status(403).json({ error: 'Не ваш рудник' });
+    if (ore.owner_id !== player.id) return res.status(403).json({ error: ts(getLang(gameState, telegram_id), 'err.not_your_ore') });
 
     const selectedCurrency = (currency === 'ether') ? 'ether' : 'shards';
     ore.currency = selectedCurrency;
@@ -98,7 +100,7 @@ oreRouter.post('/', async (req, res) => {
 
     const ore = gameState.oreNodes.get(ore_node_id);
     if (!ore) return res.status(404).json({ error: 'Ore node not found' });
-    if (ore.owner_id !== player.id) return res.status(403).json({ error: 'Не ваш рудник' });
+    if (ore.owner_id !== player.id) return res.status(403).json({ error: ts(getLang(gameState, telegram_id), 'err.not_your_ore') });
 
     ore.owner_id = null;
     gameState.markDirty('oreNodes', ore.id);
@@ -117,11 +119,12 @@ oreRouter.post('/', async (req, res) => {
 
     const ore = gameState.oreNodes.get(ore_node_id);
     if (!ore) return res.status(404).json({ error: 'Ore node not found' });
-    if (!ore.owner_id || ore.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать' });
+    const hitLang = getLang(gameState, telegram_id);
+    if (!ore.owner_id || ore.owner_id === player.id) return res.status(400).json({ error: ts(hitLang, 'err.ore_cant_attack') });
 
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
     const dist = haversine(pLat, pLng, ore.lat, ore.lng);
-    if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко' });
+    if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(hitLang, 'err.too_far_short') });
 
     // Rate limit by weapon CD
     const items = gameState.getPlayerItems(player.id);
@@ -183,11 +186,12 @@ oreRouter.post('/', async (req, res) => {
       if (oldOwnerId) {
         const oldOwner = gameState.getPlayerById(oldOwnerId);
         if (oldOwner) {
+          const oldOwnerLang = oldOwner.language || 'en';
           const notif = {
             id: globalThis.crypto.randomUUID(),
             player_id: oldOwnerId,
             type: 'ore_captured',
-            message: `⛏️ Ваш рудник Ур.${ore.level} захвачен ${player.game_username || 'игроком'}!`,
+            message: ts(oldOwnerLang, 'notif.ore_captured', { level: ore.level, name: player.game_username || 'player' }),
             read: false, created_at: new Date().toISOString(),
           };
           gameState.addNotification(notif);

@@ -10,6 +10,7 @@ import { dailyMarketCheck } from '../../lib/markets.js';
 import { resetSpoofRecord } from '../../lib/antispoof.js';
 import { getPlayerLogs, logPlayer } from '../../lib/logger.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const adminRouter = Router();
 
@@ -341,8 +342,9 @@ adminRouter.post('/', async (req, res) => {
     // Send Telegram notification
     const BOT = process.env.BOT_TOKEN;
     if (BOT && player.telegram_id) {
-      const label = currency === 'coins' ? '🪙 монет' : '💎 алмазов';
-      const text = `🎁 Вам выдано ${numAmount.toLocaleString('ru')} ${label} от администрации игры!`;
+      const pLang = getLang(gameState, player.telegram_id);
+      const label = ts(pLang, currency === 'coins' ? 'admin.reward_coins' : 'admin.reward_diamonds');
+      const text = ts(pLang, 'admin.reward_msg', { amount: numAmount.toLocaleString('ru'), label });
       fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -389,8 +391,9 @@ adminRouter.post('/', async (req, res) => {
     // Notify player via Telegram
     const gp = gameState.loaded ? gameState.getPlayerById(player_id) : null;
     if (gp?.telegram_id) {
-      const untilStr = banUntil ? new Date(banUntil).toLocaleDateString('ru') : 'навсегда';
-      sendTelegramNotification(gp.telegram_id, `🚫 Вы забанены. Причина: ${reason}. До: ${untilStr}`);
+      const banLang = getLang(gameState, gp.telegram_id);
+      const untilStr = banUntil ? new Date(banUntil).toLocaleDateString('ru') : ts(banLang, 'admin.ban_forever');
+      sendTelegramNotification(gp.telegram_id, ts(banLang, 'admin.banned', { reason, until: untilStr }));
     }
 
     if (gp?.telegram_id) {
@@ -425,7 +428,8 @@ adminRouter.post('/', async (req, res) => {
     const unbannedPlayer = gameState.loaded ? gameState.getPlayerById(player_id) : null;
     if (unbannedPlayer?.telegram_id) {
       resetSpoofRecord(unbannedPlayer.telegram_id);
-      sendTelegramNotification(unbannedPlayer.telegram_id, `✅ Вы разбанены! Добро пожаловать обратно.`);
+      const unbanLang = getLang(gameState, unbannedPlayer.telegram_id);
+      sendTelegramNotification(unbannedPlayer.telegram_id, ts(unbanLang, 'admin.unbanned'));
     }
 
     return res.status(200).json({ success: true, unbanned: true });

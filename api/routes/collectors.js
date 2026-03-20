@@ -6,6 +6,7 @@ import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS } from '../../lib/formulas.js
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
+import { ts, getLang } from '../../config/i18n.js';
 import {
   COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
   COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS,
@@ -44,11 +45,12 @@ async function handleBuild(req, res) {
 
   // Use tap coordinates (body.lat/lng) for distance check and placement
   const tapLat = parseFloat(lat), tapLng = parseFloat(lng);
-  if (!player.last_lat) return res.status(400).json({ error: 'GPS не готов' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.last_lat) return res.status(400).json({ error: ts(lang, 'err.gps_not_ready') });
 
   // Distance check: player position to tap point
   const dist = haversine(player.last_lat, player.last_lng, tapLat, tapLng);
-  if (dist > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(dist)}м > ${SMALL_RADIUS}м)` });
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far', { distance: Math.round(dist), radius: SMALL_RADIUS }) });
 
   // Check max collectors limit based on HQ level (lv/2 rounded down)
   const hq = gameState.getHqByPlayerId(player.id);
@@ -56,11 +58,11 @@ async function handleBuild(req, res) {
   const maxCollectors = Math.floor(hqLevel / 2);
   const currentCount = [...gameState.collectors.values()].filter(c => c.owner_id === player.id).length;
   if (currentCount >= maxCollectors)
-    return res.status(400).json({ error: `Макс ${maxCollectors} сборщиков (штаб Ур.${hqLevel}). Улучшите штаб.` });
+    return res.status(400).json({ error: ts(lang, 'err.max_collectors', { max: maxCollectors, hqLevel }) });
 
   // Check diamonds
   if ((player.diamonds || 0) < COLLECTOR_COST_DIAMONDS)
-    return res.status(400).json({ error: `Нужно ${COLLECTOR_COST_DIAMONDS} 💎` });
+    return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost: COLLECTOR_COST_DIAMONDS }) });
 
   // Cell ID from tap coordinates
   const cellId = getCellId(tapLat, tapLng);
@@ -72,7 +74,7 @@ async function handleBuild(req, res) {
     [...gameState.collectors.values()].some(c => c.cell_id === cellId) ||
     [...gameState.clanHqs.values()].some(c => c.cell_id === cellId) ||
     [...gameState.monuments.values()].some(m => m.cell_id === cellId);
-  if (cellOccupied) return res.status(400).json({ error: 'Клетка уже занята' });
+  if (cellOccupied) return res.status(400).json({ error: ts(lang, 'err.cell_occupied') });
 
   // Check nearby mines of this player (using tap position)
   const nearbyMines = [];
@@ -81,7 +83,7 @@ async function handleBuild(req, res) {
       nearbyMines.push(m);
     }
   }
-  if (nearbyMines.length === 0) return res.status(400).json({ error: 'Нет твоих шахт в радиусе 200м' });
+  if (nearbyMines.length === 0) return res.status(400).json({ error: ts(lang, 'err.no_mines_nearby', { radius: COLLECTOR_RADIUS }) });
 
   // Deduct diamonds
   const newDiamonds = player.diamonds - COLLECTOR_COST_DIAMONDS;
@@ -119,13 +121,14 @@ async function handleUpgrade(req, res) {
 
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
-  if (collector.level >= 10) return res.status(400).json({ error: 'Максимальный уровень' });
+  const lang = getLang(gameState, telegram_id);
+  if (collector.level >= 10) return res.status(400).json({ error: ts(lang, 'err.max_level') });
 
   const nextLevel = collector.level + 1;
   const diamondCosts = [0,0,30,50,75,100,130,160,200,250,300];
   const cost = diamondCosts[nextLevel] || 50;
 
-  if ((player.diamonds || 0) < cost) return res.status(400).json({ error: `Нужно ${cost} 💎` });
+  if ((player.diamonds || 0) < cost) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost }) });
 
   // Deduct diamonds
   const newDiamonds = (player.diamonds || 0) - cost;
@@ -151,11 +154,11 @@ async function handleDeliver(req, res) {
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'GPS не готов' });
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.gps_not_ready') });
 
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
-  if ((collector.stored_coins || 0) <= 0) return res.status(400).json({ error: 'Нечего доставлять' });
+  if ((collector.stored_coins || 0) <= 0) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.nothing_to_deliver') });
 
   const gross = collector.stored_coins;
   const commission = Math.floor(gross * COLLECTOR_DELIVERY_COMMISSION);
@@ -255,12 +258,13 @@ async function handleHit(req, res) {
 
   const collector = gameState.collectors.get(collector_id);
   if (!collector) return res.status(404).json({ error: 'Collector not found' });
-  if (collector.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать свой сборщик' });
-  if (collector.hp <= 0) return res.status(400).json({ error: 'Уже уничтожен' });
+  const lang = getLang(gameState, telegram_id);
+  if (collector.owner_id === player.id) return res.status(400).json({ error: ts(lang, 'err.cant_attack_own_collector') });
+  if (collector.hp <= 0) return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, collector.lat, collector.lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
+  if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
   // Weapon cooldown
   const items = gameState.getPlayerItems(player.id);
@@ -324,7 +328,8 @@ async function handleHit(req, res) {
     // Notify owner
     const owner = gameState.getPlayerById(collector.owner_id);
     if (owner) {
-      const msg = `💥 Твой сборщик уничтожен! Украдено ${stolenCoins} монет`;
+      const ownerLang = owner.language || 'en';
+      const msg = ts(ownerLang, 'notif.collector_destroyed', { coins: stolenCoins });
       const notif = {
         id: globalThis.crypto.randomUUID(),
         player_id: owner.id, type: 'collector_destroyed', message: msg, read: false,

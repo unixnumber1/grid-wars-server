@@ -5,6 +5,7 @@ import { getCellId } from '../../lib/grid.js';
 import { cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
 import { logActivity } from '../../server.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const clanRouter = Router();
 
@@ -22,7 +23,8 @@ async function handleBuildHq(req, res) {
   // Check DB for existing HQ
   const { data: existingHq } = await supabase
     .from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
-  if (existingHq) return res.status(409).json({ error: 'У вас уже есть штаб клана' });
+  const lang = getLang(gameState, telegram_id);
+  if (existingHq) return res.status(409).json({ error: ts(lang, 'err.clan_hq_exists') });
   // Also clear stale gameState entry if DB has no HQ
   if (gameState.loaded) {
     const gsHq = gameState.getClanHqByPlayerId(player.id);
@@ -33,7 +35,7 @@ async function handleBuildHq(req, res) {
 
   const balance = player.coins ?? 0;
   if (balance < CLAN_HQ_COST) {
-    return res.status(400).json({ error: `Нужно ${CLAN_HQ_COST.toLocaleString()} монет` });
+    return res.status(400).json({ error: ts(lang, 'err.need_coins', { cost: CLAN_HQ_COST.toLocaleString() }) });
   }
 
   // Use tap coordinates for clan HQ placement
@@ -46,14 +48,14 @@ async function handleBuildHq(req, res) {
     supabase.from('clan_headquarters').select('id').eq('cell_id', cell_id).maybeSingle(),
   ]);
   if (hqOnCell || mineOnCell || clanHqOnCell) {
-    return res.status(409).json({ error: 'Клетка занята' });
+    return res.status(409).json({ error: ts(lang, 'err.cell_occupied') });
   }
 
   const newBalance = balance - CLAN_HQ_COST;
 
   // First deduct coins (optimistic lock)
   const { data: coinsOk } = await supabase.from('players').update({ coins: newBalance }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle();
-  if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+  if (!coinsOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
 
   // clan_id is NOT NULL + FK in DB — create a placeholder clan entry for FK satisfaction
   // Player does NOT get linked to it — they stay clanless until they create/join a real clan
@@ -66,7 +68,7 @@ async function handleBuildHq(req, res) {
     }).select('id').single();
     if (phErr) {
       await supabase.from('players').update({ coins: balance }).eq('id', player.id);
-      return res.status(500).json({ error: 'Не удалось создать штаб' });
+      return res.status(500).json({ error: ts(lang, 'err.failed_create_hq') });
     }
     clanIdForHq = placeholder.id;
     if (gameState.loaded) {
@@ -84,7 +86,7 @@ async function handleBuildHq(req, res) {
       const p = gameState.getPlayerById(player.id);
       if (p) { p.coins = balance; gameState.markDirty('players', p.id); }
     }
-    return res.status(500).json({ error: 'Не удалось поставить штаб. ' + (insertErr.message || '') });
+    return res.status(500).json({ error: ts(lang, 'err.failed_place_hq', { details: insertErr.message || '' }) });
   }
 
   // Update gameState
@@ -104,10 +106,11 @@ async function handleCreate(req, res) {
     return res.status(400).json({ error: 'telegram_id, name, symbol, color required' });
   }
 
+  const lang = getLang(gameState, telegram_id);
   const trimName = name.trim();
-  if (trimName.length < 3 || trimName.length > 20) return res.status(400).json({ error: 'Название: 3-20 символов' });
-  if (symbol.length > 4) return res.status(400).json({ error: 'Символ: один emoji' });
-  if (!ALLOWED_CLAN_COLORS.includes(color)) return res.status(400).json({ error: 'Недопустимый цвет' });
+  if (trimName.length < 3 || trimName.length > 20) return res.status(400).json({ error: ts(lang, 'err.clan_name_length') });
+  if (symbol.length > 4) return res.status(400).json({ error: ts(lang, 'err.clan_symbol_length') });
+  if (!ALLOWED_CLAN_COLORS.includes(color)) return res.status(400).json({ error: ts(lang, 'err.clan_color_invalid') });
 
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id');
   if (pErr) return res.status(500).json({ error: pErr });
@@ -117,15 +120,15 @@ async function handleCreate(req, res) {
   if (player.clan_id) {
     const { data: existing } = await supabase.from('clans').select('id, name').eq('id', player.clan_id).maybeSingle();
     if (existing && !existing.name.startsWith('_placeholder_')) {
-      return res.status(400).json({ error: 'Вы уже в клане' });
+      return res.status(400).json({ error: ts(lang, 'err.already_in_clan') });
     }
   }
 
   const { data: clanHq } = await supabase.from('clan_headquarters').select('id, clan_id').eq('player_id', player.id).maybeSingle();
-  if (!clanHq) return res.status(400).json({ error: 'Сначала постройте штаб клана' });
+  if (!clanHq) return res.status(400).json({ error: ts(lang, 'err.build_clan_hq_first') });
 
   const { data: dup } = await supabase.from('clans').select('id').eq('name', trimName).maybeSingle();
-  if (dup) return res.status(409).json({ error: 'Название клана уже занято' });
+  if (dup) return res.status(409).json({ error: ts(lang, 'err.clan_name_taken') });
 
   // Find placeholder clan on the HQ (created during build-hq)
   let placeholderClanId = null;
@@ -241,20 +244,21 @@ async function handleJoin(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, level, clan_id, clan_left_at, game_username, username');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.clan_id) return res.status(400).json({ error: 'Вы уже в клане' });
+  const lang = getLang(gameState, telegram_id);
+  if (player.clan_id) return res.status(400).json({ error: ts(lang, 'err.already_in_clan') });
 
   // No join cooldown
 
   const { data: clanHq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
-  if (!clanHq) return res.status(400).json({ error: 'Сначала постройте штаб клана' });
+  if (!clanHq) return res.status(400).json({ error: ts(lang, 'err.build_clan_hq_first') });
 
   const { data: clan } = await supabase.from('clans').select('id, name, level, min_level, leader_id').eq('id', clan_id).single();
-  if (!clan) return res.status(404).json({ error: 'Клан не найден' });
-  if ((player.level ?? 1) < (clan.min_level || 1)) return res.status(400).json({ error: `Мин. уровень: ${clan.min_level}` });
+  if (!clan) return res.status(404).json({ error: ts(lang, 'err.clan_not_found') });
+  if ((player.level ?? 1) < (clan.min_level || 1)) return res.status(400).json({ error: ts(lang, 'err.clan_min_level', { level: clan.min_level }) });
 
   const config = getClanLevel(clan.level);
   const { count } = await supabase.from('clan_members').select('*', { count: 'exact', head: true }).eq('clan_id', clan_id).is('left_at', null);
-  if ((count || 0) >= config.maxMembers) return res.status(400).json({ error: 'Клан переполнен' });
+  if ((count || 0) >= config.maxMembers) return res.status(400).json({ error: ts(lang, 'err.clan_full') });
 
   const [{ data: memberRow }] = await Promise.all([
     supabase.from('clan_members').insert({ clan_id, player_id: player.id, role: 'member' }).select().single(),
@@ -272,15 +276,19 @@ async function handleJoin(req, res) {
   }
 
   // Notifications
-  const name = player.game_username || player.username || 'Игрок';
+  const pName = player.game_username || player.username || 'Player';
   const { data: leader } = await supabase.from('players').select('telegram_id').eq('id', clan.leader_id).single();
-  if (leader?.telegram_id) sendTelegramNotification(leader.telegram_id, `⚔️ ${name} вступил в клан ${clan.name}!`);
+  if (leader?.telegram_id) {
+    const leaderLang = getLang(gameState, leader.telegram_id);
+    sendTelegramNotification(leader.telegram_id, ts(leaderLang, 'notif.clan_join_leader', { name: pName, clan: clan.name }));
+  }
 
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', clan_id).is('left_at', null);
   if (mems?.length) {
-    const notifs = mems.filter(m => m.player_id !== player.id).map(m => ({
-      player_id: m.player_id, type: 'clan_join', message: `⚔️ ${name} вступил в клан!`,
-    }));
+    const notifs = mems.filter(m => m.player_id !== player.id).map(m => {
+      const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
+      return { player_id: m.player_id, type: 'clan_join', message: ts(mLang, 'notif.clan_join', { name: pName }) };
+    });
     if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
   }
 
@@ -293,8 +301,9 @@ async function handleLeave(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
-  if (player.clan_role === 'leader') return res.status(400).json({ error: 'Лидер не может покинуть клан. Сначала передайте лидерство.' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.clan_id) return res.status(400).json({ error: ts(lang, 'err.not_in_clan') });
+  if (player.clan_role === 'leader') return res.status(400).json({ error: ts(lang, 'err.leader_cant_leave') });
 
   const nowISO = new Date().toISOString();
   const leavingClanId = player.clan_id;
@@ -325,18 +334,19 @@ async function handleLeave(req, res) {
 async function handleDonate(req, res) {
   const { telegram_id, amount } = req.body;
   const donateAmount = parseInt(amount);
-  if (isNaN(donateAmount) || donateAmount <= 0) return res.status(400).json({ error: 'Некорректная сумма' });
+  if (isNaN(donateAmount) || donateAmount <= 0) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.invalid_amount') });
 
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, diamonds, game_username, username');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.clan_id) return res.status(400).json({ error: ts(lang, 'err.not_in_clan') });
 
   const currentDiamonds = player.diamonds ?? 0;
-  if (currentDiamonds < donateAmount) return res.status(400).json({ error: 'Недостаточно алмазов' });
+  if (currentDiamonds < donateAmount) return res.status(400).json({ error: ts(lang, 'err.not_enough_diamonds_short') });
 
   const { data: clan } = await supabase.from('clans').select('id, treasury').eq('id', player.clan_id).single();
-  if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+  if (!clan) return res.status(500).json({ error: ts(lang, 'err.clan_not_found') });
 
   const newDiamonds = currentDiamonds - donateAmount;
   const newTreasury = (clan.treasury ?? 0) + donateAmount;
@@ -345,7 +355,7 @@ async function handleDonate(req, res) {
     supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', currentDiamonds).select('id').maybeSingle(),
     supabase.from('clans').update({ treasury: newTreasury }).eq('id', clan.id),
   ]);
-  if (!dOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+  if (!dOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
   if (tErr) return res.status(500).json({ error: tErr.message });
 
   // Update gameState
@@ -356,12 +366,13 @@ async function handleDonate(req, res) {
     if (c) { c.treasury = newTreasury; gameState.markDirty('clans', c.id); }
   }
 
-  const name = player.game_username || player.username || 'Игрок';
+  const dName = player.game_username || player.username || 'Player';
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', player.clan_id).is('left_at', null);
   if (mems?.length) {
-    const notifs = mems.filter(m => m.player_id !== player.id).map(m => ({
-      player_id: m.player_id, type: 'clan_donate', message: `💎 ${name} пополнил казну на ${donateAmount} алмазов`,
-    }));
+    const notifs = mems.filter(m => m.player_id !== player.id).map(m => {
+      const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
+      return { player_id: m.player_id, type: 'clan_donate', message: ts(mLang, 'notif.clan_donate', { name: dName, amount: donateAmount }) };
+    });
     if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
   }
 
@@ -374,15 +385,16 @@ async function handleUpgrade(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
-  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: 'Только лидер или офицер' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.clan_id) return res.status(400).json({ error: ts(lang, 'err.not_in_clan') });
+  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: ts(lang, 'err.leader_or_officer') });
 
   const { data: clan } = await supabase.from('clans').select('id, level, treasury').eq('id', player.clan_id).single();
-  if (!clan) return res.status(500).json({ error: 'Клан не найден' });
-  if (clan.level >= 10) return res.status(400).json({ error: 'Максимальный уровень' });
+  if (!clan) return res.status(500).json({ error: ts(lang, 'err.clan_not_found') });
+  if (clan.level >= 10) return res.status(400).json({ error: ts(lang, 'err.max_clan_level') });
 
   const nextConfig = getClanLevel(clan.level + 1);
-  if ((clan.treasury ?? 0) < nextConfig.cost) return res.status(400).json({ error: `Нужно ${nextConfig.cost} алмазов в казне` });
+  if ((clan.treasury ?? 0) < nextConfig.cost) return res.status(400).json({ error: ts(lang, 'err.need_treasury', { cost: nextConfig.cost }) });
 
   const newTreasury = (clan.treasury ?? 0) - nextConfig.cost;
   const newLevel = clan.level + 1;
@@ -396,7 +408,10 @@ async function handleUpgrade(req, res) {
 
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', clan.id).is('left_at', null);
   if (mems?.length) {
-    const notifs = mems.map(m => ({ player_id: m.player_id, type: 'clan_upgrade', message: `🎉 Клан достиг уровня ${newLevel}! Новые бонусы активны` }));
+    const notifs = mems.map(m => {
+      const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
+      return { player_id: m.player_id, type: 'clan_upgrade', message: ts(mLang, 'notif.clan_upgrade', { level: newLevel }) };
+    });
     supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
   }
 
@@ -410,11 +425,11 @@ async function handleSetRole(req, res) {
 
   const { player } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.clan_role !== 'leader') return res.status(403).json({ error: 'Только лидер может менять роли' });
+  if (player.clan_role !== 'leader') return res.status(403).json({ error: ts(getLang(gameState, telegram_id), 'err.leader_only') });
 
   const tgtTgId = parseTgId(target_telegram_id);
   const { data: target } = await supabase.from('players').select('id, clan_id').eq('telegram_id', tgtTgId).maybeSingle();
-  if (!target || target.clan_id !== player.clan_id) return res.status(400).json({ error: 'Игрок не в вашем клане' });
+  if (!target || target.clan_id !== player.clan_id) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.player_not_in_clan') });
 
   await Promise.all([
     supabase.from('clan_members').update({ role }).eq('player_id', target.id).eq('clan_id', player.clan_id).is('left_at', null),
@@ -440,13 +455,14 @@ async function handleKick(req, res) {
   const { telegram_id, target_telegram_id } = req.body;
   const { player } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!['leader', 'officer'].includes(player.clan_role)) return res.status(403).json({ error: 'Недостаточно прав' });
+  const lang = getLang(gameState, telegram_id);
+  if (!['leader', 'officer'].includes(player.clan_role)) return res.status(403).json({ error: ts(lang, 'err.insufficient_rights') });
 
   const tgtTgId = parseTgId(target_telegram_id);
   const { data: target } = await supabase.from('players').select('id, clan_id, clan_role').eq('telegram_id', tgtTgId).maybeSingle();
-  if (!target || target.clan_id !== player.clan_id) return res.status(400).json({ error: 'Игрок не в вашем клане' });
-  if (target.clan_role === 'leader') return res.status(403).json({ error: 'Нельзя кикнуть лидера' });
-  if (player.clan_role === 'officer' && target.clan_role === 'officer') return res.status(403).json({ error: 'Офицер не может кикнуть другого офицера' });
+  if (!target || target.clan_id !== player.clan_id) return res.status(400).json({ error: ts(lang, 'err.player_not_in_clan') });
+  if (target.clan_role === 'leader') return res.status(403).json({ error: ts(lang, 'err.cant_kick_leader') });
+  if (player.clan_role === 'officer' && target.clan_role === 'officer') return res.status(403).json({ error: ts(lang, 'err.officer_cant_kick_officer') });
 
   const nowISO = new Date().toISOString();
   const kickedClanId = player.clan_id;
@@ -455,7 +471,8 @@ async function handleKick(req, res) {
     supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', target.id),
     supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', target.id),
   ]);
-  supabase.from('notifications').insert({ player_id: target.id, type: 'clan_kick', message: '👢 Вы были исключены из клана' }).catch(() => {});
+  const kickedLang = gameState.getPlayerById(target.id)?.language || 'en';
+  supabase.from('notifications').insert({ player_id: target.id, type: 'clan_kick', message: ts(kickedLang, 'notif.clan_kick') }).catch(() => {});
 
   // Update gameState
   if (gameState.loaded) {
@@ -478,11 +495,12 @@ async function handleTransfer(req, res) {
   const { telegram_id, target_telegram_id } = req.body;
   const { player } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.clan_role !== 'leader') return res.status(403).json({ error: 'Только лидер может передать лидерство' });
+  const lang = getLang(gameState, telegram_id);
+  if (player.clan_role !== 'leader') return res.status(403).json({ error: ts(lang, 'err.leader_only_transfer') });
 
   const tgtTgId = parseTgId(target_telegram_id);
   const { data: target } = await supabase.from('players').select('id, clan_id').eq('telegram_id', tgtTgId).maybeSingle();
-  if (!target || target.clan_id !== player.clan_id) return res.status(400).json({ error: 'Игрок не в вашем клане' });
+  if (!target || target.clan_id !== player.clan_id) return res.status(400).json({ error: ts(lang, 'err.player_not_in_clan') });
 
   const clanId = player.clan_id;
   await Promise.all([
@@ -518,7 +536,7 @@ async function handleInfo(req, res) {
   if (!clan_id) return res.status(400).json({ error: 'clan_id required' });
 
   const { data: clan } = await supabase.from('clans').select('*').eq('id', clan_id).single();
-  if (!clan) return res.status(404).json({ error: 'Клан не найден' });
+  if (!clan) return res.status(404).json({ error: 'Clan not found' });
 
   const config = getClanLevel(clan.level);
 
@@ -562,15 +580,16 @@ async function handleBoost(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
-  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: 'Только лидер или офицер' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.clan_id) return res.status(400).json({ error: ts(lang, 'err.not_in_clan') });
+  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: ts(lang, 'err.leader_or_officer') });
 
   const { data: clan } = await supabase.from('clans').select('id, level, treasury, boost_expires_at').eq('id', player.clan_id).single();
-  if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+  if (!clan) return res.status(500).json({ error: ts(lang, 'err.clan_not_found') });
 
   // Check if boost is already active
   if (clan.boost_expires_at && new Date(clan.boost_expires_at) > new Date()) {
-    return res.status(400).json({ error: 'Буст уже активен' });
+    return res.status(400).json({ error: ts(lang, 'err.boost_active') });
   }
 
   const config = getClanLevel(clan.level);
@@ -578,7 +597,7 @@ async function handleBoost(req, res) {
   const boostMul = config.boostMul || 2.0;
 
   if ((clan.treasury ?? 0) < boostCost) {
-    return res.status(400).json({ error: `Нужно ${boostCost} алмазов в казне` });
+    return res.status(400).json({ error: ts(lang, 'err.need_treasury', { cost: boostCost }) });
   }
 
   const newTreasury = (clan.treasury ?? 0) - boostCost;
@@ -611,8 +630,9 @@ async function handleBoost(req, res) {
     for (const m of members) {
       const p = gameState.getPlayerById(m.player_id);
       if (p?.telegram_id) {
+        const pLang = p.language || 'en';
         sendTelegramNotification(p.telegram_id,
-          `🚀 Клан-буст x${boostMul} активирован${activatorName ? ` (${activatorName})` : ''}! Доход увеличен на 24ч.`
+          ts(pLang, 'notif.clan_boost', { mul: boostMul, by: activatorName ? ` (${activatorName})` : '' })
         );
       }
     }
@@ -629,7 +649,7 @@ async function handleSellHq(req, res) {
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
   const { data: hq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
-  if (!hq) return res.status(404).json({ error: 'Штаб не найден' });
+  if (!hq) return res.status(404).json({ error: ts(getLang(gameState, telegram_id), 'err.clan_hq_not_found') });
 
   const refund = Math.round(CLAN_HQ_COST / 2);
   const currentCoins = player.coins ?? 0;
@@ -641,7 +661,7 @@ async function handleSellHq(req, res) {
   ]);
 
   if (delErr) return res.status(500).json({ error: delErr.message });
-  if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+  if (!coinsOk) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
   // Update gameState
   if (gameState.loaded) {
@@ -659,8 +679,9 @@ async function handleDisband(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
-  if (player.clan_role !== 'leader') return res.status(403).json({ error: 'Только лидер может распустить клан' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.clan_id) return res.status(400).json({ error: ts(lang, 'err.not_in_clan') });
+  if (player.clan_role !== 'leader') return res.status(403).json({ error: ts(lang, 'err.leader_only_disband') });
 
   const clanId = player.clan_id;
   const nowISO = new Date().toISOString();
@@ -681,9 +702,10 @@ async function handleDisband(req, res) {
       await supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', m.player_id);
     }
     // Notify non-leader members
-    const notifs = members.filter(m => m.player_id !== player.id).map(m => ({
-      player_id: m.player_id, type: 'clan_disband', message: '💀 Клан был распущен лидером',
-    }));
+    const notifs = members.filter(m => m.player_id !== player.id).map(m => {
+      const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
+      return { player_id: m.player_id, type: 'clan_disband', message: ts(mLang, 'notif.clan_disband') };
+    });
     if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
   }
 
@@ -713,11 +735,12 @@ async function handleEdit(req, res) {
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role, diamonds');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (!player.clan_id) return res.status(400).json({ error: 'Вы не в клане' });
-  if (player.clan_role !== 'leader') return res.status(403).json({ error: 'Только лидер может редактировать клан' });
+  const lang = getLang(gameState, telegram_id);
+  if (!player.clan_id) return res.status(400).json({ error: ts(lang, 'err.not_in_clan') });
+  if (player.clan_role !== 'leader') return res.status(403).json({ error: ts(lang, 'err.leader_only_edit') });
 
   const { data: clan } = await supabase.from('clans').select('*').eq('id', player.clan_id).single();
-  if (!clan) return res.status(500).json({ error: 'Клан не найден' });
+  if (!clan) return res.status(500).json({ error: ts(lang, 'err.clan_not_found') });
 
   const update = {};
   let diamondCost = 0;
@@ -730,24 +753,24 @@ async function handleEdit(req, res) {
   // Paid changes: name (100💎), symbol (100💎)
   if (name && name.trim() !== clan.name) {
     const trimName = name.trim();
-    if (trimName.length < 3 || trimName.length > 20) return res.status(400).json({ error: 'Название: 3-20 символов' });
+    if (trimName.length < 3 || trimName.length > 20) return res.status(400).json({ error: ts(lang, 'err.clan_name_length') });
     const { data: dup } = await supabase.from('clans').select('id').eq('name', trimName).neq('id', clan.id).maybeSingle();
-    if (dup) return res.status(409).json({ error: 'Название уже занято' });
+    if (dup) return res.status(409).json({ error: ts(lang, 'err.name_taken') });
     update.name = trimName;
     diamondCost += 150;
   }
   if (symbol && symbol !== clan.symbol) {
-    if (symbol.length > 4) return res.status(400).json({ error: 'Символ: один emoji' });
+    if (symbol.length > 4) return res.status(400).json({ error: ts(lang, 'err.clan_symbol_length') });
     update.symbol = symbol;
     diamondCost += 150;
   }
 
-  if (Object.keys(update).length === 0) return res.status(400).json({ error: 'Нечего менять' });
+  if (Object.keys(update).length === 0) return res.status(400).json({ error: ts(lang, 'err.nothing_to_change') });
 
   // Check diamonds
   const currentDiamonds = player.diamonds ?? 0;
   if (diamondCost > 0 && currentDiamonds < diamondCost) {
-    return res.status(400).json({ error: `Нужно ${diamondCost} 💎` });
+    return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost: diamondCost }) });
   }
 
   // Apply

@@ -6,6 +6,7 @@ import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { LARGE_RADIUS, calcHpRegen } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const botsRouter = Router();
 
@@ -292,7 +293,7 @@ async function handleAttack(player, body) {
   // Respawn check
   if (player.respawn_until && new Date(player.respawn_until) > new Date()) {
     const secsLeft = Math.ceil((new Date(player.respawn_until) - Date.now()) / 1000);
-    return { status: 400, error: `Возрождение через ${secsLeft} сек` };
+    return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.respawn_wait', { seconds: secsLeft }) };
   }
 
   const { data: bot, error: botErr } = await supabase
@@ -301,7 +302,7 @@ async function handleAttack(player, body) {
   if (!bot)   return { status: 404, error: 'Bot not found' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
+  if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
   const { data: pFull, error: pErr } = await supabase
     .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, equipped_sword, coins').eq('id', player.id).single();
@@ -444,7 +445,7 @@ async function handleRepel(player, body) {
   if (bot.category !== 'undead') return { status: 400, error: 'Can only repel undead' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
+  if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
   const { error: delErr } = await supabase.from('bots').delete().eq('id', bot_id);
   if (delErr) return { status: 500, error: delErr.message };
@@ -466,7 +467,7 @@ async function handleLure(player, body) {
   if (bot.category !== 'neutral') return { status: 400, error: 'Can only lure neutral bots' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > LARGE_RADIUS) return { status: 400, error: `Подойди ближе (${Math.round(dist)}м > ${LARGE_RADIUS}м)` };
+  if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
   const cfg    = BOT_TYPES[bot.type] || { reward_min: bot.reward_min, reward_max: bot.reward_max };
   const reward = getRandomReward(cfg);

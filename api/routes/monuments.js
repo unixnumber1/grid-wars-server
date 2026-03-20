@@ -12,6 +12,7 @@ import {
 } from '../../lib/monuments.js';
 import { MONUMENT_WAVE_TRIGGERS } from '../../config/constants.js';
 import { MONUMENT_SHIELD_DPS_THRESHOLD, MONUMENT_DPS_WINDOW_MS } from '../../config/constants.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const monumentsRouter = Router();
 
@@ -89,10 +90,10 @@ async function handleStartRaid(req, res) {
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
   if (dist > MONUMENT_ATTACK_RADIUS)
-    return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
+    return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
 
   if (monument.phase === 'defeated')
-    return res.status(400).json({ error: 'Монумент повержен' });
+    return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.monument_defeated') });
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -133,15 +134,16 @@ async function handleAttackShield(req, res) {
 
   const monument = gameState.monuments.get(monument_id);
   if (!monument) return res.status(404).json({ error: 'Monument not found' });
-  if (monument.phase !== 'shield') return res.status(400).json({ error: 'Монумент не в фазе щита' });
+  if (monument.phase !== 'shield') return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.monument_not_shield') });
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.is_dead) return res.status(400).json({ error: 'Вы мертвы!' });
+  const lang = getLang(gameState, telegram_id);
+  if (player.is_dead) return res.status(400).json({ error: ts(lang, 'err.dead') });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: 'Слишком далеко' });
+  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
 
   // Weapon cooldown
   const attackerItems = gameState.getPlayerItems(player.id);
@@ -266,22 +268,24 @@ async function handleAttackMonument(req, res) {
 
   // Block attacks when invulnerable (wave active)
   if (monument.invulnerable) {
-    return res.json({ ok: true, blocked: true, message: '⚠️ Убейте защитников!' });
+    const kLang = getLang(gameState, telegram_id);
+    return res.json({ ok: true, blocked: true, message: ts(kLang, 'kill.defenders') });
   }
 
-  if (monument.phase !== 'open') return res.status(400).json({ error: 'Монумент не открыт для атаки' });
+  const lang2 = getLang(gameState, telegram_id);
+  if (monument.phase !== 'open') return res.status(400).json({ error: ts(lang2, 'err.monument_not_open') });
 
   // Check no alive defenders
   const aliveDefenders = [...gameState.monumentDefenders.values()].filter(d => d.monument_id === monument_id && d.alive);
-  if (aliveDefenders.length > 0) return res.status(400).json({ error: 'Сначала убейте защитников!', defenders_alive: aliveDefenders.length });
+  if (aliveDefenders.length > 0) return res.status(400).json({ error: ts(lang2, 'err.kill_defenders'), defenders_alive: aliveDefenders.length });
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.is_dead) return res.status(400).json({ error: 'Вы мертвы!' });
+  if (player.is_dead) return res.status(400).json({ error: ts(lang2, 'err.dead') });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: 'Слишком далеко' });
+  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: ts(lang2, 'err.too_far_short') });
 
   // Weapon cooldown
   const attackerItems = gameState.getPlayerItems(player.id);
@@ -401,11 +405,12 @@ async function handleAttackDefender(req, res) {
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (player.is_dead) return res.status(400).json({ error: 'Вы мертвы!' });
+  const lang3 = getLang(gameState, telegram_id);
+  if (player.is_dead) return res.status(400).json({ error: ts(lang3, 'err.dead') });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, defender.lat, defender.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: 'Слишком далеко' });
+  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: ts(lang3, 'err.too_far_short') });
 
   // Weapon cooldown
   const attackerItems = gameState.getPlayerItems(player.id);
@@ -506,10 +511,11 @@ async function handleOpenLootBox(req, res) {
 
   if (boxErr || !box) return res.status(404).json({ error: 'Loot box not found' });
   if (box.opened) return res.status(400).json({ error: 'Already opened' });
+  const lang4 = getLang(gameState, telegram_id);
   if (Number(box.player_id) !== Number(telegram_id))
-    return res.status(403).json({ error: 'Не твоя коробка' });
+    return res.status(403).json({ error: ts(lang4, 'err.not_your_box') });
   if (new Date(box.expires_at) < new Date())
-    return res.status(400).json({ error: 'Коробка просрочена' });
+    return res.status(400).json({ error: ts(lang4, 'err.box_expired') });
 
   // Mark as opened
   await supabase.from('monument_loot_boxes').update({ opened: true }).eq('id', box_id);

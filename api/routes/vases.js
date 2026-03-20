@@ -5,6 +5,7 @@ import { spawnVasesForAllHQs } from '../../lib/vases.js';
 import { rollVaseItem } from '../../lib/items.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const vasesRouter = Router();
 
@@ -46,7 +47,7 @@ async function handleBreak(req, res) {
   const BREAK_RADIUS = 200;
   const dist = haversine(parseFloat(lat), parseFloat(lng), vase.lat, vase.lng);
   if (dist > BREAK_RADIUS)
-    return res.status(400).json({ error: 'Ваза слишком далеко! Подойди ближе (200м)' });
+    return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.vase_too_far', { radius: BREAK_RADIUS }) });
 
   // Mark vase as broken first (optimistic lock — only succeeds if not yet broken)
   const { data: vaseLocked } = await supabase.from('vases')
@@ -157,7 +158,7 @@ async function handleCron(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: p.telegram_id,
-        text: '🏺 Древние вазы появились на карте! Найди и разбей их первым!',
+        text: ts(getLang(gameState, p.telegram_id), 'notif.vases_spawned'),
       }),
     }).catch(() => {});
   }

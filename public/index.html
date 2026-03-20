@@ -3016,12 +3016,25 @@ let TG_NAME = tgUser?.username || 'unknown';
 // ─────────────────────────────────────────────
 //  i18n — Localization system
 // ─────────────────────────────────────────────
-let _lang = localStorage.getItem('gw_lang') || '';
-// If no saved lang, detect from Telegram language_code
+// Read lang from localStorage + cookie fallback (TG Mini App may clear localStorage on reload)
+function _readLang() {
+  try { const v = localStorage.getItem('gw_lang'); if (v) return v; } catch(_) {}
+  try { const m = document.cookie.match(/(?:^|;\s*)gw_lang=([a-z]{2})/); if (m) return m[1]; } catch(_) {}
+  return '';
+}
+function _saveLang(v) {
+  try { localStorage.setItem('gw_lang', v); } catch(_) {}
+  try { document.cookie = 'gw_lang=' + v + ';path=/;max-age=31536000;SameSite=Lax'; } catch(_) {}
+}
+
+let _lang = _readLang();
+console.log('[i18n] stored lang =', JSON.stringify(_lang));
 if (!_lang) {
   const tgLang = tg?.initDataUnsafe?.user?.language_code || '';
   _lang = tgLang.startsWith('ru') ? 'ru' : 'en';
+  console.log('[i18n] auto-detected:', _lang);
 }
+console.log('[i18n] ACTIVE LANGUAGE:', _lang);
 
 const I18N = {
   ru: {
@@ -3852,12 +3865,13 @@ function t(key, params) {
 
 function setLang(lang) {
   _lang = lang;
-  localStorage.setItem('gw_lang', lang);
+  _saveLang(lang);
+  console.log('[i18n] setLang called:', lang, 'cookie:', document.cookie);
   // Sync to server, then reload page to apply all translations
   const body = JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: lang });
   if (TG_ID && typeof fetch === 'function') {
     fetch('/api/player/init', { method: 'POST', headers: {'Content-Type':'application/json'}, body })
-      .finally(() => location.reload());
+      .finally(() => { console.log('[i18n] reloading...'); location.reload(); });
   } else {
     location.reload();
   }
@@ -5335,7 +5349,7 @@ function handleHexClick(cellId, tapLat, tapLng) {
     // Block build popup if tap point is beyond 200m
     const dist = haversine(state.playerPos.lat, state.playerPos.lng, buildLat, buildLng);
     if (dist > SMALL_RADIUS) {
-      showToast(`⚠️ Слишком далеко (${Math.round(dist)}м)`);
+      showToast(t('toast.too_far_dist', {dist: Math.round(dist)}));
       return;
     }
     showBuildMenu(buildLat, buildLng);
@@ -5946,7 +5960,7 @@ async function doUpgradeHq() {
     });
     state.hq = data.headquarters;
     _setPlayerCoins(data.player_coins);
-    showToast(`⚡ Штаб улучшен до уровня ${data.headquarters.level}!`);
+    showToast(t('toast.hq_upgraded', {level: data.headquarters.level}));
     handleXpResult(data.xp);
     // Optimistic: update HQ marker immediately
     const hqInMap = (state.mapBuildings.headquarters || []).find(h => h.id === data.headquarters.id);
@@ -5965,7 +5979,7 @@ async function doUpgrade(mineId, targetLevel) {
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
     _upgradeInProgress = false;
-    showToast('❌ GPS не готов, подожди');
+    showToast(t('toast.no_gps_wait'));
     return;
   }
   try {
@@ -5981,7 +5995,7 @@ async function doUpgrade(mineId, targetLevel) {
     });
     _setPlayerCoins(data.player_coins);
     if (data.upgrading) {
-      showToast(`⏳ Улучшение запущено → Ур.${data.pendingLevel} (${data.secondsLeft} сек)`);
+      showToast(t('toast.upgrade_pending', {level: data.pendingLevel, seconds: data.secondsLeft}));
       // Optimistic: update mine pending state immediately
       const mine = state.mapBuildings.mines.find(m => m.id === mineId);
       if (mine) {
@@ -6003,7 +6017,7 @@ async function doUpgrade(mineId, targetLevel) {
     }
   } catch (err) {
     if (err.message && err.message.includes('200м')) {
-      showToast('⚠️ Подойди к шахте (200м)');
+      showToast(t('toast.approach_mine'));
     } else {
       showToast(`❌ ${err.message}`);
     }
@@ -6044,14 +6058,14 @@ async function pollCompleteUpgrades() {
       }
     }
     if (evolutions.length === 1) {
-      showToast(`✅ ✨ Эволюция → ${evolutions[0]}`);
+      showToast(t('toast.evolution', {name: evolutions[0]}));
     } else if (evolutions.length > 1) {
-      showToast(`✅ ✨ ${evolutions.length} эволюций: ${evolutions.join(', ')}`);
+      showToast(t('toast.evolutions_multi', {count: evolutions.length, names: evolutions.join(', ')}));
     }
     if (normals.length === 1) {
-      showToast(`✅ Постройка улучшена до уровня ${normals[0]}!`);
+      showToast(t('toast.mine_upgraded', {level: normals[0]}));
     } else if (normals.length > 1) {
-      showToast(`✅ ${normals.length} шахт улучшено!`);
+      showToast(t('toast.mines_upgraded_multi', {count: normals.length}));
     }
     // Don't recalculate totalIncome locally — next tick will provide correct value with clan bonuses
     updateCoinDisplay();
@@ -6074,7 +6088,7 @@ async function doSellMine(mineId) {
       body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
     });
     _setPlayerCoins(data.player_coins);
-    showToast(`✅ Шахта продана! +${formatCoins(data.total)} монет`);
+    showToast(t('toast.mine_sold', {amount: formatCoins(data.total)}));
     state.mines = state.mines.filter(m => m.id !== mineId);
     loadVisibleBuildings(true);
   } catch (err) {
@@ -6194,7 +6208,7 @@ async function sellSelectedCores() {
     if (state.player) state.player.ether = data.ether_total;
     _selectedCoreIds.clear();
     _coreSellMode = false;
-    showToast(`✅ Продано ${data.sold_count} ядер за ${formatNumber(data.ether_gained)}🌀`);
+    showToast(t('toast.cores_sold', {count: data.sold_count, amount: formatNumber(data.ether_gained)}));
     updateCoinDisplay();
     renderCoresInventory();
   } catch (e) {
@@ -6265,7 +6279,7 @@ async function doCoreUpgrade(coreId) {
       // Update local core data
       const c = (state._playerCores || []).find(x => x.id === coreId);
       if (c) c.level = data.new_level;
-      showToast(`✅ Ядро улучшено до Lv.${data.new_level} (x${data.multiplier})`);
+      showToast(t('toast.core_upgraded', {level: data.new_level, multiplier: data.multiplier}));
       updateCoinDisplay();
       // Refresh appropriate popup
       if (c?.mine_cell_id) showInstalledCorePopup(coreId);
@@ -6284,7 +6298,7 @@ async function doCoreUninstall(coreId) {
     });
     if (data.success) {
       if (c) { c.mine_cell_id = null; c.slot_index = null; }
-      showToast('✅ Ядро извлечено в сумку');
+      showToast(t('toast.core_extracted'));
       // Reopen mine popup to show updated core slots
       const mine = mineCellId && (state.mapBuildings?.mines || []).find(m => m.cell_id === mineCellId);
       if (mine) {
@@ -6306,7 +6320,7 @@ async function doCoreSell(coreId) {
     if (data.success) {
       if (state.player) state.player.ether = data.ether;
       state._playerCores = (state._playerCores || []).filter(c => c.id !== coreId);
-      showToast(`✅ Ядро продано за ${data.sell_price}🌀`);
+      showToast(t('toast.core_sold', {price: data.sell_price}));
       updateCoinDisplay();
       closePopup();
     }
@@ -6316,7 +6330,7 @@ async function doCoreSell(coreId) {
 function openCoreInstallPicker(mineId, cellId) {
   const available = (state._playerCores || []).filter(c => !c.mine_cell_id);
   if (available.length === 0) {
-    showToast('Нет ядер в сумке. Получай с монументов 🏛️');
+    showToast(t('toast.no_cores'));
     return;
   }
   const actions = available.map(c => {
@@ -6343,7 +6357,7 @@ async function doCoreInstall(coreId, mineId) {
     if (data.success) {
       const c = (state._playerCores || []).find(x => x.id === coreId);
       if (c) { c.mine_cell_id = data.core?.mine_cell_id; c.slot_index = data.slot; }
-      showToast('✅ Ядро установлено');
+      showToast(t('toast.core_installed'));
       // Reopen mine popup immediately to show updated core slots
       const mine = (state.mapBuildings?.mines || []).find(m => m.id === mineId);
       if (mine) {
@@ -6363,7 +6377,7 @@ function getCoresForMine(cellId) {
 
 async function doBuildHq(lat, lng) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ GPS не готов');
+  if (!pos) return showToast(t('toast.no_gps'));
   try {
     const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
@@ -6386,7 +6400,7 @@ async function doBuildHq(lat, lng) {
       updateHexGrid();
     }
     updateCoinDisplay();
-    showToast('&#x26A1; Штаб построен!');
+    showToast(t('toast.hq_built'));
     handleXpResult(data.xp);
     loadVisibleBuildings(true);
   } catch (err) {
@@ -6424,7 +6438,7 @@ async function doSellHq() {
     state.hq = null;
     updateCoinDisplay();
     closePopup();
-    showToast('&#x1F5D1;&#xFE0F; Штаб снесён');
+    showToast(t('toast.hq_demolished'));
     loadVisibleBuildings(true);
   } catch (err) {
     showToast(`❌ ${err.message}`);
@@ -6433,13 +6447,13 @@ async function doSellHq() {
 
 async function doBuildCollector(lat, lng) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ GPS не готов');
+  if (!pos) return showToast(t('toast.no_gps'));
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
       body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
     });
-    showToast(`🧲 Сборщик построен! Шахт в зоне: ${data.mines_in_range}`);
+    showToast(t('toast.collector_built', {count: data.mines_in_range}));
     if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
     loadVisibleBuildings();
   } catch (err) { showToast(`❌ ${err.message}`); }
@@ -6448,11 +6462,11 @@ async function doBuildCollector(lat, lng) {
 async function doBuildMine(lat, lng) {
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
-    showToast('❌ GPS не готов, подожди');
+    showToast(t('toast.no_gps_wait'));
     return;
   }
   if (!TG_ID) {
-    showToast('❌ Telegram ID недоступен');
+    showToast(t('toast.no_tg_id'));
     return;
   }
   const payload = {
@@ -6481,7 +6495,7 @@ async function doBuildMine(lat, lng) {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    showToast('⛏️ Шахта построена!');
+    showToast(t('toast.mine_built'));
     handleXpResult(data.xp);
     // Remove temp marker
     const tempKey = `mine_${tempId}`;
@@ -6510,7 +6524,7 @@ async function doCollect() {
   document.getElementById('btn-collect').disabled = true;
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
-    showToast('❌ GPS не готов, подожди');
+    showToast(t('toast.no_gps_wait'));
     document.getElementById('btn-collect').disabled = false;
     return;
   }
@@ -6525,7 +6539,7 @@ async function doCollect() {
     updateCoinDisplay();
     const collected = data.collected ?? 0;
     if (collected > 0) {
-      showToast(`💰 Собрано ${formatCoins(collected)} монет!`);
+      showToast(t('toast.collected_coins', {amount: formatCoins(collected)}));
       if (data.xp) handleXpResult(data.xp);
       if (data.xp_events?.length) {
         for (const ev of data.xp_events) {
@@ -6538,10 +6552,10 @@ async function doCollect() {
         if (mine.owner_id === state.player?.id) mine.last_collected = now;
       }
     } else {
-      showToast('Нечего собирать');
+      showToast(t('toast.nothing_to_collect'));
     }
   } catch (err) {
-    showToast(`❌ ${err.message || 'Ошибка сбора'}`);
+    showToast(t('toast.collect_error', {message: err.message || t('toast.error')}));
   } finally {
     document.getElementById('btn-collect').disabled = false;
   }
@@ -6552,7 +6566,7 @@ async function doCollect() {
 // ─────────────────────────────────────────────
 document.getElementById('btn-place-hq').addEventListener('click', async () => {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Ожидание GPS...');
+  if (!pos) return showToast(t('toast.no_gps_waiting'));
   try {
     const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
@@ -6573,7 +6587,7 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
     }
     document.getElementById('hq-prompt').classList.remove('open');
     updateCoinDisplay();
-    showToast('🏛️ Штаб установлен!');
+    showToast(t('toast.clan_hq_built'));
     handleXpResult(data.xp);
     loadVisibleBuildings(true);
   } catch (err) {
@@ -6878,7 +6892,7 @@ function initSocket() {
         updatePlayerDisplay();
       }
       if (!data.killed) {
-        showToast(`💥 ${data.attacker_name} нанёс ${data.damage} урона!`);
+        showToast(t('toast.pvp_hit_received', {name: data.attacker_name, damage: data.damage}));
       }
       // Death is handled by pvp:kill event
     });
@@ -6910,7 +6924,7 @@ function initSocket() {
       }
 
       if (data.winner_id === myId) {
-        showToast(`⚔️ Победа! +${formatCoins(data.coins_transferred)} монет`);
+        showToast(t('toast.pvp_victory', {amount: formatCoins(data.coins_transferred)}));
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
         stopPopupCombat();
         stopCombat();
@@ -6931,7 +6945,7 @@ function initSocket() {
 
     // ── Monument socket events ──
     _socket.on('monument:shield_broken', (data) => {
-      showToast(`💥 ${data.breaker_name} пробил щит монумента!`, 3000);
+      showToast(t('toast.monument_shield_broken', {name: data.breaker_name}), 3000);
       updateMonumentPhase(data.monument_id, 'open');
       if (combatState.currentTarget?.type === 'monument_shield' && combatState.currentTarget.id === data.monument_id) {
         stopPopupCombat(); closePopup();
@@ -6940,7 +6954,7 @@ function initSocket() {
     });
 
     _socket.on('monument:wave_spawn', (data) => {
-      showToast(`🌊 Волна ${data.wave}! ${data.defenders.length} защитников!`, 3000);
+      showToast(t('toast.monument_wave', {wave: data.wave, count: data.defenders.length}), 3000);
       if (data.defenders) {
         for (const d of data.defenders) addDefenderMarkerImmediate(d);
       }
@@ -6948,7 +6962,7 @@ function initSocket() {
     });
 
     _socket.on('monument:wave_started', (data) => {
-      showToast(data.message || `⚠️ Волна ${data.wave}!`, 3000);
+      showToast(data.message || t('toast.monument_wave_warning', {wave: data.wave}), 3000);
       if (data.defenders) {
         for (const d of data.defenders) addDefenderMarkerImmediate(d);
       }
@@ -6961,12 +6975,12 @@ function initSocket() {
     });
 
     _socket.on('monument:wave_cleared', (data) => {
-      showToast(`✅ Волна уничтожена! Атакуйте монумент!`, 3000);
+      showToast(t('toast.monument_wave_cleared'), 3000);
       try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
     });
 
     _socket.on('monument:defeated', (data) => {
-      showToast(`🏆 ${data.name} Lv.${data.level} повержен! ${data.winner_name}`, 4000);
+      showToast(t('toast.monument_defeated', {name: data.name, level: data.level, winner: data.winner_name}), 4000);
       updateMonumentPhase(data.monument_id, 'defeated');
       if (data.loot_boxes) {
         for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
@@ -6991,13 +7005,13 @@ function initSocket() {
 
     _socket.on('player:respawned', () => {
       removeMonumentDeathOverlay();
-      showToast('✅ Вы возродились!');
+      showToast(t('toast.respawned'));
     });
 
     _socket.on('monument:shield_restored', (data) => {
       updateMonumentPhase(data.monument_id, 'shield');
       if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id) {
-        stopPopupCombat(); closePopup(); showToast('🛡️ Щит восстановлен!');
+        stopPopupCombat(); closePopup(); showToast(t('toast.shield_restored'));
       }
     });
 
@@ -7044,7 +7058,7 @@ function initSocket() {
 
     _socket.on('collector:destroyed', (data) => {
       if (collectorMarkers[data.collector_id]) { map.removeLayer(collectorMarkers[data.collector_id]); delete collectorMarkers[data.collector_id]; delete collectorData[data.collector_id]; }
-      if (data.stolen_coins > 0) showToast(`💥 Сборщик уничтожен ${data.attacker_name}! Украдено ${formatCoins(data.stolen_coins)} монет`);
+      if (data.stolen_coins > 0) showToast(t('toast.collector_destroyed_enemy', {name: data.attacker_name, amount: formatCoins(data.stolen_coins)}));
       if (combatState.currentTarget?.type === 'collector' && combatState.currentTarget.id === data.collector_id) {
         stopPopupCombat(); closePopup();
       }
@@ -7158,14 +7172,14 @@ function processTickData(data) {
       }
     }
     if (evolutions.length === 1) {
-      showToast(`✅ ✨ Эволюция → ${evolutions[0]}`);
+      showToast(t('toast.evolution', {name: evolutions[0]}));
     } else if (evolutions.length > 1) {
-      showToast(`✅ ✨ ${evolutions.length} эволюций: ${evolutions.join(', ')}`);
+      showToast(t('toast.evolutions_multi', {count: evolutions.length, names: evolutions.join(', ')}));
     }
     if (normals.length === 1) {
-      showToast(`✅ Постройка улучшена до уровня ${normals[0]}!`);
+      showToast(t('toast.mine_upgraded', {level: normals[0]}));
     } else if (normals.length > 1) {
-      showToast(`✅ ${normals.length} шахт улучшено!`);
+      showToast(t('toast.mines_upgraded_multi', {count: normals.length}));
     }
   }
 
@@ -7176,7 +7190,7 @@ function processTickData(data) {
       showToast(n.message, 4000);
     }
     if (data.notifications.length > 3) {
-      showToast(`... и ещё ${data.notifications.length - 3} уведомлений`, 3000);
+      showToast(t('toast.more_notifications', {count: data.notifications.length - 3}), 3000);
     }
   }
 }
@@ -7418,7 +7432,7 @@ function showVasePopup(vaseId) {
 
 async function doBreakVase(vaseId) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
   const marker = vaseMarkers[vaseId];
 
   // Shatter animation
@@ -7454,11 +7468,11 @@ async function doBreakVase(vaseId) {
       state.inventory.unshift(data.item);
       _showVaseDropPopup(data.item, data.diamonds);
     } else {
-      showToast(`💥 +${data.diamonds} 💎 Алмазов!`);
+      showToast(t('toast.vase_diamonds', {amount: data.diamonds}));
     }
   } catch (err) {
     if (err.message && err.message.includes('200м')) {
-      showToast('⚠️ Подойди к вазе (200м)');
+      showToast(t('toast.approach_vase'));
     } else {
       showToast(`❌ ${err.message}`);
     }
@@ -7732,7 +7746,7 @@ async function doAttackBot(botId) {
       if (state.player) state.player.hp = data.playerHp;
     }
     if (data.playerDied) {
-      showToast('💀 Ты погиб! Возрождение через 10 сек...');
+      showToast(t('toast.you_died'));
       startRespawnCountdown(new Date(Date.now() + 10000).toISOString());
     }
     if (data.botDefeated) {
@@ -7830,7 +7844,7 @@ document.getElementById('btn-fix-positions').addEventListener('click', async () 
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-positions' }),
     });
-    showToast(`✅ Исправлено: ${data.fixed_hq} штабов, ${data.fixed_mines} шахт`);
+    showToast(t('toast.admin_fix_cells', {hq: data.fixed_hq, mines: data.fixed_mines}));
     await loadVisibleBuildings();
   } catch (err) {
     showToast(`❌ ${err.message}`);
@@ -7849,7 +7863,7 @@ document.getElementById('btn-fix-usernames').addEventListener('click', async () 
       method: 'POST',
       body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-usernames' }),
     });
-    showToast(`✅ Готово: обновлено ${data.fixed} штабов`);
+    showToast(t('toast.admin_fix_hq', {count: data.fixed}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
@@ -7866,7 +7880,7 @@ document.getElementById('btn-spawn-vases').addEventListener('click', async () =>
       method: 'POST',
       body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID }),
     });
-    showToast(`✅ Заспаунено ${data.spawned} ваз`);
+    showToast(t('toast.admin_spawned_vases', {count: data.spawned}));
     _lastMapCenter = null;
     await loadVisibleBuildings();
   } catch (err) {
@@ -7908,7 +7922,7 @@ document.getElementById('btn-maintenance-toggle').addEventListener('click', asyn
     _adminMaintenanceOn = newState;
     updateAdminButton();
     const label = newState ? '🔧 Тех перерыв включён' : '✅ Тех перерыв выключен';
-    showToast(`${label} (📨 ${data.notified || 0} уведомлений)`);
+    showToast(t('toast.admin_notified', {label: label, count: data.notified || 0}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
@@ -7993,7 +8007,7 @@ document.querySelectorAll('.admin-currency-btn').forEach(btn => {
 document.getElementById('btn-admin-reward').addEventListener('click', async () => {
   if (!_rewardSelectedPlayer) return;
   const amount = parseInt(document.getElementById('admin-reward-amount').value, 10);
-  if (!amount || amount <= 0) return showToast('❌ Введи сумму');
+  if (!amount || amount <= 0) return showToast(t('toast.enter_amount'));
   const btn = document.getElementById('btn-admin-reward');
   btn.disabled = true;
   try {
@@ -8002,7 +8016,7 @@ document.getElementById('btn-admin-reward').addEventListener('click', async () =
       body: JSON.stringify({ telegram_id: TG_ID, action: 'reward', player_id: _rewardSelectedPlayer.id, currency: _rewardCurrency, amount }),
     });
     const label = _rewardCurrency === 'coins' ? 'монет' : 'алмазов';
-    showToast(`✅ Выдано ${formatNumber(amount)} ${label} → ${displayName(_rewardSelectedPlayer)}`);
+    showToast(t('toast.admin_rewarded', {amount: formatNumber(amount), label: label, player: displayName(_rewardSelectedPlayer)}));
     document.getElementById('admin-reward-amount').value = '';
   } catch (err) { showToast('❌ ' + err.message); }
   finally { btn.disabled = false; }
@@ -8048,7 +8062,7 @@ function renderBanForm(player) {
           method: 'POST',
           body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: player.id }),
         });
-        showToast(`✅ ${displayName(player)} разблокирован`);
+        showToast(t('toast.admin_unbanned', {player: displayName(player)}));
         player.is_banned = false;
         renderBanForm(player);
       } catch (err) { showToast('❌ ' + err.message); }
@@ -8079,14 +8093,14 @@ function renderBanForm(player) {
     });
     document.getElementById('btn-admin-ban').addEventListener('click', async () => {
       const reason = document.getElementById('admin-ban-reason').value.trim();
-      if (!reason) return showToast('❌ Укажи причину');
+      if (!reason) return showToast(t('toast.enter_reason'));
       try {
         await apiFetch('/api/admin', {
           method: 'POST',
           body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: player.id, reason, duration_days: _banDuration }),
         });
         const durText = _banDuration === 0 ? 'навсегда' : `на ${_banDuration}д`;
-        showToast(`🚫 ${displayName(player)} забанен ${durText}`);
+        showToast(t('toast.admin_banned', {player: displayName(player), duration: durText}));
         player.is_banned = true;
         player.ban_reason = reason;
         renderBanForm(player);
@@ -8223,7 +8237,7 @@ async function doChangeUsername() {
     updatePlayerDisplay();
     updateDiamondDisplay();
     closeChangeUsername();
-    showToast('✅ Ник изменён!');
+    showToast(t('toast.nick_changed'));
   } catch (err) {
     errEl.textContent = err.message || 'Ошибка';
     btn.disabled = false;
@@ -8283,16 +8297,21 @@ async function boot() {
     state.totalIncome = data.totalIncome ?? 0;
     state.inventory   = data.inventory   ?? [];
     if (data.player_cores) state._playerCores = data.player_cores;
-    // Sync language from server (existing players keep their saved language)
-    if (data.player?.language && !localStorage.getItem('gw_lang')) {
+    // Sync language: local setting takes priority over server
+    const storedLang = _readLang();
+    console.log('[i18n] boot sync: storedLang=', storedLang, 'server=', data.player?.language, '_lang=', _lang);
+    if (storedLang) {
+      // User has a saved preference — keep it, sync to server if different
+      if (data.player?.language && data.player.language !== storedLang) {
+        apiFetch('/api/player/init', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: _lang })
+        }).catch(() => {});
+      }
+    } else if (data.player?.language) {
+      // No local setting — use server's value (existing player, first visit on this device)
       _lang = data.player.language;
-      localStorage.setItem('gw_lang', _lang);
-    } else if (data.player?.language && localStorage.getItem('gw_lang') !== data.player.language) {
-      // Local lang takes precedence — sync to server
-      apiFetch('/api/player/init', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: _lang })
-      }).catch(() => {});
+      _saveLang(_lang);
     }
     applyI18n();
     if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
@@ -8404,7 +8423,7 @@ async function selectAvatar(avatar) {
       playerMarker.setIcon(playerIcon(avatar));
     }
     closeAvatarSheet();
-    showToast(`Аватар обновлён: ${avatar}`);
+    showToast(t('toast.avatar_changed', {avatar: avatar}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -8775,7 +8794,7 @@ function _applyMapStyle(styleId) {
   L.tileLayer(style.url, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
   const tilePane = document.querySelector('.leaflet-tile-pane');
   if (tilePane) tilePane.style.filter = style.filter || '';
-  showToast('🗺️ Стиль карты изменён');
+  showToast(t('toast.map_style_changed'));
 }
 
 // ─────────────────────────────────────────────
@@ -8919,7 +8938,7 @@ async function doOpenBox(boxType) {
   const price = SHOP_BOX_PRICES[boxType];
   const diamonds = state.player?.diamonds ?? 0;
   if (diamonds < price) {
-    showToast('💎 Недостаточно алмазов!');
+    showToast(t('toast.not_enough_diamonds'));
     return;
   }
 
@@ -9002,7 +9021,7 @@ async function buyMythicSet() {
     updateDiamondDisplay();
     document.getElementById('shop-diamonds').textContent = state.player?.diamonds ?? 0;
     _renderEquipSlots();
-    showToast('🗡️🪓🛡️ Мифический комплект получен!');
+    showToast(t('toast.mythic_set_received'));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -9064,7 +9083,7 @@ async function buyCorePack(packIndex) {
     }
     const pack = CORE_PACKS[packIndex];
     const etherMsg = pack && pack.ether > 0 ? ` + ${pack.ether}🌀 эфира` : '';
-    showToast(`🌀 Получено ${data.cores.length} ядер${etherMsg}!`);
+    showToast(t('toast.cores_received', {count: data.cores.length, ether: etherMsg}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -9267,7 +9286,7 @@ async function doCraft() {
     _updateCraftInfo();
     _renderEquipSlots();
     _renderInventoryGrid();
-    showToast(`⚒️ Скрафтлен ${data.item.name}!`);
+    showToast(t('toast.item_crafted', {name: data.item.name}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
@@ -9716,7 +9735,7 @@ function _showCourierPopup(courierId) {
 
 async function doAttackCourier(courierId) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
 
   const atkBtn = document.querySelector('#popup-card [data-popup-btn]');
   if (atkBtn) { atkBtn.disabled = true; atkBtn.textContent = '⏳ Атака...'; }
@@ -9739,7 +9758,7 @@ async function doAttackCourier(courierId) {
     }
 
     if (data.killed) {
-      showToast('💥 Курьер уничтожен!');
+      showToast(t('toast.courier_destroyed'));
       closePopup();
       // Remove courier marker + interp state
       if (courierMarkers[courierId]) {
@@ -9826,7 +9845,7 @@ function showDropPopup(dropId) {
 
     const isDelivery = drop.drop_type === 'delivery' || drop.drop_type === 'coin_delivery';
     if (isDelivery && !_isMyDeliveryDrop(drop)) {
-      showToast('📦 Чужая посылка');
+      showToast(t('toast.foreign_parcel'));
       return;
     }
 
@@ -9861,7 +9880,7 @@ function showDropPopup(dropId) {
 
 async function doPickupDrop(dropId) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
 
   try {
     const data = await apiFetch('/api/market', {
@@ -9875,7 +9894,7 @@ async function doPickupDrop(dropId) {
       delete dropData[dropId];
     }
     if (data.item) state.inventory.unshift(data.item);
-    showToast(`🎒 ${data.message || 'Предмет подобран!'}`);
+    showToast(t('toast.item_picked_up', {message: data.message || 'OK'}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -10138,7 +10157,7 @@ async function doBuyListing(listing) {
       body: JSON.stringify(body),
     });
 
-    showToast(`🛒 Куплено за ${data.price_paid} 💎!`);
+    showToast(t('toast.market_bought', {price: data.price_paid}));
 
     // Update state
     if (state.player) {
@@ -10179,7 +10198,7 @@ function closeMarketPrivate() {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('market-private-btn')?.addEventListener('click', () => {
     const code = document.getElementById('market-private-input').value.trim().toUpperCase();
-    if (code.length !== 6) return showToast('❌ Код должен быть 6 символов');
+    if (code.length !== 6) return showToast(t('toast.code_length'));
     closeMarketPrivate();
     if (_buyTargetListing) {
       _buyTargetListing._privateCode = code;
@@ -10195,7 +10214,7 @@ async function doCancelListing(listingId) {
       method: 'POST',
       body: JSON.stringify({ action: 'cancel', telegram_id: TG_ID, listing_id: listingId }),
     });
-    showToast('✅ Лот снят с продажи');
+    showToast(t('toast.listing_cancelled'));
     _loadMarketListings();
     // Refresh inventory so the returned item appears
     try {
@@ -10319,7 +10338,7 @@ function _selectListItem(item) {
 
 // ── Market event listeners ────────────────────
 document.getElementById('btn-market-hud').addEventListener('click', async () => {
-  if (!state.playerPos) { showToast('❌ Нет GPS'); return; }
+  if (!state.playerPos) { showToast(t('toast.no_gps_short')); return; }
 
   // First check already-loaded market markers
   let allMarkets = Object.values(state.mapBuildings?.markets || []);
@@ -10334,7 +10353,7 @@ document.getElementById('btn-market-hud').addEventListener('click', async () => 
   }
 
   if (allMarkets.length === 0) {
-    showToast('🎪 Рынки ещё не появились');
+    showToast(t('toast.no_markets'));
     return;
   }
 
@@ -10348,7 +10367,7 @@ document.getElementById('btn-market-hud').addEventListener('click', async () => 
 
   // Fly to it
   map.flyTo([nearest.lat, nearest.lng], 17, { duration: 1.2 });
-  showToast(`🎪 Ближайший рынок: ${Math.round(nearestDist)}м`);
+  showToast(t('toast.nearest_market', {dist: Math.round(nearestDist)}));
 
   // After fly, show popup
   setTimeout(() => {
@@ -10425,7 +10444,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('market-list-copy-code')?.addEventListener('click', () => {
     const code = document.getElementById('market-list-code').textContent;
-    navigator.clipboard?.writeText(code).then(() => showToast('📋 Код скопирован'));
+    navigator.clipboard?.writeText(code).then(() => showToast(t('toast.code_copied')));
   });
 
   // Submit listing (optimistic UI)
@@ -10434,7 +10453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const priceStr = document.getElementById('market-list-price-input').value;
     const price = parseInt(priceStr, 10);
     if (isNaN(price) || price < 10 || price > 100000) {
-      return showToast('❌ Цена от 10 до 100 000 💎');
+      return showToast(t('toast.price_range'));
     }
 
     const btn = document.getElementById('market-list-submit');
@@ -10478,10 +10497,10 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(body),
       });
 
-      showToast('🎪 Товар выставлен на рынок!');
+      showToast(t('toast.listed_on_market'));
 
       if (data.private_code) {
-        showToast(`🔒 Код: ${data.private_code}`, 5000);
+        showToast(t('toast.private_code', {code: data.private_code}), 5000);
       }
 
       _marketTab = 'my';
@@ -10693,7 +10712,7 @@ function showPvpPreview(defender) {
 
 async function initiatePvp(defenderTelegramId) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
   const btn = document.getElementById('pvp-fight-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
 
@@ -10727,7 +10746,7 @@ async function fleePvp(attackerTelegramId) {
     });
     _setPlayerCoins(data.coinsLeft);
     updateCoinDisplay();
-    showToast(`🏃 Вы сбежали! -${formatCoins(data.fleeCost)} монет`);
+    showToast(t('toast.pvp_fled', {amount: formatCoins(data.fleeCost)}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -10870,7 +10889,7 @@ let _projectileInterval = null;
 async function doAttackMine(mineId) {
   if (String(mineId).startsWith('_opt_')) return;
   const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
-  if (!mine) return showToast('❌ Шахта не найдена');
+  if (!mine) return showToast(t('toast.mine_not_found'));
   openCombatPopup(`⛏️ Шахта Ур.${mine.level}`, mine.id, 'mine', mine);
 }
 
@@ -10902,7 +10921,7 @@ async function doMineHit(mine) {
 
     if (data.burned) {
       stopPopupCombat(); stopCombat(); closePopup();
-      showToast('🔥 Шахта горит!');
+      showToast(t('toast.mine_burning'));
     }
   } catch (err) {
     const msg = err.message || '';
@@ -10927,7 +10946,7 @@ async function doOreHit(target) {
     });
     if (data.captured) {
       stopPopupCombat(); stopCombat(); closePopup();
-      showToast('⛏️ Рудник захвачен!');
+      showToast(t('toast.ore_captured'));
     }
   } catch (err) {
     const msg = err.message || '';
@@ -11466,7 +11485,7 @@ function showDeathScreen(killerName, coinsLost) {
     if (sec <= 0) {
       clearInterval(iv);
       screen.classList.remove('open');
-      showToast('🔄 Возрождение!');
+      showToast(t('toast.combat_respawn'));
     }
   }, 1000);
 }
@@ -11530,7 +11549,7 @@ async function doPvpHit(target) {
       stopPopupCombat();
       stopCombat();
       closePopup();
-      showToast(`⚔️ Победа! +${formatCoins(data.coins_won)} монет`);
+      showToast(t('toast.pvp_won', {amount: formatCoins(data.coins_won)}));
       _setPlayerCoins((state.player.coins || 0) + data.coins_won);
     }
   } catch (err) {
@@ -11554,10 +11573,10 @@ async function _finishAttack(mineId) {
       body: JSON.stringify({ action: 'finish', telegram_id: TG_ID, mine_id: mineId }),
     });
     if (data.result === 'burning') {
-      showToast(`🔥 Шахта горит! +${data.xpGain} XP`);
+      showToast(t('toast.mine_burning_xp', {xp: data.xpGain}));
       handleXpResult(data.xp);
     } else {
-      showToast(`🛡️ Шахта устояла (${data.remainingHp}/${data.maxHp} HP)`);
+      showToast(t('toast.mine_survived', {remaining: data.remainingHp, max: data.maxHp}));
     }
     loadVisibleBuildings(true);
   } catch (err) {
@@ -11572,7 +11591,7 @@ async function doExtinguish(mineId) {
       method: 'POST',
       body: JSON.stringify({ action: 'extinguish', telegram_id: TG_ID, mine_id: mineId }),
     });
-    showToast(`🧯 Потушено! HP: ${data.restoredHp}/${data.maxHp}`);
+    showToast(t('toast.mine_extinguished', {restored: data.restoredHp, max: data.maxHp}));
     loadVisibleBuildings(true);
   } catch (err) {
     showToast(`❌ ${err.message}`);
@@ -11641,7 +11660,7 @@ async function claimDailyDiamonds() {
     if (state.player) state.player.diamonds = data.diamonds;
     updateDiamondDisplay();
     document.getElementById('shop-diamonds').textContent = data.diamonds;
-    showToast('💎 +5 алмазов!');
+    showToast(t('toast.daily_diamonds'));
     updateDailyDiamondsUI(false, 24 * 3600 * 1000);
   } catch (err) {
     showToast(`❌ ${err.message}`);
@@ -11658,7 +11677,7 @@ async function buyStars(diamonds = 100, stars = 15) {
     if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
       window.Telegram.WebApp.openInvoice(data.invoiceLink, (status) => {
         if (status === 'paid') {
-          showToast('💎 Оплата прошла! Алмазы будут начислены.');
+          showToast(t('toast.payment_success'));
           // Refresh player data after a short delay
           setTimeout(async () => {
             try {
@@ -11673,7 +11692,7 @@ async function buyStars(diamonds = 100, stars = 15) {
             } catch (_) {}
           }, 3000);
         } else if (status === 'cancelled') {
-          showToast('Оплата отменена');
+          showToast(t('toast.payment_cancelled'));
         }
       });
     } else {
@@ -11776,7 +11795,7 @@ async function sellSelectedItems() {
     updateCrystalDisplay();
     _renderEquipSlots();
     exitSelectionMode();
-    showToast(`Продано ${data.sold_count} предметов за ${data.crystals_gained} ✨`);
+    showToast(t('toast.items_sold_crystals', {count: data.sold_count, crystals: data.crystals_gained}));
   } catch (e) {
     showToast(`❌ ${e.message}`);
     exitSelectionMode();
@@ -12014,18 +12033,18 @@ function showOrePopup(oreId) {
 
 async function captureOre(oreId, currency = 'shards') {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
   try {
     const data = await apiFetch('/api/ore', {
       method: 'POST',
       body: JSON.stringify({ action: 'capture', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng, currency }),
     });
     const emoji = currency === 'ether' ? '🌀' : '✨';
-    showToast(`⛏️ Рудник захвачен! ${emoji}`);
+    showToast(t('toast.ore_captured_emoji', {emoji: emoji}));
     closePopup();
   } catch (err) {
     if (err.message?.includes('занят')) {
-      showToast('⚔️ Рудник занят — атакуй владельца!');
+      showToast(t('toast.ore_occupied'));
     } else {
       showToast(`❌ ${err.message}`);
     }
@@ -13172,7 +13191,7 @@ function doStartMonumentCombat(monumentId, mode) {
 function doStartDefenderCombat(monumentId) {
   // Attack the closest alive defender for this monument
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
   const defenders = Object.entries(defenderData)
     .filter(([_, d]) => d.monument_id === monumentId)
     .map(([id, d]) => ({ id, ...d, dist: haversine(pos.lat, pos.lng, d.lat, d.lng) }))
@@ -13314,7 +13333,7 @@ async function doDefenderHit(target) {
 
 async function doJoinRaid(monumentId) {
   const pos = state.playerPos;
-  if (!pos) return showToast('❌ Нет GPS');
+  if (!pos) return showToast(t('toast.no_gps_short'));
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',

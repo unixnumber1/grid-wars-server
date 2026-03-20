@@ -3,6 +3,7 @@ import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.j
 import { getMaxHp } from '../../lib/formulas.js';
 import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const itemsRouter = Router();
 
@@ -124,9 +125,9 @@ async function handleSell(player, body) {
     .from('items').select('id, rarity, equipped, on_market, upgrade_level')
     .eq('id', item_id).eq('owner_id', player.id).maybeSingle();
 
-  if (!item) return { status: 404, error: 'Предмет не найден' };
-  if (item.equipped) return { status: 400, error: 'Сначала снимите предмет' };
-  if (item.on_market) return { status: 400, error: 'Предмет на маркете' };
+  if (!item) return { status: 404, error: 'Item not found' };
+  if (item.equipped) return { status: 400, error: 'Unequip first' };
+  if (item.on_market) return { status: 400, error: 'Item on market' };
 
   const soldFor = getItemSellPrice(item.rarity, item.upgrade_level || 0);
   const newCrystals = (player.crystals ?? 0) + soldFor;
@@ -201,7 +202,8 @@ async function handleDailyDiamonds(req, res) {
 
   const check = _checkDailyAvailable(player);
   if (!check.canClaim) {
-    return res.status(400).json({ error: 'Уже получено', nextClaimIn: check.nextClaimIn });
+    const lang = getLang(gameState, telegram_id);
+    return res.status(400).json({ error: ts(lang, 'err.already_claimed'), nextClaimIn: check.nextClaimIn });
   }
 
   const oldDiamonds = player.diamonds ?? 0;
@@ -213,7 +215,7 @@ async function handleDailyDiamonds(req, res) {
     .select('id').maybeSingle();
 
   if (upErr) return res.status(500).json({ error: 'DB error' });
-  if (!ok)   return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+  if (!ok)   return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
   // Update gameState so tick returns correct diamonds and daily_diamonds_claimed_at
   if (gameState.loaded) {
@@ -255,12 +257,12 @@ async function handleStarsInvoice(req, res) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: `💎 ${pack.diamonds} алмазов`,
-        description: `Overthrow — ${pack.diamonds} алмазов для игры`,
+        title: ts(getLang(gameState, telegram_id), 'stars.title', { amount: pack.diamonds }),
+        description: ts(getLang(gameState, telegram_id), 'stars.description', { amount: pack.diamonds }),
         payload: JSON.stringify({ telegram_id, product: `diamonds_${pack.diamonds}`, diamonds: pack.diamonds }),
         provider_token: '',
         currency: 'XTR',
-        prices: [{ label: `${pack.diamonds} алмазов`, amount: pack.stars }],
+        prices: [{ label: ts(getLang(gameState, telegram_id), 'stars.price_label', { amount: pack.diamonds }), amount: pack.stars }],
       }),
     }
   );
@@ -313,7 +315,7 @@ async function handleStarsWebhook(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: payload.telegram_id,
-            text: `💎 ${diamondAmount} алмазов зачислено!\nСпасибо за поддержку Overthrow ⚔️`,
+            text: ts(getLang(gameState, payload.telegram_id), 'admin.diamonds_credited', { amount: diamondAmount }),
           }),
         }).catch(e => console.error('[stars] buyer notify error:', e.message));
         if (buyerRes && !buyerRes.ok) console.error('[stars] buyer notify fail:', await buyerRes.text().catch(() => ''));
@@ -326,7 +328,7 @@ async function handleStarsWebhook(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: ADMIN_TG_ID,
-            text: `💰 Покупка!\n👤 ${buyerName} (${payload.telegram_id})\n⭐ ${payment.total_amount} Stars\n💎 ${diamondAmount} алмазов`,
+            text: ts('ru', 'admin.purchase', { buyer: buyerName, tgId: payload.telegram_id, stars: payment.total_amount, diamonds: diamondAmount }),
           }),
         }).catch(e => console.error('[stars] admin notify error:', e.message));
       }
@@ -366,15 +368,16 @@ itemsRouter.post('/', async (req, res) => {
       const { data } = await supabase.from('items').select('*').eq('id', item_id).maybeSingle();
       item = data;
     }
-    if (!item || item.owner_id !== p.id) return res.status(404).json({ error: '\u041F\u0440\u0435\u0434\u043C\u0435\u0442 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D' });
+    const lang = getLang(gameState, telegram_id);
+    if (!item || item.owner_id !== p.id) return res.status(404).json({ error: ts(lang, 'err.item_not_found') });
 
     const maxLvl = getMaxUpgradeLevel(item.rarity);
     const currentLvl = item.upgrade_level || 0;
-    if (currentLvl >= maxLvl) return res.status(400).json({ error: '\u041C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C' });
+    if (currentLvl >= maxLvl) return res.status(400).json({ error: ts(lang, 'err.max_level') });
 
     const cost = getUpgradeCost(currentLvl + 1);
     const crystals = p.crystals ?? 0;
-    if (crystals < cost) return res.status(400).json({ error: `\u041D\u0443\u0436\u043D\u043E ${cost} \u2728`, cost, have: crystals });
+    if (crystals < cost) return res.status(400).json({ error: ts(lang, 'err.not_enough_crystals', { cost }), cost, have: crystals });
 
     const newCrystals = crystals - cost;
     const newLevel = currentLvl + 1;
@@ -427,7 +430,7 @@ itemsRouter.post('/', async (req, res) => {
 
     const MYTHIC_PRICE = 600;
     const diamonds = p.diamonds ?? 0;
-    if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: `\u041D\u0443\u0436\u043D\u043E ${MYTHIC_PRICE} \u{1F48E}` });
+    if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: MYTHIC_PRICE }) });
 
     // Fixed mythic base stats (matching game/mechanics/items.js)
     const mythicStats = {
@@ -436,12 +439,13 @@ itemsRouter.post('/', async (req, res) => {
       shield: { attack: 0, crit_chance: 0, defense: 3800, block_chance: 15 },
     };
     const stats = mythicStats[weapon_type];
-    const names = { sword: '\u0410\u0434\u0441\u043A\u0438\u0439 \u043A\u043B\u0438\u043D\u043E\u043A', axe: '\u0422\u043E\u043F\u043E\u0440 \u0445\u0430\u043E\u0441\u0430', shield: '\u0429\u0438\u0442 \u0442\u0438\u0442\u0430\u043D\u0430' };
+    const buyLang = getLang(gameState, telegram_id);
+    const names = { sword: ts(buyLang, 'item.mythic_sword'), axe: ts(buyLang, 'item.mythic_axe'), shield: ts(buyLang, 'item.mythic_shield') };
     const emojis = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };
 
     const newDiamonds = diamonds - MYTHIC_PRICE;
     const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
-    if (!diamOk) return res.status(409).json({ error: '\u041A\u043E\u043D\u0444\u043B\u0438\u043A\u0442' });
+    if (!diamOk) return res.status(409).json({ error: ts(buyLang, 'err.conflict') });
 
     const insertData = {
       type: weapon_type, rarity: 'mythic', name: names[weapon_type], emoji: emojis[weapon_type],
@@ -473,19 +477,20 @@ itemsRouter.post('/', async (req, res) => {
 
     const SET_PRICE = 1500;
     const diamonds = p.diamonds ?? 0;
-    if (diamonds < SET_PRICE) return res.status(400).json({ error: `Нужно ${SET_PRICE} 💎` });
+    if (diamonds < SET_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: SET_PRICE }) });
 
     const mythicStats = {
       sword: { attack: 380, crit_chance: 16, defense: 0, block_chance: 0 },
       axe: { attack: 520, crit_chance: 0, defense: 0, block_chance: 0 },
       shield: { attack: 0, crit_chance: 0, defense: 3800, block_chance: 15 },
     };
-    const names = { sword: '\u0410\u0434\u0441\u043A\u0438\u0439 \u043A\u043B\u0438\u043D\u043E\u043A', axe: '\u0422\u043E\u043F\u043E\u0440 \u0445\u0430\u043E\u0441\u0430', shield: '\u0429\u0438\u0442 \u0442\u0438\u0442\u0430\u043D\u0430' };
+    const setLang = getLang(gameState, telegram_id);
+    const names = { sword: ts(setLang, 'item.mythic_sword'), axe: ts(setLang, 'item.mythic_axe'), shield: ts(setLang, 'item.mythic_shield') };
     const emojis = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };
 
     const newDiamonds = diamonds - SET_PRICE;
     const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
-    if (!diamOk) return res.status(409).json({ error: '\u041A\u043E\u043D\u0444\u043B\u0438\u043A\u0442' });
+    if (!diamOk) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
     const createdItems = [];
     for (const wt of ['sword', 'axe', 'shield']) {
@@ -527,11 +532,11 @@ itemsRouter.post('/', async (req, res) => {
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
 
     const diamonds = p.diamonds ?? 0;
-    if (diamonds < pack.price) return res.status(400).json({ error: `Нужно ${pack.price} 💎` });
+    if (diamonds < pack.price) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: pack.price }) });
 
     const newDiamonds = diamonds - pack.price;
     const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
-    if (!diamOk) return res.status(409).json({ error: 'Конфликт' });
+    if (!diamOk) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
     // Create cores
     const { randomCoreType } = await import('../../game/mechanics/cores.js');
@@ -574,7 +579,7 @@ itemsRouter.post('/', async (req, res) => {
     if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
     const { item_ids } = body;
     if (!Array.isArray(item_ids) || item_ids.length === 0) return res.status(400).json({ error: 'item_ids required' });
-    if (item_ids.length > 200) return res.status(400).json({ error: 'Максимум 200 предметов за раз' });
+    if (item_ids.length > 200) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.max_200_items') });
 
     const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,crystals');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
@@ -589,7 +594,7 @@ itemsRouter.post('/', async (req, res) => {
       totalCrystals += getItemSellPrice(item.rarity, item.upgrade_level || 0);
       soldIds.push(itemId);
     }
-    if (soldIds.length === 0) return res.status(400).json({ error: 'Нет предметов для продажи' });
+    if (soldIds.length === 0) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.no_items_to_sell') });
 
     const newCrystals = (p.crystals ?? 0) + totalCrystals;
 
@@ -621,7 +626,7 @@ itemsRouter.post('/', async (req, res) => {
     if (!box_type || !BOX_PRICES[box_type]) return res.status(400).json({ error: 'Invalid box_type' });
     const price = BOX_PRICES[box_type];
     const diamonds = player.diamonds ?? 0;
-    if (diamonds < price) return res.status(400).json({ error: 'Недостаточно алмазов' });
+    if (diamonds < price) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_diamonds_short') });
 
     const rarity = rollWeighted(BOX_ODDS[box_type]);
     const type = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
@@ -630,7 +635,7 @@ itemsRouter.post('/', async (req, res) => {
 
     const { data: diamOk, error: updateErr } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', diamonds).select('id').maybeSingle();
     if (updateErr) return res.status(500).json({ error: 'Failed to update diamonds' });
-    if (!diamOk && !updateErr) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+    if (!diamOk && !updateErr) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
     const insertData = {
       type, rarity: item.rarity, name: item.name, emoji: item.emoji,
@@ -662,7 +667,7 @@ itemsRouter.post('/', async (req, res) => {
   if (action === 'craft') {
     const { item_ids } = body;
     if (!Array.isArray(item_ids) || item_ids.length !== 10) {
-      return res.status(400).json({ error: 'Нужно ровно 10 предметов' });
+      return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_10_items') });
     }
 
     const NEXT_RARITY = {
@@ -676,18 +681,18 @@ itemsRouter.post('/', async (req, res) => {
       .in('id', item_ids).eq('owner_id', player.id);
     if (fetchErr) return res.status(500).json({ error: 'DB error' });
     if (!items || items.length !== 10) {
-      return res.status(400).json({ error: 'Некоторые предметы не найдены или не ваши' });
+      return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.items_not_found') });
     }
 
     // Check all same rarity, none equipped, none on market
     const rarity = items[0].rarity;
     for (const it of items) {
-      if (it.rarity !== rarity) return res.status(400).json({ error: 'Все предметы должны быть одной редкости' });
-      if (it.equipped) return res.status(400).json({ error: 'Снимите экипированные предметы' });
-      if (it.on_market) return res.status(400).json({ error: 'Предмет на маркете' });
+      if (it.rarity !== rarity) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.same_rarity') });
+      if (it.equipped) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.unequip_crafting') });
+      if (it.on_market) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.item_on_market') });
     }
     if (rarity === 'legendary') {
-      return res.status(400).json({ error: 'Легендарные предметы нельзя крафтить' });
+      return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.legendary_no_craft') });
     }
 
     const nextRarity = NEXT_RARITY[rarity];

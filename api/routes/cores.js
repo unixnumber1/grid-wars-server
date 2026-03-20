@@ -4,6 +4,7 @@ import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
 import { CORE_TYPES, MAX_CORE_SLOTS, getCoreMultiplier, getCoreUpgradeCost } from '../../lib/cores.js';
 import { SMALL_RADIUS } from '../../lib/formulas.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const coresRouter = Router();
 
@@ -31,7 +32,8 @@ async function handleInstall(req, res) {
   if (!core) return res.status(404).json({ error: 'Core not found' });
   if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
-  if (core.mine_cell_id) return res.status(400).json({ error: 'Core already installed' });
+  const lang = getLang(gameState, telegram_id);
+  if (core.mine_cell_id) return res.status(400).json({ error: ts(lang, 'err.core_installed') });
 
   const mine = gameState.mines.get(mine_id);
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
@@ -40,13 +42,13 @@ async function handleInstall(req, res) {
   // Distance check
   if (lat != null && lng != null) {
     const dist = haversine(parseFloat(lat), parseFloat(lng), mine.lat, mine.lng);
-    if (dist > SMALL_RADIUS) return res.status(400).json({ error: 'Слишком далеко' });
+    if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
   }
 
   // Check slot count
   const existing = gameState.getCoresForMine(mine.cell_id);
   if (existing.length >= MAX_CORE_SLOTS)
-    return res.status(400).json({ error: 'Все слоты заняты (10/10)' });
+    return res.status(400).json({ error: ts(lang, 'err.all_slots_full') });
 
   // Find next free slot
   const usedSlots = new Set(existing.map(c => c.slot_index));
@@ -75,7 +77,7 @@ async function handleUninstall(req, res) {
   if (!core) return res.status(404).json({ error: 'Core not found' });
   if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
-  if (!core.mine_cell_id) return res.status(400).json({ error: 'Core not installed' });
+  if (!core.mine_cell_id) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.core_not_installed') });
 
   core.mine_cell_id = null;
   core.slot_index = null;
@@ -103,7 +105,7 @@ async function handleUpgrade(req, res) {
   const cost = getCoreUpgradeCost(core.level);
   const playerEther = player.ether || 0;
   if (playerEther < cost)
-    return res.status(400).json({ error: 'Недостаточно эфира', need: cost, have: playerEther });
+    return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_ether'), need: cost, have: playerEther });
 
   // Deduct ether
   player.ether = playerEther - cost;
@@ -138,7 +140,7 @@ async function handleSell(req, res) {
   if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
   if (core.mine_cell_id)
-    return res.status(400).json({ error: 'Сначала извлеки ядро из шахты' });
+    return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.uninstall_core_first') });
 
   // Calculate sell price: lv0 = 10 ether, otherwise 10% of invested ether
   let sellPrice = 10;
@@ -191,7 +193,7 @@ async function handleMassSell(req, res) {
   }
 
   if (!soldIds.length)
-    return res.status(400).json({ error: 'Нет доступных ядер' });
+    return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.no_cores_available') });
 
   player.ether = (player.ether || 0) + totalEther;
   gameState.markDirty('players', player.id);
