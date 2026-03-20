@@ -8,6 +8,7 @@ import { ensureMarketNearPlayer } from '../../lib/markets.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
 import { validatePosition } from '../../lib/antispoof.js';
 import { logPlayer } from '../../lib/logger.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const playerRouter = Router();
 
@@ -40,6 +41,21 @@ async function handleSetUsername(req, res) {
   const { error: updateErr } = await supabase.from('players').update(updateObj).eq('id', player.id);
   if (updateErr) return res.status(500).json({ error: updateErr.message });
   return res.status(200).json({ success: true, game_username: trimmed, diamonds: newDiamonds, username_changes: changes + 1 });
+}
+
+async function handleSetLanguage(req, res) {
+  const { telegram_id, language } = req.body || {};
+  if (!telegram_id || !language) return res.status(400).json({ error: 'telegram_id and language required' });
+  const lang = ['ru', 'en'].includes(language) ? language : 'en';
+  const { player, error: findErr } = await getPlayerByTelegramId(telegram_id, 'id');
+  if (findErr) return res.status(500).json({ error: findErr });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  await supabase.from('players').update({ language: lang }).eq('id', player.id);
+  if (gameState.loaded) {
+    const p = gameState.getPlayerById(player.id);
+    if (p) { p.language = lang; gameState.markDirty('players', p.id); }
+  }
+  return res.json({ success: true, language: lang });
 }
 
 async function handleAvatar(req, res) {
@@ -124,15 +140,15 @@ function simulateBattle(attacker, defender, attackerWeapon, defenderWeapon) {
 async function handlePvpInitiate(req, res) {
   const { telegram_id, defender_telegram_id, lat, lng } = req.body || {};
   if (!telegram_id || !defender_telegram_id || lat == null || lng == null) return res.status(400).json({ error: 'Missing fields' });
-  if (String(telegram_id) === String(defender_telegram_id)) return res.status(400).json({ error: 'Нельзя атаковать себя' });
+  if (String(telegram_id) === String(defender_telegram_id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.cant_attack_self') });
   const { player: attacker, error: aErr } = await getPlayerByTelegramId(telegram_id, 'id,telegram_id,game_username,avatar,level,xp,coins,bonus_attack,bonus_hp,bonus_crit,equipped_sword');
   if (aErr || !attacker) return res.status(404).json({ error: 'Attacker not found' });
   const { player: defender, error: dErr } = await getPlayerByTelegramId(defender_telegram_id, 'id,telegram_id,game_username,avatar,level,xp,coins,bonus_attack,bonus_hp,bonus_crit,equipped_sword,shield_until,last_lat,last_lng');
   if (dErr || !defender) return res.status(404).json({ error: 'Defender not found' });
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, defender.last_lat, defender.last_lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
-  if (defender.shield_until && new Date(defender.shield_until) > new Date()) return res.status(400).json({ error: 'Игрок под защитой', shield_until: defender.shield_until });
+  if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
+  if (defender.shield_until && new Date(defender.shield_until) > new Date()) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.player_shielded'), shield_until: defender.shield_until });
   const [{ data: atkItems }, { data: defItems }] = await Promise.all([
     supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', attacker.id).eq('equipped', true),
     supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', defender.id).eq('equipped', true),
@@ -155,7 +171,10 @@ async function handlePvpInitiate(req, res) {
   let xpResult = null;
   try { xpResult = await addXp(winner.id, xpGain); } catch (_) {}
   await supabase.from('pvp_log').insert({ attacker_id: attacker.id, defender_id: defender.id, winner_id: winner.id, attacker_hp_left: battleResult.attackerHpLeft, defender_hp_left: battleResult.defenderHpLeft, rounds: battleResult.rounds, coins_transferred: coinsWon });
-  const notifMsg = winnerIsAttacker ? `⚔️ ${attacker.game_username || 'Игрок'} победил вас! -${coinsLost} монет` : `🏆 Вы отразили атаку ${attacker.game_username || 'Игрок'}! Противник потерял монеты.`;
+  const defLang = getLang(gameState, defender.telegram_id);
+  const notifMsg = winnerIsAttacker
+    ? ts(defLang, 'notif.pvp_defeated', { name: attacker.game_username || ts(defLang, 'misc.player'), coins: coinsLost })
+    : ts(defLang, 'notif.pvp_defended', { name: attacker.game_username || ts(defLang, 'misc.player') });
   const battlePayload = {
     battle: battleResult,
     attacker: { telegram_id: attacker.telegram_id, username: attacker.game_username, avatar: attacker.avatar, level: attacker.level, weapon: atkWeapon ? { emoji: atkWeapon.emoji, type: atkWeapon.type, name: atkWeapon.name, rarity: atkWeapon.rarity, attack: atkWeapon.attack } : null, shield: atkShield ? { emoji: atkShield.emoji, name: atkShield.name, defense: atkShield.defense } : null, bonusHp: attacker.bonus_hp || 0 },
@@ -350,7 +369,8 @@ async function handlePvpAttack(req, res) {
     ]);
 
     // Notify defender
-    const killMsg = `⚔️ ${attacker.game_username || 'Игрок'} убил вас! -${coinsLost} монет`;
+    const defKillLang = getLang(gameState, target_telegram_id);
+    const killMsg = ts(defKillLang, 'notif.pvp_killed', { name: attacker.game_username || ts(defKillLang, 'misc.player'), coins: coinsLost });
     supabase.from('notifications').insert({
       player_id: defender.id, type: 'pvp_kill', message: killMsg,
       data: { attacker_id: attacker.id, damage, coins_lost: coinsLost },
@@ -416,6 +436,7 @@ playerRouter.post('/init', async (req, res) => {
   if (action === 'avatar') return handleAvatar(req, res);
   if (action === 'location') return handleLocation(req, res);
   if (action === 'set-username') return handleSetUsername(req, res);
+  if (action === 'set-language') return handleSetLanguage(req, res);
   if (action === 'pvp-initiate') return handlePvpInitiate(req, res);
   if (action === 'pvp-attack') return handlePvpAttack(req, res);
   if (action === 'pvp-flee') return handlePvpFlee(req, res);
@@ -509,7 +530,7 @@ playerRouter.post('/init', async (req, res) => {
 
   return res.status(200).json({
     needUsername,
-    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0 },
+    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'en' },
     headquarters: headquarters || null,
     mines: mines || [],
     totalIncome,

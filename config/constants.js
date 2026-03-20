@@ -155,20 +155,20 @@ export const GEAR_PRICES = {
 
 // ── Star packs ──
 export const STAR_PACKS = [
-  { diamonds: 100,  stars: 75,   label: 'Стартовый' },
-  { diamonds: 300,  stars: 200,  label: 'Базовый' },
-  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', badge: 'ПОПУЛЯРНЫЙ' },
-  { diamonds: 1500, stars: 800,  label: 'Продвинутый' },
-  { diamonds: 3500, stars: 1800, label: 'Премиум' },
-  { diamonds: 8000, stars: 4000, label: 'Кит', badge: 'ВЫГОДНО 👑' },
+  { diamonds: 100,  stars: 75,   label: 'Стартовый', label_en: 'Starter' },
+  { diamonds: 300,  stars: 200,  label: 'Базовый', label_en: 'Basic' },
+  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', label_en: '🔥 Popular', badge: 'ПОПУЛЯРНЫЙ', badge_en: 'POPULAR' },
+  { diamonds: 1500, stars: 800,  label: 'Продвинутый', label_en: 'Advanced' },
+  { diamonds: 3500, stars: 1800, label: 'Премиум', label_en: 'Premium' },
+  { diamonds: 8000, stars: 4000, label: 'Кит', label_en: 'Whale', badge: 'ВЫГОДНО 👑', badge_en: 'BEST VALUE 👑' },
 ];
 
 // ── Core packs ──
 export const CORE_PACKS = [
-  { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 300 },
-  { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 750 },
-  { label: '🌀 Продвинутый', cores: 3, core_level: 5, ether: 2000, price: 1500 },
-  { label: '🌀 Элитный', cores: 5, core_level: 10, ether: 5000, price: 3000, badge: 'ТОП' },
+  { label: '🌀 Стартовый', label_en: '🌀 Starter', cores: 3, core_level: 0, ether: 0, price: 300 },
+  { label: '🌀 Боевой', label_en: '🌀 Combat', cores: 5, core_level: 0, ether: 500, price: 750 },
+  { label: '🌀 Продвинутый', label_en: '🌀 Advanced', cores: 3, core_level: 5, ether: 2000, price: 1500 },
+  { label: '🌀 Элитный', label_en: '🌀 Elite', cores: 5, core_level: 10, ether: 5000, price: 3000, badge: 'ТОП', badge_en: 'TOP' },
 ];
 
 // ── Cosmetic prices ──

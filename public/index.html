@@ -2638,31 +2638,42 @@
 <div id="settings-drawer">
   <div id="settings-header">
     <button id="btn-close-settings">&#x2715;</button>
-    <h3>&#x2699;&#xFE0F; Настройки</h3>
+    <h3 data-i18n="settings.title">&#x2699;&#xFE0F; Настройки</h3>
   </div>
   <div id="settings-tabs">
-    <button class="settings-tab active" data-tab="profile">&#x1F464; Профиль</button>
-    <button class="settings-tab" data-tab="map">&#x1F5FA;&#xFE0F; Карта</button>
+    <button class="settings-tab active" data-tab="profile" data-i18n="settings.tab.profile">&#x1F464; Профиль</button>
+    <button class="settings-tab" data-tab="map" data-i18n="settings.tab.map">&#x1F5FA;&#xFE0F; Карта</button>
+    <button class="settings-tab" data-tab="lang" data-i18n="settings.tab.lang">&#x1F310; Язык</button>
   </div>
   <div id="settings-body">
     <!-- Profile tab -->
     <div id="settings-tab-profile" class="settings-tab-content active">
       <div class="settings-card" style="text-align:center;">
-        <div class="settings-section-title" style="text-align:left;">АВАТАРКА</div>
+        <div class="settings-section-title" style="text-align:left;" data-i18n="settings.avatar">АВАТАРКА</div>
         <div id="settings-avatar-preview" style="width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,215,0,0.4);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;background:rgba(255,255,255,0.05);"></div>
-        <button id="btn-change-avatar" class="settings-action-btn s-default" style="justify-content:center;">&#x1F3A8; Сменить аватарку</button>
+        <button id="btn-change-avatar" class="settings-action-btn s-default" style="justify-content:center;" data-i18n="settings.avatar.change">&#x1F3A8; Сменить аватарку</button>
       </div>
       <div class="settings-card">
-        <div class="settings-section-title">НИК</div>
+        <div class="settings-section-title" data-i18n="settings.nick">НИК</div>
         <div id="settings-nick-display" style="font-size:16px;font-weight:700;color:#fff;margin-bottom:12px;"></div>
-        <button id="btn-change-username" class="settings-action-btn s-default" style="justify-content:center;">&#x270F;&#xFE0F; Сменить ник</button>
+        <button id="btn-change-username" class="settings-action-btn s-default" style="justify-content:center;" data-i18n="settings.nick.change">&#x270F;&#xFE0F; Сменить ник</button>
       </div>
     </div>
     <!-- Map tab -->
     <div id="settings-tab-map" class="settings-tab-content">
       <div class="settings-card">
-        <div class="settings-section-title">СТИЛЬ КАРТЫ</div>
+        <div class="settings-section-title" data-i18n="settings.map_style">СТИЛЬ КАРТЫ</div>
         <div id="map-style-list"></div>
+      </div>
+    </div>
+    <!-- Language tab -->
+    <div id="settings-tab-lang" class="settings-tab-content">
+      <div class="settings-card">
+        <div class="settings-section-title" data-i18n="settings.lang.title">ЯЗЫК ИНТЕРФЕЙСА</div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="settings-action-btn s-default lang-btn" data-lang="ru" style="flex:1;justify-content:center;" onclick="setLang('ru')">&#x1F1F7;&#x1F1FA; Русский</button>
+          <button class="settings-action-btn s-default lang-btn" data-lang="en" style="flex:1;justify-content:center;" onclick="setLang('en')">&#x1F1EC;&#x1F1E7; English</button>
+        </div>
       </div>
     </div>
     <!-- Admin tab (hidden by default) -->
@@ -2799,7 +2810,7 @@
     </div>
   </div>
   <button id="btn-inventory" title="Инвентарь">🎒</button>
-  <button id="btn-collect" disabled>💰 Собрать</button>
+  <button id="btn-collect" disabled data-i18n="btn.collect">💰 Собрать</button>
 </div>
 
 <!-- Joystick (admin only) -->
@@ -2834,7 +2845,7 @@
   <div id="shop-header">
     <div id="shop-header-top">
       <button id="shop-close">✕</button>
-      <h2>🛒 МАГАЗИН</h2>
+      <h2 data-i18n="shop.title">🛒 МАГАЗИН</h2>
     </div>
     <div id="shop-header-balances">
       <span>💰 <span id="shop-coins">0</span></span>
@@ -2842,9 +2853,9 @@
     </div>
   </div>
   <div id="shop-tabs">
-    <button class="shop-tab active" data-tab="boxes">📦 Боксы</button>
-    <button class="shop-tab" data-tab="items">🛍️ Предметы</button>
-    <button class="shop-tab" data-tab="diamonds">💎 Алмазы</button>
+    <button class="shop-tab active" data-tab="boxes" data-i18n="shop.tab.boxes">📦 Боксы</button>
+    <button class="shop-tab" data-tab="items" data-i18n="shop.tab.items">🛍️ Предметы</button>
+    <button class="shop-tab" data-tab="diamonds" data-i18n="shop.tab.diamonds">💎 Алмазы</button>
   </div>
   <div id="shop-body">
     <!-- Boxes tab -->
@@ -2980,7 +2991,7 @@ window.onunhandledrejection = (e) => {
 // ─────────────────────────────────────────────
 if (typeof h3 === 'undefined') {
   console.error('[app] H3 library failed to load!');
-  document.getElementById('loading-text').textContent = 'Ошибка загрузки библиотеки. Обнови страницу.';
+  document.getElementById('loading-text').textContent = t('misc.lib_error');
 } else {
   // H3 loaded ok
 }
@@ -3001,6 +3012,609 @@ const ADMIN_ID          = 560013667;
 // Use let so boot() can populate the resolved value for all subsequent calls
 let TG_ID   = tgUser?.id       || null;
 let TG_NAME = tgUser?.username || 'unknown';
+
+// ─────────────────────────────────────────────
+//  i18n — Localization system
+// ─────────────────────────────────────────────
+let _lang = localStorage.getItem('gw_lang') || '';
+// If no saved lang, detect from Telegram language_code
+if (!_lang) {
+  const tgLang = tg?.initDataUnsafe?.user?.language_code || '';
+  _lang = tgLang.startsWith('ru') ? 'ru' : 'en';
+}
+
+const I18N = {
+  ru: {
+    // === Navigation & HUD ===
+    'btn.collect': '💰 Собрать',
+    'hud.coins': 'Монеты',
+    'hud.income': 'доход',
+    'hud.diamonds': 'Алмазы',
+    'hud.shards': 'Осколки',
+    'hud.ether': 'Эфир',
+    'hud.collapse': '▲ закрыть',
+    'hud.expand': '▼ развернуть',
+    'nav.pin': '📌',
+    'nav.shop': '🛒',
+    'nav.market': '🎪',
+    'nav.leaderboard': '🏆',
+    'nav.settings': '⚙️',
+    'nav.inventory': '🎒',
+
+    // === Settings ===
+    'settings.title': '⚙️ Настройки',
+    'settings.tab.profile': '👤 Профиль',
+    'settings.tab.map': '🗺️ Карта',
+    'settings.tab.lang': '🌐 Язык',
+    'settings.lang.title': 'Язык интерфейса',
+    'settings.avatar': 'АВАТАРКА',
+    'settings.avatar.change': '🎨 Сменить аватарку',
+    'settings.nick': 'НИК',
+    'settings.nick.change': '✏️ Сменить ник',
+    'settings.map_style': 'СТИЛЬ КАРТЫ',
+
+    // === Shop ===
+    'shop.title': '🛒 Магазин',
+    'shop.tab.boxes': '📦 Боксы',
+    'shop.tab.items': '🛍️ Предметы',
+    'shop.tab.diamonds': '💎 Алмазы',
+    'shop.daily': '🎁 Ежедневные',
+    'shop.daily.claim': '💎 Получить 5 алмазов',
+    'shop.daily.claimed': 'Уже получено',
+    'shop.daily.next': 'Через',
+    'shop.open': 'Открыть',
+    'shop.mythic_set': '🔥 Мифический набор',
+    'shop.core_packs': '🌀 Наборы ядер',
+    'shop.slots': '🎒 Слоты',
+
+    // === Market ===
+    'market.title': '🎪 Рынок',
+    'market.tab.browse': '🌍 Рынок',
+    'market.tab.my': '📦 Мои лоты',
+    'market.tab.gear': '⚔️ Снаряга',
+    'market.tab.cores': '🌀 Ядра',
+    'market.sort.new': '🆕 Новые',
+    'market.sort.cheap': '💰 Дешёвые',
+    'market.sort.expensive': '💎 Дорогие',
+    'market.status.sold': 'Продано',
+    'market.status.cancelled': 'Отменено',
+    'market.status.expired': 'Истёк',
+    'market.status.pending': 'В пути',
+    'market.sell': 'Выставить',
+    'market.buy': 'Купить',
+    'market.cancel': 'Отменить',
+    'market.private': 'Приватный лот',
+    'market.code': 'Код',
+    'market.price': 'Цена',
+    'market.min_price': 'Мин. цена 10 💎',
+    'market.commission': 'Комиссия 10%',
+    'market.search_code': '🔍 Поиск по коду',
+    'market.no_listings': 'Нет лотов',
+    'market.empty': 'Пусто',
+    'market.your_listing': 'Ваш лот',
+
+    // === Build menu ===
+    'build.title': 'Постройка',
+    'build.hq': '🏠 Штаб',
+    'build.mine': '⛏️ Шахта',
+    'build.collector': '🤖 Сборщик',
+    'build.clan_hq': '⚔️ Штаб Клана',
+
+    // === Mine ===
+    'mine.title': 'Шахта',
+    'mine.level': 'Ур.',
+    'mine.names.0': 'Поле',
+    'mine.names.1': 'Лесопилка',
+    'mine.names.2': 'Роща',
+    'mine.names.3': 'Каменоломня',
+    'mine.names.4': 'Кирпичный завод',
+    'mine.names.5': 'Лачуга',
+    'mine.names.6': 'Развалюха',
+    'mine.names.7': 'Дом',
+    'mine.names.8': 'Усадьба',
+    'mine.names.9': 'Квартал',
+    'mine.names.10': 'Стройплощадка',
+    'mine.names.11': 'Завод',
+    'mine.names.12': 'Офисный центр',
+    'mine.names.13': 'Банк',
+    'mine.names.14': 'Отель',
+    'mine.names.15': 'Дворец',
+    'mine.names.16': 'Монумент',
+    'mine.names.17': 'Храм',
+    'mine.names.18': 'Башня',
+    'mine.names.19': 'Стадион',
+    'mine.names.20': 'Обсерватория',
+    'mine.names.21': 'Космодром',
+    'mine.names.22': 'Инопланетная база',
+    'mine.names.23': 'Звёздный кластер',
+    'mine.names.24': 'Планетарий',
+    'mine.names.25': 'Планетарная империя',
+    'stat.income': '💰 Доход',
+    'stat.capacity': '📦 Вместимость',
+    'stat.hp': '❤️ HP',
+    'stat.regen': '♻️ Реген',
+    'stat.stored': '💰 Накоплено',
+    'stat.upgrade_cost': '💰 Стоимость',
+    'stat.level': '📊 Уровень',
+    'stat.status': '📊 Статус',
+    'stat.attack': '⚔️ Атака',
+    'stat.defense': '🛡️ Защита',
+    'stat.crit': '💥 Крит',
+    'stat.block': '🛡️ Блок',
+
+    // === Buttons ===
+    'btn.upgrade': 'Улучшить',
+    'btn.collect_coins': 'Собрать',
+    'btn.sell': 'Продать',
+    'btn.attack': 'Атаковать',
+    'btn.extinguish': 'Потушить',
+    'btn.equip': 'Надеть',
+    'btn.unequip': 'Снять',
+    'btn.close': 'Закрыть',
+    'btn.confirm': 'Подтвердить',
+    'btn.cancel': 'Отмена',
+    'btn.craft': 'Крафт',
+    'btn.install': 'Установить',
+    'btn.uninstall': 'Извлечь',
+    'btn.deliver': 'Доставить',
+    'btn.capture': 'Захватить',
+    'btn.release': 'Освободить',
+    'btn.build': 'Построить',
+    'btn.break': 'Разбить',
+    'btn.raid': 'Рейд',
+    'btn.open': 'Открыть',
+    'btn.join': 'Вступить',
+    'btn.leave': 'Покинуть',
+    'btn.create': 'Создать',
+    'btn.donate': 'Донат',
+    'btn.boost': 'Буст',
+    'btn.disband': 'Распустить',
+    'btn.kick': 'Кикнуть',
+
+    // === Rarity ===
+    'rarity.common': 'Обычный',
+    'rarity.uncommon': 'Необычный',
+    'rarity.rare': 'Редкий',
+    'rarity.epic': 'Эпический',
+    'rarity.mythic': 'Мифический',
+    'rarity.legendary': 'Легендарный',
+
+    // === Core types ===
+    'core.type.income': '💰 Доход',
+    'core.type.capacity': '📦 Вместимость',
+    'core.type.hp': '❤️ HP',
+    'core.type.regen': '♻️ Реген',
+
+    // === Bot names ===
+    'bot.goblin': 'Гоблин-вор',
+
+    // === Time ===
+    'time.h': 'ч',
+    'time.min': 'мин',
+    'time.sec': 'сек',
+    'time.d': 'д',
+    'per_hour': 'ч',
+    'lv': 'Ур.',
+
+    // === HQ ===
+    'hq.title': 'Штаб',
+    'hq.sell': 'Продать штаб',
+    'hq.sell_confirm': 'Удалить штаб? Возврат 50% стоимости.',
+
+    // === Inventory ===
+    'inv.title': '🎒 Инвентарь',
+    'inv.tab.gear': 'Снаряжение',
+    'inv.tab.cores': 'Ядра',
+    'inv.sell': 'Продать',
+    'inv.sell_all': 'Продать всё',
+    'inv.craft': 'Крафт',
+    'inv.equip': 'Надеть',
+    'inv.unequip': 'Снять',
+    'inv.empty': 'Инвентарь пуст',
+    'inv.upgrade': 'Улучшить',
+    'inv.level': 'Уровень',
+
+    // === Collector ===
+    'collector.title': 'Сборщик',
+    'collector.stored': 'Хранилище',
+    'collector.mines': 'Шахт в радиусе',
+
+    // === Ore ===
+    'ore.title': 'Рудник',
+    'ore.shards': 'Осколки',
+    'ore.ether': 'Эфир',
+    'ore.free': 'Свободен',
+    'ore.owner': 'Владелец',
+
+    // === Monument ===
+    'monument.title': 'Монумент',
+    'monument.phase.shield': 'Щит',
+    'monument.phase.open': 'Открыт',
+    'monument.phase.defeated': 'Повержен',
+    'monument.dps': 'DPS',
+    'monument.dps_required': 'Нужно DPS',
+    'monument.shield': 'Щит',
+    'monument.my_damage': 'Мой урон',
+    'monument.respawn': 'Респавн',
+
+    // === Vase ===
+    'vase.title': 'Ваза',
+    'vase.reward': 'Награда',
+
+    // === PvP ===
+    'pvp.hit': 'Удар',
+    'pvp.crit': 'КРИТ',
+    'pvp.block': 'БЛОК',
+    'pvp.kill': 'Убийство',
+    'pvp.death': 'Смерть',
+    'pvp.shield': 'Щит активен',
+    'pvp.execution': 'КАЗНЬ',
+
+    // === Leaderboard ===
+    'lb.title': '🏆 Лидерборд',
+    'lb.position': 'Место',
+    'lb.level': 'Уровень',
+    'lb.refresh': '🔄 Обновить',
+
+    // === Clan ===
+    'clan.title': 'Клан',
+    'clan.create': 'Создать клан',
+    'clan.treasury': 'Казна',
+    'clan.members': 'Участники',
+    'clan.level': 'Уровень',
+    'clan.income_bonus': 'Буст дохода',
+    'clan.defense_bonus': 'Буст защиты',
+    'clan.radius': 'Радиус',
+    'clan.no_clan': 'Вы не в клане',
+    'clan.boost_active': 'Буст активен',
+
+    // === Toasts ===
+    'toast.collected': '💰 Собрано {amount}!',
+    'toast.built': '✅ Построено!',
+    'toast.upgraded': '⬆️ Улучшено до Ур.{level}!',
+    'toast.sold': '✅ Продано!',
+    'toast.equipped': '✅ Надето!',
+    'toast.unequipped': '✅ Снято!',
+    'toast.crafted': '✨ Скрафчено!',
+    'toast.error': '❌ Ошибка',
+    'toast.too_far': '📍 Слишком далеко',
+    'toast.copied': '📋 Скопировано!',
+    'toast.language_changed': '🌐 Язык изменён',
+
+    // === Misc ===
+    'misc.loading': 'Загрузка...',
+    'misc.free': 'Бесплатно',
+    'misc.cost': 'Стоимость',
+    'misc.refund': 'Возврат',
+    'misc.total': 'Итого',
+    'misc.confirm_delete': 'Вы уверены?',
+    'misc.player': 'Игрок',
+    'misc.unknown': 'Неизвестный',
+    'misc.online': 'Онлайн',
+    'misc.offline': 'Офлайн',
+    'misc.coins': 'монет',
+    'misc.diamonds': 'алмазов',
+    'misc.enter_nickname': 'Введите игровой ник (3-16 символов):',
+    'misc.enter_nickname_cost': 'Смена ника стоит {cost} 💎. Новый ник:',
+    'misc.lib_error': 'Ошибка загрузки библиотеки. Обнови страницу.',
+    'misc.burning': 'Горит!',
+    'misc.under_attack': 'Под атакой',
+    'misc.destroyed': 'Уничтожена',
+    'misc.normal': 'Нормальная',
+    'misc.max': 'МАКС',
+  },
+
+  en: {
+    // === Navigation & HUD ===
+    'btn.collect': '💰 Collect',
+    'hud.coins': 'Coins',
+    'hud.income': 'income',
+    'hud.diamonds': 'Diamonds',
+    'hud.shards': 'Shards',
+    'hud.ether': 'Ether',
+    'hud.collapse': '▲ collapse',
+    'hud.expand': '▼ expand',
+    'nav.pin': '📌',
+    'nav.shop': '🛒',
+    'nav.market': '🎪',
+    'nav.leaderboard': '🏆',
+    'nav.settings': '⚙️',
+    'nav.inventory': '🎒',
+
+    // === Settings ===
+    'settings.title': '⚙️ Settings',
+    'settings.tab.profile': '👤 Profile',
+    'settings.tab.map': '🗺️ Map',
+    'settings.tab.lang': '🌐 Language',
+    'settings.lang.title': 'Interface Language',
+    'settings.avatar': 'AVATAR',
+    'settings.avatar.change': '🎨 Change avatar',
+    'settings.nick': 'NICKNAME',
+    'settings.nick.change': '✏️ Change nickname',
+    'settings.map_style': 'MAP STYLE',
+
+    // === Shop ===
+    'shop.title': '🛒 Shop',
+    'shop.tab.boxes': '📦 Boxes',
+    'shop.tab.items': '🛍️ Items',
+    'shop.tab.diamonds': '💎 Diamonds',
+    'shop.daily': '🎁 Daily',
+    'shop.daily.claim': '💎 Claim 5 diamonds',
+    'shop.daily.claimed': 'Already claimed',
+    'shop.daily.next': 'In',
+    'shop.open': 'Open',
+    'shop.mythic_set': '🔥 Mythic Set',
+    'shop.core_packs': '🌀 Core Packs',
+    'shop.slots': '🎒 Slots',
+
+    // === Market ===
+    'market.title': '🎪 Market',
+    'market.tab.browse': '🌍 Market',
+    'market.tab.my': '📦 My Listings',
+    'market.tab.gear': '⚔️ Gear',
+    'market.tab.cores': '🌀 Cores',
+    'market.sort.new': '🆕 New',
+    'market.sort.cheap': '💰 Cheap',
+    'market.sort.expensive': '💎 Expensive',
+    'market.status.sold': 'Sold',
+    'market.status.cancelled': 'Cancelled',
+    'market.status.expired': 'Expired',
+    'market.status.pending': 'In transit',
+    'market.sell': 'List',
+    'market.buy': 'Buy',
+    'market.cancel': 'Cancel',
+    'market.private': 'Private listing',
+    'market.code': 'Code',
+    'market.price': 'Price',
+    'market.min_price': 'Min price 10 💎',
+    'market.commission': '10% commission',
+    'market.search_code': '🔍 Search by code',
+    'market.no_listings': 'No listings',
+    'market.empty': 'Empty',
+    'market.your_listing': 'Your listing',
+
+    // === Build menu ===
+    'build.title': 'Build',
+    'build.hq': '🏠 HQ',
+    'build.mine': '⛏️ Mine',
+    'build.collector': '🤖 Collector',
+    'build.clan_hq': '⚔️ Clan HQ',
+
+    // === Mine ===
+    'mine.title': 'Mine',
+    'mine.level': 'Lv.',
+    'mine.names.0': 'Field',
+    'mine.names.1': 'Sawmill',
+    'mine.names.2': 'Grove',
+    'mine.names.3': 'Quarry',
+    'mine.names.4': 'Brickworks',
+    'mine.names.5': 'Hut',
+    'mine.names.6': 'Ruin',
+    'mine.names.7': 'House',
+    'mine.names.8': 'Estate',
+    'mine.names.9': 'Block',
+    'mine.names.10': 'Construction',
+    'mine.names.11': 'Factory',
+    'mine.names.12': 'Office',
+    'mine.names.13': 'Bank',
+    'mine.names.14': 'Hotel',
+    'mine.names.15': 'Palace',
+    'mine.names.16': 'Monument',
+    'mine.names.17': 'Temple',
+    'mine.names.18': 'Tower',
+    'mine.names.19': 'Stadium',
+    'mine.names.20': 'Observatory',
+    'mine.names.21': 'Spaceport',
+    'mine.names.22': 'Alien Base',
+    'mine.names.23': 'Star Cluster',
+    'mine.names.24': 'Planetarium',
+    'mine.names.25': 'Planetary Empire',
+    'stat.income': '💰 Income',
+    'stat.capacity': '📦 Capacity',
+    'stat.hp': '❤️ HP',
+    'stat.regen': '♻️ Regen',
+    'stat.stored': '💰 Stored',
+    'stat.upgrade_cost': '💰 Cost',
+    'stat.level': '📊 Level',
+    'stat.status': '📊 Status',
+    'stat.attack': '⚔️ Attack',
+    'stat.defense': '🛡️ Defense',
+    'stat.crit': '💥 Crit',
+    'stat.block': '🛡️ Block',
+
+    // === Buttons ===
+    'btn.upgrade': 'Upgrade',
+    'btn.collect_coins': 'Collect',
+    'btn.sell': 'Sell',
+    'btn.attack': 'Attack',
+    'btn.extinguish': 'Extinguish',
+    'btn.equip': 'Equip',
+    'btn.unequip': 'Unequip',
+    'btn.close': 'Close',
+    'btn.confirm': 'Confirm',
+    'btn.cancel': 'Cancel',
+    'btn.craft': 'Craft',
+    'btn.install': 'Install',
+    'btn.uninstall': 'Uninstall',
+    'btn.deliver': 'Deliver',
+    'btn.capture': 'Capture',
+    'btn.release': 'Release',
+    'btn.build': 'Build',
+    'btn.break': 'Break',
+    'btn.raid': 'Raid',
+    'btn.open': 'Open',
+    'btn.join': 'Join',
+    'btn.leave': 'Leave',
+    'btn.create': 'Create',
+    'btn.donate': 'Donate',
+    'btn.boost': 'Boost',
+    'btn.disband': 'Disband',
+    'btn.kick': 'Kick',
+
+    // === Rarity ===
+    'rarity.common': 'Common',
+    'rarity.uncommon': 'Uncommon',
+    'rarity.rare': 'Rare',
+    'rarity.epic': 'Epic',
+    'rarity.mythic': 'Mythic',
+    'rarity.legendary': 'Legendary',
+
+    // === Core types ===
+    'core.type.income': '💰 Income',
+    'core.type.capacity': '📦 Capacity',
+    'core.type.hp': '❤️ HP',
+    'core.type.regen': '♻️ Regen',
+
+    // === Bot names ===
+    'bot.goblin': 'Goblin Thief',
+
+    // === Time ===
+    'time.h': 'h',
+    'time.min': 'min',
+    'time.sec': 'sec',
+    'time.d': 'd',
+    'per_hour': 'h',
+    'lv': 'Lv.',
+
+    // === HQ ===
+    'hq.title': 'HQ',
+    'hq.sell': 'Sell HQ',
+    'hq.sell_confirm': 'Delete HQ? 50% refund.',
+
+    // === Inventory ===
+    'inv.title': '🎒 Inventory',
+    'inv.tab.gear': 'Gear',
+    'inv.tab.cores': 'Cores',
+    'inv.sell': 'Sell',
+    'inv.sell_all': 'Sell all',
+    'inv.craft': 'Craft',
+    'inv.equip': 'Equip',
+    'inv.unequip': 'Unequip',
+    'inv.empty': 'Inventory empty',
+    'inv.upgrade': 'Upgrade',
+    'inv.level': 'Level',
+
+    // === Collector ===
+    'collector.title': 'Collector',
+    'collector.stored': 'Storage',
+    'collector.mines': 'Mines in range',
+
+    // === Ore ===
+    'ore.title': 'Ore Node',
+    'ore.shards': 'Shards',
+    'ore.ether': 'Ether',
+    'ore.free': 'Free',
+    'ore.owner': 'Owner',
+
+    // === Monument ===
+    'monument.title': 'Monument',
+    'monument.phase.shield': 'Shield',
+    'monument.phase.open': 'Open',
+    'monument.phase.defeated': 'Defeated',
+    'monument.dps': 'DPS',
+    'monument.dps_required': 'Required DPS',
+    'monument.shield': 'Shield',
+    'monument.my_damage': 'My damage',
+    'monument.respawn': 'Respawn',
+
+    // === Vase ===
+    'vase.title': 'Vase',
+    'vase.reward': 'Reward',
+
+    // === PvP ===
+    'pvp.hit': 'Hit',
+    'pvp.crit': 'CRIT',
+    'pvp.block': 'BLOCK',
+    'pvp.kill': 'Kill',
+    'pvp.death': 'Death',
+    'pvp.shield': 'Shield active',
+    'pvp.execution': 'EXECUTION',
+
+    // === Leaderboard ===
+    'lb.title': '🏆 Leaderboard',
+    'lb.position': 'Rank',
+    'lb.level': 'Level',
+    'lb.refresh': '🔄 Refresh',
+
+    // === Clan ===
+    'clan.title': 'Clan',
+    'clan.create': 'Create Clan',
+    'clan.treasury': 'Treasury',
+    'clan.members': 'Members',
+    'clan.level': 'Level',
+    'clan.income_bonus': 'Income Bonus',
+    'clan.defense_bonus': 'Defense Bonus',
+    'clan.radius': 'Radius',
+    'clan.no_clan': 'Not in a clan',
+    'clan.boost_active': 'Boost active',
+
+    // === Toasts ===
+    'toast.collected': '💰 Collected {amount}!',
+    'toast.built': '✅ Built!',
+    'toast.upgraded': '⬆️ Upgraded to Lv.{level}!',
+    'toast.sold': '✅ Sold!',
+    'toast.equipped': '✅ Equipped!',
+    'toast.unequipped': '✅ Unequipped!',
+    'toast.crafted': '✨ Crafted!',
+    'toast.error': '❌ Error',
+    'toast.too_far': '📍 Too far',
+    'toast.copied': '📋 Copied!',
+    'toast.language_changed': '🌐 Language changed',
+
+    // === Misc ===
+    'misc.loading': 'Loading...',
+    'misc.free': 'Free',
+    'misc.cost': 'Cost',
+    'misc.refund': 'Refund',
+    'misc.total': 'Total',
+    'misc.confirm_delete': 'Are you sure?',
+    'misc.player': 'Player',
+    'misc.unknown': 'Unknown',
+    'misc.online': 'Online',
+    'misc.offline': 'Offline',
+    'misc.coins': 'coins',
+    'misc.diamonds': 'diamonds',
+    'misc.enter_nickname': 'Enter game nickname (3-16 characters):',
+    'misc.enter_nickname_cost': 'Name change costs {cost} 💎. New name:',
+    'misc.lib_error': 'Library loading error. Refresh the page.',
+    'misc.burning': 'Burning!',
+    'misc.under_attack': 'Under attack',
+    'misc.destroyed': 'Destroyed',
+    'misc.normal': 'Normal',
+    'misc.max': 'MAX',
+  }
+};
+
+function t(key, params) {
+  let s = I18N[_lang]?.[key] ?? I18N['en']?.[key] ?? key;
+  if (params) for (const [k, v] of Object.entries(params))
+    s = s.replaceAll(`{${k}}`, v);
+  return s;
+}
+
+function setLang(lang) {
+  _lang = lang;
+  localStorage.setItem('gw_lang', lang);
+  applyI18n();
+  // Sync to server
+  if (TG_ID) {
+    apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: lang })
+    }).catch(() => {});
+  }
+  showToast(t('toast.language_changed'));
+}
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  // Update active language button highlight
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.style.border = btn.dataset.lang === _lang ? '2px solid #FFD700' : '2px solid transparent';
+  });
+}
 
 // ─────────────────────────────────────────────
 //  Constants — mirrors server-side lib/formulas.js
@@ -3065,33 +3679,17 @@ const HQ_LEVELS = [
 function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
 
+const _MINE_TIERS = [
+  [10,'🌾'], [20,'🪵'], [30,'🌳'], [40,'🪨'], [50,'🧱'], [60,'🛖'], [70,'🏚️'],
+  [80,'🏠'], [90,'🏡'], [100,'🏘️'], [110,'🏗️'], [120,'🏭'], [130,'🏢'], [140,'🏦'],
+  [150,'🏨'], [160,'🏛️'], [170,'🗿'], [180,'🛕'], [190,'🗼'], [200,'🏟️'],
+  [210,'🔭'], [220,'🚀'], [230,'🛸'], [240,'💫'], [250,'🌎'], [Infinity,'🪐'],
+];
 function getMineAppearance(level) {
-  if (level < 10)  return { emoji: '🌾', name: 'Поле' };
-  if (level < 20)  return { emoji: '🪵', name: 'Лесопилка' };
-  if (level < 30)  return { emoji: '🌳', name: 'Роща' };
-  if (level < 40)  return { emoji: '🪨', name: 'Каменоломня' };
-  if (level < 50)  return { emoji: '🧱', name: 'Кирпичный завод' };
-  if (level < 60)  return { emoji: '🛖', name: 'Лачуга' };
-  if (level < 70)  return { emoji: '🏚️', name: 'Развалюха' };
-  if (level < 80)  return { emoji: '🏠', name: 'Дом' };
-  if (level < 90)  return { emoji: '🏡', name: 'Усадьба' };
-  if (level < 100) return { emoji: '🏘️', name: 'Квартал' };
-  if (level < 110) return { emoji: '🏗️', name: 'Стройплощадка' };
-  if (level < 120) return { emoji: '🏭', name: 'Завод' };
-  if (level < 130) return { emoji: '🏢', name: 'Офисный центр' };
-  if (level < 140) return { emoji: '🏦', name: 'Банк' };
-  if (level < 150) return { emoji: '🏨', name: 'Отель' };
-  if (level < 160) return { emoji: '🏛️', name: 'Дворец' };
-  if (level < 170) return { emoji: '🗿', name: 'Монумент' };
-  if (level < 180) return { emoji: '🛕', name: 'Храм' };
-  if (level < 190) return { emoji: '🗼', name: 'Башня' };
-  if (level < 200) return { emoji: '🏟️', name: 'Стадион' };
-  if (level < 210) return { emoji: '🔭', name: 'Обсерватория' };
-  if (level < 220) return { emoji: '🚀', name: 'Космодром' };
-  if (level < 230) return { emoji: '🛸', name: 'Инопланетная база' };
-  if (level < 240) return { emoji: '💫', name: 'Звёздный кластер' };
-  if (level < 250) return { emoji: '🌎', name: 'Планетарий' };
-  return                   { emoji: '🪐', name: 'Планетарная империя' };
+  for (let i = 0; i < _MINE_TIERS.length; i++) {
+    if (level < _MINE_TIERS[i][0]) return { emoji: _MINE_TIERS[i][1], name: t('mine.names.' + i) };
+  }
+  return { emoji: '🪐', name: t('mine.names.25') };
 }
 function getMineEmoji(level) { return getMineAppearance(level).emoji; }
 
@@ -3108,14 +3706,15 @@ function getMineUpgradeCostBulk(currentLevel, count) {
   return total;
 }
 
-// Format large numbers with Russian suffixes
+// Format large numbers with localized suffixes
 function formatNumber(n) {
   if (n == null || isNaN(n)) return '0';
   n = Math.round(n);
-  if (n >= 1_000_000_000_000) return (n / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '') + 'Т';
-  if (n >= 1_000_000_000)     return (n / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'В';
-  if (n >= 1_000_000)         return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'М';
-  if (n >= 1_000)             return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'К';
+  const sfx = _lang === 'ru' ? ['К','М','В','Т'] : ['K','M','B','T'];
+  if (n >= 1_000_000_000_000) return (n / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '') + sfx[3];
+  if (n >= 1_000_000_000)     return (n / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + sfx[2];
+  if (n >= 1_000_000)         return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + sfx[1];
+  if (n >= 1_000)             return (n / 1_000).toFixed(1).replace(/\.0$/, '') + sfx[0];
   return Math.floor(n).toString();
 }
 function formatCoins(n) { return formatNumber(n); }
@@ -3386,14 +3985,8 @@ const RARITY_COLORS_CLIENT = {
   mythic:    '#e65100',
   legendary: 'linear-gradient(90deg, #FFD700, #FF8C00, #FFD700)',
 };
-const RARITY_NAMES_CLIENT = {
-  common:    'Обычный',
-  uncommon:  'Необычный',
-  rare:      'Редкий',
-  epic:      'Эпический',
-  mythic:    'Мифический',
-  legendary: 'Легендарный',
-};
+function getRarityName(rarity) { return t('rarity.' + rarity); }
+const RARITY_NAMES_CLIENT = new Proxy({}, { get: (_, k) => t('rarity.' + k) });
 const RARITY_ORDER = {
   common:    1,
   uncommon:  2,
@@ -3435,7 +4028,7 @@ function showItemReveal(item, source) {
 
   let bonusHtml = '';
   if (item.rarity === 'mythic' || item.rarity === 'legendary') {
-    const prefix = item.rarity === 'mythic' ? '🔥 Мифический' : '👑 Легендарный';
+    const prefix = item.rarity === 'mythic' ? '🔥 ' + t('rarity.mythic') : '👑 ' + t('rarity.legendary');
     let bonusText = '';
     if (item.type === 'sword') bonusText = item.rarity === 'mythic' ? 'Крит множитель ×1.5 → ×2.2 при прокачке' : 'Крит множитель ×1.5 → ×3.0 при прокачке';
     if (item.type === 'axe') bonusText = item.rarity === 'mythic' ? 'Казнь врага &lt; 50% HP — шанс 7-17%' : 'Казнь врага &lt; 50% HP — шанс 13-20%';
@@ -4919,7 +5512,7 @@ function showMinePopup(mine, isOwn, canCapture) {
                     if (clanBonusInfo.boost) tags += ` · x${clanBonusInfo.boost} 🚀`;
                     return `${formatCoins(rate)}/ч <span style="color:#D500F9">(${tags})</span>`;
                   })()
-                : `${formatCoins(rate)}/ч`],
+                : `${formatCoins(rate)}/${t('per_hour')}`],
               ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
             ]),
         ...(mine.level > 0 && mine.hp != null && mine.max_hp ? [['__dual__', (() => {
@@ -4928,8 +5521,8 @@ function showMinePopup(mine, isOwn, canCapture) {
           const barColor = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
           const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(hp)}/${formatNumber(mhp)}</span></div>${clanBonusInfo ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${clanBonusInfo.defense}%</div>` : ''}`;
           const regenPerHour = mine.hp_regen || 0;
-          const regenHtml = `${formatNumber(regenPerHour)}/ч`;
-          return [['❤️ HP', hpHtml], ['♻️ Реген', regenHtml]];
+          const regenHtml = `${formatNumber(regenPerHour)}/${t('per_hour')}`;
+          return [['❤️ HP', hpHtml], [t('stat.regen'), regenHtml]];
         })()]] : []),
         ...(mine.level > 0 && mine.cell_id ? [['__fullwidth__', (() => {
           const cores = getCoresForMine(mine.cell_id);
@@ -5778,7 +6371,7 @@ function updateCoinDisplay() {
   // Collapsed income (short)
   const incCollapsed = document.getElementById('income-display-collapsed');
   if (incCollapsed) {
-    incCollapsed.textContent = inc > 0 ? `⚡ ${formatCoins(totalPerHour)}/ч` : '';
+    incCollapsed.textContent = inc > 0 ? `⚡ ${formatCoins(totalPerHour)}/${t('per_hour')}` : '';
   }
 
   // Expanded: coins + income merged on one row
@@ -5788,7 +6381,7 @@ function updateCoinDisplay() {
   const incEl = document.getElementById('income-display');
   if (incEl) {
     if (inc > 0) {
-      let txt = `⚡ +${formatCoins(totalPerHour)}/ч`;
+      let txt = `⚡ +${formatCoins(totalPerHour)}/${t('per_hour')}`;
       if (bonus > 0) {
         const color = state.clanColor || '#D500F9';
         txt += ` <span style="color:${color}">(+${formatCoins(bonus)} клан)</span>`;
@@ -5808,7 +6401,7 @@ function updateCoinDisplay() {
   const crIncEl = document.getElementById('crystal-income-display');
   if (crIncEl) {
     const oi = state.oreIncome || 0;
-    crIncEl.textContent = oi > 0 ? `+${oi}/ч` : '';
+    crIncEl.textContent = oi > 0 ? `+${oi}/${t('per_hour')}` : '';
   }
 
   // Ether display
@@ -5817,7 +6410,7 @@ function updateCoinDisplay() {
   const etherIncEl = document.getElementById('ether-income-display');
   if (etherIncEl) {
     const ei = state.etherIncome || 0;
-    etherIncEl.textContent = ei > 0 ? `+${ei}/ч` : '';
+    etherIncEl.textContent = ei > 0 ? `+${ei}/${t('per_hour')}` : '';
   }
 
   // Mine count boost display
@@ -6463,7 +7056,7 @@ function onGpsError(err) {
 // ─────────────────────────────────────────────
 //  Bot system
 // ─────────────────────────────────────────────
-const BOT_NAMES = { goblin: 'Гоблин' };
+function botName(type) { return t('bot.' + type); }
 const BOT_CLIENT_TYPES = {
   goblin: { emoji: '👺', category: 'evil', markerSize: 36, attackChance: 0.3 },
 };
@@ -6796,12 +7389,12 @@ function showBotPopup(botId) {
 
   // Multitouch: if holding attack, switch target immediately
   if (combatState.isHolding && inRange) {
-    return openCombatPopup(`👺 Гоблин`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
+    return openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
   }
 
   // In range — compact combat popup
   if (inRange) {
-    return openCombatPopup(`👺 Гоблин`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
+    return openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
   }
 
   // Out of range — info popup
@@ -6819,7 +7412,7 @@ function showBotPopup(botId) {
     stats.push(['💰 Несёт', `${formatNumber(bot.stolen_coins)} монет`]);
   }
 
-  openPopup(`👺 Гоблин`, dist ? `📍 ${Math.round(dist)}м — подойди ближе` : '', stats, [
+  openPopup(`👺 ${t('bot.goblin')}`, dist ? `📍 ${Math.round(dist)}м — подойди ближе` : '', stats, [
     { label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true },
   ]);
 }
@@ -7433,6 +8026,18 @@ async function boot() {
     state.totalIncome = data.totalIncome ?? 0;
     state.inventory   = data.inventory   ?? [];
     if (data.player_cores) state._playerCores = data.player_cores;
+    // Sync language from server (existing players keep their saved language)
+    if (data.player?.language && !localStorage.getItem('gw_lang')) {
+      _lang = data.player.language;
+      localStorage.setItem('gw_lang', _lang);
+    } else if (data.player?.language && localStorage.getItem('gw_lang') !== data.player.language) {
+      // Local lang takes precedence — sync to server
+      apiFetch('/api/player/init', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: _lang })
+      }).catch(() => {});
+    }
+    applyI18n();
     if (data.headquarters) { hqLat = data.headquarters.lat; hqLng = data.headquarters.lng; }
     updatePlayerDisplay();
 
@@ -12839,8 +13444,8 @@ async function doCollectorSell(collectorId) {
     </div>
   </div>
   <div id="market-tabs">
-    <button class="market-tab active" data-tab="browse">🌍 Рынок</button>
-    <button class="market-tab" data-tab="my">📦 Мои лоты</button>
+    <button class="market-tab active" data-tab="browse" data-i18n="market.tab.browse">🌍 Рынок</button>
+    <button class="market-tab" data-tab="my" data-i18n="market.tab.my">📦 Мои лоты</button>
   </div>
   <div id="market-subtabs">
     <button class="market-subtab active" data-subtab="items">⚔️ Снаряга</button>

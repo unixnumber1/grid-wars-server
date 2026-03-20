@@ -7,6 +7,7 @@ import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, xpForLevel, 
 import { getCellsInRange } from '../../lib/grid.js';
 import { dailyMarketCheck } from '../mechanics/market.js';
 import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/constants.js';
+import { ts } from '../../config/i18n.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 
 const TICK_INTERVAL = 5000;
@@ -283,11 +284,12 @@ async function moveCouriers(nowMs, nowISO) {
             drop_type: 'coin_delivery', picked_up: false,
             expires_at: drop.expires_at, created_at: nowISO,
           }).then(() => {}).catch(() => {});
+          const coinDelLang = gameState.getPlayerById(dc.owner_id)?.language || 'en';
           const notif = {
             id: globalThis.crypto.randomUUID(),
             player_id: dc.owner_id,
             type: 'collector_delivery',
-            message: `📦 Посылка с ${dc._coins} монетами доставлена!`,
+            message: ts(coinDelLang, 'notif.coin_delivery', { coins: dc._coins }),
             read: false,
             created_at: nowISO,
           };
@@ -317,11 +319,12 @@ async function moveCouriers(nowMs, nowISO) {
             if (item) { item.held_by_courier = null; item.held_by_market = null; gameState.markDirty('items', item.id); }
             supabase.from('items').update({ held_by_courier: null, held_by_market: null }).eq('id', dc.item_id).then(() => {}).catch(() => {});
           }
+          const delLang = gameState.getPlayerById(dc.owner_id)?.language || 'en';
           const notif = {
             id: globalThis.crypto.randomUUID(),
             player_id: dc.owner_id,
             type: 'delivery_arrived',
-            message: '📦 Ваш заказ доставлен! Найдите коробку на карте.',
+            message: ts(delLang, 'notif.delivery_arrived'),
             read: false,
             created_at: nowISO,
           };
@@ -413,22 +416,24 @@ async function periodicCleanup(nowMs, nowISO) {
         m.status = 'destroyed';
         gameState.markDirty('mines', m.id);
         supabase.from('mines').update({ status: 'destroyed' }).eq('id', m.id).then(() => {}).catch(() => {});
+        const destroyLang = gameState.getPlayerById(m.owner_id)?.language || 'en';
         const notif = {
           id: globalThis.crypto.randomUUID(),
           player_id: m.owner_id,
           type: 'mine_destroyed',
-          message: `💀 Шахта Ур.${m.level} уничтожена огнём.`,
+          message: ts(destroyLang, 'notif.mine_destroyed', { level: m.level }),
           read: false,
           created_at: nowISO,
         };
         gameState.addNotification(notif);
         supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
       } else if (burnedMs > 64800000 && burnedMs < 65400000) {
+        const warnLang = gameState.getPlayerById(m.owner_id)?.language || 'en';
         const notif = {
           id: globalThis.crypto.randomUUID(),
           player_id: m.owner_id,
           type: 'mine_burning_warning',
-          message: `⚠️ Шахта Ур.${m.level} сгорит через ~6 часов!`,
+          message: ts(warnLang, 'notif.mine_burn_warning', { level: m.level }),
           read: false,
           created_at: nowISO,
         };

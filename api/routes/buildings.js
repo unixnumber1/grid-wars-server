@@ -10,6 +10,7 @@ import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
 import { logPlayer } from '../../lib/logger.js';
+import { ts, getLang } from '../../config/i18n.js';
 
 export const buildingsRouter = Router();
 
@@ -307,7 +308,8 @@ async function handleAttackStart(req, res) {
     const gm = gameState.getMineById(mine_id);
     if (gm) { Object.assign(gm, { status: 'under_attack', attacker_id: player.id, attack_started_at: attackStartedAt, attack_ends_at: attackEndsAt, hp: currentHp, max_hp: computedMaxHp, last_hp_update: attackStartedAt }); gameState.markDirty('mines', mine_id); }
   }
-  const atkMsg = `⚔️ Ваша шахта Ур.${mine.level} атакована игроком ${player.game_username || 'Неизвестный'}!`;
+  const ownerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
+  const atkMsg = ts(ownerLang, 'notif.mine_attacked', { level: mine.level, name: player.game_username || ts(ownerLang, 'misc.unknown') });
   await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_attacked', message: atkMsg, data: { mine_id: mine.id } });
   const { data: owner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
   if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, atkMsg);
@@ -347,7 +349,8 @@ async function handleAttackFinish(req, res) {
       const gm = gameState.getMineById(mine_id);
       if (gm) { Object.assign(gm, { status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null }); gameState.markDirty('mines', mine_id); }
     }
-    const burnMsg = `🔥 Ваша шахта Ур.${mine.level} горит! Потушите в течение 24 часов или она исчезнет.`;
+    const burnOwnerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
+    const burnMsg = ts(burnOwnerLang, 'notif.mine_burning', { level: mine.level });
     await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_burning', message: burnMsg, data: { mine_id: mine.id } });
     const { data: burnOwner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
     if (burnOwner?.telegram_id) sendTelegramNotification(burnOwner.telegram_id, burnMsg);
@@ -621,14 +624,15 @@ async function handleMineHit(req, res) {
     }).eq('id', mine_id);
 
     // Notify owner
-    const burnMsg = `🔥 Ваша шахта Ур.${mine.level} горит! Потушите в течение 24 часов или она исчезнет.`;
+    const hitBurnLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
+    const hitBurnMsg = ts(hitBurnLang, 'notif.mine_burning', { level: mine.level });
     supabase.from('notifications').insert({
-      player_id: mine.owner_id, type: 'mine_burning', message: burnMsg,
+      player_id: mine.owner_id, type: 'mine_burning', message: hitBurnMsg,
       data: { mine_id: mine.id },
     }).then(() => {}).catch(() => {});
 
     const owner = gameState.getPlayerById(mine.owner_id);
-    if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, burnMsg);
+    if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, hitBurnMsg);
 
     // XP for destroying mine
     const xpGain = mine.level * 10;
@@ -640,14 +644,15 @@ async function handleMineHit(req, res) {
       mine.attacker_id = player.id;
 
       // Notify owner on first hit
-      const atkMsg = `⚔️ Ваша шахта Ур.${mine.level} атакована игроком ${player.game_username || 'Неизвестный'}!`;
+      const hitOwnerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
+      const hitAtkMsg = ts(hitOwnerLang, 'notif.mine_attacked', { level: mine.level, name: player.game_username || ts(hitOwnerLang, 'misc.unknown') });
       supabase.from('notifications').insert({
-        player_id: mine.owner_id, type: 'mine_attacked', message: atkMsg,
+        player_id: mine.owner_id, type: 'mine_attacked', message: hitAtkMsg,
         data: { mine_id: mine.id },
       }).then(() => {}).catch(() => {});
 
-      const owner = gameState.getPlayerById(mine.owner_id);
-      if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, atkMsg);
+      const hitOwner = gameState.getPlayerById(mine.owner_id);
+      if (hitOwner?.telegram_id) sendTelegramNotification(hitOwner.telegram_id, hitAtkMsg);
     }
     mine.hp = currentHp;
     mine.max_hp = computedMaxHp;
