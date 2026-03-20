@@ -141,7 +141,14 @@ export function getItemDescription(item) {
 }
 
 // ── Existing exports (keep as-is) ──
-export const ITEM_SELL_PRICE = { common: 1, uncommon: 1, rare: 2, epic: 4, mythic: 8, legendary: 20 };
+export const ITEM_SELL_PRICE = { common: 10, uncommon: 25, rare: 50, epic: 100, mythic: 200, legendary: 500 };
+
+export function getItemSellPrice(rarity, upgradeLevel = 0) {
+  const base = ITEM_SELL_PRICE[rarity] || 10;
+  let invested = 0;
+  for (let i = 1; i <= upgradeLevel; i++) invested += getUpgradeCost(i);
+  return base + Math.floor(invested * 0.1);
+}
 export const RARITY_WEIGHTS = { common: 40, uncommon: 25, rare: 18, epic: 10, mythic: 5, legendary: 2 };
 export const RARITY_COLORS = { common:'#888888', uncommon:'#2979ff', rare:'#00c853', epic:'#ff00aa', mythic:'#8b0000', legendary:'linear-gradient(90deg, #FFD700, #FF8C00, #FFD700)' };
 export const RARITY_NAMES = { common:'\u041E\u0431\u044B\u0447\u043D\u044B\u0439', uncommon:'\u041D\u0435\u043E\u0431\u044B\u0447\u043D\u044B\u0439', rare:'\u0420\u0435\u0434\u043A\u0438\u0439', epic:'\u042D\u043F\u0438\u0447\u0435\u0441\u043A\u0438\u0439', mythic:'\u041C\u0438\u0444\u0438\u0447\u0435\u0441\u043A\u0438\u0439', legendary:'\u041B\u0435\u0433\u0435\u043D\u0434\u0430\u0440\u043D\u044B\u0439' };

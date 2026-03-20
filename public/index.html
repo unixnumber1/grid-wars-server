@@ -293,7 +293,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.7);
-      z-index: 7000;
+      z-index: 9000;
       align-items: flex-end;
       justify-content: center;
     }
@@ -3511,8 +3511,24 @@ function openEquipSlot(type) {
 
 // ── Item sell prices (mirror of lib/items.js) ────────────────────────────────
 const ITEM_SELL_PRICE = {
-  common: 1, uncommon: 1, rare: 2, epic: 4, mythic: 8, legendary: 20,
+  common: 10, uncommon: 25, rare: 50, epic: 100, mythic: 200, legendary: 500,
 };
+
+function getItemUpgradeCost(upgradeLevel) {
+  if (upgradeLevel <= 10) return 40;
+  if (upgradeLevel <= 25) return 120;
+  if (upgradeLevel <= 50) return 300;
+  if (upgradeLevel <= 75) return 800;
+  if (upgradeLevel <= 90) return 2000;
+  return 5000;
+}
+
+function getItemSellPrice(rarity, upgradeLevel = 0) {
+  const base = ITEM_SELL_PRICE[rarity] || 10;
+  let invested = 0;
+  for (let i = 1; i <= upgradeLevel; i++) invested += getItemUpgradeCost(i);
+  return base + Math.floor(invested * 0.1);
+}
 
 // ── Item detail sheet ─────────────────────────────────────────────────────────
 let _currentItemId = null;
@@ -3617,9 +3633,9 @@ function openItemDetail(item) {
   } else if (item.equipped) {
     actionsHtml = '<div class="idc-actions"><button class="btn" id="idc-unequip-btn">Снять</button></div>';
   } else {
-    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    const sellPrice = getItemSellPrice(item.rarity, item.upgrade_level || 0);
     actionsHtml = `<div class="idc-actions"><button class="btn primary" id="idc-equip-btn">Надеть</button></div>
-    <button class="btn-sell-item" id="idc-sell-btn">Продать за ${sellPrice} 💎</button>`;
+    <button class="btn-sell-item" id="idc-sell-btn">Продать за ${sellPrice} ✨</button>`;
   }
 
   const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity] || '';
@@ -3674,7 +3690,7 @@ function openItemDetail(item) {
   if (unequipBtn) unequipBtn.addEventListener('click', () => doUnequipItem(item.id));
   const sellBtn = document.getElementById('idc-sell-btn');
   if (sellBtn) {
-    const sellPrice = ITEM_SELL_PRICE[item.rarity] ?? 1;
+    const sellPrice = getItemSellPrice(item.rarity, item.upgrade_level || 0);
     sellBtn.addEventListener('click', () => showSellConfirm(item, sellPrice));
   }
 
@@ -3732,7 +3748,7 @@ function showSellConfirm(item, price) {
   const overlay = document.getElementById('sell-confirm-overlay');
   document.getElementById('sell-confirm-emoji').textContent = item.emoji;
   document.getElementById('sell-confirm-name').textContent  = item.name;
-  document.getElementById('sell-confirm-price').textContent = `Вы получите: ${price} 💎`;
+  document.getElementById('sell-confirm-price').textContent = `Вы получите: ${price} ✨`;
   const confirmBtn = document.getElementById('sell-confirm-btn');
   confirmBtn.onclick = () => doSellItem(item.id, price);
   overlay.classList.add('open');
@@ -3752,11 +3768,11 @@ async function doSellItem(itemId, price) {
     });
     // Remove from local state
     state.inventory = (state.inventory || []).filter(i => i.id !== itemId);
-    if (state.player) state.player.diamonds = data.diamonds;
+    if (state.player) state.player.crystals = data.crystals;
     _renderEquipSlots();
     _renderInventoryGrid();
-    updateDiamondDisplay();
-    showToast(`Продано за ${data.soldFor} 💎`);
+    updateCrystalDisplay();
+    showToast(`Продано за ${data.soldFor} ✨`);
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
@@ -10490,24 +10506,24 @@ function _renderInventoryGridSelectable() {
 function _updateSelectionBar() {
   const count = _selectedItemIds.size;
   document.getElementById('sel-count').textContent = count;
-  let totalGems = 0;
+  let totalCrystals = 0;
   for (const id of _selectedItemIds) {
     const item = (state.inventory || []).find(i => i.id === id);
-    if (item) totalGems += (ITEM_SELL_PRICE[item.rarity] ?? 1);
+    if (item) totalCrystals += getItemSellPrice(item.rarity, item.upgrade_level || 0);
   }
-  document.getElementById('sel-gems').textContent = totalGems;
+  document.getElementById('sel-gems').textContent = totalCrystals;
   document.getElementById('sel-sell-btn').disabled = count === 0;
 }
 
 async function sellSelectedItems() {
   if (_selectedItemIds.size === 0) return;
   const ids = [..._selectedItemIds];
-  const totalGems = ids.reduce((sum, id) => {
+  const totalCrystals = ids.reduce((sum, id) => {
     const item = (state.inventory || []).find(i => i.id === id);
-    return sum + (ITEM_SELL_PRICE[item?.rarity] ?? 1);
+    return sum + getItemSellPrice(item?.rarity, item?.upgrade_level || 0);
   }, 0);
 
-  if (!confirm(`Продать ${ids.length} предметов за ~${totalGems} 💎?`)) return;
+  if (!confirm(`Продать ${ids.length} предметов за ~${totalCrystals} ✨?`)) return;
 
   try {
     const data = await apiFetch('/api/items', {
@@ -10515,11 +10531,11 @@ async function sellSelectedItems() {
       body: JSON.stringify({ telegram_id: TG_ID, action: 'mass-sell', item_ids: ids }),
     });
     state.inventory = (state.inventory || []).filter(i => !ids.includes(i.id));
-    if (state.player) state.player.diamonds = data.diamonds;
-    updateDiamondDisplay();
+    if (state.player) state.player.crystals = data.crystals;
+    updateCrystalDisplay();
     _renderEquipSlots();
     exitSelectionMode();
-    showToast(`Продано ${data.sold_count} предметов за ${data.diamonds_gained} 💎`);
+    showToast(`Продано ${data.sold_count} предметов за ${data.crystals_gained} ✨`);
   } catch (e) {
     showToast(`❌ ${e.message}`);
     exitSelectionMode();
@@ -10574,17 +10590,13 @@ function clanHqIcon(ch) {
 function renderClanHqs(clanHqs) {
   const activeIds = new Set((clanHqs || []).map(ch => ch.id));
 
-  // Remove only markers far from player (>5km) to prevent viewport flicker
+  // Remove markers not present in current data
   for (const id of Object.keys(clanHqMarkers)) {
     if (!activeIds.has(id)) {
-      const pos = clanHqMarkers[id].getLatLng();
-      const pPos = state.playerPos;
-      if (pPos && haversine(pPos.lat, pPos.lng, pos.lat, pos.lng) > 5000) {
-        map.removeLayer(clanHqMarkers[id]);
-        delete clanHqMarkers[id];
-        if (clanHqCircles[id]) { map.removeLayer(clanHqCircles[id]); delete clanHqCircles[id]; }
-        if (clanHqLabels[id]) { map.removeLayer(clanHqLabels[id]); delete clanHqLabels[id]; }
-      }
+      map.removeLayer(clanHqMarkers[id]);
+      delete clanHqMarkers[id];
+      if (clanHqCircles[id]) { map.removeLayer(clanHqCircles[id]); delete clanHqCircles[id]; }
+      if (clanHqLabels[id]) { map.removeLayer(clanHqLabels[id]); delete clanHqLabels[id]; }
     }
   }
 
@@ -11479,6 +11491,10 @@ async function _executeDonate(amount, prevDiamonds) {
     if (state.player) state.player.diamonds = data.player_diamonds;
     updateDiamondDisplay();
     showToast(`💎 Пожертвовано ${amount} алмазов! Казна: ${data.treasury}`);
+    if (_clanScreenData?.clan) {
+      _clanScreenData.clan.treasury = data.treasury;
+      _renderClanTab();
+    }
   } catch (err) {
     if (state.player) state.player.diamonds = prevDiamonds;
     updateDiamondDisplay();
@@ -12505,7 +12521,7 @@ async function doCollectorSell(collectorId) {
 
 <!-- Mass selection bar -->
 <div id="selection-bar">
-  <div id="selection-bar-info">Выбрано: <strong id="sel-count">0</strong> | 💎 <strong id="sel-gems">0</strong></div>
+  <div id="selection-bar-info">Выбрано: <strong id="sel-count">0</strong> | ✨ <strong id="sel-gems">0</strong></div>
   <div style="display:flex;gap:8px;">
     <button class="btn" onclick="exitSelectionMode()">Отмена</button>
     <button class="btn danger" id="sel-sell-btn" onclick="sellSelectedItems()">Продать</button>

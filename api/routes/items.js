@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
-import { ITEM_SELL_PRICE, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats } from '../../lib/items.js';
+import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 
 export const itemsRouter = Router();
@@ -121,30 +121,30 @@ async function handleSell(player, body) {
   if (!item_id) return { status: 400, error: 'item_id required' };
 
   const { data: item } = await supabase
-    .from('items').select('id, rarity, equipped, on_market')
+    .from('items').select('id, rarity, equipped, on_market, upgrade_level')
     .eq('id', item_id).eq('owner_id', player.id).maybeSingle();
 
   if (!item) return { status: 404, error: 'Предмет не найден' };
   if (item.equipped) return { status: 400, error: 'Сначала снимите предмет' };
   if (item.on_market) return { status: 400, error: 'Предмет на маркете' };
 
-  const soldFor = ITEM_SELL_PRICE[item.rarity] ?? 1;
-  const newDiamonds = (player.diamonds ?? 0) + soldFor;
+  const soldFor = getItemSellPrice(item.rarity, item.upgrade_level || 0);
+  const newCrystals = (player.crystals ?? 0) + soldFor;
 
-  const [{ error: delErr }, { data: diamOk, error: diamErr }] = await Promise.all([
+  const [{ error: delErr }, { data: crOk, error: crErr }] = await Promise.all([
     supabase.from('items').delete().eq('id', item_id),
-    supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', player.diamonds ?? 0).select('id').maybeSingle(),
+    supabase.from('players').update({ crystals: newCrystals }).eq('id', player.id).eq('crystals', player.crystals ?? 0).select('id').maybeSingle(),
   ]);
-  if (delErr || diamErr) return { status: 500, error: 'Transaction failed' };
+  if (delErr || crErr) return { status: 500, error: 'Transaction failed' };
 
   // Update gameState
   if (gameState.loaded) {
     gameState.removeItem(item_id);
     const p = gameState.getPlayerById(player.id);
-    if (p) { p.diamonds = newDiamonds; gameState.markDirty('players', p.id); }
+    if (p) { p.crystals = newCrystals; gameState.markDirty('players', p.id); }
   }
 
-  return { diamonds: newDiamonds, soldFor };
+  return { crystals: newCrystals, soldFor };
 }
 
 // ── MSK time helpers ────────────────────────────────────────
@@ -576,41 +576,41 @@ itemsRouter.post('/', async (req, res) => {
     if (!Array.isArray(item_ids) || item_ids.length === 0) return res.status(400).json({ error: 'item_ids required' });
     if (item_ids.length > 200) return res.status(400).json({ error: 'Максимум 200 предметов за раз' });
 
-    const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
+    const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,crystals');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
 
-    let totalDiamonds = 0;
+    let totalCrystals = 0;
     const soldIds = [];
     for (const itemId of item_ids) {
       const item = gameState.loaded ? gameState.getItemById(itemId) : null;
       if (!item) continue;
       if (item.owner_id !== p.id) continue;
       if (item.equipped || item.on_market) continue;
-      totalDiamonds += ITEM_SELL_PRICE[item.rarity] ?? 1;
+      totalCrystals += getItemSellPrice(item.rarity, item.upgrade_level || 0);
       soldIds.push(itemId);
     }
     if (soldIds.length === 0) return res.status(400).json({ error: 'Нет предметов для продажи' });
 
-    const newDiamonds = (p.diamonds ?? 0) + totalDiamonds;
+    const newCrystals = (p.crystals ?? 0) + totalCrystals;
 
-    // Remove all items and update diamonds in one batch
+    // Remove all items and update crystals in one batch
     await Promise.all([
       supabase.from('items').delete().in('id', soldIds),
-      supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id),
+      supabase.from('players').update({ crystals: newCrystals }).eq('id', p.id),
     ]);
 
     if (gameState.loaded) {
       for (const id of soldIds) gameState.removeItem(id);
       const gp = gameState.getPlayerById(p.id);
-      if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); }
+      if (gp) { gp.crystals = newCrystals; gameState.markDirty('players', gp.id); }
     }
 
-    return res.json({ success: true, sold_count: soldIds.length, diamonds_gained: totalDiamonds, diamonds: newDiamonds });
+    return res.json({ success: true, sold_count: soldIds.length, crystals_gained: totalCrystals, crystals: newCrystals });
   }
 
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
-  const selectFields = (action === 'sell' || action === 'open-box' || action === 'craft') ? 'id,level,diamonds' : 'id,level';
+  const selectFields = (action === 'sell') ? 'id,level,crystals' : (action === 'open-box' || action === 'craft') ? 'id,level,diamonds' : 'id,level';
   const { player, error } = await getPlayerByTelegramId(telegram_id, selectFields);
   if (error)   return res.status(500).json({ error });
   if (!player) return res.status(404).json({ error: 'Player not found' });
