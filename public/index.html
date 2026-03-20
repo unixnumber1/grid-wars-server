@@ -3432,34 +3432,7 @@ function showProfilePopup() {
   document.getElementById('profile-xp-pct').textContent = xpPct + '%';
 
   // Stats
-  const hp     = p.hp     ?? p.max_hp ?? 100;
-  const maxHp  = p.max_hp ?? 100;
-  const baseAtk  = p.attack ?? 10;
-  const bonusAtk = p.bonus_attack ?? 0;
-  const bonusCrit = p.bonus_crit ?? 0;
-  const bonusHp  = p.bonus_hp    ?? 0;
-
-  const inv = (state.inventory || []).filter(i => !i.on_market);
-  const equippedWeapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const critChance = equippedWeapon?.type === 'sword' ? (equippedWeapon.crit_chance || 0) + bonusCrit : 0;
-
-  const statsEl = document.getElementById('profile-stat-rows');
-  statsEl.innerHTML = '';
-
-  const rows = [
-    ['❤️ HP', `${hp} / ${maxHp}`],
-    ['⚔️ Атака', `${baseAtk + bonusAtk}`],
-    ['💥 Крит', `${critChance}%`],
-    ['⭐ XP', formatNumber(xp)],
-    ['🏆 Уровень', `${level}`],
-  ];
-
-  for (const [label, val] of rows) {
-    const row = document.createElement('div');
-    row.className = 'profile-stat-row';
-    row.innerHTML = `<span class="stat-label">${label}</span><span class="stat-value">${val}</span>`;
-    statsEl.appendChild(row);
-  }
+  _refreshProfileStats();
 
   // Equipment slots
   _renderEquipSlots();
@@ -3731,6 +3704,8 @@ async function doEquipItem(itemId) {
       state.player.bonus_attack = data.bonus_attack;
       state.player.bonus_hp     = data.bonus_hp;
       state.player.max_hp       = data.max_hp;
+      state.player.attack       = 10 + (data.bonus_attack ?? 0);
+      state.player.bonus_crit   = data.bonus_crit ?? 0;
     }
     _renderEquipSlots();
     _renderInventoryGrid();
@@ -3754,6 +3729,8 @@ async function doUnequipItem(itemId) {
       state.player.bonus_attack = data.bonus_attack;
       state.player.bonus_hp     = data.bonus_hp;
       state.player.max_hp       = data.max_hp;
+      state.player.attack       = 10 + (data.bonus_attack ?? 0);
+      state.player.bonus_crit   = data.bonus_crit ?? 0;
     }
     _renderEquipSlots();
     _renderInventoryGrid();
@@ -3768,51 +3745,43 @@ function _refreshProfileStats() {
   const p = state.player;
   if (!p) return;
   const level    = p.level ?? 1;
-  const hp       = p.hp     ?? p.max_hp ?? 100;
-  const maxHp    = p.max_hp ?? 100;
-  const hpPct    = Math.round(Math.max(0, hp / maxHp) * 100);
-  const baseAtk  = p.attack ?? 10;
-  const bonusAtk = p.bonus_attack ?? 0;
+  const hp       = p.hp     ?? p.max_hp ?? 1000;
+  const maxHp    = p.max_hp ?? 1000;
+  const hpPct    = Math.round(Math.max(0, Math.min(1, hp / maxHp)) * 100);
+  const totalAtk = p.attack ?? 10;
   const bonusCrit = p.bonus_crit ?? 0;
-  const bonusHp  = p.bonus_hp    ?? 0;
-  const xp       = p.xp ?? 0;
-  let xpAccum = 0;
-  for (let l = 1; l < level; l++) xpAccum += xpForLevel(l);
-  const xpThisLevel = xp - xpAccum;
-  const xpNext = xpForLevel(level);
-  const xpPct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
 
   const inv = (state.inventory || []).filter(i => !i.on_market);
-  const equippedSword = inv.find(i => i.type === 'sword' && i.equipped);
-  const critChance = equippedSword ? (equippedSword.crit_chance || 0) + bonusCrit : 0;
+  const equippedWeapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const equippedShield = inv.find(i => i.type === 'shield' && i.equipped);
+  const critChance = equippedWeapon?.type === 'sword' ? (equippedWeapon.crit_chance || 0) + bonusCrit : 0;
 
   const barColor = hpPct > 60 ? '#00E676' : hpPct > 30 ? '#ff9800' : '#f44336';
   const statsEl = document.getElementById('profile-stat-rows');
-  statsEl.innerHTML = `
-    <div style="margin-bottom:12px;">
+
+  let html = `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;">
+        <span>❤️ HP</span><span>${hp} / ${maxHp}</span>
+      </div>
       <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
         <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
       </div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px;">❤️ ${hp} / ${maxHp} HP</div>
     </div>
   `;
+
   const rows = [
-    ['⚔️ Атака', `${baseAtk + bonusAtk}`],
+    ['⚔️ Атака', totalAtk],
   ];
-  if (critChance > 0) {
-    rows.push(['🎯 Крит', `${critChance}%`]);
-  }
-  rows.push(['⭐ XP', `${formatNumber(xpThisLevel)} / ${formatNumber(xpNext)}`]);
+  if (critChance > 0) rows.push(['💥 Крит шанс', `${critChance.toFixed(1)}%`]);
+  if (equippedShield) rows.push(['🛡️ Доп. HP', `+${p.bonus_hp ?? 0}`]);
+  rows.push(['🏆 Уровень', level]);
+
   for (const [label, val] of rows) {
-    const row = document.createElement('div');
-    row.className = 'profile-stat-row';
-    row.innerHTML = `<span class="stat-label">${label}</span><span class="stat-value">${val}</span>`;
-    statsEl.appendChild(row);
+    html += `<div class="profile-stat-row"><span class="stat-label">${label}</span><span class="stat-value">${val}</span></div>`;
   }
-  const xpBarDiv = document.createElement('div');
-  xpBarDiv.style.cssText = 'margin-top:8px;';
-  xpBarDiv.innerHTML = `<div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${xpPct}%;background:linear-gradient(90deg,#FFD700,#FFA000);border-radius:2px;transition:width 0.4s;"></div></div>`;
-  statsEl.appendChild(xpBarDiv);
+
+  statsEl.innerHTML = html;
 }
 
 function calcSellRefund(level) {
