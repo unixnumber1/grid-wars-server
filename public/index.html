@@ -3701,11 +3701,16 @@ async function doEquipItem(itemId) {
       item.equipped = true;
     }
     if (state.player) {
+      const oldMax = state.player.max_hp ?? 1000;
       state.player.bonus_attack = data.bonus_attack;
       state.player.bonus_hp     = data.bonus_hp;
       state.player.max_hp       = data.max_hp;
       state.player.attack       = 10 + (data.bonus_attack ?? 0);
       state.player.bonus_crit   = data.bonus_crit ?? 0;
+      // Adjust HP proportionally when max changes
+      if (data.max_hp !== oldMax && state.player.hp != null) {
+        state.player.hp = Math.min(state.player.hp + (data.max_hp - oldMax), data.max_hp);
+      }
     }
     _renderEquipSlots();
     _renderInventoryGrid();
@@ -3731,6 +3736,10 @@ async function doUnequipItem(itemId) {
       state.player.max_hp       = data.max_hp;
       state.player.attack       = 10 + (data.bonus_attack ?? 0);
       state.player.bonus_crit   = data.bonus_crit ?? 0;
+      // Cap HP at new max
+      if (state.player.hp != null && state.player.hp > data.max_hp) {
+        state.player.hp = data.max_hp;
+      }
     }
     _renderEquipSlots();
     _renderInventoryGrid();
@@ -3745,16 +3754,27 @@ function _refreshProfileStats() {
   const p = state.player;
   if (!p) return;
   const level    = p.level ?? 1;
-  const hp       = p.hp     ?? p.max_hp ?? 1000;
   const maxHp    = p.max_hp ?? 1000;
+  const hp       = Math.min(p.hp ?? maxHp, maxHp);
   const hpPct    = Math.round(Math.max(0, Math.min(1, hp / maxHp)) * 100);
   const totalAtk = p.attack ?? 10;
-  const bonusCrit = p.bonus_crit ?? 0;
 
   const inv = (state.inventory || []).filter(i => !i.on_market);
   const equippedWeapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const equippedShield = inv.find(i => i.type === 'shield' && i.equipped);
-  const critChance = equippedWeapon?.type === 'sword' ? (equippedWeapon.crit_chance || 0) + bonusCrit : 0;
+
+  // Crit — read directly from weapon, don't add bonus_crit (it IS the weapon's crit)
+  const critChance = equippedWeapon?.type === 'sword' ? (equippedWeapon.crit_chance || 0) : 0;
+
+  // Execution chance for axe
+  const upgLvl = equippedWeapon?.upgrade_level || 0;
+  let execChance = 0;
+  if (equippedWeapon?.type === 'axe') {
+    if (equippedWeapon.rarity === 'mythic') execChance = 7 + (upgLvl / 90) * 10;
+    else if (equippedWeapon.rarity === 'legendary') execChance = 13 + (upgLvl / 100) * 7;
+  }
+
+  // HP regen: 25% per hour = ~0.007% per sec
+  const hpRegen = Math.floor(maxHp * 0.25);
 
   const barColor = hpPct > 60 ? '#00E676' : hpPct > 30 ? '#ff9800' : '#f44336';
   const statsEl = document.getElementById('profile-stat-rows');
@@ -3774,7 +3794,8 @@ function _refreshProfileStats() {
     ['⚔️ Атака', totalAtk],
   ];
   if (critChance > 0) rows.push(['💥 Крит шанс', `${critChance.toFixed(1)}%`]);
-  if (equippedShield) rows.push(['🛡️ Доп. HP', `+${p.bonus_hp ?? 0}`]);
+  if (execChance > 0) rows.push(['💀 Казнь', `${execChance.toFixed(1)}%`]);
+  rows.push(['💚 Реген HP', `${formatNumber(hpRegen)}/ч`]);
   rows.push(['🏆 Уровень', level]);
 
   for (const [label, val] of rows) {
