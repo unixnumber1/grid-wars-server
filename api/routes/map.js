@@ -292,6 +292,12 @@ async function handleTick(req, res) {
         const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
+        // If mine HP below max but no last_hp_update, start regen timer now
+        if (canRegen && rawHp < computedMaxHp && !m.last_hp_update) {
+          const gm = gameState.mines.get(m.id);
+          if (gm) { gm.last_hp_update = nowISO; gameState.markDirty('mines', m.id); }
+          m.last_hp_update = nowISO;
+        }
         const regenedHp = canRegen ? calcMineHpRegen(rawHp, computedMaxHp, regenPerHour, m.last_hp_update) : rawHp;
         return {
           ...m,
@@ -448,6 +454,11 @@ async function handleTick(req, res) {
         const rph = Math.round(getMineHpRegen(m.level) * bRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
+        if (canRegen && rawHp < cMax && !m.last_hp_update) {
+          const gm = gameState.mines.get(m.id);
+          if (gm) { gm.last_hp_update = nowISO; gameState.markDirty('mines', m.id); }
+          m.last_hp_update = nowISO;
+        }
         return {
           ...m,
           max_hp: cMax,
