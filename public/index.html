@@ -438,7 +438,7 @@
       position: fixed;
       inset: 0;
       background: #0d0d0d;
-      z-index: 3000;
+      z-index: 5500;
       flex-direction: column;
       overflow: hidden;
     }
@@ -454,7 +454,7 @@
       border-bottom: 1px solid #222;
       flex-shrink: 0;
     }
-    #settings-header h3 { flex: 1; font-size: 16px; font-weight: 800; color: #fff; }
+    #settings-header h3 { flex: 1; font-size: 16px; font-weight: 800; color: #fff; margin: 0; }
     #btn-close-settings {
       background: none;
       border: none;
@@ -463,7 +463,6 @@
       cursor: pointer;
       padding: 4px;
       -webkit-tap-highlight-color: transparent;
-      order: -1;
     }
 
     #settings-tabs {
@@ -493,7 +492,9 @@
     #settings-body {
       flex: 1;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 16px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
     }
 
     .settings-section-title {
@@ -506,8 +507,9 @@
     }
 
     .settings-card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
+      background: #1a1a1a;
+      border: 1px solid #222;
+      border-radius: 12px;
       padding: 16px;
       margin-bottom: 12px;
     }
@@ -591,7 +593,7 @@
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.6);
-      z-index: 4000;
+      z-index: 5600;
       align-items: flex-end;
     }
     #avatar-sheet-overlay.open { display: flex; }
@@ -613,47 +615,68 @@
       background: #0d0d0d;
       z-index: 5000;
       flex-direction: column;
+      overflow: hidden;
     }
     #leaderboard-overlay.open { display: flex; }
     #leaderboard-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 14px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      gap: 10px;
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      border-bottom: 1px solid #222;
       flex-shrink: 0;
-      background: #1a1a2e;
+      background: #111;
     }
-    #leaderboard-header h3 { font-size: 16px; font-weight: 800; }
-    #btn-close-leaderboard, #btn-refresh-leaderboard {
+    #leaderboard-header h3 { flex: 1; font-size: 16px; font-weight: 800; color: #fff; margin: 0; }
+    .lb-close, .lb-refresh {
       background: none;
       border: none;
       color: #888;
       font-size: 20px;
       cursor: pointer;
-      padding: 4px 8px;
+      padding: 4px;
       -webkit-tap-highlight-color: transparent;
     }
-    #btn-refresh-leaderboard { font-size: 16px; }
-    #btn-refresh-leaderboard:active { opacity: 0.5; }
-    #leaderboard-list { flex: 1; overflow-y: auto; }
-    #leaderboard-current { border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .lb-refresh { font-size: 16px; }
+    .lb-refresh:active { opacity: 0.5; }
+    #leaderboard-tabs {
+      display: flex;
+      background: #111;
+      border-bottom: 1px solid #222;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .lb-tab {
+      flex: 1; padding: 10px 0; font-size: 13px; color: #666;
+      background: none; border: none; border-bottom: 2px solid transparent;
+      cursor: pointer; font-weight: 600; -webkit-tap-highlight-color: transparent;
+    }
+    .lb-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+    #leaderboard-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #leaderboard-list { padding: 8px 0; }
+    #leaderboard-current {
+      border-top: 1px solid #222; flex-shrink: 0;
+      background: #111;
+    }
     .lb-row {
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 10px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      margin: 0 12px 4px;
+      border-radius: 10px;
+      background: #1a1a1a;
       font-size: 13px;
     }
-    .lb-row.rank-1 { background: rgba(255,215,0,0.15); }
-    .lb-row.rank-2 { background: rgba(192,192,192,0.1); }
-    .lb-row.rank-3 { background: rgba(205,127,50,0.1); }
-    .lb-row.current-player { background: rgba(100,150,255,0.15); }
-    .lb-rank { min-width: 36px; font-weight: 700; font-size: 12px; }
+    .lb-row.rank-1 { background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.25); }
+    .lb-row.rank-2 { background: rgba(192,192,192,0.08); border: 1px solid rgba(192,192,192,0.2); }
+    .lb-row.rank-3 { background: rgba(205,127,50,0.08); border: 1px solid rgba(205,127,50,0.2); }
+    .lb-row.current-player { background: rgba(100,150,255,0.12); border: 1px solid rgba(100,150,255,0.25); }
+    .lb-rank { min-width: 32px; font-weight: 700; font-size: 13px; text-align: center; }
     .lb-rank.gold { color: #FFD700; }
-    .lb-avatar { font-size: 20px; }
-    .lb-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-avatar { font-size: 22px; }
+    .lb-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
     .lb-level { font-size: 11px; color: #888; white-space: nowrap; }
     .lb-xp { color: #FFD700; font-weight: 700; font-size: 12px; white-space: nowrap; }
 
@@ -1059,31 +1082,33 @@
       background: #0d0d0d;
       z-index: 8000;
       flex-direction: column;
-      overflow-y: auto;
+      overflow: hidden;
       transform: translateY(100%);
       transition: transform 0.3s ease;
     }
     #profile-modal.open { display: flex; transform: translateY(0); }
 
     #profile-modal-header {
-      padding: 14px 16px;
-      padding-top: calc(14px + env(safe-area-inset-top, 0px));
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 10px;
       background: #111;
       border-bottom: 1px solid #222;
       flex-shrink: 0;
     }
-    #profile-modal-header .pm-name { font-size: 17px; font-weight: 800; color: #fff; }
+    #profile-modal-close {
+      background: none; border: none; font-size: 20px; color: #888;
+      cursor: pointer; padding: 4px; -webkit-tap-highlight-color: transparent;
+    }
+    #profile-modal-header .pm-name { flex: 1; font-size: 16px; font-weight: 800; color: #fff; }
     #profile-modal-header .pm-level {
       display: inline-block; background: rgba(255,215,0,0.15); color: #FFD700;
       font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
-      margin-left: 8px; vertical-align: middle;
     }
-    #profile-modal-close {
-      background: none; border: none; font-size: 22px; color: #888;
-      cursor: pointer; padding: 4px; -webkit-tap-highlight-color: transparent;
+    #profile-modal-body {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
 
     /* Equip grid: 3 cols (left slots | avatar | right locked) */
@@ -1147,9 +1172,9 @@
     /* Stats list */
     .profile-section {
       margin: 0 16px 12px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
+      background: #1a1a1a;
+      border: 1px solid #222;
+      border-radius: 12px;
       padding: 14px 16px;
     }
     .profile-section-title {
@@ -1165,6 +1190,31 @@
     .profile-stat-row .stat-label { color: rgba(255,255,255,0.6); }
     .profile-stat-row .stat-value { color: #fff; font-weight: 600; }
     .profile-stat-row .bonus { color: #888; font-size: 11px; margin-left: 4px; }
+
+    .profile-inv-tabs {
+      display: flex; align-items: center;
+      margin: 0 16px; padding: 0 16px;
+      background: #1a1a1a; border: 1px solid #222; border-bottom: none;
+      border-radius: 12px 12px 0 0;
+    }
+    .profile-inv-tab {
+      padding: 10px 0; font-size: 13px; color: #666;
+      background: none; border: none; border-bottom: 2px solid transparent;
+      cursor: pointer; font-weight: 600; margin-right: 16px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .profile-inv-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+    .inv-action-btn {
+      background: rgba(255,255,255,0.08); color: #aaa;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+      padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .inv-action-btn.craft {
+      background: linear-gradient(135deg,#f5c518,#ff8c00); color: #000;
+      border: none; font-weight: 700;
+    }
+    .inv-action-btn:active { opacity: 0.7; }
 
     .inventory-grid {
       display: grid;
@@ -2584,13 +2634,17 @@
 <!-- Leaderboard modal -->
 <div id="leaderboard-overlay">
   <div id="leaderboard-header">
+    <button class="lb-close" id="btn-close-leaderboard">&#x2715;</button>
     <h3>&#x1F3C6; Топ игроков</h3>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button id="btn-refresh-leaderboard" title="Обновить">&#x1F504;</button>
-      <button id="btn-close-leaderboard">&#x2715;</button>
-    </div>
+    <button class="lb-refresh" id="btn-refresh-leaderboard" title="Обновить">&#x1F504;</button>
   </div>
-  <div id="leaderboard-list"></div>
+  <div id="leaderboard-tabs">
+    <button class="lb-tab active" data-lb-tab="xp">⭐ По XP</button>
+    <button class="lb-tab" data-lb-tab="level">🏆 По уровню</button>
+  </div>
+  <div id="leaderboard-body">
+    <div id="leaderboard-list"></div>
+  </div>
   <div id="leaderboard-current"></div>
 </div>
 
@@ -5086,14 +5140,12 @@ function switchInvTab(tab) {
   const crPanel = document.getElementById('inv-panel-cores');
   const eqActions = document.getElementById('inv-equip-actions');
   if (tab === 'cores') {
-    eqBtn.style.background = 'transparent'; eqBtn.style.color = '#666';
-    crBtn.style.background = '#333'; crBtn.style.color = '#fff';
+    eqBtn.classList.remove('active'); crBtn.classList.add('active');
     eqPanel.style.display = 'none'; crPanel.style.display = '';
     if (eqActions) eqActions.style.display = 'none';
     renderCoresInventory();
   } else {
-    eqBtn.style.background = '#333'; eqBtn.style.color = '#fff';
-    crBtn.style.background = 'transparent'; crBtn.style.color = '#666';
+    eqBtn.classList.add('active'); crBtn.classList.remove('active');
     eqPanel.style.display = ''; crPanel.style.display = 'none';
     if (eqActions) eqActions.style.display = 'flex';
   }
@@ -9435,8 +9487,19 @@ document.getElementById('btn-refresh-leaderboard').addEventListener('click', () 
   openLeaderboard();
 });
 
+// Leaderboard tabs
+document.querySelectorAll('.lb-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    _lbSortBy = tab.dataset.lbTab || 'xp';
+    if (_lbCache) renderLeaderboard(_lbCache);
+  });
+});
+
 let _lbCache = null;
 let _lbCacheTime = 0;
+let _lbSortBy = 'xp';
 
 async function openLeaderboard() {
   document.getElementById('leaderboard-overlay').classList.add('open');
@@ -9473,35 +9536,52 @@ function renderLeaderboard(data) {
   list.innerHTML = '';
   currentDiv.innerHTML = '';
 
-  for (const p of data.top) {
+  // Sort by selected tab
+  const sorted = [...data.top].sort((a, b) => {
+    if (_lbSortBy === 'level') return (b.level || 1) - (a.level || 1) || (b.xp || 0) - (a.xp || 0);
+    return (b.xp || 0) - (a.xp || 0);
+  });
+  sorted.forEach((p, i) => p._rank = i + 1);
+
+  for (const p of sorted) {
+    const rank = p._rank;
     const row = document.createElement('div');
     let cls = 'lb-row';
-    if (p.rank === 1) cls += ' rank-1';
-    else if (p.rank === 2) cls += ' rank-2';
-    else if (p.rank === 3) cls += ' rank-3';
+    if (rank === 1) cls += ' rank-1';
+    else if (rank === 2) cls += ' rank-2';
+    else if (rank === 3) cls += ' rank-3';
     if (String(p.telegram_id) === String(TG_ID)) cls += ' current-player';
     row.className = cls;
-    const rankCls = p.rank <= 3 ? 'lb-rank gold' : 'lb-rank';
+    const rankCls = rank <= 3 ? 'lb-rank gold' : 'lb-rank';
+    const valLabel = _lbSortBy === 'level'
+      ? `<span class="lb-xp">🏆 Ур.${p.level || 1}</span>`
+      : `<span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>`;
     row.innerHTML = `
-      <span class="${rankCls}">#${p.rank}</span>
+      <span class="${rankCls}">#${rank}</span>
       <span class="lb-avatar">${p.avatar || '🐺'}</span>
       <span class="lb-name">${displayName(p)}</span>
       <span class="lb-level">Ур.${p.level || 1}</span>
-      <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)} XP</span>
+      ${valLabel}
     `;
     list.appendChild(row);
   }
 
   if (data.current) {
     const p = data.current;
+    // Find current player rank in sorted list
+    const cp = sorted.find(s => String(s.telegram_id) === String(TG_ID));
+    const curRank = cp ? cp._rank : p.rank;
+    const valLabel = _lbSortBy === 'level'
+      ? `<span class="lb-xp">🏆 Ур.${p.level || 1}</span>`
+      : `<span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>`;
     currentDiv.innerHTML = `
-      <div style="padding:6px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Ваша позиция</div>
-      <div class="lb-row current-player">
-        <span class="lb-rank">#${p.rank}</span>
+      <div style="padding:8px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Ваша позиция</div>
+      <div class="lb-row current-player" style="margin-bottom:8px;">
+        <span class="lb-rank">#${curRank}</span>
         <span class="lb-avatar">${p.avatar || '🐺'}</span>
         <span class="lb-name">${displayName(p)}</span>
         <span class="lb-level">Ур.${p.level || 1}</span>
-        <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)} XP</span>
+        ${valLabel}
       </div>
     `;
   }
@@ -12197,12 +12277,11 @@ async function doCollectorSell(collectorId) {
 <!-- Profile modal (fullscreen) -->
 <div id="profile-modal">
   <div id="profile-modal-header">
-    <div>
-      <span class="pm-name" id="profile-modal-name">—</span>
-      <span class="pm-level" id="profile-modal-level">1ур</span>
-    </div>
     <button id="profile-modal-close">✕</button>
+    <span class="pm-name" id="profile-modal-name">—</span>
+    <span class="pm-level" id="profile-modal-level">1ур</span>
   </div>
+  <div id="profile-modal-body">
 
   <!-- Equip grid: sword/shield left, avatar center, locked right -->
   <div class="char-equip-grid">
@@ -12234,25 +12313,25 @@ async function doCollectorSell(collectorId) {
   </div>
 
   <!-- Inventory with tabs -->
-  <div class="profile-section" style="margin-bottom:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div style="display:flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
-        <button id="inv-tab-equip" onclick="switchInvTab('equip')" style="padding:6px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#333;color:#fff;">⚔️ Снаряжение</button>
-        <button id="inv-tab-cores" onclick="switchInvTab('cores')" style="padding:6px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:#666;">🔮 Ядра</button>
-      </div>
-      <div id="inv-equip-actions" style="display:flex;gap:6px;">
-        <button id="btn-mass-sell" onclick="enterSelectionMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
-        <button id="btn-craft" onclick="openCraftScreen()" style="background:linear-gradient(135deg,#f5c518,#ff8c00);color:#000;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;">⚒️ Крафт</button>
-      </div>
+  <div class="profile-inv-tabs">
+    <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">⚔️ Снаряжение</button>
+    <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">🔮 Ядра</button>
+    <div style="flex:1;"></div>
+    <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
+      <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
+      <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️ Крафт</button>
     </div>
+  </div>
+  <div class="profile-section" style="margin-bottom:16px;margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
     <div id="inv-panel-equip">
-      <div class="profile-section-title" id="inventory-title" style="margin-top:8px;margin-bottom:0;">Инвентарь (0)</div>
+      <div class="profile-section-title" id="inventory-title" style="margin-top:0;margin-bottom:0;">Инвентарь (0)</div>
       <div class="inventory-grid" id="inventory-grid" style="margin-top:12px;"></div>
     </div>
-    <div id="inv-panel-cores" style="display:none;margin-top:12px;">
+    <div id="inv-panel-cores" style="display:none;margin-top:0;">
       <div id="cores-inv-grid"></div>
     </div>
   </div>
+  </div><!-- /profile-modal-body -->
 </div>
 
 <!-- Item detail sheet -->
