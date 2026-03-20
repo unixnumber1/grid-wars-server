@@ -640,19 +640,6 @@
     }
     .lb-refresh { font-size: 16px; }
     .lb-refresh:active { opacity: 0.5; }
-    #leaderboard-tabs {
-      display: flex;
-      background: #111;
-      border-bottom: 1px solid #222;
-      padding: 0 16px;
-      flex-shrink: 0;
-    }
-    .lb-tab {
-      flex: 1; padding: 10px 0; font-size: 13px; color: #666;
-      background: none; border: none; border-bottom: 2px solid transparent;
-      cursor: pointer; font-weight: 600; -webkit-tap-highlight-color: transparent;
-    }
-    .lb-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
     #leaderboard-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     #leaderboard-list { padding: 8px 0; }
     #leaderboard-current {
@@ -2637,10 +2624,6 @@
     <button class="lb-close" id="btn-close-leaderboard">&#x2715;</button>
     <h3>&#x1F3C6; Топ игроков</h3>
     <button class="lb-refresh" id="btn-refresh-leaderboard" title="Обновить">&#x1F504;</button>
-  </div>
-  <div id="leaderboard-tabs">
-    <button class="lb-tab active" data-lb-tab="xp">⭐ По XP</button>
-    <button class="lb-tab" data-lb-tab="level">🏆 По уровню</button>
   </div>
   <div id="leaderboard-body">
     <div id="leaderboard-list"></div>
@@ -9491,19 +9474,8 @@ document.getElementById('btn-refresh-leaderboard').addEventListener('click', () 
   openLeaderboard();
 });
 
-// Leaderboard tabs
-document.querySelectorAll('.lb-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    _lbSortBy = tab.dataset.lbTab || 'xp';
-    if (_lbCache) renderLeaderboard(_lbCache);
-  });
-});
-
 let _lbCache = null;
 let _lbCacheTime = 0;
-let _lbSortBy = 'xp';
 
 async function openLeaderboard() {
   document.getElementById('leaderboard-overlay').classList.add('open');
@@ -9540,52 +9512,35 @@ function renderLeaderboard(data) {
   list.innerHTML = '';
   currentDiv.innerHTML = '';
 
-  // Sort by selected tab
-  const sorted = [...data.top].sort((a, b) => {
-    if (_lbSortBy === 'level') return (b.level || 1) - (a.level || 1) || (b.xp || 0) - (a.xp || 0);
-    return (b.xp || 0) - (a.xp || 0);
-  });
-  sorted.forEach((p, i) => p._rank = i + 1);
-
-  for (const p of sorted) {
-    const rank = p._rank;
+  for (const p of data.top) {
     const row = document.createElement('div');
     let cls = 'lb-row';
-    if (rank === 1) cls += ' rank-1';
-    else if (rank === 2) cls += ' rank-2';
-    else if (rank === 3) cls += ' rank-3';
+    if (p.rank === 1) cls += ' rank-1';
+    else if (p.rank === 2) cls += ' rank-2';
+    else if (p.rank === 3) cls += ' rank-3';
     if (String(p.telegram_id) === String(TG_ID)) cls += ' current-player';
     row.className = cls;
-    const rankCls = rank <= 3 ? 'lb-rank gold' : 'lb-rank';
-    const valLabel = _lbSortBy === 'level'
-      ? `<span class="lb-xp">🏆 Ур.${p.level || 1}</span>`
-      : `<span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>`;
+    const rankCls = p.rank <= 3 ? 'lb-rank gold' : 'lb-rank';
     row.innerHTML = `
-      <span class="${rankCls}">#${rank}</span>
+      <span class="${rankCls}">#${p.rank}</span>
       <span class="lb-avatar">${p.avatar || '🐺'}</span>
       <span class="lb-name">${displayName(p)}</span>
       <span class="lb-level">Ур.${p.level || 1}</span>
-      ${valLabel}
+      <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
     `;
     list.appendChild(row);
   }
 
   if (data.current) {
     const p = data.current;
-    // Find current player rank in sorted list
-    const cp = sorted.find(s => String(s.telegram_id) === String(TG_ID));
-    const curRank = cp ? cp._rank : p.rank;
-    const valLabel = _lbSortBy === 'level'
-      ? `<span class="lb-xp">🏆 Ур.${p.level || 1}</span>`
-      : `<span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>`;
     currentDiv.innerHTML = `
       <div style="padding:8px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Ваша позиция</div>
       <div class="lb-row current-player" style="margin-bottom:8px;">
-        <span class="lb-rank">#${curRank}</span>
+        <span class="lb-rank">#${p.rank}</span>
         <span class="lb-avatar">${p.avatar || '🐺'}</span>
         <span class="lb-name">${displayName(p)}</span>
         <span class="lb-level">Ур.${p.level || 1}</span>
-        ${valLabel}
+        <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
       </div>
     `;
   }
