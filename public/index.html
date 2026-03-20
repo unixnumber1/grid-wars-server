@@ -10443,6 +10443,69 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   if (wasHolding) combatState.isHolding = true;
 }
 
+// ── Multitouch interceptor: detect second-finger taps on markers during combat ──
+(function() {
+  document.addEventListener('touchstart', (e) => {
+    if (!combatState.isHolding) return;
+    // Only intercept additional fingers (2+)
+    if (e.touches.length < 2) return;
+
+    for (const touch of e.changedTouches) {
+      // Skip the finger that's on the attack button
+      if (touch.identifier === combatState.touchId) continue;
+
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!el) continue;
+
+      // Skip if tapping on the popup card itself
+      if (el.closest('#popup-card')) continue;
+
+      // Find Leaflet marker DOM element
+      const markerEl = el.closest('.leaflet-marker-icon');
+      if (!markerEl) continue;
+
+      // Match against known marker objects and call their popup
+      // Bots
+      for (const [id, ref] of Object.entries(botMarkers)) {
+        if (ref.marker?._icon === markerEl) { showBotPopup(id); return; }
+      }
+      // Players
+      for (const [id, m] of Object.entries(onlineMarkers)) {
+        if (m?._icon === markerEl) {
+          const p = (state.mapBuildings?.online_players || []).find(x => String(x.id) === String(id));
+          if (p) showOtherPlayerPopup(p);
+          return;
+        }
+      }
+      // Defenders
+      for (const [id, m] of Object.entries(defenderMarkers)) {
+        if (m?._icon === markerEl) { showDefenderPopup(id); return; }
+      }
+      // Mines (building markers with mine_ prefix)
+      for (const [key, m] of Object.entries(buildingMarkers)) {
+        if (m?._icon === markerEl && key.startsWith('mine_')) {
+          const mineId = key.replace('mine_', '');
+          const mine = (state.mapBuildings?.mines || []).find(x => String(x.id) === String(mineId));
+          if (mine) showMinePopup(mine, mine.is_mine || mine.owner_id === state.player?.id, false);
+          return;
+        }
+      }
+      // Ore nodes
+      for (const [id, m] of Object.entries(oreMarkers)) {
+        if (m?._icon === markerEl) { showOrePopup(id); return; }
+      }
+      // Monuments
+      for (const [id, m] of Object.entries(monumentMarkers)) {
+        if (m?._icon === markerEl) { showMonumentPopup(id); return; }
+      }
+      // Collectors
+      for (const [id, m] of Object.entries(collectorMarkers)) {
+        if (m?._icon === markerEl) { showCollectorPopup(id); return; }
+      }
+    }
+  }, { passive: true });
+})();
+
 function showDeathScreen(killerName, coinsLost) {
   const screen = document.getElementById('death-screen');
   const timerEl = document.getElementById('death-timer');
