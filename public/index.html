@@ -5138,6 +5138,8 @@ function getBuildingInCell(cellId) {
   if (mine) return { ...mine, type: 'mine' };
   const hq = state.mapBuildings.headquarters.find(h => h.cell_id === cellId);
   if (hq) return { ...hq, type: 'hq' };
+  const clanHq = (state.mapBuildings.clan_hqs || []).find(c => c.cell_id === cellId);
+  if (clanHq) return { ...clanHq, type: 'clan_hq' };
   return null;
 }
 
