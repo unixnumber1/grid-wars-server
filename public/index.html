@@ -670,17 +670,7 @@
       pointer-events: none !important;
     }
 
-    /* Selected building highlight */
-    .marker-selected-own .marker-wrap {
-      box-shadow: 0 0 0 3px rgba(180,180,180,0.7);
-      border-radius: 50%;
-      background: rgba(180,180,180,0.12);
-    }
-    .marker-selected-enemy .marker-wrap {
-      box-shadow: 0 0 0 3px rgba(255,60,60,0.7);
-      border-radius: 50%;
-      background: rgba(255,60,60,0.12);
-    }
+    /* Selected building highlight — handled via L.circle on map */
 
     /* Build menu cards */
     .build-card {
@@ -6340,9 +6330,9 @@ function renderBuildings() {
     }
   }
 
-  // Re-apply selected highlight
-  if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
-    buildingMarkers[_selectedMarkerKey]._icon.classList.add(_selectedMarkerOwn ? 'marker-selected-own' : 'marker-selected-enemy');
+  // Re-apply selected highlight circle
+  if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]) {
+    _selectMarker(_selectedMarkerKey, _selectedMarkerOwn);
   }
 
   // Re-apply attack status to mine markers
@@ -6503,16 +6493,25 @@ function _startUpgradeCountdown(finishAtStr) {
 let _currentPopupEntityId = null;
 let _selectedMarkerKey = null;
 let _selectedMarkerOwn = true;
+let _selectedCircle = null;
 
 function _selectMarker(key, isOwn = true) {
-  // Clear previous
-  if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
-    buildingMarkers[_selectedMarkerKey]._icon.classList.remove('marker-selected-own', 'marker-selected-enemy');
-  }
+  // Clear previous circle
+  if (_selectedCircle) { map.removeLayer(_selectedCircle); _selectedCircle = null; }
   _selectedMarkerKey = key;
   _selectedMarkerOwn = isOwn;
-  if (key && buildingMarkers[key]?._icon) {
-    buildingMarkers[key]._icon.classList.add(isOwn ? 'marker-selected-own' : 'marker-selected-enemy');
+  if (key && buildingMarkers[key]) {
+    const pos = buildingMarkers[key].getLatLng();
+    const color = isOwn ? '#aaa' : '#ff4444';
+    _selectedCircle = L.circle([pos.lat, pos.lng], {
+      radius: 25,
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.1,
+      weight: 1.5,
+      opacity: 0.5,
+      interactive: false,
+    }).addTo(map);
   }
 }
 
