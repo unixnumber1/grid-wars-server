@@ -8010,9 +8010,20 @@ function initSocket() {
           }
         }, 1500);
       }
-      // If we were attacking this defender via popup, clear target (but keep isHolding for switch)
+      // If we were attacking this defender via popup, switch to next alive defender
       if (combatState.currentTarget?.id === data.defender_id) {
+        const monId = combatState.currentTarget.monument_id;
         combatState.currentTarget = null;
+        const alive = Object.entries(defenderData).filter(([id, d]) => d.monument_id === monId && !d._dead && id !== data.defender_id);
+        if (alive.length > 0 && combatState.isHolding) {
+          const pos = state.playerPos;
+          if (pos) {
+            alive.sort((a, b) => haversine(pos.lat, pos.lng, a[1].lat, a[1].lng) - haversine(pos.lat, pos.lng, b[1].lat, b[1].lng));
+          }
+          doStartSingleDefenderCombat(alive[0][0]);
+        } else if (alive.length === 0) {
+          stopPopupCombat();
+        }
       }
     });
 
@@ -14199,7 +14210,7 @@ function doStartDefenderCombat(monumentId) {
 
 function doStartSingleDefenderCombat(defenderId) {
   const d = defenderData[defenderId];
-  if (!d) return;
+  if (!d || d._dead) return;
   openCombatPopup(`${d.emoji} Защитник`, defenderId, 'defender',
     { id: defenderId, monument_id: d.monument_id, emoji: d.emoji, hp: d.hp, max_hp: d.max_hp },
     { barColor: '#ff6600' });
@@ -14295,7 +14306,7 @@ async function doDefenderHit(target) {
       // Remove defender marker
       if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
       // Check if more defenders for this monument
-      const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id);
+      const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id && !d._dead);
       if (remaining.length > 0) {
         // Switch to next closest defender
         const pos2 = state.playerPos;
