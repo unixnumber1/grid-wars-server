@@ -264,7 +264,8 @@ async function handleMineCollect(req, res) {
     }
   }
   let xpResult = null;
-  if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) {} }
+  console.log(`[COLLECT-XP] tg=${telegram_id} mines=${mines.length} totalCoins=${Math.round(totalCoins)} totalXpGained=${totalXpGained} xpEvents=${xpEvents.length}`);
+  if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) { console.error('[COLLECT-XP] addXp error:', e.message); } }
   const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
   return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, xp_events: xpEvents, totalIncome });
 }
