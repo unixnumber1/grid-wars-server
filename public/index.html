@@ -5590,7 +5590,7 @@ function openItemDetailPopup(item) {
   // Build actions
   const actions = [];
   if (!isMaxed) {
-    actions.push({ label: `✨ ${t('core.upgrade_short', {cost: nextCost})}`, cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
+    actions.push({ label: `✨ ⬆️ ${nextCost}✨`, cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
   }
   if (item.on_market) {
     // no actions — item in transit
