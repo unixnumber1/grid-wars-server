@@ -1023,6 +1023,7 @@ async function handleMoveCouriers(req, res) {
           const deliveryExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
           const { error: dropErr } = await supabase.from('courier_drops').insert({
             courier_id: dc.id,
+            owner_id: dc.owner_id,
             item_id: dc.item_id,
             listing_id: dc.listing_id,
             lat: dropLat,

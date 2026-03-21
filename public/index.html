@@ -10546,9 +10546,10 @@ function _courierIcon(courier) {
 
 function _isMyDeliveryDrop(drop) {
   const ownerId = drop.owner_id || drop.couriers?.owner_id;
-  // If no owner info available (courier cleaned up, old drop), allow pickup for coin_delivery
-  if (!ownerId && drop.drop_type === 'coin_delivery') return true;
-  return ownerId === state.player?.id;
+  // If no owner info available (courier cleaned up, old drop), allow pickup
+  if (!ownerId) return true;
+  // Use loose == to handle string/number type mismatches
+  return ownerId == state.player?.id || ownerId == state.player?.telegram_id;
 }
 
 // ── Render markets on map ──────────────────────

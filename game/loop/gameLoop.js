@@ -278,7 +278,7 @@ async function moveCouriers(nowMs, nowISO) {
           };
           gameState.upsertDrop(drop);
           supabase.from('courier_drops').insert({
-            id: drop.id, courier_id: dc.id, lat: dropLat, lng: dropLng,
+            id: drop.id, courier_id: dc.id, owner_id: dc.owner_id, lat: dropLat, lng: dropLng,
             drop_type: 'coin_delivery', picked_up: false,
             expires_at: drop.expires_at, created_at: nowISO,
           }).then(() => {}).catch(() => {});
@@ -300,6 +300,7 @@ async function moveCouriers(nowMs, nowISO) {
           const drop = {
             id: globalThis.crypto.randomUUID(),
             courier_id: dc.id,
+            owner_id: dc.owner_id,
             item_id: dc.item_id,
             listing_id: dc.listing_id,
             lat: dropLat,
