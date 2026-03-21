@@ -6104,19 +6104,26 @@ function togglePin() {
 
 const hexLayer  = L.layerGroup().addTo(map);
 
-// Flash hex grid briefly (brighten lines for 600ms then fade)
+// Flash hex grid: sharp appear + smooth 800ms fade out
 let _hexFlashTimeout = null;
 function _flashHexGrid() {
-  if (_hexFlashTimeout) return; // already flashing
+  if (_hexFlashTimeout) { clearTimeout(_hexFlashTimeout); _hexFlashTimeout = null; }
+  // Instantly brighten
   hexLayer.eachLayer(poly => {
-    poly.setStyle({ color: 'rgba(255,255,255,0.5)', weight: 1.2 });
+    poly.setStyle({ color: 'rgba(255,255,255,0.6)', weight: 1.2 });
+    if (poly._path) poly._path.style.transition = 'none';
   });
-  _hexFlashTimeout = setTimeout(() => {
+  // Next frame: enable transition and revert to normal
+  requestAnimationFrame(() => {
     hexLayer.eachLayer(poly => {
-      poly.setStyle({ color: 'rgba(255,255,255,0.15)', weight: 0.5 });
+      if (poly._path) poly._path.style.transition = 'stroke 0.8s ease-out, stroke-opacity 0.8s ease-out, stroke-width 0.8s ease-out';
+      poly.setStyle({ color: 'rgba(200,200,200,0.25)', weight: 0.6 });
     });
-    _hexFlashTimeout = null;
-  }, 600);
+    _hexFlashTimeout = setTimeout(() => {
+      hexLayer.eachLayer(poly => { if (poly._path) poly._path.style.transition = ''; });
+      _hexFlashTimeout = null;
+    }, 850);
+  });
 }
 const botLayer  = L.layerGroup().addTo(map);
 const vaseLayer = L.layerGroup().addTo(map);
@@ -6197,12 +6204,6 @@ function otherPlayerIcon(avatar, shieldUntil) {
 //  Hex grid (full visible area)
 // ─────────────────────────────────────────────
 function updateHexGrid() {
-  const zoom = map.getZoom();
-  if (zoom < 17) {
-    hexLayer.clearLayers();
-    return;
-  }
-
   const bounds  = map.getBounds();
   const polygon = [
     [bounds.getNorth(), bounds.getWest()],
@@ -6235,28 +6236,11 @@ function updateHexGrid() {
     const building    = getBuildingInCell(cellId);
     const inPlayerZone = playerCellSet.has(cellId);
 
-    let fillColor   = 'transparent';
-    let fillOpacity = 0;
-
-    if (inPlayerZone && !building) {
-      fillColor   = '#ffffff';
-      fillOpacity = 0.03;
-    }
-    if (building?.type === 'mine' && building.is_mine) {
-      fillColor = '#FFD700'; fillOpacity = 0.15;
-    } else if (building?.type === 'mine') {
-      fillColor = '#FF4444'; fillOpacity = 0.15;
-    } else if (building?.type === 'hq' && building.is_mine) {
-      fillColor = '#4fc3f7'; fillOpacity = 0.15;
-    } else if (building?.type === 'hq') {
-      fillColor = '#aaaaaa'; fillOpacity = 0.15;
-    }
-
     const poly = L.polygon(boundary, {
-      color: 'rgba(255,255,255,0.15)',
-      weight: 0.5,
-      fillColor,
-      fillOpacity,
+      color: 'rgba(200,200,200,0.25)',
+      weight: 0.6,
+      fillColor: 'transparent',
+      fillOpacity: 0,
       interactive: inPlayerZone,
     });
 
@@ -6265,11 +6249,9 @@ function updateHexGrid() {
         L.DomEvent.stopPropagation(e);
         if (Date.now() - _suppressMapClick < 300) return;
         if (!building) {
-          // Empty hex → open build menu at tap coordinates
           const tapLL = e.latlng || map.mouseEventToLatLng(e.originalEvent);
           showBuildMenu(tapLL.lat, tapLL.lng);
         } else {
-          // Hex with building → just flash, building opens via marker
           _flashHexGrid();
         }
       });
@@ -6925,8 +6907,7 @@ map.on('click', e => {
       showBuildMenu(lat, lng);
     } else {
       // Building hex — just flash, popup via marker only
-      const zoom = map.getZoom();
-      if (zoom >= 17) _flashHexGrid();
+      _flashHexGrid();
     }
   }
 });
