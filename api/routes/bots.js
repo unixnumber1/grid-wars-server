@@ -296,10 +296,10 @@ async function handleAttack(player, body) {
     return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.respawn_wait', { seconds: secsLeft }) };
   }
 
-  const { data: bot, error: botErr } = await supabase
-    .from('bots').select('id,type,category,lat,lng,hp,max_hp,attack,speed,size,emoji,drain_per_sec,reward_min,reward_max,status,drained_amount').eq('id', bot_id).maybeSingle();
-  if (botErr) return { status: 500, error: botErr.message };
-  if (!bot)   return { status: 404, error: 'Bot not found' };
+  // Use gameState for bot position (DB may be 30s stale from batch persist)
+  const gsBot = gameState.loaded ? gameState.bots.get(bot_id) : null;
+  const bot = gsBot || (await supabase.from('bots').select('id,type,category,lat,lng,hp,max_hp,attack,speed,size,emoji,drain_per_sec,reward_min,reward_max,status,drained_amount').eq('id', bot_id).maybeSingle()).data;
+  if (!bot) return { status: 404, error: 'Bot not found' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
   if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
