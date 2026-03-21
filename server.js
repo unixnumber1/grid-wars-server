@@ -328,6 +328,7 @@ function startMonumentLoop() {
       player.is_dead = false;
       player.hp = 1000 + (player.bonus_hp || 0);
       player.respawn_at = null;
+      player.last_hp_regen = null;
       gameState.markDirty('players', player.id);
       // Find socket and emit respawn
       for (const [sid, info] of connectedPlayers) {
@@ -565,6 +566,7 @@ function startDefenderLoop() {
           let hp = target.hp ?? maxHp;
           hp = Math.max(0, hp - damage);
           target.hp = hp;
+          target.last_hp_regen = new Date(now).toISOString();
           gameState.markDirty('players', target.id);
 
           emitToNearbyMonument(monument.lat, monument.lng, 1000, 'projectile', {
