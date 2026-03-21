@@ -58,26 +58,23 @@ export function autoCollect(collector) {
 
   const now = Date.now();
   const capacity = getCollectorCapacity(collector);
+  // Use collector's own timestamp, NOT mine.last_collected (that belongs to manual collect)
+  const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : now;
+  const elapsedSec = Math.max(0, (now - lastAutoCollect) / 1000);
+  if (elapsedSec <= 0) return 0;
+
   let totalCollected = 0;
 
   for (const mine of minesInRange) {
-    // Calculate accumulated coins since last_collected
-    const lastCollected = mine.last_collected ? new Date(mine.last_collected).getTime() : now;
-    const elapsedSec = Math.max(0, (now - lastCollected) / 1000);
     const income = getMineIncome(mine.level);
     const accumulated = Math.floor(income * elapsedSec);
     if (accumulated <= 0) continue;
 
-    // How much room in the collector
     const room = capacity - collector.stored_coins - totalCollected;
     if (room <= 0) break;
 
-    const toCollect = Math.min(accumulated, room);
-    totalCollected += toCollect;
-
-    // Reset mine's last_collected
-    mine.last_collected = new Date(now).toISOString();
-    gameState.markDirty('mines', mine.id);
+    totalCollected += Math.min(accumulated, room);
+    // Do NOT touch mine.last_collected — it belongs to manual player collect + XP
   }
 
   if (totalCollected > 0) {
