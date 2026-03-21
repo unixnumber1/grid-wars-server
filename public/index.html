@@ -5585,7 +5585,6 @@ function openItemDetailPopup(item) {
     stats.push([t('shop.defense') + ' HP', `<span style="color:#4caf50">+${item.defense}</span>`]);
     if (computedBlock > 0) stats.push([t('shop.block'), `${computedBlock.toFixed(1)}%`]);
   }
-  if (!isMaxed) stats.push([t('core.cost'), `${nextCost} ✨`]);
 
   // Build actions
   const actions = [];
@@ -5601,7 +5600,6 @@ function openItemDetailPopup(item) {
     const sellPrice = getItemSellPrice(item.rarity, upgLvl);
     actions.push({ label: t('core.sell_for', {n: sellPrice + '✨'}), cls: 'danger', action: () => doSellItemDirect(item, sellPrice) });
   }
-  actions.push({ label: t('misc.close'), isClose: true });
 
   const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
   const isGrad = rarColor.startsWith('linear');
@@ -7194,13 +7192,11 @@ function showCoreDetailPopup(coreId) {
       [t('core.level'), core.level],
       [t('core.multiplier'), `<span style="color:#FFD700">x${mul}</span>`],
       [t('core.after_upgrade'), `<span style="color:#4caf50">x${nextMul}</span> (lv.${core.level + 1})`],
-      [t('core.cost'), `${cost} 🌀`],
     ],
     [
-      { label: t('core.upgrade', {cost}), cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      { label: `⬆️ Улучшить ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       ...(core.mine_cell_id ? [{ label: t('core.extract'), cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
       ...(!core.mine_cell_id ? [{ label: t('core.sell_for', {n: getCoreSellPrice(core.level) + '🌀'}), cls: 'danger', action: () => doCoreSell(coreId) }] : []),
-      { label: t('misc.close'), isClose: true },
     ]
   );
 }
@@ -7224,7 +7220,6 @@ function showInstalledCorePopup(coreId) {
     [
       { label: `⬆️ Улучшить ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       { label: t('core.extract_to_bag'), cls: 'danger', action: () => doCoreUninstall(coreId) },
-      { label: t('misc.close'), isClose: true },
     ]
   );
 }
