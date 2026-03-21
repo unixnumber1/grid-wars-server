@@ -7909,6 +7909,8 @@ function initSocket() {
 
     _socket.on('monument:wave_cleared', (data) => {
       showToast(t('toast.monument_wave_cleared'), 3000);
+      const m = monumentData[data.monument_id];
+      if (m) { m.wave_shield_hp = 0; m.phase = 'open'; }
       try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
     });
 
@@ -7963,7 +7965,11 @@ function initSocket() {
 
     _socket.on('monument:hp_update', (data) => {
       const m = monumentData[data.monument_id];
-      if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(data.monument_id); }
+      if (m) {
+        m.hp = data.hp; m.max_hp = data.max_hp;
+        if (data.wave_shield_hp != null) m.wave_shield_hp = data.wave_shield_hp;
+        updateMonumentMarkerIcon(data.monument_id);
+      }
       if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id)
         updatePopupHp(data.hp, data.max_hp);
     });
@@ -7971,9 +7977,19 @@ function initSocket() {
     _socket.on('monument:defender_killed', (data) => {
       const ref = defenderMarkers[data.defender_id];
       if (ref) {
-        map.removeLayer(ref);
-        delete defenderMarkers[data.defender_id];
-        delete defenderData[data.defender_id];
+        // Mark as dead so it can't be targeted
+        if (defenderData[data.defender_id]) defenderData[data.defender_id]._dead = true;
+        // Fade out icon
+        if (ref._icon) ref._icon.style.transition = 'opacity 0.8s';
+        if (ref._icon) ref._icon.style.opacity = '0.3';
+        // Remove after delay
+        setTimeout(() => {
+          if (defenderMarkers[data.defender_id]) {
+            map.removeLayer(defenderMarkers[data.defender_id]);
+            delete defenderMarkers[data.defender_id];
+            delete defenderData[data.defender_id];
+          }
+        }, 1500);
       }
       // If we were attacking this defender via popup, clear target (but keep isHolding for switch)
       if (combatState.currentTarget?.id === data.defender_id) {
@@ -14024,17 +14040,21 @@ function showMonumentPopup(monumentId) {
   const dist = pos ? haversine(pos.lat, pos.lng, m.lat, m.lng) : null;
   const inRange = dist !== null && dist <= 500;
 
+  const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId && !d._dead);
+  const hasDefenders = defenders.length > 0;
+
   // Multitouch: if holding attack, switch immediately
   if (combatState.isHolding && inRange) {
     if (m.phase === 'shield') return doStartMonumentCombat(monumentId, 'shield');
-    if (m.phase === 'open') {
-      const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
-      if (defenders.length > 0) return doStartDefenderCombat(monumentId);
+    if (m.phase === 'open' || m.phase === 'wave') {
+      if (hasDefenders) return doStartDefenderCombat(monumentId);
       return doStartMonumentCombat(monumentId, 'body');
     }
   }
 
-  const phaseLabel = m.phase === 'shield' ? t('mon.phase_shield') : m.phase === 'open' ? t('mon.phase_open') : t('mon.phase_defeated');
+  const phaseLabel = m.phase === 'shield' ? t('mon.phase_shield')
+    : (m.phase === 'open' || m.phase === 'wave') ? t('mon.phase_open')
+    : t('mon.phase_defeated');
   const distLabel = dist !== null
     ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
     : '<span style="color:#888">📍 GPS...</span>';
@@ -14049,11 +14069,17 @@ function showMonumentPopup(monumentId) {
     stats.push([t('mon.shield_hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
     const dpsThresh = m.dps_threshold || MONUMENT_SHIELD_DPS_THRESHOLD[m.level] || 0;
     if (dpsThresh > 0) stats.push([t('mon.dps_threshold'), `⚡ ${formatNumber(dpsThresh)}`]);
-  } else if (m.phase === 'open') {
+  } else if (m.phase === 'open' || m.phase === 'wave') {
+    // Wave shield (orange-gold) while defenders alive
+    if (hasDefenders && m.wave_shield_hp > 0) {
+      const wsPct = m.max_shield_hp > 0 ? Math.min(100, Math.round(m.wave_shield_hp / m.max_shield_hp * 100)) : 100;
+      stats.push(['🛡️ Щит волны', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${wsPct}%;background:linear-gradient(90deg,#ff8c00,#ffd700);border-radius:4px"></div></div>${formatNumber(m.wave_shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
+    }
     const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
     stats.push([t('mon.hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
-    const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
-    stats.push([t('mon.defenders'), t('mon.defenders_alive', {n: defenders.length})]);
+    if (hasDefenders) {
+      stats.push([t('mon.defenders'), t('mon.defenders_alive', {n: defenders.length})]);
+    }
   } else if (m.phase === 'defeated' && m.respawn_at) {
     const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
     stats.push([t('mon.respawn'), t('mon.respawn_time', {h: Math.floor(left/60), m: left%60})]);
@@ -14062,10 +14088,10 @@ function showMonumentPopup(monumentId) {
   const actions = [];
   if (m.phase === 'shield' && inRange) {
     actions.push({ label: t('mon.attack_shield'), cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'shield') });
-  } else if (m.phase === 'open' && inRange) {
-    const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
-    if (defenders.length > 0) {
+  } else if ((m.phase === 'open' || m.phase === 'wave') && inRange) {
+    if (hasDefenders) {
       actions.push({ label: t('mon.kill_defenders', {n: defenders.length}), cls: 'danger', action: () => doStartDefenderCombat(monumentId) });
+      actions.push({ label: t('mon.attack_monument'), cls: 'yellow', action: () => doStartMonumentCombat(monumentId, 'body') });
     } else {
       actions.push({ label: t('mon.attack_monument'), cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
     }
@@ -14080,7 +14106,7 @@ function showMonumentPopup(monumentId) {
 // ── Defender popup — direct attack (no combat mode) ──
 function showDefenderPopup(defenderId) {
   const d = defenderData[defenderId];
-  if (!d) return;
+  if (!d || d._dead) return;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, d.lat, d.lng) : null;
   const inRange = dist !== null && dist <= 500;
@@ -14133,7 +14159,7 @@ function doStartDefenderCombat(monumentId) {
   const pos = state.playerPos;
   if (!pos) return showToast(t('toast.no_gps_short'));
   const defenders = Object.entries(defenderData)
-    .filter(([_, d]) => d.monument_id === monumentId)
+    .filter(([_, d]) => d.monument_id === monumentId && !d._dead)
     .map(([id, d]) => ({ id, ...d, dist: haversine(pos.lat, pos.lng, d.lat, d.lng) }))
     .sort((a, b) => a.dist - b.dist);
 
