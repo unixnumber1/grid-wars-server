@@ -353,7 +353,7 @@ class GameState {
           id: m.id, lat: m.lat, lng: m.lng, level: m.level, name: m.name,
           hp: m.hp, max_hp: m.max_hp,
           shield_hp: m.shield_hp, max_shield_hp: m.max_shield_hp,
-          wave_shield_hp: m.wave_shield_hp || 0,
+          wave_shield_hp: m._wave_shield_hp || 0,
           phase: m.phase, raid_started_at: m.raid_started_at,
           respawn_at: m.respawn_at,
         });

@@ -383,7 +383,7 @@ async function handleAttackMonument(req, res) {
     damage, crit: isCrit, execution: isExecution,
     hp: monument.hp, max_hp: monument.max_hp,
     defeated, defenders_alive: defendersAlive,
-    wave_shield_hp: monument.wave_shield_hp || 0,
+    wave_shield_hp: monument._wave_shield_hp || 0,
     my_damage: dmgMap.get(tgId) || 0,
   });
 }
@@ -479,7 +479,7 @@ async function handleAttackDefender(req, res) {
       if (monument) {
         monument.phase = 'open';
         monument.invulnerable = false;
-        monument.wave_shield_hp = 0;
+        monument._wave_shield_hp = 0;
         gameState.markDirty('monuments', monument.id);
         emitToRaidParticipants(defender.monument_id, 'monument:wave_cleared', {
           monument_id: defender.monument_id,

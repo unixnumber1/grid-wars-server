@@ -2447,7 +2447,7 @@
 
     /* ── Monument markers ── */
     .monument-marker { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
-    .monument-marker.open { animation: raid-pulse 0.5s infinite; }
+    .monument-marker.open, .monument-marker.wave { animation: raid-pulse 0.5s infinite; }
     .monument-marker.defeated { filter: grayscale(1) opacity(0.5); }
 
     /* Dome shield — semi-transparent blue hemisphere */
@@ -2480,7 +2480,26 @@
     .monument-bar-wrap { width:100%; height:3px; background:rgba(255,255,255,0.12); border-radius:2px; overflow:hidden; }
     .monument-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
     .monument-bar-fill.bar-shield { background:linear-gradient(90deg,#4488ff,#66bbff); }
+    .monument-bar-fill.bar-wave-shield { background:linear-gradient(90deg,#ff8c00,#ffd700); }
     .monument-bar-fill.bar-hp { background:linear-gradient(90deg,#cc2222,#ff4444); }
+
+    /* Wave dome — orange-gold shield during defender wave */
+    .monument-dome-wave {
+      position:absolute; inset:0; border-radius:50%;
+      background: radial-gradient(ellipse at 35% 30%, rgba(255,180,60,0.35), rgba(255,140,0,0.12) 60%, rgba(220,160,0,0.06));
+      border: 1.5px solid rgba(255,180,60,0.5);
+      box-shadow: 0 0 14px 4px rgba(255,160,0,0.3), inset 0 0 20px 2px rgba(255,200,60,0.12);
+      pointer-events:none; animation: wave-dome-pulse 2s ease-in-out infinite;
+    }
+    .monument-dome-wave::after {
+      content:''; position:absolute; top:12%; left:18%; width:30%; height:22%;
+      background: radial-gradient(ellipse, rgba(255,255,200,0.45), transparent 70%);
+      border-radius:50%; pointer-events:none;
+    }
+    @keyframes wave-dome-pulse {
+      0%,100% { box-shadow: 0 0 14px 4px rgba(255,160,0,0.3); }
+      50% { box-shadow: 0 0 20px 6px rgba(255,180,0,0.45); }
+    }
 
     .shield-dps-warning { background:#2a0a0a; border:1px solid #8b0000; border-radius:10px; padding:12px; text-align:center; color:#ff4444; margin-top:8px; }
     .shield-breaking { background:#0a1a2a; border:1px solid #0066cc; border-radius:10px; padding:12px; text-align:center; color:#4488ff; margin-top:8px; }
@@ -13855,19 +13874,29 @@ function monumentIcon(m) {
   const size = 50 + m.level * 3;
   const emojiSize = size * 0.5;
 
-  // Dome only in shield phase
+  // Dome: blue for shield phase, orange-gold for wave phase with defenders
+  const hasWaveShield = (m.phase === 'wave' || m.phase === 'open') && m.wave_shield_hp > 0;
   const domeHtml = m.phase === 'shield'
     ? `<div class="monument-dome"></div>`
-    : '';
+    : hasWaveShield
+      ? `<div class="monument-dome-wave"></div>`
+      : '';
 
-  // Bars: only visible when not at full HP/shield
+  // Bars: shield/wave-shield/HP
   let barsHtml = '';
   if (m.phase === 'shield' && m.shield_hp < m.max_shield_hp) {
     const shPct = m.max_shield_hp > 0 ? Math.max(0, m.shield_hp / m.max_shield_hp * 100) : 0;
     barsHtml = `<div class="monument-bars">
       <div class="monument-bar-wrap"><div class="monument-bar-fill bar-shield" style="width:${shPct}%"></div></div>
     </div>`;
-  } else if (m.phase === 'open' && m.hp < m.max_hp) {
+  } else if (hasWaveShield) {
+    const wsPct = m.max_shield_hp > 0 ? Math.min(100, Math.round(m.wave_shield_hp / m.max_shield_hp * 100)) : 100;
+    const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
+    barsHtml = `<div class="monument-bars">
+      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-wave-shield" style="width:${wsPct}%"></div></div>
+      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-hp" style="width:${hpPct}%"></div></div>
+    </div>`;
+  } else if ((m.phase === 'open' || m.phase === 'wave') && m.hp < m.max_hp) {
     const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
     barsHtml = `<div class="monument-bars">
       <div class="monument-bar-wrap"><div class="monument-bar-fill bar-hp" style="width:${hpPct}%"></div></div>

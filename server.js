@@ -402,14 +402,14 @@ function startMonumentLoop() {
             // Wave shield = max_shield_hp while defenders alive
             const shieldCfg = MONUMENT_LEVELS ? MONUMENT_LEVELS[monument.level] : null;
             const waveShieldMax = shieldCfg?.max_shield_hp || monument.max_shield_hp || 0;
-            if (!monument.wave_shield_hp || monument.wave_shield_hp < waveShieldMax) {
-              monument.wave_shield_hp = waveShieldMax;
+            if (!monument._wave_shield_hp || monument._wave_shield_hp < waveShieldMax) {
+              monument._wave_shield_hp = waveShieldMax;
             }
 
             gameState.markDirty('monuments', id);
             emitToNearbyMonument(monument.lat, monument.lng, 1000, 'monument:hp_update', {
               monument_id: id, hp: monument.hp, max_hp: monument.max_hp, regen: true,
-              wave_shield_hp: monument.wave_shield_hp, wave_shield_max: waveShieldMax,
+              wave_shield_hp: monument._wave_shield_hp, wave_shield_max: waveShieldMax,
             });
 
             // Safety timeout: if wave phase > 30min with no nearby players, clear wave
@@ -440,19 +440,59 @@ function startMonumentLoop() {
           const DEFENDER_SPEED = (MONUMENT_DEFENDER_SPEED || 14) * 5; // meters per tick (5s)
           const cosLat = Math.cos(monument.lat * Math.PI / 180) || 1;
 
-          for (const defender of aliveDefenders) {
-            // ── Movement — always chase closest player, stop at 25m ──
-            let targetLat, targetLng;
-            let closestPlayer = null, closestPlayerDist = Infinity;
+          // ── Assign targets: spread defenders across players ──
+          const targetAssign = new Map(); // defender.id -> player
+          if (nearbyPlayers.length > 0) {
+            const playerLoad = new Map(); // player.id -> count
+            for (const p of nearbyPlayers) playerLoad.set(p.id, 0);
 
-            if (nearbyPlayers.length > 0) {
+            for (const defender of aliveDefenders) {
+              // Find player with lowest defender count (spread), weighted by distance
+              let best = null, bestScore = Infinity;
               for (const p of nearbyPlayers) {
                 const d = haversine(defender.lat, defender.lng, p.last_lat, p.last_lng);
-                if (d < closestPlayerDist) { closestPlayer = p; closestPlayerDist = d; }
+                if (d > 500) continue;
+                const load = playerLoad.get(p.id) || 0;
+                const score = d + load * 80; // penalize already-targeted players
+                if (score < bestScore) { best = p; bestScore = score; }
               }
-              targetLat = closestPlayer.last_lat;
-              targetLng = closestPlayer.last_lng;
+              if (best) {
+                targetAssign.set(defender.id, best);
+                playerLoad.set(best.id, (playerLoad.get(best.id) || 0) + 1);
+              }
+            }
+          }
+
+          // Per-level damage from MONUMENT_LEVELS config
+          const levelCfg = MONUMENT_LEVELS[monument.level];
+          const levelDamage = levelCfg?.defender_attack || MONUMENT_DEFENDER_DAMAGE;
+
+          for (const defender of aliveDefenders) {
+            // ── Speed variation per defender (±30%) ──
+            if (!defender._speedMul) defender._speedMul = 0.7 + Math.random() * 0.6;
+            const defSpeed = DEFENDER_SPEED * defender._speedMul;
+
+            const assignedTarget = targetAssign.get(defender.id);
+            const distToTarget = assignedTarget
+              ? haversine(defender.lat, defender.lng, assignedTarget.last_lat, assignedTarget.last_lng)
+              : Infinity;
+
+            // ── Movement ──
+            let targetLat, targetLng;
+            if (assignedTarget) {
+              if (distToTarget <= 50) {
+                // Strafe: circle the target instead of standing still
+                if (!defender._strafeAngle) defender._strafeAngle = Math.random() * Math.PI * 2;
+                defender._strafeAngle += 0.4 + Math.random() * 0.3;
+                const strafeDist = 25 + Math.random() * 25;
+                targetLat = assignedTarget.last_lat + (strafeDist / 111320) * Math.cos(defender._strafeAngle);
+                targetLng = assignedTarget.last_lng + (strafeDist / (111320 * cosLat)) * Math.sin(defender._strafeAngle);
+              } else {
+                targetLat = assignedTarget.last_lat;
+                targetLng = assignedTarget.last_lng;
+              }
             } else {
+              // No target — roam around monument
               if (!defender._roamAngle) defender._roamAngle = Math.random() * Math.PI * 2;
               if (Math.random() < 0.15) defender._roamAngle += (Math.random() - 0.5) * 1.2;
               const roamDist = 30 + Math.random() * 100;
@@ -460,17 +500,14 @@ function startMonumentLoop() {
               targetLng = monument.lng + (roamDist / (111320 * cosLat)) * Math.sin(defender._roamAngle);
             }
 
-            // Move only if farther than 25m from target
-            if (!closestPlayer || closestPlayerDist > 25) {
-              const dLat = targetLat - defender.lat;
-              const dLng = targetLng - defender.lng;
-              const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-              if (dist > 0.00001) {
-                const stepDeg = DEFENDER_SPEED / 111320;
-                const ratio = Math.min(1, stepDeg / dist);
-                defender.lat += dLat * ratio;
-                defender.lng += dLng * ratio;
-              }
+            const dLat = targetLat - defender.lat;
+            const dLng = targetLng - defender.lng;
+            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+            if (dist > 0.00001) {
+              const stepDeg = defSpeed / 111320;
+              const ratio = Math.min(1, stepDeg / dist);
+              defender.lat += dLat * ratio;
+              defender.lng += dLng * ratio;
             }
 
             // Clamp within 500m of monument
@@ -481,20 +518,27 @@ function startMonumentLoop() {
               defender.lng = monument.lng + (450 / (111320 * cosLat)) * Math.sin(backAngle);
             }
 
-            // ── Per-defender attack — shoot from 150m while moving ──
-            if (now - (defender.last_attack || 0) < (defender.attack_cd || MONUMENT_DEFENDER_ATTACK_CD)) continue;
+            // ── Attack — 250m range, cooldown jitter ──
+            const cdJitter = (Math.random() - 0.5) * 400; // ±200ms
+            const effectiveCD = (defender.attack_cd || MONUMENT_DEFENDER_ATTACK_CD) + cdJitter;
+            if (now - (defender.last_attack || 0) < effectiveCD) continue;
             if (nearbyPlayers.length === 0) continue;
 
-            // Find closest player within 150m attack range
-            let target = null, bestDist = 150;
-            for (const p of nearbyPlayers) {
-              const d = haversine(defender.lat, defender.lng, p.last_lat, p.last_lng);
-              if (d < bestDist) { target = p; bestDist = d; }
+            // Attack assigned target if in range, otherwise closest in 250m
+            let target = null, bestDist = 250;
+            if (assignedTarget && distToTarget <= 250) {
+              target = assignedTarget;
+              bestDist = distToTarget;
+            } else {
+              for (const p of nearbyPlayers) {
+                const d = haversine(defender.lat, defender.lng, p.last_lat, p.last_lng);
+                if (d < bestDist) { target = p; bestDist = d; }
+              }
             }
             if (!target) continue;
 
             defender.last_attack = now;
-            const damage = defender.attack || MONUMENT_DEFENDER_DAMAGE;
+            const damage = levelDamage;
             const maxHp = 1000 + (target.bonus_hp || 0);
             let hp = target.hp ?? maxHp;
             hp = Math.max(0, hp - damage);
