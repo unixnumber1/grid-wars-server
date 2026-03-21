@@ -14374,11 +14374,9 @@ function collectorIcon(c) {
   let label = '';
   if (isFull) label = '<div class="collector-full">ПОЛНЫЙ</div>';
 
-  const borderColor = isMine ? 'rgba(76,175,80,0.6)' : 'rgba(244,67,54,0.5)';
-  const bgColor = isMine ? 'rgba(76,175,80,0.15)' : 'rgba(244,67,54,0.12)';
   return L.divIcon({
     html: `<div class="collector-marker" style="${glow}">
-      <span style="font-size:26px;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;border:2px solid ${borderColor};background:${bgColor};">🧲</span>
+      <span style="font-size:26px">🧲</span>
       <div class="collector-bar"><div style="width:${fillPct}%;background:${barColor}"></div></div>
       ${label}
     </div>`,
