@@ -32,7 +32,6 @@ async function main() {
       shield_hp: shieldHp, max_shield_hp: shieldHp,
       phase: 'shield',
       respawn_at: null,
-      current_wave: 0,
     }).eq('id', m.id);
 
     if (upErr) {
@@ -45,7 +44,7 @@ async function main() {
   }
 
   // Delete all defenders (they belong to old phases)
-  const { error: defErr } = await supabase.from('monument_defenders').delete().neq('id', 0);
+  const { error: defErr } = await supabase.from('monument_defenders').delete().not('id', 'is', null);
   if (defErr) console.error('Failed to clear defenders:', defErr.message);
   else console.log('Cleared all monument defenders');
 
