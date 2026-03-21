@@ -234,36 +234,7 @@
     #btn-collect:active { background: rgba(0,230,118,0.25); }
     #btn-collect:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* XP toast chips */
-    #xp-toasts {
-      position: fixed;
-      bottom: 82px;
-      right: 14px;
-      display: flex;
-      flex-direction: column-reverse;
-      gap: 6px;
-      z-index: 3500;
-      pointer-events: none;
-    }
-
-    .xp-toast {
-      background: #1a1a2e;
-      border: 1px solid #FFD700;
-      color: #FFD700;
-      font-size: 13px;
-      font-weight: 700;
-      padding: 5px 12px;
-      border-radius: 20px;
-      opacity: 0;
-      transform: translateY(8px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .xp-toast.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    /* XP toast chips — now uses standard showToast */
 
     .btn {
       background: #1e1e1e;
@@ -2784,7 +2755,6 @@
 <div id="map"></div>
 
 <!-- Bottom panel -->
-<div id="xp-toasts"></div>
 
 <div id="bottom-panel">
   <div id="player-block" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer;-webkit-tap-highlight-color:transparent;">
@@ -5083,6 +5053,51 @@ function _addOrUpdateMineMarker(mine) {
     marker._gw_created = Date.now();
     buildingMarkers[key] = marker;
   }
+  // Floating upgrade timer
+  if (isOwn && mine.pending_level && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date()) {
+    _startFloatingTimer(mine);
+  } else {
+    _removeFloatingTimer(mine.id);
+  }
+}
+
+// ── Floating upgrade timers on map ──
+const _upgradeFloatingTimers = {}; // mineId -> { marker, interval }
+
+function _startFloatingTimer(mine) {
+  if (!mine.upgrade_finish_at || !mine.lat || !mine.lng) return;
+  const finishAt = new Date(mine.upgrade_finish_at).getTime();
+  if (finishAt <= Date.now()) return;
+  const mineId = mine.id;
+
+  // Already exists — skip
+  if (_upgradeFloatingTimers[mineId]) return;
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div id="float-timer-${mineId}" style="background:rgba(8,8,18,0.85);border:1px solid rgba(255,215,0,0.4);border-radius:10px;padding:2px 7px;font-size:11px;color:#FFD700;font-weight:700;white-space:nowrap;pointer-events:none;text-align:center"></div>`,
+    iconSize: [60, 20],
+    iconAnchor: [30, 40],
+  });
+  const marker = L.marker([mine.lat, mine.lng], { icon, zIndexOffset: 6000, interactive: false }).addTo(map);
+
+  const update = () => {
+    const left = Math.max(0, Math.ceil((finishAt - Date.now()) / 1000));
+    const el = document.getElementById(`float-timer-${mineId}`);
+    if (el) el.textContent = `⏳ ${left}с`;
+    if (left <= 0) _removeFloatingTimer(mineId);
+  };
+  update();
+  const interval = setInterval(update, 1000);
+  _upgradeFloatingTimers[mineId] = { marker, interval };
+}
+
+function _removeFloatingTimer(mineId) {
+  const t = _upgradeFloatingTimers[mineId];
+  if (!t) return;
+  clearInterval(t.interval);
+  map.removeLayer(t.marker);
+  delete _upgradeFloatingTimers[mineId];
 }
 
 function _addOrUpdateHqMarker(hq) {
@@ -5812,16 +5827,7 @@ function updatePlayerDisplay() {
 
 function showXpToast(amount) {
   if (!amount || amount <= 0) return;
-  const container = document.getElementById('xp-toasts');
-  const el = document.createElement('div');
-  el.className = 'xp-toast';
-  el.textContent = `⭐ +${amount} XP`;
-  container.appendChild(el);
-  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
-  setTimeout(() => {
-    el.classList.remove('show');
-    setTimeout(() => el.remove(), 300);
-  }, 2000);
+  showToast(`⭐ +${amount} XP`);
 }
 
 function showToast(msg, duration = 2500) {
@@ -6702,7 +6708,7 @@ function showMinePopup(mine, isOwn, canCapture) {
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      mine.status === 'burning' ? t('mine.burning_warn') : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : (attacker ? t('mine.vampire_warn', {emoji: attacker.emoji, name: BOT_NAMES[attacker.type] || attacker.type}) : distLabel)),
+      mine.status === 'burning' ? t('mine.burning_warn') : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : (attacker ? t('mine.vampire_warn', {emoji: attacker.emoji || '👺', name: t('bot.goblin')}) : distLabel)),
       mine.status === 'burning' ? [] : [
         ...(attacker ? [[t('mine.drained'), t('mine.drained_coins', {n: formatNumber(attacker.drained_amount || 0)})]] : []),
         ...(isUpgrading
@@ -6941,7 +6947,6 @@ async function doUpgrade(mineId, targetLevel) {
       if (freshMine && _currentPopupEntityId === `mine_${mineId}`) {
         showMinePopup(freshMine, true, false);
       }
-      loadVisibleBuildings(true);
     }
   } catch (err) {
     if (err.message && err.message.includes('200м')) {
@@ -8579,32 +8584,33 @@ function showBotPopup(botId) {
 
   // Multitouch: if holding attack, switch target immediately
   if (combatState.isHolding && inRange) {
-    return openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
+    return openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 3000, max_hp: bot.max_hp ?? 3000 });
   }
 
-  // In range — compact combat popup
-  if (inRange) {
-    return openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 50, max_hp: bot.max_hp ?? 50 });
-  }
-
-  // Out of range — info popup
-  const botHp = bot.hp ?? 50;
-  const botMaxHp = bot.max_hp ?? 50;
+  const botHp = bot.hp ?? 3000;
+  const botMaxHp = bot.max_hp ?? 3000;
   const hpPct = Math.round(botHp / botMaxHp * 100);
   const botState = bot.state || bot.status || 'roaming';
   const stateLabel = (botState === 'aggro' || botState === 'attacking') ? t('bot.aggressive') : (botState === 'fleeing' || botState === 'leaving') ? t('bot.fleeing') : t('bot.roaming');
+  const distLabel = dist ? `📍 ${t('misc.distance', {n: Math.round(dist)})}` : '';
 
+  const stolenAmount = bot.drained_amount || bot.stolen_coins || 0;
   const stats = [
     [t('bot.state'), stateLabel],
     ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${botHp}/${botMaxHp}</span></div>`],
   ];
-  if (bot.state === 'fleeing' && (bot.stolen_coins || 0) > 0) {
-    stats.push([t('bot.carrying'), t('bot.carrying_coins', {n: formatNumber(bot.stolen_coins)})]);
+  if (stolenAmount > 0) {
+    stats.push([t('bot.carrying'), t('bot.carrying_coins', {n: formatNumber(stolenAmount)})]);
   }
 
-  openPopup(`👺 ${t('bot.goblin')}`, dist ? `📍 ${t('misc.distance', {n: Math.round(dist)})}` : '', stats, [
-    { label: `📍 ${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}`, cls: '', disabled: true },
-  ]);
+  const actions = inRange
+    ? [{ label: `⚔️ ${t('pvp.attack')}`, cls: 'danger', callback: () => {
+        closePopup();
+        openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 3000, max_hp: bot.max_hp ?? 3000 });
+      }}]
+    : [{ label: `📍 ${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}`, cls: '', disabled: true }];
+
+  openPopup(`👺 ${t('bot.goblin')}`, distLabel, stats, actions);
 }
 
 function showFloatingText(latLng, text, color) {
@@ -11575,7 +11581,7 @@ function showOtherPlayerPopup(p) {
     return openCombatPopup(
       `${p.avatar || '🐺'} ${displayName(p)} ${t('lb.level', {n: p.level ?? 1})}`,
       p.telegram_id, 'player', p,
-      { hp: p.hp ?? 100, maxHp: p.max_hp ?? 100 }
+      { hp: p.hp ?? 100, maxHp: p.max_hp ?? 100, hideTargetHp: true }
     );
   }
 
@@ -12301,16 +12307,18 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
 
   const card = document.getElementById('popup-card');
+  const hpBarHtml = opts.hideTargetHp ? '' : `
+    <div class="popup-hp-live" style="margin-bottom:8px">
+      <span style="color:#aaa;font-size:12px;min-width:20px">HP</span>
+      <div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:${barColor}"></div></div>
+      <span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${formatNumber(hp)}/${formatNumber(maxHp)}</span>
+    </div>`;
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div style="font-size:15px;font-weight:600;color:#fff">${title}</div>
       <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:18px;cursor:pointer;padding:0 0 0 8px">✕</button>
     </div>
-    <div class="popup-hp-live" style="margin-bottom:8px">
-      <span style="color:#aaa;font-size:12px;min-width:20px">HP</span>
-      <div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:${barColor}"></div></div>
-      <span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${formatNumber(hp)}/${formatNumber(maxHp)}</span>
-    </div>
+    ${hpBarHtml}
     ${extraHtml}
     ${getAttackButton(targetId, targetType)}
   `;

@@ -317,7 +317,7 @@ function startMonumentLoop() {
   setInterval(async () => {
     if (!require_monuments) return;
     if (!_monumentConstants) _monumentConstants = await import('./config/constants.js');
-    const { MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_DEFENDER_DAMAGE, MONUMENT_DEFENDER_ATTACK_CD, PLAYER_RESPAWN_TIME } = _monumentConstants;
+    const { MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_DEFENDER_DAMAGE, MONUMENT_DEFENDER_ATTACK_CD, MONUMENT_DEFENDER_SPEED, PLAYER_RESPAWN_TIME } = _monumentConstants;
     const { MONUMENT_LEVELS, MONUMENT_ATTACK_RADIUS, getPlayersNearMonument, checkWaveComplete } = require_monuments;
     const now = Date.now();
 
@@ -426,7 +426,7 @@ function startMonumentLoop() {
           if (aliveDefenders.length === 0) continue;
 
           const nearbyPlayers = getPlayersNearMonument(monument, connectedPlayers);
-          const DEFENDER_SPEED = 20; // meters per tick (5s)
+          const DEFENDER_SPEED = (MONUMENT_DEFENDER_SPEED || 14) * 5; // meters per tick (5s)
           const cosLat = Math.cos(monument.lat * Math.PI / 180) || 1;
 
           for (const defender of aliveDefenders) {

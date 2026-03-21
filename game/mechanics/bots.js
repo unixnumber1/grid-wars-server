@@ -1,7 +1,7 @@
 export const BOT_TYPES = {
   goblin: {
     emoji: '\u{1F47A}', category: 'undead',
-    hp: 50, attack: 8, attackChance: 0.3, drain_per_sec: 1, speed: 'medium',
+    hp: 3000, attack: 8, attackChance: 0.3, drain_per_sec: 1000, speed: 'medium',
     reward_min: 0, reward_max: 0, size: 'S', markerSize: 32, spawnWeight: 100,
   },
 };

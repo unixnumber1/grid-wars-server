@@ -138,11 +138,9 @@ async function moveBots(nowMs, nowISO) {
           const distM = haversine(bot.lat, bot.lng, target.lat, target.lng);
           newDir = Math.atan2(dLng, dLat);
           if (distM < 100) { // drain only within 100m
-            if (Math.random() < 0.2) {
-              const drainAmt = (bot.drain_per_sec || cfg.drain_per_sec || 0) * 3;
-              newDrained += drainAmt;
-              if (drainAmt > 0) minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
-            }
+            const drainAmt = (bot.drain_per_sec || cfg.drain_per_sec || 0) * 3;
+            newDrained += drainAmt;
+            if (drainAmt > 0) minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
             newLat = bot.lat + (Math.random() - 0.5) * stepLat * 0.3;
             newLng = bot.lng + (Math.random() - 0.5) * stepLng * 0.3;
             if ((bot.drain_limit || 0) > 0 && newDrained >= bot.drain_limit) {

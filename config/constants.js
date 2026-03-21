@@ -33,7 +33,7 @@ export const BOTS_PER_ZONE = 10;
 export const BOT_TTL_MS = 5 * 60 * 1000;
 export const GLOBAL_BOT_CAP = 20;
 export const BOT_SPEED_METERS = { slow: 15, medium: 30, fast: 55, very_fast: 90 };
-export const DRAIN_LIMITS = { spirit: 50, goblin: 150, werewolf: 400, demon: 1000, dragon: 3000, boss: 10000 };
+export const DRAIN_LIMITS = { spirit: 50, goblin: 50000, werewolf: 400, demon: 1000, dragon: 3000, boss: 10000 };
 
 // ── Game loop ──
 export const TICK_INTERVAL = 5000;
@@ -125,8 +125,8 @@ export const MONUMENT_DEFENDER_HP = {
   6:5000, 7:8000, 8:12000, 9:15000, 10:17500,
 };
 export const MONUMENT_DEFENDER_DAMAGE = 100;
-export const MONUMENT_DEFENDER_ATTACK_CD = 2000;
-export const MONUMENT_DEFENDER_SPEED = 4;        // м/с (= 20м за 5с тик)
+export const MONUMENT_DEFENDER_ATTACK_CD = 1000;
+export const MONUMENT_DEFENDER_SPEED = 14;       // м/с (~50 км/ч)
 export const MONUMENT_WAVE_REGEN_PERCENT = 0.01; // 1%/сек
 export const MONUMENT_WAVE_TRIGGERS = [75, 50, 25];
 export const PLAYER_RESPAWN_TIME = 30000;         // 30с
