@@ -414,7 +414,7 @@ function startMonumentLoop() {
 
             // Safety timeout: if wave phase > 30min with no nearby players, clear wave
             const nearbyPlayers = getPlayersNearMonument(monument, connectedPlayers);
-            if (nearbyPlayers.length === 0 && monument.wave_started_at && (now - monument.wave_started_at > 30 * 60 * 1000)) {
+            if (nearbyPlayers.length === 0 && monument._wave_started_at && (now - monument._wave_started_at > 30 * 60 * 1000)) {
               for (const def of aliveDefenders) {
                 def.alive = false;
                 def.hp = 0;

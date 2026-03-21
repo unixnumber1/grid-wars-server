@@ -289,7 +289,7 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
   // Set monument to wave phase
   monument.phase = 'wave';
   monument.invulnerable = true;
-  monument.wave_started_at = Date.now();
+  monument._wave_started_at = Date.now();
   gameState.markDirty('monuments', monument.id);
 
   // Save to DB (fire-and-forget)
