@@ -6104,25 +6104,43 @@ function togglePin() {
 
 const hexLayer  = L.layerGroup().addTo(map);
 
-// Flash hex grid: sharp appear + smooth 800ms fade out
+// Flash hex grid on tap: render grid in 200m zone, sharp appear + smooth fade out then remove
 let _hexFlashTimeout = null;
 function _flashHexGrid() {
   if (_hexFlashTimeout) { clearTimeout(_hexFlashTimeout); _hexFlashTimeout = null; }
-  // Instantly brighten
-  hexLayer.eachLayer(poly => {
-    poly.setStyle({ color: 'rgba(255,255,255,0.6)', weight: 1.2 });
+  hexLayer.clearLayers();
+
+  const pos = state.playerPos;
+  if (!pos) return;
+
+  // Build hex cells in 200m zone
+  const dynDiskK = Math.ceil(SMALL_RADIUS / 43);
+  const playerCell = h3.latLngToCell(pos.lat, pos.lng, H3_RES);
+  const zoneCells = h3.gridDisk(playerCell, dynDiskK);
+
+  for (const cellId of zoneCells) {
+    const boundary = h3.cellToBoundary(cellId);
+    const poly = L.polygon(boundary, {
+      color: 'rgba(255,255,255,0.6)',
+      weight: 1.2,
+      fillColor: 'transparent',
+      fillOpacity: 0,
+      interactive: false,
+    });
     if (poly._path) poly._path.style.transition = 'none';
-  });
-  // Next frame: enable transition and revert to normal
+    hexLayer.addLayer(poly);
+  }
+
+  // Next frame: enable transition and fade to invisible
   requestAnimationFrame(() => {
     hexLayer.eachLayer(poly => {
-      if (poly._path) poly._path.style.transition = 'stroke 0.8s ease-out, stroke-opacity 0.8s ease-out, stroke-width 0.8s ease-out';
-      poly.setStyle({ color: 'rgba(200,200,200,0.25)', weight: 0.6 });
+      if (poly._path) poly._path.style.transition = 'stroke-opacity 1s ease-out, stroke-width 1s ease-out';
+      poly.setStyle({ color: 'rgba(255,255,255,0)', weight: 0.3 });
     });
     _hexFlashTimeout = setTimeout(() => {
-      hexLayer.eachLayer(poly => { if (poly._path) poly._path.style.transition = ''; });
+      hexLayer.clearLayers();
       _hexFlashTimeout = null;
-    }, 850);
+    }, 1050);
   });
 }
 const botLayer  = L.layerGroup().addTo(map);
@@ -6200,66 +6218,7 @@ function otherPlayerIcon(avatar, shieldUntil) {
   });
 }
 
-// ─────────────────────────────────────────────
-//  Hex grid (full visible area)
-// ─────────────────────────────────────────────
-function updateHexGrid() {
-  const bounds  = map.getBounds();
-  const polygon = [
-    [bounds.getNorth(), bounds.getWest()],
-    [bounds.getNorth(), bounds.getEast()],
-    [bounds.getSouth(), bounds.getEast()],
-    [bounds.getSouth(), bounds.getWest()],
-    [bounds.getNorth(), bounds.getWest()],
-  ];
-
-  let cells;
-  try {
-    cells = h3.polygonToCells(polygon, H3_RES);
-  } catch (e) {
-    hexLayer.clearLayers();
-    return;
-  }
-
-  hexLayer.clearLayers();
-
-  const pos = state.playerPos;
-  let playerCellSet = new Set();
-  if (pos) {
-    const dynDiskK    = Math.ceil(SMALL_RADIUS / 43);
-    const playerCell  = h3.latLngToCell(pos.lat, pos.lng, H3_RES);
-    playerCellSet     = new Set(h3.gridDisk(playerCell, dynDiskK));
-  }
-
-  for (const cellId of cells) {
-    const boundary    = h3.cellToBoundary(cellId);
-    const building    = getBuildingInCell(cellId);
-    const inPlayerZone = playerCellSet.has(cellId);
-
-    const poly = L.polygon(boundary, {
-      color: 'rgba(200,200,200,0.25)',
-      weight: 0.6,
-      fillColor: 'transparent',
-      fillOpacity: 0,
-      interactive: inPlayerZone,
-    });
-
-    if (inPlayerZone) {
-      poly.on('click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        if (Date.now() - _suppressMapClick < 300) return;
-        if (!building) {
-          const tapLL = e.latlng || map.mouseEventToLatLng(e.originalEvent);
-          showBuildMenu(tapLL.lat, tapLL.lng);
-        } else {
-          _flashHexGrid();
-        }
-      });
-    }
-
-    hexLayer.addLayer(poly);
-  }
-}
+// Hex grid is no longer drawn permanently — only flashes on tap via _flashHexGrid()
 
 function showBuildMenu(cellLat, cellLng) {
   const hasHq = state.hq || (state.mapBuildings?.headquarters || []).some(h => h.is_mine);
@@ -6903,11 +6862,9 @@ map.on('click', e => {
     // Check if hex has a building
     const cellId = getCellId(lat, lng);
     const building = getBuildingInCell(cellId);
+    _flashHexGrid();
     if (!building) {
       showBuildMenu(lat, lng);
-    } else {
-      // Building hex — just flash, popup via marker only
-      _flashHexGrid();
     }
   }
 });
@@ -6915,7 +6872,7 @@ map.on('click', e => {
 let _loadBuildingsTimer = null;
 function _debouncedLoad() {
   clearTimeout(_loadBuildingsTimer);
-  _loadBuildingsTimer = setTimeout(() => { updateHexGrid(); loadVisibleBuildings(); }, 150);
+  _loadBuildingsTimer = setTimeout(() => { loadVisibleBuildings(); }, 150);
 }
 map.on('moveend', _debouncedLoad);
 map.on('zoomend', _debouncedLoad);
