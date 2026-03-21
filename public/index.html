@@ -8649,10 +8649,8 @@ function showBotPopup(botId) {
   const stats = [
     [t('bot.state'), stateLabel],
     ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${botHp}/${botMaxHp}</span></div>`],
+    ['💰 Награбил', formatNumber(stolenAmount) + ' монет'],
   ];
-  if (stolenAmount > 0) {
-    stats.push([t('bot.carrying'), t('bot.carrying_coins', {n: formatNumber(stolenAmount)})]);
-  }
 
   const actions = inRange
     ? [{ label: t('bot.attack'), cls: 'danger', action: () => {

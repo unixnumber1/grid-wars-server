@@ -143,7 +143,8 @@ async function moveBots(nowMs, nowISO) {
             if (drainAmt > 0) minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
             newLat = bot.lat + (Math.random() - 0.5) * stepLat * 0.3;
             newLng = bot.lng + (Math.random() - 0.5) * stepLng * 0.3;
-            if ((bot.drain_limit || 0) > 0 && newDrained >= bot.drain_limit) {
+            // Random chance to flee with loot (higher chance the more stolen)
+            if (newDrained > 0 && Math.random() < 0.03) {
               newStatus = 'leaving'; newTarget = null;
             }
           } else {
