@@ -153,7 +153,7 @@ async function handleListItem(req, res) {
     return res.status(400).json({ error: `Max ${MAX_ACTIVE_LISTINGS} active listings` });
   }
 
-  // ── Core listing (instant, no courier) ──
+  // ── Core listing (same flow as items — courier to market) ──
   if (core_id) {
     const core = gameState.loaded ? gameState.cores.get(core_id) : null;
     if (!core) {
@@ -169,15 +169,35 @@ async function handleListItem(req, res) {
     }
 
     await supabase.from('cores').update({ on_market: true }).eq('id', core_id);
-    if (gameState.loaded && core) { core.on_market = true; gameState.markDirty('cores', core_id); }
+    if (gameState.loaded) {
+      const gc = core || gameState.cores.get(core_id);
+      if (gc) { gc.on_market = true; gameState.markDirty('cores', core_id); }
+    }
 
     const privateCode = is_private ? generateCode() : null;
     const expiresAt = new Date(Date.now() + LISTING_TTL_HOURS * 3600 * 1000).toISOString();
+
+    let nearestMarket = null;
+    if (lat != null && lng != null) {
+      const pLat = parseFloat(lat), pLng = parseFloat(lng);
+      if (!isNaN(pLat) && !isNaN(pLng)) {
+        const { data: markets } = await supabase.from('markets').select('id, lat, lng, name').limit(50);
+        if (markets && markets.length > 0) {
+          let minDist = Infinity;
+          for (const m of markets) {
+            const d = haversine(pLat, pLng, m.lat, m.lng);
+            if (d < minDist) { minDist = d; nearestMarket = m; }
+          }
+        }
+      }
+    }
+
     const listingRow = {
       seller_id: player.id,
       item_type: 'core',
       core_id,
       item_id: null,
+      market_id: nearestMarket?.id || null,
       price_diamonds: price,
       is_private: !!is_private,
       private_code: privateCode,
@@ -185,15 +205,65 @@ async function handleListItem(req, res) {
       expires_at: expiresAt,
     };
 
+    let willHaveCourier = false;
+    if (nearestMarket && lat != null && lng != null) {
+      const pLat = parseFloat(lat), pLng = parseFloat(lng);
+      if (!isNaN(pLat) && !isNaN(pLng) && haversine(pLat, pLng, nearestMarket.lat, nearestMarket.lng) > 200) {
+        willHaveCourier = true;
+        listingRow.status = 'pending';
+      }
+    }
+
     const { data: listing, error: lErr } = await supabase.from('market_listings').insert(listingRow).select('id').single();
     if (lErr) {
       await supabase.from('cores').update({ on_market: false }).eq('id', core_id);
       return res.status(500).json({ error: lErr.message });
     }
 
+    let courierId = null;
+    if (willHaveCourier) {
+      const pLat = parseFloat(lat), pLng = parseFloat(lng);
+      const { data: courier } = await supabase
+        .from('couriers')
+        .insert({
+          listing_id: listing.id,
+          core_id,
+          owner_id: player.id,
+          type: 'to_market',
+          start_lat: pLat, start_lng: pLng,
+          target_lat: nearestMarket.lat, target_lng: nearestMarket.lng,
+          current_lat: pLat, current_lng: pLng,
+          speed: COURIER_SPEED_SELLER,
+          hp: COURIER_HP, max_hp: COURIER_HP,
+          status: 'moving',
+          to_market_id: nearestMarket.id,
+        })
+        .select('id').single();
+      if (courier) {
+        courierId = courier.id;
+        if (gameState.loaded) {
+          gameState.upsertCourier({
+            id: courier.id, listing_id: listing.id, core_id, owner_id: player.id,
+            type: 'to_market', start_lat: pLat, start_lng: pLng,
+            target_lat: nearestMarket.lat, target_lng: nearestMarket.lng,
+            current_lat: pLat, current_lng: pLng,
+            speed: COURIER_SPEED_SELLER, hp: COURIER_HP, max_hp: COURIER_HP,
+            status: 'moving', to_market_id: nearestMarket.id,
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
     if (gameState.loaded) gameState.upsertListing({ ...listingRow, id: listing.id });
 
-    return res.json({ success: true, listing_id: listing.id, private_code: privateCode });
+    return res.json({
+      success: true,
+      listing_id: listing.id,
+      courier_id: courierId,
+      private_code: privateCode,
+      nearest_market: nearestMarket ? { id: nearestMarket.id, name: nearestMarket.name, lat: nearestMarket.lat, lng: nearestMarket.lng } : null,
+    });
   }
 
   // ── Item listing ──

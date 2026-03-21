@@ -10885,8 +10885,12 @@ async function _loadMarketListings() {
       });
       const data = await apiFetch(`/api/market?${params}`);
       let fetched = data.listings || [];
-      if (_marketSubtab === 'cores' && _marketCoreSort === 'level') {
-        fetched.sort((a, b) => (b.core_info?.level || 0) - (a.core_info?.level || 0));
+      if (currentSort === 'level') {
+        if (_marketSubtab === 'cores') {
+          fetched.sort((a, b) => (b.core_info?.level || 0) - (a.core_info?.level || 0));
+        } else {
+          fetched.sort((a, b) => (b.items?.upgrade_level || 0) - (a.items?.upgrade_level || 0));
+        }
       }
       _marketListings = _marketPage === 0 ? fetched : [..._marketListings, ...fetched];
       empty.style.display = _marketListings.length === 0 ? 'block' : 'none';
@@ -11401,6 +11405,7 @@ document.addEventListener('DOMContentLoaded', () => {
       listedCoreId = _listSelectedCore.id;
       const coreObj = (state._playerCores || []).find(c => c.id === listedCoreId);
       if (coreObj) coreObj.on_market = true;
+      renderCoresInventory();
     } else {
       const listedId = _listSelectedItem.id;
       invItem = (state.inventory || []).find(i => i.id === listedId);
@@ -11444,6 +11449,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isCore) {
         const coreObj = (state._playerCores || []).find(c => c.id === listedCoreId);
         if (coreObj) coreObj.on_market = false;
+        renderCoresInventory();
       } else {
         if (invItem) invItem.on_market = false;
         _renderEquipSlots();
@@ -14666,6 +14672,7 @@ async function doCollectorSell(collectorId) {
     <button class="market-sort-btn" data-sort="cheap" data-i18n="market.sort.cheap">💰 Дешевле</button>
     <button class="market-sort-btn" data-sort="expensive" data-i18n="market.sort.expensive">💎 Дороже</button>
     <button class="market-sort-btn active" data-sort="new" data-i18n="market.sort.new">🆕 Новые</button>
+    <button class="market-sort-btn" data-sort="level" data-i18n="market.sort.level">📈 Уровень</button>
   </div>
   <div id="market-sort-row-cores" style="display:none">
     <button class="market-sort-btn-core active" data-sort="new" data-i18n="market.sort.new">🆕 Новые</button>
