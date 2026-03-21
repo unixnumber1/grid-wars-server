@@ -85,8 +85,11 @@ async function handleBuild(req, res) {
   }
   if (nearbyMines.length === 0) return res.status(400).json({ error: ts(lang, 'err.no_mines_nearby', { radius: COLLECTOR_RADIUS }) });
 
-  // Deduct diamonds
-  const newDiamonds = player.diamonds - COLLECTOR_COST_DIAMONDS;
+  // Deduct diamonds — read fresh from DB
+  const { data: freshBuild } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const actualDiamonds = freshBuild?.diamonds ?? player.diamonds ?? 0;
+  if (actualDiamonds < COLLECTOR_COST_DIAMONDS) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost: COLLECTOR_COST_DIAMONDS }) });
+  const newDiamonds = actualDiamonds - COLLECTOR_COST_DIAMONDS;
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
   await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
@@ -226,8 +229,9 @@ async function handleSell(req, res) {
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
 
-  // Refund diamonds
-  const newDiamonds = (player.diamonds || 0) + COLLECTOR_SELL_DIAMONDS;
+  // Refund diamonds — read fresh from DB
+  const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const newDiamonds = (freshP?.diamonds ?? player.diamonds ?? 0) + COLLECTOR_SELL_DIAMONDS;
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
 

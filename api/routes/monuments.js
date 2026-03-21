@@ -523,12 +523,13 @@ async function handleOpenLootBox(req, res) {
   // Mark as opened
   await supabase.from('monument_loot_boxes').update({ opened: true }).eq('id', box_id);
 
-  // Grant gems
-  const currentDiamonds = player.diamonds || 0;
+  // Grant gems — read fresh from DB to avoid stale gameState
+  const { data: freshPlayer } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const currentDiamonds = freshPlayer?.diamonds ?? player.diamonds ?? 0;
   const newDiamonds = currentDiamonds + box.gems;
+  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
 
   // Grant items and cores
   const items = typeof box.items === 'string' ? JSON.parse(box.items) : (box.items || []);

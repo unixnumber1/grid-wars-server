@@ -43,12 +43,13 @@ export function getLevelUpRewards(level) {
 async function grantLevelUpRewards(playerId, level) {
   const rewards = getLevelUpRewards(level);
 
-  // Grant diamonds and crystals
-  const updates = {};
-  if (rewards.diamonds > 0) updates.diamonds = (gameState.getPlayerById(playerId)?.diamonds ?? 0) + rewards.diamonds;
-  if (rewards.crystals > 0) updates.crystals = (gameState.getPlayerById(playerId)?.crystals ?? 0) + rewards.crystals;
+  // Grant diamonds and crystals — read fresh from DB to avoid stale gameState
+  if (rewards.diamonds > 0 || rewards.crystals > 0) {
+    const { data: freshP } = await supabase.from('players').select('diamonds, crystals').eq('id', playerId).single();
+    const updates = {};
+    if (rewards.diamonds > 0) updates.diamonds = (freshP?.diamonds ?? 0) + rewards.diamonds;
+    if (rewards.crystals > 0) updates.crystals = (freshP?.crystals ?? 0) + rewards.crystals;
 
-  if (Object.keys(updates).length > 0) {
     await supabase.from('players').update(updates).eq('id', playerId);
     const p = gameState.getPlayerById(playerId);
     if (p) {
