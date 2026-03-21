@@ -671,10 +671,15 @@
     }
 
     /* Selected building highlight */
-    .marker-selected .marker-wrap {
-      outline: 2px solid rgba(255,215,0,0.85);
+    .marker-selected-own .marker-wrap {
+      box-shadow: 0 0 0 3px rgba(180,180,180,0.7);
       border-radius: 50%;
-      background: rgba(255,215,0,0.12);
+      background: rgba(180,180,180,0.12);
+    }
+    .marker-selected-enemy .marker-wrap {
+      box-shadow: 0 0 0 3px rgba(255,60,60,0.7);
+      border-radius: 50%;
+      background: rgba(255,60,60,0.12);
     }
 
     /* Build menu cards */
@@ -6337,7 +6342,7 @@ function renderBuildings() {
 
   // Re-apply selected highlight
   if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
-    buildingMarkers[_selectedMarkerKey]._icon.classList.add('marker-selected');
+    buildingMarkers[_selectedMarkerKey]._icon.classList.add(_selectedMarkerOwn ? 'marker-selected-own' : 'marker-selected-enemy');
   }
 
   // Re-apply attack status to mine markers
@@ -6497,15 +6502,17 @@ function _startUpgradeCountdown(finishAtStr) {
 // Tracks which building is currently shown in the popup (key = 'mine_ID' | 'hq_ID')
 let _currentPopupEntityId = null;
 let _selectedMarkerKey = null;
+let _selectedMarkerOwn = true;
 
-function _selectMarker(key) {
+function _selectMarker(key, isOwn = true) {
   // Clear previous
   if (_selectedMarkerKey && buildingMarkers[_selectedMarkerKey]?._icon) {
-    buildingMarkers[_selectedMarkerKey]._icon.classList.remove('marker-selected');
+    buildingMarkers[_selectedMarkerKey]._icon.classList.remove('marker-selected-own', 'marker-selected-enemy');
   }
   _selectedMarkerKey = key;
+  _selectedMarkerOwn = isOwn;
   if (key && buildingMarkers[key]?._icon) {
-    buildingMarkers[key]._icon.classList.add('marker-selected');
+    buildingMarkers[key]._icon.classList.add(isOwn ? 'marker-selected-own' : 'marker-selected-enemy');
   }
 }
 
@@ -6533,7 +6540,7 @@ document.getElementById('popup-overlay').addEventListener('click', e => {
 // ─────────────────────────────────────────────
 function showHqPopup(hq, isOwn) {
   _currentPopupEntityId = `hq_${hq.id}`;
-  _selectMarker(`hq_${hq.id}`);
+  _selectMarker(`hq_${hq.id}`, isOwn);
   if (isOwn) {
     const hqLvl = hq.level ?? 1;
     const mineCount = (state.mines || []).length;
@@ -6634,7 +6641,7 @@ function showHqPopup(hq, isOwn) {
 // ─────────────────────────────────────────────
 function showMinePopup(mine, isOwn, canCapture) {
   _currentPopupEntityId = `mine_${mine.id}`;
-  _selectMarker(`mine_${mine.id}`);
+  _selectMarker(`mine_${mine.id}`, isOwn);
   // Cores are now synced via tick data in state._playerCores
   // Merge boosted income from mines_own (server sends clan-boosted income there)
   if (isOwn) {
