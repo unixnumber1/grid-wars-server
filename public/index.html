@@ -2596,9 +2596,9 @@
 <!-- Maintenance screen -->
 <div id="maintenance-screen">
   <div id="maintenance-avatar"><span id="maintenance-avatar-inner">⚙️</span></div>
-  <div id="maintenance-title">🔧 Технический перерыв</div>
-  <div id="maintenance-sub">Скоро вернёмся!</div>
-  <div id="maintenance-hint">Следи за обновлениями</div>
+  <div id="maintenance-title" data-i18n="maint.title">🔧 Технический перерыв</div>
+  <div id="maintenance-sub" data-i18n="maint.sub">Скоро вернёмся!</div>
+  <div id="maintenance-hint" data-i18n="maint.hint">Следи за обновлениями</div>
   <div id="maintenance-scene">
     <span id="maintenance-tram">🚃</span>
     <span id="maintenance-runner">🏃</span>
@@ -2614,10 +2614,10 @@
     <div id="ban-grave-base"></div>
     <div id="ban-grave-ground"></div>
   </div>
-  <div id="ban-title">Вы заблокированы</div>
-  <div id="ban-until-text">Навсегда</div>
+  <div id="ban-title" data-i18n="ban.title">Вы заблокированы</div>
+  <div id="ban-until-text" data-i18n="ban.forever">Навсегда</div>
   <div id="ban-reason-wrap">
-    <div id="ban-reason-label">Причина:</div>
+    <div id="ban-reason-label" data-i18n="ban.reason">Причина:</div>
     <div id="ban-reason-text">"—"</div>
   </div>
 </div>
@@ -2726,7 +2726,7 @@
 <div id="avatar-sheet-overlay">
   <div id="avatar-sheet" onclick="event.stopPropagation()">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-weight:700;font-size:15px;">&#x1F3A8; Выбери аватарку</div>
+      <div style="font-weight:700;font-size:15px;" data-i18n="settings.avatar.pick">&#x1F3A8; Выбери аватарку</div>
       <button id="btn-close-avatar-sheet" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">&#x2715;</button>
     </div>
     <div id="avatar-grid"></div>
@@ -2737,8 +2737,8 @@
 <div id="leaderboard-overlay">
   <div id="leaderboard-header">
     <button class="lb-close" id="btn-close-leaderboard">&#x2715;</button>
-    <h3>&#x1F3C6; Топ игроков</h3>
-    <button class="lb-refresh" id="btn-refresh-leaderboard" title="Обновить">&#x1F504;</button>
+    <h3 data-i18n="lb.title">&#x1F3C6; Топ игроков</h3>
+    <button class="lb-refresh" id="btn-refresh-leaderboard" title="Refresh">&#x1F504;</button>
   </div>
   <div id="leaderboard-body">
     <div id="leaderboard-list"></div>
@@ -2776,17 +2776,17 @@
     <div class="hud-exp-row">
       <span class="hud-diamonds">💎 <span id="diamond-display-exp-merged">0</span></span>
     </div>
-    <div style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:6px;cursor:pointer;" onclick="toggleHud()">▲ закрыть</div>
+    <div style="text-align:center;font-size:12px;color:var(--text-secondary);margin-top:6px;cursor:pointer;" onclick="toggleHud()" data-i18n="hud.collapse">▲ закрыть</div>
   </div>
 </div>
 
 <!-- Right vertical panel -->
 <div id="hud-right-panel">
-  <button class="hud-right-btn" id="btn-teleport" title="Телепорт на штаб">📌</button>
-  <button class="hud-right-btn" id="btn-shop-hud" title="Магазин">🛒</button>
-  <button class="hud-right-btn" id="btn-market-hud" title="Рынок">🎪</button>
-  <button class="hud-right-btn" id="btn-leaderboard" title="Лидерборд">🏆</button>
-  <button class="hud-right-btn" id="btn-settings" title="Настройки">⚙️<span class="notif-badge" id="settings-badge"></span></button>
+  <button class="hud-right-btn" id="btn-teleport" data-i18n-title="hud.pin_title">📌</button>
+  <button class="hud-right-btn" id="btn-shop-hud" data-i18n-title="hud.shop_title">🛒</button>
+  <button class="hud-right-btn" id="btn-market-hud" data-i18n-title="hud.market_title">🎪</button>
+  <button class="hud-right-btn" id="btn-leaderboard" data-i18n-title="hud.lb_title">🏆</button>
+  <button class="hud-right-btn" id="btn-settings" data-i18n-title="hud.settings_title">⚙️<span class="notif-badge" id="settings-badge"></span></button>
 </div>
 
 <!-- Map -->
@@ -2801,7 +2801,7 @@
     <div id="player-info">
       <div style="display:flex;align-items:baseline;gap:6px;">
         <div id="player-name-display">—</div>
-        <div id="player-level-display">Ур. 1</div>
+        <div id="player-level-display" data-i18n="hud.level">Ур. 1</div>
       </div>
       <div id="shield-timer-display"></div>
       <div id="player-xp-bar-wrap">
@@ -2809,7 +2809,7 @@
       </div>
     </div>
   </div>
-  <button id="btn-inventory" title="Инвентарь">🎒</button>
+  <button id="btn-inventory" data-i18n-title="hud.inv_title">🎒</button>
   <button id="btn-collect" disabled data-i18n="btn.collect">💰 Собрать</button>
 </div>
 
@@ -2864,67 +2864,67 @@
         <div class="shop-box-card" style="border-color:rgba(136,136,136,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="common" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
-          <div class="shop-box-name">Обычный бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.common">Обычный бокс</div>
           <div class="shop-box-price">💎 3</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="common" style="background:linear-gradient(135deg,rgba(136,136,136,0.2),rgba(136,136,136,0.08));border-color:rgba(136,136,136,0.4);color:#aaa;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="common" style="background:linear-gradient(135deg,rgba(136,136,136,0.2),rgba(136,136,136,0.08));border-color:rgba(136,136,136,0.4);color:#aaa;" data-i18n="shop.open">Открыть</button>
         </div>
         <div class="shop-box-card" style="border-color:rgba(76,175,80,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="rare" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
-          <div class="shop-box-name">Редкий бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.rare">Редкий бокс</div>
           <div class="shop-box-price">💎 8</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(21,101,192,0.2),rgba(21,101,192,0.08));border-color:rgba(21,101,192,0.4);color:#42a5f5;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(21,101,192,0.2),rgba(21,101,192,0.08));border-color:rgba(21,101,192,0.4);color:#42a5f5;" data-i18n="shop.open">Открыть</button>
         </div>
       </div>
       <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr;margin-top:12px;">
         <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="epic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🎁</div>
-          <div class="shop-box-name">Эпический бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.epic">Эпический бокс</div>
           <div class="shop-box-price">💎 35</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(106,27,154,0.2),rgba(106,27,154,0.08));border-color:rgba(106,27,154,0.4);color:#ce93d8;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(106,27,154,0.2),rgba(106,27,154,0.08));border-color:rgba(106,27,154,0.4);color:#ce93d8;" data-i18n="shop.open">Открыть</button>
         </div>
         <div class="shop-box-card" style="border-color:rgba(230,81,0,0.6);background:#2a1500;position:relative;box-shadow:0 0 24px rgba(230,81,0,0.15);">
           <button class="shop-box-info-btn shop-info-btn" data-box="mythic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🏆</div>
-          <div class="shop-box-name">Мифический бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.mythic">Мифический бокс</div>
           <div class="shop-box-price">💎 150</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;" data-i18n="shop.open">Открыть</button>
         </div>
       </div>
     </div>
     <!-- Items tab (mythic gear + core packs) -->
     <div id="shop-tab-items" class="shop-tab-content">
-      <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;">🔥 Мифическое снаряжение</div>
+      <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;" data-i18n="shop.mythic_gear">🔥 Мифическое снаряжение</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
         <div class="shop-mythic-card" onclick="buyMythic('sword')" style="position:relative;background:#2a0a0a;border:1px solid #5a1a1a;">
           <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
           <div style="font-size:32px;">🗡️</div>
-          <div style="font-size:11px;font-weight:600;color:#fff;">Меч</div>
+          <div style="font-size:11px;font-weight:600;color:#fff;" data-i18n="shop.sword">Меч</div>
           <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
         </div>
         <div class="shop-mythic-card" onclick="buyMythic('axe')" style="position:relative;background:#2a0a0a;border:1px solid #5a1a1a;">
           <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('axe')">i</button>
           <div style="font-size:32px;">🪓</div>
-          <div style="font-size:11px;font-weight:600;color:#fff;">Топор</div>
+          <div style="font-size:11px;font-weight:600;color:#fff;" data-i18n="shop.axe">Топор</div>
           <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
         </div>
         <div class="shop-mythic-card" onclick="buyMythic('shield')" style="position:relative;background:#2a0a0a;border:1px solid #5a1a1a;">
           <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
           <div style="font-size:32px;">🛡️</div>
-          <div style="font-size:11px;font-weight:600;color:#fff;">Щит</div>
+          <div style="font-size:11px;font-weight:600;color:#fff;" data-i18n="shop.shield">Щит</div>
           <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
         </div>
       </div>
       <div class="shop-mythic-card" onclick="buyMythicSet()" style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:#2a0a0a;border:1px solid #5a1a1a;">
         <span style="font-size:24px;">🗡️🪓🛡️</span>
         <div>
-          <div style="font-size:13px;font-weight:700;color:#fff;">Мифический комплект</div>
-          <div style="font-size:12px;color:#ff6d00;font-weight:700;">💎 1500 <span style="color:#4caf50;font-size:11px;">(экономия 300)</span></div>
+          <div style="font-size:13px;font-weight:700;color:#fff;" data-i18n="shop.mythic_bundle">Мифический комплект</div>
+          <div style="font-size:12px;color:#ff6d00;font-weight:700;">💎 1500 <span style="color:#4caf50;font-size:11px;" data-i18n="shop.savings">(экономия 300)</span></div>
         </div>
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
-        <div style="font-size:15px;font-weight:700;color:#7DF9FF;margin-bottom:12px;">🔮 Паки ядер</div>
+        <div style="font-size:15px;font-weight:700;color:#7DF9FF;margin-bottom:12px;" data-i18n="shop.core_packs_title">🔮 Паки ядер</div>
         <div id="shop-cores-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
       </div>
     </div>
@@ -2932,13 +2932,13 @@
     <div id="shop-tab-diamonds" class="shop-tab-content">
       <div class="shop-daily-card">
         <div style="font-size:40px;text-align:center;margin-bottom:8px;">💎</div>
-        <div style="font-size:16px;font-weight:700;color:#fff;text-align:center;">Ежедневный бонус</div>
-        <div style="font-size:13px;color:rgba(255,255,255,0.5);text-align:center;margin-top:4px;">5 алмазов каждый день</div>
+        <div style="font-size:16px;font-weight:700;color:#fff;text-align:center;" data-i18n="shop.daily_title">Ежедневный бонус</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.5);text-align:center;margin-top:4px;" data-i18n="shop.daily_desc">5 алмазов каждый день</div>
         <div id="daily-timer" style="font-size:12px;color:#888;text-align:center;margin-top:6px;"></div>
-        <button class="shop-daily-claim-btn" id="btn-daily-diamonds" onclick="claimDailyDiamonds()" style="margin-top:12px;">Забрать 5 💎</button>
+        <button class="shop-daily-claim-btn" id="btn-daily-diamonds" onclick="claimDailyDiamonds()" style="margin-top:12px;" data-i18n="shop.daily_btn">Забрать 5 💎</button>
       </div>
       <div style="margin-top:20px;">
-        <div class="shop-section-title">ПОПОЛНИТЬ АЛМАЗЫ</div>
+        <div class="shop-section-title" data-i18n="shop.top_up">ПОПОЛНИТЬ АЛМАЗЫ</div>
         <div class="shop-stars-grid" id="shop-stars-grid"></div>
       </div>
     </div>
@@ -2953,11 +2953,8 @@
   <div id="box-odds-card">
     <h3 id="box-odds-title"></h3>
     <div id="box-odds-rows"></div>
-    <div class="odds-footer">
-      Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты<br>
-      Легендарные: недоступны
-    </div>
-    <button id="box-odds-close">Закрыть</button>
+    <div class="odds-footer" data-i18n="shop.odds_footer">Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты\nЛегендарные: недоступны</div>
+    <button id="box-odds-close" data-i18n="misc.close">Закрыть</button>
   </div>
 </div>
 
@@ -2966,7 +2963,7 @@
   <div class="cs-header">
     <button class="cs-close" id="clan-close">✕</button>
     <div style="flex:1;">
-      <div class="cs-clan-name" id="cs-clan-name">Клан</div>
+      <div class="cs-clan-name" id="cs-clan-name" data-i18n="clan.title">Клан</div>
       <div class="cs-clan-sub" id="cs-clan-sub"></div>
     </div>
     <button id="cs-edit-btn" style="display:none;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0;">✏️</button>
@@ -3444,6 +3441,504 @@ const I18N = {
     'misc.max': 'МАКС',
     'misc.weapon': 'оружие',
     'misc.shield_type': 'щит',
+
+    // === Maintenance / Ban ===
+    'maint.title': '🔧 Технический перерыв',
+    'maint.sub': 'Скоро вернёмся!',
+    'maint.hint': 'Следи за обновлениями',
+    'ban.title': 'Вы заблокированы',
+    'ban.forever': 'Навсегда',
+    'ban.reason': 'Причина:',
+
+    // === Shop extras ===
+    'shop.box.common': 'Обычный бокс',
+    'shop.box.rare': 'Редкий бокс',
+    'shop.box.epic': 'Эпический бокс',
+    'shop.box.mythic': 'Мифический бокс',
+    'shop.open': 'Открыть',
+    'shop.mythic_gear': '🔥 Мифическое снаряжение',
+    'shop.sword': 'Меч',
+    'shop.axe': 'Топор',
+    'shop.shield': 'Щит',
+    'shop.mythic_bundle': 'Мифический комплект',
+    'shop.savings': '(экономия 300)',
+    'shop.core_packs_title': 'Паки ядер',
+    'shop.daily_title': 'Ежедневный бонус',
+    'shop.daily_desc': '5 алмазов каждый день',
+    'shop.daily_btn': 'Забрать 5 💎',
+    'shop.top_up': 'ПОПОЛНИТЬ АЛМАЗЫ',
+
+    // === Leaderboard ===
+    'lb.title': '🏆 Топ игроков',
+
+    // === Avatar ===
+    'settings.avatar.pick': '🎨 Выбери аватарку',
+
+    // === HUD titles ===
+    'hud.pin_title': 'Телепорт на штаб',
+    'hud.shop_title': 'Магазин',
+    'hud.market_title': 'Рынок',
+    'hud.lb_title': 'Лидерборд',
+    'hud.settings_title': 'Настройки',
+    'hud.inv_title': 'Инвентарь',
+    'hud.level': 'Ур. 1',
+
+    // === Profile ===
+    'profile.stats': 'Характеристики',
+    'profile.tab.equip': '⚔️ Снаряжение',
+    'profile.tab.cores': '🔮 Ядра',
+    'profile.inventory': 'Инвентарь (0)',
+    'profile.inventory_n': 'Инвентарь ({n})',
+    'profile.level': 'Ур. {n}',
+
+    // === Sell ===
+    'sell.confirm_q': 'Продать предмет?',
+    'sell.bad_deal': 'Это невыгодно!',
+    'sell.sell': 'Продать',
+    'sel.selected': 'Выбрано',
+
+    // === Craft ===
+    'craft.title': '⚒️ КРАФТ',
+    'craft.desc': 'Объедини 10 предметов одной редкости',
+    'craft.btn': '⚒️ Скрафтить',
+    'craft.crafting': '⚒️ Крафтим...',
+    'craft.pick': 'Выберите предмет',
+    'craft.selected': 'Выбрано: {n}/10',
+    'craft.selected_r': 'Выбрано: {n}/10 [{rarity}]',
+    'craft.result': 'Результат:',
+    'craft.type_chance': 'Шансы типа:',
+    'craft.no_items': 'Нет подходящих предметов',
+    'craft.same_rarity': '⚠️ Все предметы должны быть одной редкости',
+
+    // === Vase ===
+    'vase.broken': '🏺 Ваза разбита!',
+    'vase.title': '🏺 Древняя ваза',
+    'vase.valuable': 'Внутри что-то ценное!',
+    'vase.distance': '📍 До вазы: {n}м',
+    'vase.break': '💥 Разбить!',
+    'vase.diamonds': '+ {n} 💎 алмазов',
+
+    // === Misc extras ===
+    'misc.cancel': 'Отмена',
+    'misc.close': 'Закрыть',
+    'misc.ok': 'Понятно',
+    'misc.confirm': 'Подтвердить',
+    'misc.loading': 'Загрузка...',
+    'misc.error': 'Ошибка',
+    'misc.distance': '{n}м — подойди ближе',
+    'misc.gps': 'GPS...',
+    'misc.retry': '🔄 Попробовать снова',
+    'misc.level_short': 'Ур.{n}',
+
+    // === Death ===
+    'death.title': 'Вы погибли',
+    'death.info': '{killer} убил вас · -{coins} монет · Щит 2 мин',
+    'death.info_short': '💀 {killer} убил вас',
+
+    // === Mine ===
+    'mine.attack_label': 'Атака шахты...',
+    'mine.title': '⛏️ Шахта',
+    'mine.build': '⛏️ Построить шахту',
+    'mine.free': 'Бесплатно',
+    'mine.generates': 'Генерирует монеты пассивно',
+    'mine.upgrade': '⬆️ Улучшить ({cost})',
+    'mine.upgrade_to': '⚡ до ур.{n} ({cost})',
+    'mine.max_level': 'МАКС УРОВЕНЬ',
+    'mine.upgrading': '⏳ Идёт улучшение...',
+    'mine.income': 'Доход',
+    'mine.stored': 'Накоплено',
+    'mine.cores_n': '🔮 Ядра {n}/10',
+    'mine.extinguish': '🧯 Потушить (восстановит 25% HP)',
+    'mine.demolish': '🗑️ Снести',
+    'mine.burning_warn': '🔥 Шахта горит! Потушите в течение 24ч',
+    'mine.under_attack_warn': '⚔️ Шахту атакуют!',
+    'mine.vampire_warn': '⚠️ Атакована! {emoji} {name} высасывает монеты',
+    'mine.drained': 'Высосано',
+    'mine.drained_coins': '{n} монет',
+    'mine.upgrading_to': 'Улучшается до',
+    'mine.attack_btn': '⛏️ Атаковать шахту',
+    'mine.owner': 'Владелец: {name}',
+    'mine.upgrade_time': '⏳ Осталось {n} сек',
+    'mine.time_left': '{n} сек',
+
+    // === HQ ===
+    'hq.title': '🏠 Штаб {name}',
+    'hq.build': '⚡ Построить штаб',
+    'hq.only_one': 'Хранит монеты · Только один',
+    'hq.level': 'Уровень {n}',
+    'hq.coins': '💰 Монеты',
+    'hq.mines': '⛏️ Шахт',
+    'hq.upgrade': '⬆️ Улучшить штаб — {cost}',
+    'hq.demolish': '🗑️ Снести',
+    'hq.demolish_q': '⚠️ Снести штаб?',
+    'hq.demolish_warn': 'Все монеты в штабе сгорят!',
+    'hq.demolish_yes': '🗑️ Да, снести',
+    'hq.collectors': '🧲 Сборщики {n}/{max}',
+    'hq.delivery': '📦 Доставка −{n}',
+    'hq.empty': 'Пусто',
+    'hq.camera': '📍 камера',
+    'hq.online': '🟢 Онлайн',
+    'hq.just_now': '🕐 Был только что',
+    'hq.mins_ago': '🕐 Был {n} мин назад',
+    'hq.hours_ago': '🕐 Был {n} ч назад',
+    'hq.days_ago': '🕐 Был {n} дн назад',
+    'hq.offline_long': '🕐 Не был в сети',
+
+    // === Build menu ===
+    'build.title': '🏗️ Построить',
+    'build.hq': '⚡ Штаб',
+    'build.mine': '⛏️ Шахта',
+    'build.collector': '🧲 Автосборщик',
+    'build.collector_desc': 'Собирает монеты с шахт в 200м',
+    'build.collector_btn': '🧲 Построить сборщик',
+    'build.clan_hq': '🏰 Штаб Клана',
+    'build.clan_hq_desc': 'Зона клана · Бусты для участников',
+    'build.clan_hq_btn': '🏰 Построить штаб клана',
+
+    // === Bot ===
+    'bot.aggressive': '⚠️ Агрессивный',
+    'bot.fleeing': '💰 Убегает с добычей',
+    'bot.roaming': '😴 Бродит',
+    'bot.state': 'Состояние',
+    'bot.carrying': '💰 Несёт',
+    'bot.carrying_coins': '{n} монет',
+    'bot.killed': '⚔️ Убит!',
+    'bot.loot': '+{n} монет (лут)',
+    'bot.attack': '⚔️ Атаковать',
+
+    // === Collector ===
+    'coll.title': '🧲 Сборщик #{n} · Ур.{level}',
+    'coll.hp': '❤️ HP',
+    'coll.stored': '💰 Накоплено',
+    'coll.fill': '📊 Заполнен',
+    'coll.timer': '⏱️ Сбор',
+    'coll.timer_min': 'через {n} мин',
+    'coll.upgrade': '⬆️ Улучшить — {cost}💎',
+    'coll.sell': '💸 Продать — 37💎',
+    'coll.deliver_hint': 'Заказать доставку можно через штаб',
+    'coll.enemy_title': '🧲 Чужой сборщик · Ур.{level}',
+    'coll.enemy_attack': '⚔️ Атаковать',
+    'coll.enemy_hint': 'При уничтожении получишь все накопленные монеты',
+    'coll.destroyed': '💥 Сборщик уничтожен! +{n} монет',
+    'coll.courier_sent': '📦 Курьер отправлен!\n💰 {coins} монет\n📋 Комиссия: {comm}',
+    'coll.upgraded': '⬆️ Сборщик улучшен до Lv.{level}!',
+    'coll.sold': '💸 Сборщик продан!\n+37💎\n+{coins} монет',
+
+    // === Courier ===
+    'courier.my': '📦 Мой',
+    'courier.title': '{emoji} Курьер',
+    'courier.own': 'Ваш курьер',
+    'courier.other': 'Курьер другого игрока',
+    'courier.attack': '⚔️ Атаковать',
+    'courier.attacking': '⏳ Атака...',
+    'courier.crit': 'КРИТ! -{n}',
+
+    // === Drop ===
+    'drop.valuable': 'Внутри что-то ценное!',
+    'drop.open': '🎁 Открыть посылку',
+    'drop.pickup': '🎒 Подобрать',
+    'drop.order': '📦 Ваш заказ прибыл!',
+    'drop.lost': '📦 Потерянная посылка',
+    'drop.distance': 'До посылки: {n}м',
+
+    // === Market extras ===
+    'market.title': '🎪 РЫНОК',
+    'market.subtab.items': '⚔️ Снаряга',
+    'market.subtab.cores': '🔮 Ядра',
+    'market.sort.cheap': '💰 Дешевле',
+    'market.sort.expensive': '💎 Дороже',
+    'market.sort.new': '🆕 Новые',
+    'market.sort.level': '📈 Уровень',
+    'market.empty': 'Пока нет товаров на рынке',
+    'market.load_more': 'Загрузить ещё',
+    'market.loading': '⏳ Загрузка...',
+    'market.load_error': 'Ошибка загрузки',
+    'market.list_item': '+ Разместить товар',
+    'market.list_title': 'Разместить товар',
+    'market.buy_q': 'Купить предмет?',
+    'market.buy_btn': '💎 Купить',
+    'market.private_title': '🔒 Приватный товар',
+    'market.private_desc': 'Введите код доступа:',
+    'market.private_check': 'Проверить',
+    'market.private_lot': '🔓 Приватный лот',
+    'market.price_label': 'Цена (алмазы):',
+    'market.submit': '🎪 Разместить',
+    'market.sold': '💰 Продан!',
+    'market.courier_on_way': '🚶 Курьер в пути',
+    'market.cancel_listing': 'Отменить',
+    'market.active': '✅ Активен',
+    'market.remove': 'Снять',
+    'market.intercepted': '⚔️ Перехвачен',
+    'market.price': 'Цена: 💎 {n} алмазов',
+    'market.balance': 'У вас: 💎 {n}',
+    'market.not_enough': 'Недостаточно алмазов',
+    'market.no_free_cores': 'Нет свободных ядер',
+    'market.enter_popup': '🎪 {name}',
+    'market.enter_popup_sub': 'Торговая площадка игроков',
+    'market.enter_btn': '🛒 Войти на рынок',
+
+    // === Ore ===
+    'ore.title': '⛏️ Рудник Ур.{level}',
+    'ore.income': 'Доход',
+    'ore.owner': 'Владелец',
+    'ore.free': '<span style="color:#00ff88">Свободен</span>',
+    'ore.expires': 'Истекает',
+    'ore.switch': 'Переключить на {emoji}',
+    'ore.capture_shards': '✨ Захватить (Осколки)',
+    'ore.capture_ether': '🌀 Захватить (Эфир)',
+    'ore.attack_owner': '⚔️ Атаковать владельца',
+    'ore.attack': '⚔️ Атаковать рудник',
+    'ore.come_closer': '🔒 Подойди ближе',
+    'ore.come_closer_200': '🔒 Подойди ближе (200м)',
+    'ore.switched': 'Переключено на {emoji}',
+    'ore.owner_not_found': '❌ Владелец не найден на карте',
+    'ore.ether': 'Эфир',
+    'ore.shards': 'Осколки',
+
+    // === Monument ===
+    'mon.phase_shield': '🛡️ Щит',
+    'mon.phase_open': '🔥 Открыт',
+    'mon.phase_defeated': '💀 Повержен',
+    'mon.level': 'Уровень',
+    'mon.phase': 'Фаза',
+    'mon.dps_threshold': 'DPS порог',
+    'mon.shield_hp': '🛡️ Щит',
+    'mon.hp': '❤️ HP',
+    'mon.defenders': '🌊 Защитники',
+    'mon.defenders_alive': '{n} живых',
+    'mon.respawn': '⏰ Респавн',
+    'mon.respawn_time': '{h}ч {m}мин',
+    'mon.attack_shield': '⚔️ Атаковать щит',
+    'mon.kill_defenders': '⚔️ Убить защитников ({n})',
+    'mon.attack_monument': '⚔️ Атаковать монумент',
+    'mon.defender_title': '{emoji} Защитник',
+    'mon.defender_sub': '{emoji} Защитник монумента',
+    'mon.no_defenders': 'Нет живых защитников',
+    'mon.low_dps': '⚠️ Мало DPS: {current}/{required}',
+    'mon.shield_broken': '💥 Щит пробит! Появились защитники!',
+    'mon.defeated': '🏆 Монумент повержен! Награды на карте!',
+    'mon.all_defenders_dead': '⚡ Все защитники убиты! Атакуйте монумент!',
+    'mon.joined_raid': '👥 Присоединился к рейду! Участников: {n}',
+    'mon.raid': 'Рейд',
+    'mon.open_loot': '🎊 Открыть',
+    'mon.loot_reward': 'Награда за рейд {avatar} {name}',
+    'mon.other_loot': '{avatar} {name} — чужая награда',
+
+    // === PvP ===
+    'pvp.round': 'Раунд {n}',
+    'pvp.crit': 'КРИТ!',
+    'pvp.deals': 'наносит -{n}',
+    'pvp.victory': 'ПОБЕДА!',
+    'pvp.defeat': 'ПОРАЖЕНИЕ',
+    'pvp.win_reward': '+{coins} монет, +{xp} XP',
+    'pvp.lose_penalty': '-{coins} монет',
+    'pvp.click_close': 'Нажмите чтобы закрыть',
+    'pvp.shield_active': '🛡️ Щит активен',
+    'pvp.under_protection': '🛡️ Игрок под защитой',
+    'pvp.too_far': '⚔️ Слишком далеко',
+    'pvp.fight': '⚔️ В бой!',
+    'pvp.shield_timer': '🛡️ {m}м {s}с',
+
+    // === Core types ===
+    'core.income': '✴️ Ядро дохода',
+    'core.capacity': '✳️ Ядро вместимости',
+    'core.hp': '❤️ Ядро здоровья',
+    'core.regen': '♻️ Ядро регенерации',
+    'core.level': 'Уровень',
+    'core.multiplier': 'Множитель',
+    'core.after_upgrade': 'После прокачки',
+    'core.cost': 'Стоимость',
+    'core.upgrade': '⬆️ Прокачать за {cost}🌀',
+    'core.upgrade_short': '⬆️ Прокачать ({cost}🌀)',
+    'core.extract': '📤 Извлечь',
+    'core.extract_to_bag': '📤 Извлечь в сумку',
+    'core.sell_for': '🗑️ Продать за {n}🌀',
+    'core.pick_title': '🔮 Выбери ядро',
+    'core.bag_count': '{n} ядер в сумке',
+    'core.no_cores': 'Нет ядер в сумке\nПолучай с монументов 🏛️',
+    'core.inventory': '🔮 Ядра ({n})',
+    'core.selected': '{n} выбрано · {ether}🌀',
+    'core.sell_confirm': 'Продать {n} ядер за ~{ether} 🌀?',
+    'core.multiplier_sub': 'Множитель: x{mul}',
+    'core.drop_title': 'Выпало с монумента Lv.{level}!',
+    'core.drop_mult': 'Множитель: x{mul} (Lv.{level})',
+
+    // === Shop extras 2 ===
+    'shop.odds_footer': 'Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты\nЛегендарные: недоступны',
+    'shop.box_content': 'Содержимое: ⚔️ Меч · 🪓 Топор · 🛡️ Щит',
+    'shop.box_random': 'Случайный предмет одного из типов',
+    'shop.mythic_stats': 'Характеристики мифического предмета',
+    'shop.buy_mythic': 'Купить мифический {type} за 600 💎?',
+    'shop.buy_mythic_set': 'Купить мифический комплект (меч + топор + щит) за 1500 💎?',
+    'shop.daily_claimed': 'Получено ✓',
+    'shop.daily_timer': '⏰ {h}ч {m}м {s}с',
+    'shop.attack_stat': '⚔️ Атака',
+    'shop.crit_chance': '💥 Крит шанс',
+    'shop.crit_mult': '🔥 Крит множитель',
+    'shop.exec': '💀 Казнь врага <50% HP',
+    'shop.defense': '🛡️ Защита',
+    'shop.block': '🔰 Блок удара',
+    'shop.core_pack_buy': 'Купить пак ядер?',
+
+    // === Rarity ===
+    'rarity.common': 'Обычный',
+    'rarity.uncommon': 'Необычный',
+    'rarity.rare': 'Редкий',
+    'rarity.epic': 'Эпический',
+    'rarity.mythic': 'Мифический',
+    'rarity.legendary': 'Легендарный',
+
+    // === Item type ===
+    'item.sword': 'Меч',
+    'item.axe': 'Топор',
+    'item.shield': 'Щит',
+
+    // === Map styles ===
+    'map.style.standard': 'Стандарт',
+    'map.style.standard_desc': 'Тёмный с цветными деталями',
+    'map.style.light': 'Светлый',
+    'map.style.light_desc': 'Светло-серый фон, синяя вода',
+    'map.style.black': 'Тотал Блэк',
+    'map.style.black_desc': 'Полностью чёрный без цветов',
+    'map.style.neon': 'Неон',
+    'map.style.neon_desc': 'Киберпанк с неоновыми улицами',
+    'map.style.blood': 'Кровавый',
+    'map.style.blood_desc': 'Тёмный с красными улицами',
+
+    // === Diamond packs ===
+    'dpack.starter': 'Стартовый',
+    'dpack.basic': 'Базовый',
+    'dpack.popular': '🔥 Популярный',
+    'dpack.popular_badge': 'ПОПУЛЯРНЫЙ',
+    'dpack.advanced': 'Продвинутый',
+    'dpack.premium': 'Премиум',
+    'dpack.whale': 'Кит',
+    'dpack.whale_badge': 'ВЫГОДНО 👑',
+
+    // === Core packs ===
+    'cpack.starter': '🌀 Стартовый',
+    'cpack.battle': '🌀 Боевой',
+    'cpack.advanced': '🌀 Продвинутый',
+    'cpack.elite': '🌀 Элитный',
+    'cpack.elite_badge': 'ТОП',
+    'cpack.ether_line': '+ {n}🌀 эфира',
+    'cpack.desc': '{n} ядер lv{level} {ether}',
+    'cpack.random': 'Случайный тип',
+
+    // === Leaderboard extras ===
+    'lb.your_pos': 'Ваша позиция',
+    'lb.level': 'Ур.{n}',
+
+    // === Connection ===
+    'conn.no_response': '⏳ Сервер не отвечает. Попробуй через минуту.',
+    'conn.no_connection': '❌ Нет соединения с сервером.',
+    'conn.lib_error': 'Ошибка загрузки библиотеки. Обнови страницу.',
+
+    // === Clan ===
+    'clan.title': 'Клан',
+    'clan.header': '🏰 Кланы',
+    'clan.level': 'Уровень {n}',
+    'clan.tab.hq': '🏰 Штаб',
+    'clan.tab.members': '👥 Участники ({n}/{max})',
+    'clan.tab.browse': '🔍 Кланы',
+    'clan.tab.edit': '✏️ Редактирование',
+    'clan.tab.info': '🏰 Инфо',
+    'clan.no_data': 'Нет данных',
+    'clan.treasury': '💎 Казна',
+    'clan.treasury_info': '{n} / {max} ({pct}%) — до уровня {next}',
+    'clan.treasury_max': '{n} 💎 · МАКС УРОВЕНЬ',
+    'clan.zone': 'Зона',
+    'clan.income': 'Доход',
+    'clan.defense': 'Защита',
+    'clan.boost': 'Буст',
+    'clan.boost_none': 'Нет',
+    'clan.boost_active': 'x{mul}·{h}ч{m}м',
+    'clan.donate': '💎 Пополнить казну',
+    'clan.boost_btn': '🚀 Буст активен',
+    'clan.boost_buy': '🚀 Буст x{mul} ({cost} 💎)',
+    'clan.upgrade_btn': '⬆️ Улучшить клан ({cost} 💎)',
+    'clan.join': '⚔️ Вступить в клан',
+    'clan.build_hq_first': 'Сначала постройте штаб клана',
+    'clan.disband': '💀 Распустить',
+    'clan.leave': '🚪 Покинуть',
+    'clan.role.leader': 'Лидер',
+    'clan.role.officer': 'Офицер',
+    'clan.role.member': 'Участник',
+    'clan.promote': '⬆️ Повысить до офицера',
+    'clan.demote': '⬇️ Понизить до участника',
+    'clan.kick': '🚫 Выгнать',
+    'clan.no_members': 'Нет участников',
+    'clan.search': '🔍 Поиск по названию...',
+    'clan.not_found': 'Кланов не найдено',
+    'clan.your_clan': '✓ Ваш клан',
+    'clan.already_in': 'Уже в клане',
+    'clan.cant': 'Нельзя',
+    'clan.min_level': 'Мин. ур. {n}',
+    'clan.edit.symbol': 'СИМВОЛ КЛАНА',
+    'clan.edit.name': 'НАЗВАНИЕ',
+    'clan.edit.color': 'ЦВЕТ КЛАНА',
+    'clan.edit.min_level': 'МИН. УРОВЕНЬ',
+    'clan.edit.desc': 'ОПИСАНИЕ',
+    'clan.edit.save': '💾 Сохранить',
+    'clan.edit.cost': 'Будет списано: {n} 💎',
+    'clan.edit.new_name': 'Новое название',
+    'clan.edit.new_symbol': 'Новый символ',
+    'clan.edit.confirm': '✅ Подтвердить ({n} 💎)',
+    'clan.updated': '✅ Клан обновлён!',
+    'clan.create': '⚔️ Создать клан',
+    'clan.create.symbol': 'Символ клана',
+    'clan.create.name_label': 'Название (3-20 символов)',
+    'clan.create.name_ph': 'Название клана',
+    'clan.create.color': 'Цвет клана',
+    'clan.create.min_level_label': 'Мин. уровень для вступления',
+    'clan.create.desc_label': 'Описание (до 100 символов)',
+    'clan.create.desc_ph': 'Описание клана...',
+    'clan.create.btn': '⚔️ Создать клан',
+    'clan.name_invalid': 'Название: 3-20 символов',
+    'clan.created': '⚔️ Клан создан!',
+    'clan.hq_built': '🏰 Штаб клана построен!',
+    'clan.joined': '⚔️ Вы вступили в клан!',
+    'clan.left': '🚪 Вы покинули клан',
+    'clan.levelup': 'Клан достиг уровня {n}!',
+    'clan.levelup_sub': 'Новые бонусы активны',
+    'clan.members_label': 'Участники',
+    'clan.great': 'Отлично!',
+    'clan.leave_q': '🚪 Покинуть клан?',
+    'clan.leave_confirm': 'Вы уверены?',
+    'clan.boost_q': '🚀 Активировать буст?',
+    'clan.boost_cost': 'Стоимость',
+    'clan.boost_cost_val': '{n} 💎 из казны',
+    'clan.disband_q': '💀 Распустить клан?',
+    'clan.disband_warn': 'Все участники будут исключены. Это необратимо!',
+    'clan.donate_title': '💎 Пополнить казну',
+    'clan.enter_amount': 'Введите количество',
+    'clan.not_enough': '❌ Недостаточно алмазов',
+    'clan.sell_hq_q': '🗑️ Продать штаб?',
+    'clan.sell_hq_refund': 'Вернётся {n} монет',
+    'clan.hq_title': '🏰 Штаб Клана',
+    'clan.hq_inactive': 'Не активен',
+    'clan.role_changed': 'Роль изменена на {role}',
+    'clan.kick_q': '🚫 Исключить?',
+    'clan.kick_warn': 'Игрок будет удалён из клана',
+    'clan.clan_bonus': '(+{n} клан)',
+
+    // === Locked ===
+    'locked.soon': '🔒 Скоро',
+
+    // === Joystick ===
+    'joy.on': '🕹️ Джойстик: ВКЛ',
+    'joy.off': '🕹️ Джойстик: ВЫКЛ',
+    'joy.back_real': 'Вернуться на реальную позицию',
+
+    // === Username ===
+    'nick.current': 'Текущий: {name}',
+    'nick.cost_free': '💎 Стоимость: БЕСПЛАТНО',
+    'nick.cost': '💎 Стоимость: 10 алмазов',
+
+    // === Combat ===
+    'combat.ore_target': 'Рудник Ур.{level}',
+    'combat.defender_target': 'Защитник',
+    'combat.mine_target': 'Шахта Ур.{level}',
   },
 
   en: {
@@ -3853,6 +4348,504 @@ const I18N = {
     'misc.max': 'MAX',
     'misc.weapon': 'weapon',
     'misc.shield_type': 'shield',
+
+    // === Maintenance / Ban ===
+    'maint.title': '🔧 Maintenance',
+    'maint.sub': 'Coming back soon!',
+    'maint.hint': 'Stay tuned for updates',
+    'ban.title': 'You are blocked',
+    'ban.forever': 'Permanently',
+    'ban.reason': 'Reason:',
+
+    // === Shop extras ===
+    'shop.box.common': 'Common Box',
+    'shop.box.rare': 'Rare Box',
+    'shop.box.epic': 'Epic Box',
+    'shop.box.mythic': 'Mythic Box',
+    'shop.open': 'Open',
+    'shop.mythic_gear': '🔥 Mythic Gear',
+    'shop.sword': 'Sword',
+    'shop.axe': 'Axe',
+    'shop.shield': 'Shield',
+    'shop.mythic_bundle': 'Mythic Bundle',
+    'shop.savings': '(save 300)',
+    'shop.core_packs_title': 'Core Packs',
+    'shop.daily_title': 'Daily Bonus',
+    'shop.daily_desc': '5 diamonds every day',
+    'shop.daily_btn': 'Claim 5 💎',
+    'shop.top_up': 'BUY DIAMONDS',
+
+    // === Leaderboard ===
+    'lb.title': '🏆 Top Players',
+
+    // === Avatar ===
+    'settings.avatar.pick': '🎨 Pick an avatar',
+
+    // === HUD titles ===
+    'hud.pin_title': 'Teleport to HQ',
+    'hud.shop_title': 'Shop',
+    'hud.market_title': 'Market',
+    'hud.lb_title': 'Leaderboard',
+    'hud.settings_title': 'Settings',
+    'hud.inv_title': 'Inventory',
+    'hud.level': 'Lv. 1',
+
+    // === Profile ===
+    'profile.stats': 'Stats',
+    'profile.tab.equip': '⚔️ Equipment',
+    'profile.tab.cores': '🔮 Cores',
+    'profile.inventory': 'Inventory (0)',
+    'profile.inventory_n': 'Inventory ({n})',
+    'profile.level': 'Lv. {n}',
+
+    // === Sell ===
+    'sell.confirm_q': 'Sell item?',
+    'sell.bad_deal': 'Bad deal!',
+    'sell.sell': 'Sell',
+    'sel.selected': 'Selected',
+
+    // === Craft ===
+    'craft.title': '⚒️ CRAFT',
+    'craft.desc': 'Combine 10 items of the same rarity',
+    'craft.btn': '⚒️ Craft',
+    'craft.crafting': '⚒️ Crafting...',
+    'craft.pick': 'Pick an item',
+    'craft.selected': 'Selected: {n}/10',
+    'craft.selected_r': 'Selected: {n}/10 [{rarity}]',
+    'craft.result': 'Result:',
+    'craft.type_chance': 'Type chances:',
+    'craft.no_items': 'No matching items',
+    'craft.same_rarity': '⚠️ All items must be same rarity',
+
+    // === Vase ===
+    'vase.broken': '🏺 Vase broken!',
+    'vase.title': '🏺 Ancient Vase',
+    'vase.valuable': 'Something valuable inside!',
+    'vase.distance': '📍 Distance: {n}m',
+    'vase.break': '💥 Break!',
+    'vase.diamonds': '+ {n} 💎 diamonds',
+
+    // === Misc extras ===
+    'misc.cancel': 'Cancel',
+    'misc.close': 'Close',
+    'misc.ok': 'Got it',
+    'misc.confirm': 'Confirm',
+    'misc.loading': 'Loading...',
+    'misc.error': 'Error',
+    'misc.distance': '{n}m — come closer',
+    'misc.gps': 'GPS...',
+    'misc.retry': '🔄 Try again',
+    'misc.level_short': 'Lv.{n}',
+
+    // === Death ===
+    'death.title': 'You died',
+    'death.info': '{killer} killed you · -{coins} coins · Shield 2 min',
+    'death.info_short': '💀 {killer} killed you',
+
+    // === Mine ===
+    'mine.attack_label': 'Attacking mine...',
+    'mine.title': '⛏️ Mine',
+    'mine.build': '⛏️ Build mine',
+    'mine.free': 'Free',
+    'mine.generates': 'Generates coins passively',
+    'mine.upgrade': '⬆️ Upgrade ({cost})',
+    'mine.upgrade_to': '⚡ to lv.{n} ({cost})',
+    'mine.max_level': 'MAX LEVEL',
+    'mine.upgrading': '⏳ Upgrading...',
+    'mine.income': 'Income',
+    'mine.stored': 'Stored',
+    'mine.cores_n': '🔮 Cores {n}/10',
+    'mine.extinguish': '🧯 Extinguish (restores 25% HP)',
+    'mine.demolish': '🗑️ Demolish',
+    'mine.burning_warn': '🔥 Mine is burning! Extinguish within 24h',
+    'mine.under_attack_warn': '⚔️ Mine under attack!',
+    'mine.vampire_warn': '⚠️ Under attack! {emoji} {name} is draining coins',
+    'mine.drained': 'Drained',
+    'mine.drained_coins': '{n} coins',
+    'mine.upgrading_to': 'Upgrading to',
+    'mine.attack_btn': '⛏️ Attack mine',
+    'mine.owner': 'Owner: {name}',
+    'mine.upgrade_time': '⏳ {n} sec left',
+    'mine.time_left': '{n} sec',
+
+    // === HQ ===
+    'hq.title': '🏠 HQ {name}',
+    'hq.build': '⚡ Build HQ',
+    'hq.only_one': 'Stores coins · Only one',
+    'hq.level': 'Level {n}',
+    'hq.coins': '💰 Coins',
+    'hq.mines': '⛏️ Mines',
+    'hq.upgrade': '⬆️ Upgrade HQ — {cost}',
+    'hq.demolish': '🗑️ Demolish',
+    'hq.demolish_q': '⚠️ Demolish HQ?',
+    'hq.demolish_warn': 'All coins in HQ will be lost!',
+    'hq.demolish_yes': '🗑️ Yes, demolish',
+    'hq.collectors': '🧲 Collectors {n}/{max}',
+    'hq.delivery': '📦 Delivery −{n}',
+    'hq.empty': 'Empty',
+    'hq.camera': '📍 camera',
+    'hq.online': '🟢 Online',
+    'hq.just_now': '🕐 Just now',
+    'hq.mins_ago': '🕐 {n} min ago',
+    'hq.hours_ago': '🕐 {n}h ago',
+    'hq.days_ago': '🕐 {n}d ago',
+    'hq.offline_long': '🕐 Offline',
+
+    // === Build menu ===
+    'build.title': '🏗️ Build',
+    'build.hq': '⚡ HQ',
+    'build.mine': '⛏️ Mine',
+    'build.collector': '🧲 Collector',
+    'build.collector_desc': 'Collects coins from mines within 200m',
+    'build.collector_btn': '🧲 Build collector',
+    'build.clan_hq': '🏰 Clan HQ',
+    'build.clan_hq_desc': 'Clan zone · Boosts for members',
+    'build.clan_hq_btn': '🏰 Build clan HQ',
+
+    // === Bot ===
+    'bot.aggressive': '⚠️ Aggressive',
+    'bot.fleeing': '💰 Fleeing with loot',
+    'bot.roaming': '😴 Roaming',
+    'bot.state': 'State',
+    'bot.carrying': '💰 Carrying',
+    'bot.carrying_coins': '{n} coins',
+    'bot.killed': '⚔️ Killed!',
+    'bot.loot': '+{n} coins (loot)',
+    'bot.attack': '⚔️ Attack',
+
+    // === Collector ===
+    'coll.title': '🧲 Collector #{n} · Lv.{level}',
+    'coll.hp': '❤️ HP',
+    'coll.stored': '💰 Stored',
+    'coll.fill': '📊 Filled',
+    'coll.timer': '⏱️ Collect',
+    'coll.timer_min': 'in {n} min',
+    'coll.upgrade': '⬆️ Upgrade — {cost}💎',
+    'coll.sell': '💸 Sell — 37💎',
+    'coll.deliver_hint': 'Order delivery through HQ',
+    'coll.enemy_title': '🧲 Enemy collector · Lv.{level}',
+    'coll.enemy_attack': '⚔️ Attack',
+    'coll.enemy_hint': 'Destroy to get all stored coins',
+    'coll.destroyed': '💥 Collector destroyed! +{n} coins',
+    'coll.courier_sent': '📦 Courier sent!\n💰 {coins} coins\n📋 Fee: {comm}',
+    'coll.upgraded': '⬆️ Collector upgraded to Lv.{level}!',
+    'coll.sold': '💸 Collector sold!\n+37💎\n+{coins} coins',
+
+    // === Courier ===
+    'courier.my': '📦 Mine',
+    'courier.title': '{emoji} Courier',
+    'courier.own': 'Your courier',
+    'courier.other': 'Another player\'s courier',
+    'courier.attack': '⚔️ Attack',
+    'courier.attacking': '⏳ Attacking...',
+    'courier.crit': 'CRIT! -{n}',
+
+    // === Drop ===
+    'drop.valuable': 'Something valuable inside!',
+    'drop.open': '🎁 Open package',
+    'drop.pickup': '🎒 Pick up',
+    'drop.order': '📦 Your order arrived!',
+    'drop.lost': '📦 Lost package',
+    'drop.distance': 'Distance: {n}m',
+
+    // === Market extras ===
+    'market.title': '🎪 MARKET',
+    'market.subtab.items': '⚔️ Gear',
+    'market.subtab.cores': '🔮 Cores',
+    'market.sort.cheap': '💰 Cheapest',
+    'market.sort.expensive': '💎 Priciest',
+    'market.sort.new': '🆕 Newest',
+    'market.sort.level': '📈 Level',
+    'market.empty': 'No items on the market yet',
+    'market.load_more': 'Load more',
+    'market.loading': '⏳ Loading...',
+    'market.load_error': 'Loading error',
+    'market.list_item': '+ List item',
+    'market.list_title': 'List item',
+    'market.buy_q': 'Buy item?',
+    'market.buy_btn': '💎 Buy',
+    'market.private_title': '🔒 Private item',
+    'market.private_desc': 'Enter access code:',
+    'market.private_check': 'Check',
+    'market.private_lot': '🔓 Private listing',
+    'market.price_label': 'Price (diamonds):',
+    'market.submit': '🎪 List',
+    'market.sold': '💰 Sold!',
+    'market.courier_on_way': '🚶 Courier on the way',
+    'market.cancel_listing': 'Cancel',
+    'market.active': '✅ Active',
+    'market.remove': 'Remove',
+    'market.intercepted': '⚔️ Intercepted',
+    'market.price': 'Price: 💎 {n} diamonds',
+    'market.balance': 'You have: 💎 {n}',
+    'market.not_enough': 'Not enough diamonds',
+    'market.no_free_cores': 'No free cores',
+    'market.enter_popup': '🎪 {name}',
+    'market.enter_popup_sub': 'Player trading post',
+    'market.enter_btn': '🛒 Enter market',
+
+    // === Ore ===
+    'ore.title': '⛏️ Ore Node Lv.{level}',
+    'ore.income': 'Income',
+    'ore.owner': 'Owner',
+    'ore.free': '<span style="color:#00ff88">Free</span>',
+    'ore.expires': 'Expires',
+    'ore.switch': 'Switch to {emoji}',
+    'ore.capture_shards': '✨ Capture (Shards)',
+    'ore.capture_ether': '🌀 Capture (Ether)',
+    'ore.attack_owner': '⚔️ Attack owner',
+    'ore.attack': '⚔️ Attack node',
+    'ore.come_closer': '🔒 Come closer',
+    'ore.come_closer_200': '🔒 Come closer (200m)',
+    'ore.switched': 'Switched to {emoji}',
+    'ore.owner_not_found': '❌ Owner not found on map',
+    'ore.ether': 'Ether',
+    'ore.shards': 'Shards',
+
+    // === Monument ===
+    'mon.phase_shield': '🛡️ Shield',
+    'mon.phase_open': '🔥 Open',
+    'mon.phase_defeated': '💀 Defeated',
+    'mon.level': 'Level',
+    'mon.phase': 'Phase',
+    'mon.dps_threshold': 'DPS threshold',
+    'mon.shield_hp': '🛡️ Shield',
+    'mon.hp': '❤️ HP',
+    'mon.defenders': '🌊 Defenders',
+    'mon.defenders_alive': '{n} alive',
+    'mon.respawn': '⏰ Respawn',
+    'mon.respawn_time': '{h}h {m}min',
+    'mon.attack_shield': '⚔️ Attack shield',
+    'mon.kill_defenders': '⚔️ Kill defenders ({n})',
+    'mon.attack_monument': '⚔️ Attack monument',
+    'mon.defender_title': '{emoji} Defender',
+    'mon.defender_sub': '{emoji} Monument defender',
+    'mon.no_defenders': 'No living defenders',
+    'mon.low_dps': '⚠️ Low DPS: {current}/{required}',
+    'mon.shield_broken': '💥 Shield broken! Defenders appeared!',
+    'mon.defeated': '🏆 Monument defeated! Rewards on map!',
+    'mon.all_defenders_dead': '⚡ All defenders dead! Attack the monument!',
+    'mon.joined_raid': '👥 Joined raid! Participants: {n}',
+    'mon.raid': 'Raid',
+    'mon.open_loot': '🎊 Open',
+    'mon.loot_reward': 'Raid reward {avatar} {name}',
+    'mon.other_loot': '{avatar} {name} — someone else\'s reward',
+
+    // === PvP ===
+    'pvp.round': 'Round {n}',
+    'pvp.crit': 'CRIT!',
+    'pvp.deals': 'deals -{n}',
+    'pvp.victory': 'VICTORY!',
+    'pvp.defeat': 'DEFEAT',
+    'pvp.win_reward': '+{coins} coins, +{xp} XP',
+    'pvp.lose_penalty': '-{coins} coins',
+    'pvp.click_close': 'Click to close',
+    'pvp.shield_active': '🛡️ Shield active',
+    'pvp.under_protection': '🛡️ Player under protection',
+    'pvp.too_far': '⚔️ Too far',
+    'pvp.fight': '⚔️ Fight!',
+    'pvp.shield_timer': '🛡️ {m}m {s}s',
+
+    // === Core types ===
+    'core.income': '✴️ Income Core',
+    'core.capacity': '✳️ Capacity Core',
+    'core.hp': '❤️ Health Core',
+    'core.regen': '♻️ Regen Core',
+    'core.level': 'Level',
+    'core.multiplier': 'Multiplier',
+    'core.after_upgrade': 'After upgrade',
+    'core.cost': 'Cost',
+    'core.upgrade': '⬆️ Upgrade for {cost}🌀',
+    'core.upgrade_short': '⬆️ Upgrade ({cost}🌀)',
+    'core.extract': '📤 Extract',
+    'core.extract_to_bag': '📤 Extract to bag',
+    'core.sell_for': '🗑️ Sell for {n}🌀',
+    'core.pick_title': '🔮 Pick a core',
+    'core.bag_count': '{n} cores in bag',
+    'core.no_cores': 'No cores in bag\nGet them from monuments 🏛️',
+    'core.inventory': '🔮 Cores ({n})',
+    'core.selected': '{n} selected · {ether}🌀',
+    'core.sell_confirm': 'Sell {n} cores for ~{ether} 🌀?',
+    'core.multiplier_sub': 'Multiplier: x{mul}',
+    'core.drop_title': 'Dropped from monument Lv.{level}!',
+    'core.drop_mult': 'Multiplier: x{mul} (Lv.{level})',
+
+    // === Shop extras 2 ===
+    'shop.odds_footer': 'Items: 🗡️ swords, 🪓 axes, 🛡️ shields\nLegendary: unavailable',
+    'shop.box_content': 'Contents: ⚔️ Sword · 🪓 Axe · 🛡️ Shield',
+    'shop.box_random': 'Random item of one type',
+    'shop.mythic_stats': 'Mythic item stats',
+    'shop.buy_mythic': 'Buy mythic {type} for 600 💎?',
+    'shop.buy_mythic_set': 'Buy mythic bundle (sword + axe + shield) for 1500 💎?',
+    'shop.daily_claimed': 'Claimed ✓',
+    'shop.daily_timer': '⏰ {h}h {m}m {s}s',
+    'shop.attack_stat': '⚔️ Attack',
+    'shop.crit_chance': '💥 Crit chance',
+    'shop.crit_mult': '🔥 Crit multiplier',
+    'shop.exec': '💀 Execute enemy <50% HP',
+    'shop.defense': '🛡️ Defense',
+    'shop.block': '🔰 Block hit',
+    'shop.core_pack_buy': 'Buy core pack?',
+
+    // === Rarity ===
+    'rarity.common': 'Common',
+    'rarity.uncommon': 'Uncommon',
+    'rarity.rare': 'Rare',
+    'rarity.epic': 'Epic',
+    'rarity.mythic': 'Mythic',
+    'rarity.legendary': 'Legendary',
+
+    // === Item type ===
+    'item.sword': 'Sword',
+    'item.axe': 'Axe',
+    'item.shield': 'Shield',
+
+    // === Map styles ===
+    'map.style.standard': 'Standard',
+    'map.style.standard_desc': 'Dark with colorful details',
+    'map.style.light': 'Light',
+    'map.style.light_desc': 'Light-gray background, blue water',
+    'map.style.black': 'Total Black',
+    'map.style.black_desc': 'Fully black without colors',
+    'map.style.neon': 'Neon',
+    'map.style.neon_desc': 'Cyberpunk with neon streets',
+    'map.style.blood': 'Blood',
+    'map.style.blood_desc': 'Dark with red streets',
+
+    // === Diamond packs ===
+    'dpack.starter': 'Starter',
+    'dpack.basic': 'Basic',
+    'dpack.popular': '🔥 Popular',
+    'dpack.popular_badge': 'POPULAR',
+    'dpack.advanced': 'Advanced',
+    'dpack.premium': 'Premium',
+    'dpack.whale': 'Whale',
+    'dpack.whale_badge': 'BEST VALUE 👑',
+
+    // === Core packs ===
+    'cpack.starter': '🌀 Starter',
+    'cpack.battle': '🌀 Battle',
+    'cpack.advanced': '🌀 Advanced',
+    'cpack.elite': '🌀 Elite',
+    'cpack.elite_badge': 'TOP',
+    'cpack.ether_line': '+ {n}🌀 ether',
+    'cpack.desc': '{n} cores lv{level} {ether}',
+    'cpack.random': 'Random type',
+
+    // === Leaderboard extras ===
+    'lb.your_pos': 'Your position',
+    'lb.level': 'Lv.{n}',
+
+    // === Connection ===
+    'conn.no_response': '⏳ Server not responding. Try in a minute.',
+    'conn.no_connection': '❌ No connection to server.',
+    'conn.lib_error': 'Library loading error. Refresh the page.',
+
+    // === Clan ===
+    'clan.title': 'Clan',
+    'clan.header': '🏰 Clans',
+    'clan.level': 'Level {n}',
+    'clan.tab.hq': '🏰 HQ',
+    'clan.tab.members': '👥 Members ({n}/{max})',
+    'clan.tab.browse': '🔍 Clans',
+    'clan.tab.edit': '✏️ Edit',
+    'clan.tab.info': '🏰 Info',
+    'clan.no_data': 'No data',
+    'clan.treasury': '💎 Treasury',
+    'clan.treasury_info': '{n} / {max} ({pct}%) — to level {next}',
+    'clan.treasury_max': '{n} 💎 · MAX LEVEL',
+    'clan.zone': 'Zone',
+    'clan.income': 'Income',
+    'clan.defense': 'Defense',
+    'clan.boost': 'Boost',
+    'clan.boost_none': 'None',
+    'clan.boost_active': 'x{mul}·{h}h{m}m',
+    'clan.donate': '💎 Donate to treasury',
+    'clan.boost_btn': '🚀 Boost active',
+    'clan.boost_buy': '🚀 Boost x{mul} ({cost} 💎)',
+    'clan.upgrade_btn': '⬆️ Upgrade clan ({cost} 💎)',
+    'clan.join': '⚔️ Join clan',
+    'clan.build_hq_first': 'Build clan HQ first',
+    'clan.disband': '💀 Disband',
+    'clan.leave': '🚪 Leave',
+    'clan.role.leader': 'Leader',
+    'clan.role.officer': 'Officer',
+    'clan.role.member': 'Member',
+    'clan.promote': '⬆️ Promote to officer',
+    'clan.demote': '⬇️ Demote to member',
+    'clan.kick': '🚫 Kick',
+    'clan.no_members': 'No members',
+    'clan.search': '🔍 Search by name...',
+    'clan.not_found': 'No clans found',
+    'clan.your_clan': '✓ Your clan',
+    'clan.already_in': 'Already in clan',
+    'clan.cant': 'Can\'t',
+    'clan.min_level': 'Min lv. {n}',
+    'clan.edit.symbol': 'CLAN SYMBOL',
+    'clan.edit.name': 'NAME',
+    'clan.edit.color': 'CLAN COLOR',
+    'clan.edit.min_level': 'MIN. LEVEL',
+    'clan.edit.desc': 'DESCRIPTION',
+    'clan.edit.save': '💾 Save',
+    'clan.edit.cost': 'Cost: {n} 💎',
+    'clan.edit.new_name': 'New name',
+    'clan.edit.new_symbol': 'New symbol',
+    'clan.edit.confirm': '✅ Confirm ({n} 💎)',
+    'clan.updated': '✅ Clan updated!',
+    'clan.create': '⚔️ Create Clan',
+    'clan.create.symbol': 'Clan symbol',
+    'clan.create.name_label': 'Name (3-20 characters)',
+    'clan.create.name_ph': 'Clan name',
+    'clan.create.color': 'Clan color',
+    'clan.create.min_level_label': 'Min. level to join',
+    'clan.create.desc_label': 'Description (up to 100 characters)',
+    'clan.create.desc_ph': 'Clan description...',
+    'clan.create.btn': '⚔️ Create Clan',
+    'clan.name_invalid': 'Name: 3-20 characters',
+    'clan.created': '⚔️ Clan created!',
+    'clan.hq_built': '🏰 Clan HQ built!',
+    'clan.joined': '⚔️ You joined the clan!',
+    'clan.left': '🚪 You left the clan',
+    'clan.levelup': 'Clan reached level {n}!',
+    'clan.levelup_sub': 'New bonuses active',
+    'clan.members_label': 'Members',
+    'clan.great': 'Great!',
+    'clan.leave_q': '🚪 Leave clan?',
+    'clan.leave_confirm': 'Are you sure?',
+    'clan.boost_q': '🚀 Activate boost?',
+    'clan.boost_cost': 'Cost',
+    'clan.boost_cost_val': '{n} 💎 from treasury',
+    'clan.disband_q': '💀 Disband clan?',
+    'clan.disband_warn': 'All members will be kicked. This is irreversible!',
+    'clan.donate_title': '💎 Donate to treasury',
+    'clan.enter_amount': 'Enter amount',
+    'clan.not_enough': '❌ Not enough diamonds',
+    'clan.sell_hq_q': '🗑️ Sell HQ?',
+    'clan.sell_hq_refund': 'Refund: {n} coins',
+    'clan.hq_title': '🏰 Clan HQ',
+    'clan.hq_inactive': 'Inactive',
+    'clan.role_changed': 'Role changed to {role}',
+    'clan.kick_q': '🚫 Kick?',
+    'clan.kick_warn': 'Player will be removed from clan',
+    'clan.clan_bonus': '(+{n} clan)',
+
+    // === Locked ===
+    'locked.soon': '🔒 Coming soon',
+
+    // === Joystick ===
+    'joy.on': '🕹️ Joystick: ON',
+    'joy.off': '🕹️ Joystick: OFF',
+    'joy.back_real': 'Back to real position',
+
+    // === Username ===
+    'nick.current': 'Current: {name}',
+    'nick.cost_free': '💎 Cost: FREE',
+    'nick.cost': '💎 Cost: 10 diamonds',
+
+    // === Combat ===
+    'combat.ore_target': 'Ore Node Lv.{level}',
+    'combat.defender_target': 'Defender',
+    'combat.mine_target': 'Mine Lv.{level}',
   }
 };
 
@@ -3880,6 +4873,12 @@ function setLang(lang) {
 function applyI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
   });
   // Update active language button highlight
   document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -4389,7 +5388,7 @@ function showProfilePopup() {
 
   // Header
   document.getElementById('profile-modal-name').textContent = displayName(p);
-  document.getElementById('profile-modal-level').textContent = `${level}ур`;
+  document.getElementById('profile-modal-level').textContent = t('misc.level_short', {n: level});
 
   // Avatar
   document.getElementById('profile-modal-avatar').textContent = p.avatar || '🐺';
@@ -4448,7 +5447,7 @@ function _renderInventoryGrid() {
     return (b.upgrade_level || 0) - (a.upgrade_level || 0);
   });
   const titleEl = document.getElementById('inventory-title');
-  titleEl.textContent = `Инвентарь (${inv.length} предметов)`;
+  titleEl.textContent = t('profile.inventory_n', {n: inv.length});
 
   const grid = document.getElementById('inventory-grid');
   grid.innerHTML = '';
@@ -4519,8 +5518,8 @@ function showItemDetail(itemId) {
 }
 
 function openItemDetailPopup(item) {
-  const rarLabel = {common:'Обычный',uncommon:'Необычный',rare:'Редкий',epic:'Эпический',mythic:'Мифический',legendary:'Легендарный'}[item.rarity] || '';
-  const typeLabel = {sword:'Меч',axe:'Топор',shield:'Щит'}[item.type] || '';
+  const rarLabel = t('rarity.' + item.rarity);
+  const typeLabel = t('item.' + item.type);
   const maxLvl = { common:10, uncommon:25, rare:50, epic:75, mythic:90, legendary:100 }[item.rarity] || 10;
   const upgLvl = item.upgrade_level || 0;
   const nextCost = upgLvl < maxLvl ? getItemUpgradeCost(upgLvl + 1) : 0;
@@ -4548,39 +5547,39 @@ function openItemDetailPopup(item) {
 
   // Build stats rows
   const stats = [];
-  stats.push(['Уровень', `${upgLvl} / ${maxLvl}`]);
+  stats.push([t('core.level'), `${upgLvl} / ${maxLvl}`]);
   if (item.type === 'sword' || item.type === 'axe') {
-    stats.push(['⚔️ Атака', `<span style="color:#ff6b6b">${item.attack}</span>`]);
+    stats.push([t('shop.attack_stat'), `<span style="color:#ff6b6b">${item.attack}</span>`]);
   }
   if (item.type === 'sword') {
     const critVal = typeof item.crit_chance === 'number' ? item.crit_chance : 0;
-    stats.push(['💥 Крит шанс', `${critVal.toFixed(1)}%`]);
-    if (computedCritMul > 1.5) stats.push(['✨ Крит урон', `<span style="color:#FFD700">×${computedCritMul.toFixed(2)}</span>`]);
+    stats.push([t('shop.crit_chance'), `${critVal.toFixed(1)}%`]);
+    if (computedCritMul > 1.5) stats.push(['✨ ' + t('shop.crit_mult'), `<span style="color:#FFD700">×${computedCritMul.toFixed(2)}</span>`]);
   }
   if (item.type === 'axe' && computedExec > 0) {
-    stats.push(['💀 Казнь', `<span style="color:#D500F9">${computedExec.toFixed(1)}%</span>`]);
+    stats.push([t('shop.exec'), `<span style="color:#D500F9">${computedExec.toFixed(1)}%</span>`]);
   }
   if (item.type === 'shield') {
-    stats.push(['🛡️ Защита HP', `<span style="color:#4caf50">+${item.defense}</span>`]);
-    if (computedBlock > 0) stats.push(['🔰 Блок', `${computedBlock.toFixed(1)}%`]);
+    stats.push([t('shop.defense') + ' HP', `<span style="color:#4caf50">+${item.defense}</span>`]);
+    if (computedBlock > 0) stats.push([t('shop.block'), `${computedBlock.toFixed(1)}%`]);
   }
-  if (!isMaxed) stats.push(['Стоимость прокачки', `${nextCost} ✨`]);
+  if (!isMaxed) stats.push([t('core.cost'), `${nextCost} ✨`]);
 
   // Build actions
   const actions = [];
   if (!isMaxed) {
-    actions.push({ label: `✨ Прокачать за ${nextCost}✨`, cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
+    actions.push({ label: `✨ ${t('core.upgrade_short', {cost: nextCost})}`, cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
   }
   if (item.on_market) {
     // no actions — item in transit
   } else if (item.equipped) {
-    actions.push({ label: '📤 Снять', action: () => { closePopup(); doUnequipItem(item.id); } });
+    actions.push({ label: t('core.extract'), action: () => { closePopup(); doUnequipItem(item.id); } });
   } else {
-    actions.push({ label: '🗡️ Надеть', cls: 'primary', action: () => { closePopup(); doEquipItem(item.id); } });
+    actions.push({ label: '🗡️ ' + t('misc.confirm'), cls: 'primary', action: () => { closePopup(); doEquipItem(item.id); } });
     const sellPrice = getItemSellPrice(item.rarity, upgLvl);
-    actions.push({ label: `🗑️ Продать за ${sellPrice}✨`, cls: 'danger', action: () => doSellItemDirect(item, sellPrice) });
+    actions.push({ label: t('core.sell_for', {n: sellPrice + '✨'}), cls: 'danger', action: () => doSellItemDirect(item, sellPrice) });
   }
-  actions.push({ label: 'Закрыть', isClose: true });
+  actions.push({ label: t('misc.close'), isClose: true });
 
   const rarColor = RARITY_COLORS_CLIENT[item.rarity] || '#888';
   const isGrad = rarColor.startsWith('linear');
@@ -4807,7 +5806,7 @@ function updateXpBar() {
   const xpNext = xpForLevel(level);
   const pct = Math.min(100, Math.floor((xpThisLevel / xpNext) * 100));
   document.getElementById('player-xp-bar-fill').style.width = pct + '%';
-  document.getElementById('player-level-display').textContent = `Ур. ${level}`;
+  document.getElementById('player-level-display').textContent = t('profile.level', {n: level});
 }
 
 function updatePlayerDisplay() {
@@ -4867,7 +5866,7 @@ function showCoreDropAnimation(emoji, name, monumentLevel) {
   overlay.innerHTML = `
     <div style="font-size:80px;animation:bounceIn 0.5s ease;">${emoji}</div>
     <div style="color:#FFD700;font-size:22px;font-weight:bold;margin-top:16px;text-shadow:0 0 20px #FFD700;">${name}</div>
-    <div style="color:#aaa;font-size:14px;margin-top:8px;">Выпало с монумента Lv.${monumentLevel}!</div>
+    <div style="color:#aaa;font-size:14px;margin-top:8px;">${t('core.drop_title', {level: monumentLevel})}</div>
     <div style="color:#7DF9FF;font-size:13px;margin-top:4px;">Множитель: x1.5 (Lv.0)</div>
   `;
   document.body.appendChild(overlay);
@@ -4880,10 +5879,10 @@ function showCoreDropAnimation(emoji, name, monumentLevel) {
 
 // Core type info
 const CORE_TYPES = {
-  income:   { emoji: '✴️', name: 'Ядро дохода' },
-  capacity: { emoji: '✳️', name: 'Ядро вместимости' },
-  hp:       { emoji: '❤️', name: 'Ядро здоровья' },
-  regen:    { emoji: '♻️', name: 'Ядро регенерации' },
+  income:   { emoji: '✴️', get name() { return t('core.income'); } },
+  capacity: { emoji: '✳️', get name() { return t('core.capacity'); } },
+  hp:       { emoji: '❤️', get name() { return t('core.hp'); } },
+  regen:    { emoji: '♻️', get name() { return t('core.regen'); } },
 };
 
 function getCoreMultiplier(level) {
@@ -4928,7 +5927,7 @@ function showError(message) {
       <div style="font-size:48px;margin-bottom:16px;">⚔️</div>
       <div style="color:white;font-size:18px;font-weight:900;letter-spacing:3px;margin-bottom:8px;">OVERTHROW</div>
       <div style="color:#ff6b6b;font-size:14px;margin-bottom:24px;">${message}</div>
-      <button onclick="location.reload()" style="background:#FFD700;color:black;border:none;padding:12px 24px;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;">🔄 Попробовать снова</button>
+      <button onclick="location.reload()" style="background:#FFD700;color:black;border:none;padding:12px 24px;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;">${t('misc.retry')}</button>
     </div>
   `;
 }
@@ -5299,36 +6298,36 @@ function showBuildMenu(cellLat, cellLng) {
 
   const card = document.getElementById('popup-card');
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <div style="font-size:16px;font-weight:600;color:#fff">🏗️ Построить</div>
+    <div style="font-size:16px;font-weight:600;color:#fff">${t('build.title')}</div>
     <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px">`;
 
   if (!hasHq) {
     html += `<div class="hq-collector-card">
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">⚡ Штаб</span><span style="font-size:11px;color:#4caf50">Бесплатно</span></div>
-      <div style="font-size:12px;color:#888;margin:4px 0">Хранит монеты · Только один</div>
-      <button class="hq-coll-btn active" onclick="closePopup();doBuildHq(${cellLat},${cellLng})">⚡ Построить штаб</button>
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.hq')}</span><span style="font-size:11px;color:#4caf50">${t('mine.free')}</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">${t('hq.only_one')}</div>
+      <button class="hq-coll-btn active" onclick="closePopup();doBuildHq(${cellLat},${cellLng})">${t('hq.build')}</button>
     </div>`;
   }
 
   html += `<div class="hq-collector-card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">⛏️ Шахта</span><span style="font-size:11px;color:#4caf50">Бесплатно</span></div>
-    <div style="font-size:12px;color:#888;margin:4px 0">Генерирует монеты пассивно</div>
-    <button class="hq-coll-btn active" onclick="closePopup();doBuildMine(${cellLat},${cellLng})">⛏️ Построить шахту</button>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.mine')}</span><span style="font-size:11px;color:#4caf50">${t('mine.free')}</span></div>
+    <div style="font-size:12px;color:#888;margin:4px 0">${t('mine.generates')}</div>
+    <button class="hq-coll-btn active" onclick="closePopup();doBuildMine(${cellLat},${cellLng})">${t('mine.build')}</button>
   </div>`;
 
   html += `<div class="hq-collector-card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🧲 Автосборщик</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
-    <div style="font-size:12px;color:#888;margin:4px 0">Собирает монеты с шахт в 200м</div>
-    <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">🧲 Построить сборщик</button>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.collector')}</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
+    <div style="font-size:12px;color:#888;margin:4px 0">${t('build.collector_desc')}</div>
+    <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">${t('build.collector_btn')}</button>
   </div>`;
 
   if (!hasClanHq) {
     html += `<div class="hq-collector-card">
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🏰 Штаб Клана</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
-      <div style="font-size:12px;color:#888;margin:4px 0">Зона клана · Бусты для участников</div>
-      <button class="hq-coll-btn ${canAffordClanHq ? 'active' : ''}" ${canAffordClanHq ? '' : 'disabled'} onclick="closePopup();doBuildClanHq(${cellLat},${cellLng})">🏰 Построить штаб клана</button>
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.clan_hq')}</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">${t('build.clan_hq_desc')}</div>
+      <button class="hq-coll-btn ${canAffordClanHq ? 'active' : ''}" ${canAffordClanHq ? '' : 'disabled'} onclick="closePopup();doBuildClanHq(${cellLat},${cellLng})">${t('build.clan_hq_btn')}</button>
     </div>`;
   }
 
@@ -5626,19 +6625,19 @@ function showHqPopup(hq, isOwn) {
         cardsHtml += `<div class="hq-collector-card" data-cid="${c.id}">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-weight:600;color:#fff">🧲 #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
-            <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">📍 камера</span>
+            <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">${t('hq.camera')}</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
             <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
             <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
           </div>
           <button class="hq-coll-btn ${hasCoins ? 'active' : ''}" ${hasCoins ? '' : 'disabled'} onclick="event.stopPropagation();doCollectorDeliver('${c.id}')">
-            ${hasCoins ? `📦 Доставка −${formatCoins(comm)}` : 'Пусто'}
+            ${hasCoins ? t('hq.delivery', {n: formatCoins(comm)}) : t('hq.empty')}
           </button>
         </div>`;
       });
       collectorsHtml = `<div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
-        <div style="font-size:13px;color:#888;margin-bottom:8px">🧲 Сборщики ${myCollectors.length}/${maxCollectors}</div>
+        <div style="font-size:13px;color:#888;margin-bottom:8px">${t('hq.collectors', {n: myCollectors.length, max: maxCollectors})}</div>
         <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">${cardsHtml}</div>
       </div>`;
     }
@@ -5650,20 +6649,20 @@ function showHqPopup(hq, isOwn) {
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:22px">${playerAvatar}</span>
           <div>
-            <div style="font-size:16px;font-weight:600;color:#fff">🏠 Штаб ${playerName}</div>
-            <div style="font-size:12px;color:#888">Уровень ${hqLvl}</div>
+            <div style="font-size:16px;font-weight:600;color:#fff">${t('hq.title', {name: playerName})}</div>
+            <div style="font-size:12px;color:#888">${t('hq.level', {n: hqLvl})}</div>
           </div>
         </div>
         <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div class="hq-stat-card"><span>💰 Монеты</span><span style="color:#FFD700;font-weight:600">${formatCoins(playerCoins)}</span></div>
-        <div class="hq-stat-card"><span>⛏️ Шахт</span><span style="font-weight:600">${mineCount}</span></div>
+        <div class="hq-stat-card"><span>${t('hq.coins')}</span><span style="color:#FFD700;font-weight:600">${formatCoins(playerCoins)}</span></div>
+        <div class="hq-stat-card"><span>${t('hq.mines')}</span><span style="font-weight:600">${mineCount}</span></div>
       </div>
       ${collectorsHtml}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">⬆️ Улучшить штаб — ${formatCoins(nextCost)}</button>` : ''}
-        <button class="hq-btn red" onclick="closePopup();confirmSellHq()">🗑️ Снести</button>
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">${t('hq.upgrade', {cost: formatCoins(nextCost)})}</button>` : ''}
+        <button class="hq-btn red" onclick="closePopup();confirmSellHq()">${t('hq.demolish')}</button>
       </div>
     `;
     document.getElementById('popup-overlay').classList.add('open');
@@ -5673,20 +6672,20 @@ function showHqPopup(hq, isOwn) {
     const lastSeen = hq.players?.last_seen;
     const isOnline = lastSeen && (Date.now() - new Date(lastSeen).getTime()) < 3 * 60 * 1000;
     if (isOnline) {
-      presenceText = '🟢 Онлайн';
+      presenceText = t('hq.online');
     } else if (!lastSeen) {
-      presenceText = '🕐 Не был в сети';
+      presenceText = t('hq.offline_long');
     } else {
       const mins = Math.floor((Date.now() - new Date(lastSeen).getTime()) / 60000);
-      if (mins < 1)         presenceText = '🕐 Был только что';
-      else if (mins < 60)   presenceText = `🕐 Был ${mins} мин назад`;
-      else if (mins < 1440) presenceText = `🕐 Был ${Math.floor(mins / 60)} ч назад`;
-      else                  presenceText = `🕐 Был ${Math.floor(mins / 1440)} дн назад`;
+      if (mins < 1)         presenceText = t('hq.just_now');
+      else if (mins < 60)   presenceText = t('hq.mins_ago', {n: mins});
+      else if (mins < 1440) presenceText = t('hq.hours_ago', {n: Math.floor(mins / 60)});
+      else                  presenceText = t('hq.days_ago', {n: Math.floor(mins / 1440)});
     }
     openPopup(
-      `🏠 Штаб ${owner}`,
+      t('hq.title', {name: owner}),
       presenceText,
-      [['Уровень', `${hq.level ?? 1}`]],
+      [[t('core.level'), `${hq.level ?? 1}`]],
       []
     );
   }
@@ -5746,7 +6745,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const playerCoins = state.player?.coins ?? 0;
     const refund   = calcSellRefund(mine.level);
     const sellTotal = refund + (accumulated || 0);
-    const levelLabel = `Ур. ${mine.level}`;
+    const levelLabel = t('misc.level_short', {n: mine.level});
 
     // Check if upgrade is in progress
     const isUpgrading = mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date();
@@ -5755,10 +6754,10 @@ function showMinePopup(mine, isOwn, canCapture) {
     const nextCost = mine.level < MINE_MAX_LEVEL ? mineUpgradeCost(mine.level) : null;
     const canUpgrade  = !isUpgrading && nextCost !== null && playerCoins >= nextCost && inZone;
     const upgradeLabel = isUpgrading
-      ? '⏳ Идёт улучшение...'
+      ? t('mine.upgrading')
       : nextCost !== null
-        ? `⬆️ Улучшить (${formatNumber(nextCost)})`
-        : 'МАКС УРОВЕНЬ';
+        ? t('mine.upgrade', {cost: formatNumber(nextCost)})
+        : t('mine.max_level');
 
     // Bulk upgrade button: to next round level
     const targetBulkLevel = Math.min(getNextRoundLevel(mine.level), MINE_MAX_LEVEL);
@@ -5766,25 +6765,25 @@ function showMinePopup(mine, isOwn, canCapture) {
     const bulkCost = bulkLevelsCount > 0 ? getMineUpgradeCostBulk(mine.level, bulkLevelsCount) : 0;
     const canBulk = !isUpgrading && bulkLevelsCount > 0 && playerCoins >= bulkCost && inZone;
     const bulkLabel = (bulkLevelsCount > 0)
-      ? `⚡ до ур.${targetBulkLevel} (${formatCoins(bulkCost)})`
+      ? t('mine.upgrade_to', {n: targetBulkLevel, cost: formatCoins(bulkCost)})
       : null;
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      mine.status === 'burning' ? `🔥 Шахта горит! Потушите в течение 24ч` : (mine.status === 'under_attack' ? '⚔️ Шахту атакуют!' : (attacker ? `⚠️ Атакована! ${attacker.emoji} ${BOT_NAMES[attacker.type] || attacker.type} высасывает монеты` : distLabel)),
+      mine.status === 'burning' ? t('mine.burning_warn') : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : (attacker ? t('mine.vampire_warn', {emoji: attacker.emoji, name: BOT_NAMES[attacker.type] || attacker.type}) : distLabel)),
       mine.status === 'burning' ? [] : [
-        ...(attacker ? [['Высосано', `${formatNumber(attacker.drained_amount || 0)} монет`]] : []),
+        ...(attacker ? [[t('mine.drained'), t('mine.drained_coins', {n: formatNumber(attacker.drained_amount || 0)})]] : []),
         ...(isUpgrading
-          ? [['Улучшается до', `Ур. ${pendingLevel}`]]
+          ? [[t('mine.upgrading_to'), t('misc.level_short', {n: pendingLevel})]]
           : [
-              ['Доход', clanBonusInfo
+              [t('mine.income'), clanBonusInfo
                 ? (() => {
                     let tags = `+${clanBonusInfo.income}%`;
                     if (clanBonusInfo.boost) tags += ` · x${clanBonusInfo.boost} 🚀`;
                     return `${formatCoins(rate)}/ч <span style="color:#D500F9">(${tags})</span>`;
                   })()
                 : `${formatCoins(rate)}/${t('per_hour')}`],
-              ...(mine.level > 0 ? [['Накоплено', `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
+              ...(mine.level > 0 ? [[t('mine.stored'), `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
             ]),
         ...(mine.level > 0 && mine.hp != null && mine.max_hp ? [['__dual__', (() => {
           const hp = Math.round(mine.hp); const mhp = mine.max_hp;
@@ -5797,7 +6796,7 @@ function showMinePopup(mine, isOwn, canCapture) {
         })()]] : []),
         ...(mine.level > 0 && mine.cell_id ? [['__fullwidth__', (() => {
           const cores = getCoresForMine(mine.cell_id);
-          let slotsHtml = `<div style="font-size:12px;font-weight:600;color:#aaa;margin-bottom:8px">🔮 Ядра ${cores.length}/10</div>`;
+          let slotsHtml = `<div style="font-size:12px;font-weight:600;color:#aaa;margin-bottom:8px">${t('mine.cores_n', {n: cores.length})}</div>`;
           slotsHtml += '<div class="mine-cores-grid">';
           for (let i = 0; i < 10; i++) {
             const c = cores.find(x => x.slot_index === i);
@@ -5821,13 +6820,13 @@ function showMinePopup(mine, isOwn, canCapture) {
       ],
       mine.status === 'burning' ? [
         {
-          label: '🧯 Потушить (восстановит 25% HP)',
+          label: t('mine.extinguish'),
           cls: 'primary',
           action: () => doExtinguish(mine.id),
         },
         [
-          { label: '🗑️ Снести', cls: 'danger', action: () => doSellMine(mine.id) },
-          { label: 'Закрыть', isClose: true },
+          { label: t('mine.demolish'), cls: 'danger', action: () => doSellMine(mine.id) },
+          { label: t('misc.close'), isClose: true },
         ],
       ] : [
         ...(nextCost !== null ? [{
@@ -5843,8 +6842,8 @@ function showMinePopup(mine, isOwn, canCapture) {
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
         [
-          { label: '🗑️ Снести', cls: 'danger', action: () => doSellMine(mine.id) },
-          { label: 'Закрыть', isClose: true },
+          { label: t('mine.demolish'), cls: 'danger', action: () => doSellMine(mine.id) },
+          { label: t('misc.close'), isClose: true },
         ],
       ]
     );
@@ -5874,17 +6873,17 @@ function showMinePopup(mine, isOwn, canCapture) {
     const canAttack = inCombatZone && mine.level > 0 && (mine.status === 'normal' || mine.status === 'under_attack');
     // Multitouch: if holding attack, switch to mine immediately
     if (combatState.isHolding && canAttack) {
-      return openCombatPopup(`⛏️ Шахта Ур.${mine.level}`, mine.id, 'mine', mine);
+      return openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine);
     }
     const attackActions = [];
     if (canAttack) {
       attackActions.push({
-        label: '⚔️ Атаковать шахту',
+        label: t('mine.attack_btn'),
         cls: 'danger',
         action: () => doAttackMine(mine.id),
       });
     }
-    const statusLabel = isBurning ? ' 🔥 Горит!' : (isUnderAttack ? ' ⚔️ Атакуется' : '');
+    const statusLabel = isBurning ? (' 🔥 ' + t('misc.burning')) : (isUnderAttack ? (' ⚔️ ' + t('misc.under_attack')) : '');
 
     // Enemy mine HP + clan shield info
     const enemyStats = [];
@@ -5909,8 +6908,8 @@ function showMinePopup(mine, isOwn, canCapture) {
     }
 
     openPopup(
-      `${emoji} ${name} (Ур. ${mine.level})`,
-      `Владелец: ${owner} ${distLabel}${statusLabel}`,
+      `${emoji} ${name} (${t('misc.level_short', {n: mine.level})})`,
+      `${t('mine.owner', {name: owner})} ${distLabel}${statusLabel}`,
       enemyStats,
       attackActions
     );
@@ -6140,7 +7139,7 @@ function renderCoresInventory() {
       return sum + (c ? getCoreSellPrice(c.level) : 0);
     }, 0);
     headerHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-size:13px;color:#aaa;">${_selectedCoreIds.size} выбрано · ${formatNumber(totalEther)}🌀</span>
+      <span style="font-size:13px;color:#aaa;">${t('core.selected', {n: _selectedCoreIds.size, ether: formatNumber(totalEther)})}</span>
       <div style="display:flex;gap:8px;">
         <button onclick="sellSelectedCores()" class="btn danger" style="font-size:12px;padding:5px 10px;" ${_selectedCoreIds.size ? '' : 'disabled'}>Продать</button>
         <button onclick="toggleCoreSellMode()" class="btn" style="font-size:12px;padding:5px 10px;">Отмена</button>
@@ -6148,13 +7147,13 @@ function renderCoresInventory() {
     </div>`;
   } else {
     headerHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-size:13px;color:#aaa;">🔮 Ядра (${cores.length})</span>
+      <span style="font-size:13px;color:#aaa;">${t('core.inventory', {n: cores.length})}</span>
       <button onclick="toggleCoreSellMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
     </div>`;
   }
 
   if (cores.length === 0) {
-    grid.innerHTML = headerHtml + '<div class="cores-empty">Нет ядер в сумке<br>Получай с монументов 🏛️</div>';
+    grid.innerHTML = headerHtml + `<div class="cores-empty">${t('core.no_cores').replace('\n','<br>')}</div>`;
     return;
   }
 
@@ -6198,7 +7197,7 @@ async function sellSelectedCores() {
     const c = (state._playerCores || []).find(x => x.id === id);
     return sum + (c ? getCoreSellPrice(c.level) : 0);
   }, 0);
-  if (!confirm(`Продать ${coreIds.length} ядер за ~${formatNumber(totalEther)} 🌀?`)) return;
+  if (!confirm(t('core.sell_confirm', {n: coreIds.length, ether: formatNumber(totalEther)}))) return;
   try {
     const data = await apiFetch('/api/cores', {
       method: 'POST',
@@ -6230,16 +7229,16 @@ function showCoreDetailPopup(coreId) {
     `${info.emoji} ${info.name}`,
     '',
     [
-      ['Уровень', core.level],
-      ['Множитель', `<span style="color:#FFD700">x${mul}</span>`],
-      ['После прокачки', `<span style="color:#4caf50">x${nextMul}</span> (lv.${core.level + 1})`],
-      ['Стоимость', `${cost} 🌀`],
+      [t('core.level'), core.level],
+      [t('core.multiplier'), `<span style="color:#FFD700">x${mul}</span>`],
+      [t('core.after_upgrade'), `<span style="color:#4caf50">x${nextMul}</span> (lv.${core.level + 1})`],
+      [t('core.cost'), `${cost} 🌀`],
     ],
     [
-      { label: `⬆️ Прокачать за ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
-      ...(core.mine_cell_id ? [{ label: '📤 Извлечь', cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
-      ...(!core.mine_cell_id ? [{ label: `🗑️ Продать за ${getCoreSellPrice(core.level)}🌀`, cls: 'danger', action: () => doCoreSell(coreId) }] : []),
-      { label: 'Закрыть', isClose: true },
+      { label: t('core.upgrade', {cost}), cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      ...(core.mine_cell_id ? [{ label: t('core.extract'), cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
+      ...(!core.mine_cell_id ? [{ label: t('core.sell_for', {n: getCoreSellPrice(core.level) + '🌀'}), cls: 'danger', action: () => doCoreSell(coreId) }] : []),
+      { label: t('misc.close'), isClose: true },
     ]
   );
 }
@@ -6255,15 +7254,15 @@ function showInstalledCorePopup(coreId) {
   const canUpgrade = ether >= cost;
   openPopup(
     `${info.emoji} ${info.name} Lv.${core.level}`,
-    `Множитель: x${mul}`,
+    t('core.multiplier_sub', {mul}),
     [
-      ['Уровень', core.level],
-      ['Множитель', `<span style="color:#FFD700">x${mul}</span>`],
+      [t('core.level'), core.level],
+      [t('core.multiplier'), `<span style="color:#FFD700">x${mul}</span>`],
     ],
     [
-      { label: `⬆️ Прокачать (${cost}🌀)`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
-      { label: '📤 Извлечь в сумку', cls: 'danger', action: () => doCoreUninstall(coreId) },
-      { label: 'Закрыть', isClose: true },
+      { label: t('core.upgrade_short', {cost}), cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      { label: t('core.extract_to_bag'), cls: 'danger', action: () => doCoreUninstall(coreId) },
+      { label: t('misc.close'), isClose: true },
     ]
   );
 }
@@ -6342,7 +7341,7 @@ function openCoreInstallPicker(mineId, cellId) {
     };
   });
   actions.push({ label: 'Отмена', isClose: true });
-  openPopup('🔮 Выбери ядро', `${available.length} ядер в сумке`, [], actions);
+  openPopup(t('core.pick_title'), t('core.bag_count', {n: available.length}), [], actions);
 }
 
 async function doCoreInstall(coreId, mineId) {
@@ -6410,11 +7409,11 @@ async function doBuildHq(lat, lng) {
 
 function confirmSellHq() {
   openPopup(
-    '&#x26A0;&#xFE0F; Снести штаб?',
-    'Все монеты в штабе сгорят!',
+    t('hq.demolish_q'),
+    t('hq.demolish_warn'),
     [],
     [{
-      label: '&#x1F5D1;&#xFE0F; Да, снести',
+      label: t('hq.demolish_yes'),
       cls: 'danger',
       action: () => doSellHq(),
     }]
@@ -7421,12 +8420,12 @@ function showVasePopup(vaseId) {
 
   const actions = [];
   if (near) {
-    actions.push({ label: '💥 Разбить!', cls: 'danger', action: () => doBreakVase(vaseId) });
+    actions.push({ label: t('vase.break'), cls: 'danger', action: () => doBreakVase(vaseId) });
   }
-  actions.push({ label: 'Закрыть', isClose: true });
+  actions.push({ label: t('misc.close'), isClose: true });
 
-  openPopup('🏺 Древняя ваза',
-    near ? 'Внутри что-то ценное!' : `📍 До вазы: ${Math.round(dist)}м`,
+  openPopup(t('vase.title'),
+    near ? t('vase.valuable') : t('vase.distance', {n: Math.round(dist)}),
     stats, actions);
 }
 
@@ -7511,7 +8510,7 @@ function _showVaseDropPopup(item, diamonds) {
   document.getElementById('vase-drop-name').textContent     = item.name;
   document.getElementById('vase-drop-rarity').innerHTML     = rarityLabel(item.rarity);
   document.getElementById('vase-drop-stat').textContent     = itemStatLabel(item);
-  document.getElementById('vase-drop-diamonds').textContent = `+ ${diamonds} 💎 алмазов`;
+  document.getElementById('vase-drop-diamonds').textContent = t('vase.diamonds', {n: diamonds});
 
   if (item.rarity === 'legendary') {
     card.classList.add('legendary-bg');
@@ -7673,18 +8672,18 @@ function showBotPopup(botId) {
   const botMaxHp = bot.max_hp ?? 50;
   const hpPct = Math.round(botHp / botMaxHp * 100);
   const botState = bot.state || bot.status || 'roaming';
-  const stateLabel = (botState === 'aggro' || botState === 'attacking') ? '⚠️ Агрессивный' : (botState === 'fleeing' || botState === 'leaving') ? '💰 Убегает с добычей' : '😴 Бродит';
+  const stateLabel = (botState === 'aggro' || botState === 'attacking') ? t('bot.aggressive') : (botState === 'fleeing' || botState === 'leaving') ? t('bot.fleeing') : t('bot.roaming');
 
   const stats = [
-    ['Состояние', stateLabel],
+    [t('bot.state'), stateLabel],
     ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${botHp}/${botMaxHp}</span></div>`],
   ];
   if (bot.state === 'fleeing' && (bot.stolen_coins || 0) > 0) {
-    stats.push(['💰 Несёт', `${formatNumber(bot.stolen_coins)} монет`]);
+    stats.push([t('bot.carrying'), t('bot.carrying_coins', {n: formatNumber(bot.stolen_coins)})]);
   }
 
-  openPopup(`👺 ${t('bot.goblin')}`, dist ? `📍 ${Math.round(dist)}м — подойди ближе` : '', stats, [
-    { label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true },
+  openPopup(`👺 ${t('bot.goblin')}`, dist ? `📍 ${t('misc.distance', {n: Math.round(dist)})}` : '', stats, [
+    { label: `📍 ${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}`, cls: '', disabled: true },
   ]);
 }
 
@@ -8255,7 +9254,7 @@ function continueBootAfterSetup() {
 
 async function boot() {
   if (typeof h3 === 'undefined') {
-    showError('Ошибка загрузки библиотеки. Обнови страницу.');
+    showError(t('conn.lib_error'));
     return;
   }
 
@@ -8340,9 +9339,9 @@ async function boot() {
     }
   } catch (err) {
     if (err.name === 'TimeoutError' || err.name === 'AbortError') {
-      showError('⏳ Сервер не отвечает. Попробуй через минуту.');
+      showError(t('conn.no_response'));
     } else {
-      showError(`❌ ${err.message || 'Нет соединения с сервером.'}`);
+      showError(`❌ ${err.message || t('conn.no_connection')}`);
     }
     return;
   }
@@ -8725,21 +9724,21 @@ async function findPlayerByTgId(telegramId) {
 }
 
 const MAP_STYLES = [
-  { id: 'standard', name: 'Стандарт', desc: 'Тёмный с цветными деталями',
+  { id: 'standard', get name() { return t('map.style.standard'); }, get desc() { return t('map.style.standard_desc'); },
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     filter: 'invert(1) hue-rotate(180deg) brightness(1.3) contrast(1.1)',
     bgColor: '#1a1a2e', roadColor: '#4a4a6a', waterColor: '#1e3a5f', parkColor: '#1a3a1a' },
-  { id: 'light', name: 'Светлый', desc: 'Светло-серый фон, синяя вода',
+  { id: 'light', get name() { return t('map.style.light'); }, get desc() { return t('map.style.light_desc'); },
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', filter: null,
     bgColor: '#e8e8e0', roadColor: '#ffffff', waterColor: '#b8d4e8', parkColor: '#c8e0c0' },
-  { id: 'total_black', name: 'Тотал Блэк', desc: 'Полностью чёрный без цветов',
+  { id: 'total_black', get name() { return t('map.style.black'); }, get desc() { return t('map.style.black_desc'); },
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', filter: null,
     bgColor: '#000000', roadColor: '#333333', waterColor: null, parkColor: null },
-  { id: 'neon', name: 'Неон', desc: 'Киберпанк с неоновыми улицами',
+  { id: 'neon', get name() { return t('map.style.neon'); }, get desc() { return t('map.style.neon_desc'); },
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     filter: 'invert(1) hue-rotate(180deg) brightness(1.1) saturate(4) hue-rotate(40deg)',
     bgColor: '#050510', roadColor: '#0066ff', waterColor: '#003399', parkColor: null },
-  { id: 'blood', name: 'Кровавый', desc: 'Тёмный с красными улицами',
+  { id: 'blood', get name() { return t('map.style.blood'); }, get desc() { return t('map.style.blood_desc'); },
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     filter: 'invert(1) brightness(0.85) hue-rotate(160deg) saturate(4)',
     bgColor: '#0a0005', roadColor: '#cc0033', waterColor: null, parkColor: null },
@@ -8859,13 +9858,13 @@ function _updateShopButtons() {
   });
 }
 
-const RARITY_NAMES_RU = { common: 'Обычный', uncommon: 'Необычный', rare: 'Редкий', epic: 'Эпический', mythic: 'Мифический', legendary: 'Легендарный' };
+function rarityName(r) { return t('rarity.' + r); }
 
 function _showBoxInfo(boxType) {
   const odds = SHOP_BOX_ODDS[boxType];
   const titles = { common: '📦 Обычный бокс', rare: '📦 Редкий бокс', epic: '🎁 Эпический бокс', mythic: '🏆 Мифический бокс' };
   const title = titles[boxType] || '📦 Бокс';
-  const stats = Object.entries(odds).map(([r, pct]) => [RARITY_NAMES_RU[r] || r, `${pct}%`]);
+  const stats = Object.entries(odds).map(([r, pct]) => [rarityName(r), `${pct}%`]);
   stats.unshift(['Содержимое', '⚔️ Меч · 🪓 Топор · 🛡️ Щит']);
   openPopup(title, 'Случайный предмет одного из типов', stats, [{ label: 'Понятно', isClose: true }]);
 }
@@ -9613,12 +10612,12 @@ function renderMarkets(markets) {
 
 function _showMarketPopup(m) {
   openPopup(
-    `🎪 ${m.name || 'Городской рынок'}`,
-    'Торговая площадка игроков',
+    t('market.enter_popup', {name: m.name || t('market.title')}),
+    t('market.enter_popup_sub'),
     [],
     [
-      { label: '🛒 Войти на рынок', cls: 'primary', action: () => { closePopup(); openMarket(); } },
-      { label: 'Закрыть', isClose: true },
+      { label: t('market.enter_btn'), cls: 'primary', action: () => { closePopup(); openMarket(); } },
+      { label: t('misc.close'), isClose: true },
     ]
   );
 }
@@ -9860,18 +10859,18 @@ function showDropPopup(dropId) {
       const glow = rc.startsWith('linear') ? '' : 'filter:drop-shadow(0 0 12px ' + rc + ')';
       stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px;${glow}">${item.emoji}</div><div style="font-size:14px;font-weight:700;margin:4px 0">${item.name} ${rarityLabel(item.rarity)}</div><div style="font-size:12px;color:#ccc">${itemStatLabel(item)}</div></div>`]);
     } else {
-      stats.push(['__fullwidth__', '<div style="text-align:center;font-size:13px;color:#FFD700">Внутри что-то ценное!</div>']);
+      stats.push(['__fullwidth__', `<div style="text-align:center;font-size:13px;color:#FFD700">${t('drop.valuable')}</div>`]);
     }
 
     const actions = [];
     if (near) {
-      actions.push({ label: isDelivery ? '🎁 Открыть посылку' : '🎒 Подобрать', cls: 'primary', action: () => doPickupDrop(dropId) });
+      actions.push({ label: isDelivery ? t('drop.open') : t('drop.pickup'), cls: 'primary', action: () => doPickupDrop(dropId) });
     }
-    actions.push({ label: 'Закрыть', isClose: true });
+    actions.push({ label: t('misc.close'), isClose: true });
 
     openPopup(
-      isDelivery ? '📦 Ваш заказ прибыл!' : '📦 Потерянная посылка',
-      near ? '' : `До посылки: ${Math.round(dist)}м`,
+      isDelivery ? t('drop.order') : t('drop.lost'),
+      near ? '' : t('drop.distance', {n: Math.round(dist)}),
       stats, actions);
   } catch (err) {
     console.error('[drop-popup] error:', err);
@@ -10004,20 +11003,20 @@ function _renderMarketCards(listings, grid, isMine) {
         : '';
       if (l.status === 'sold') {
         const received = Math.floor(l.price_diamonds * 0.9);
-        statusHtml = `<div class="market-card-status" style="color:#FFD700;">💰 Продан!</div>
+        statusHtml = `<div class="market-card-status" style="color:#FFD700;">${t('market.sold')}</div>
           <div style="font-size:12px;color:#00cfff;">+${received} 💎</div>`;
       } else if (l.status === 'pending') {
-        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">🚶 Курьер в пути</div>${privateCodeHtml}`;
-        btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Отменить</button>`;
+        statusHtml = `<div class="market-card-status" style="color:#ffaa00;">${t('market.courier_on_way')}</div>${privateCodeHtml}`;
+        btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">${t('market.cancel_listing')}</button>`;
       } else if (l.status === 'active') {
         const msLeft = new Date(l.expires_at) - Date.now();
         const daysLeft = Math.floor(msLeft / 86400000);
         const hrsLeft = Math.floor((msLeft % 86400000) / 3600000);
-        statusHtml = `<div class="market-card-status" style="color:#00cc44;">✅ Активен</div>
-          <div class="market-card-time">⏳ ${daysLeft}д ${hrsLeft}ч</div>${privateCodeHtml}`;
-        btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">Снять</button>`;
+        statusHtml = `<div class="market-card-status" style="color:#00cc44;">${t('market.active')}</div>
+          <div class="market-card-time">⏳ ${daysLeft}d ${hrsLeft}h</div>${privateCodeHtml}`;
+        btnHtml = `<button class="btn" data-cancel="${l.id}" style="width:100%;font-size:12px;border-radius:8px;margin-top:4px;">${t('market.remove')}</button>`;
       } else if (l.status === 'intercepted') {
-        statusHtml = `<div class="market-card-status" style="color:#ff6b6b;">⚔️ Перехвачен</div>`;
+        statusHtml = `<div class="market-card-status" style="color:#ff6b6b;">${t('market.intercepted')}</div>`;
       } else {
         statusHtml = `<div class="market-card-status" style="color:#888;">${l.status}</div>`;
       }
@@ -10620,7 +11619,7 @@ function renderLeaderboard(data) {
       <span class="${rankCls}">#${p.rank}</span>
       <span class="lb-avatar">${p.avatar || '🐺'}</span>
       <span class="lb-name">${displayName(p)}</span>
-      <span class="lb-level">Ур.${p.level || 1}</span>
+      <span class="lb-level">${t('lb.level', {n: p.level || 1})}</span>
       <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
     `;
     list.appendChild(row);
@@ -10629,12 +11628,12 @@ function renderLeaderboard(data) {
   if (data.current) {
     const p = data.current;
     currentDiv.innerHTML = `
-      <div style="padding:8px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Ваша позиция</div>
+      <div style="padding:8px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">${t('lb.your_pos')}</div>
       <div class="lb-row current-player" style="margin-bottom:8px;">
         <span class="lb-rank">#${p.rank}</span>
         <span class="lb-avatar">${p.avatar || '🐺'}</span>
         <span class="lb-name">${displayName(p)}</span>
-        <span class="lb-level">Ур.${p.level || 1}</span>
+        <span class="lb-level">${t('lb.level', {n: p.level || 1})}</span>
         <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
       </div>
     `;
@@ -10654,7 +11653,7 @@ function showOtherPlayerPopup(p) {
   // Multitouch or in range: compact combat popup
   if (canAttack) {
     return openCombatPopup(
-      `${p.avatar || '🐺'} ${displayName(p)} Ур.${p.level ?? 1}`,
+      `${p.avatar || '🐺'} ${displayName(p)} ${t('lb.level', {n: p.level ?? 1})}`,
       p.telegram_id, 'player', p,
       { hp: p.hp ?? 100, maxHp: p.max_hp ?? 100 }
     );
@@ -10664,18 +11663,18 @@ function showOtherPlayerPopup(p) {
   const distLabel = dist !== null
     ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
     : '<span style="color:#888">📍 GPS...</span>';
-  const shieldLabel = hasShield ? ' 🛡️ Щит активен' : '';
+  const shieldLabel = hasShield ? (' ' + t('pvp.shield_active')) : '';
 
   const actions = [];
   if (hasShield) {
-    actions.push({ label: '🛡️ Игрок под защитой', cls: '', disabled: true });
+    actions.push({ label: t('pvp.under_protection'), cls: '', disabled: true });
   } else if (!inRange) {
-    actions.push({ label: '⚔️ Слишком далеко', cls: 'danger', disabled: true });
+    actions.push({ label: t('pvp.too_far'), cls: 'danger', disabled: true });
   }
 
   openPopup(
     `${p.avatar || '🐺'} ${displayName(p)}`,
-    `Ур. ${p.level ?? 1} ${distLabel}${shieldLabel}`,
+    `${t('profile.level', {n: p.level ?? 1})} ${distLabel}${shieldLabel}`,
     [],
     actions
   );
@@ -10690,19 +11689,19 @@ function showPvpPreview(defender) {
         <div class="pvp-fighter">
           <div class="pvp-fighter-avatar">${p.avatar || '🐺'}</div>
           <div class="pvp-fighter-name">${displayName(p)}</div>
-          <div class="pvp-fighter-level">Ур. ${p.level ?? 1}</div>
+          <div class="pvp-fighter-level">${t('profile.level', {n: p.level ?? 1})}</div>
           <div class="pvp-fighter-weapon">⚔️ ${10 + (p.bonus_attack || 0)} ATK</div>
         </div>
         <div class="pvp-vs-icon">VS</div>
         <div class="pvp-fighter">
           <div class="pvp-fighter-avatar">${defender.avatar || '🐺'}</div>
           <div class="pvp-fighter-name">${displayName(defender)}</div>
-          <div class="pvp-fighter-level">Ур. ${defender.level ?? 1}</div>
+          <div class="pvp-fighter-level">${t('profile.level', {n: defender.level ?? 1})}</div>
         </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:20px;justify-content:center;">
         <button class="btn" onclick="document.getElementById('pvp-overlay').classList.remove('open')" style="flex:1;max-width:140px;">Отмена</button>
-        <button class="btn danger" id="pvp-fight-btn" style="flex:1;max-width:140px;">⚔️ В бой!</button>
+        <button class="btn danger" id="pvp-fight-btn" style="flex:1;max-width:140px;">${t('pvp.fight')}</button>
       </div>
     </div>
   `;
@@ -10803,18 +11802,18 @@ function playBattleAnimation(data) {
       ((roundIdx, round, d) => {
         setTimeout(() => {
           const el = document.createElement('div');
-          el.innerHTML = `<div class="pvp-round-label">Раунд ${roundIdx + 1}</div>`;
+          el.innerHTML = `<div class="pvp-round-label">${t('pvp.round', {n: roundIdx + 1})}</div>`;
 
           // Attacker hits
-          const critA = round.attackerCrit ? ' <span class="crit">КРИТ!</span>' : '';
-          el.innerHTML += `<div class="pvp-hit-line" style="color:#2979ff;">${atk.username || 'Атакующий'} наносит <strong>-${round.attackerDmg}</strong>${critA}</div>`;
+          const critA = round.attackerCrit ? ` <span class="crit">${t('pvp.crit')}</span>` : '';
+          el.innerHTML += `<div class="pvp-hit-line" style="color:#2979ff;">${atk.username || 'Player'} ${t('pvp.deals', {n: round.attackerDmg})}</div>${critA}`;
           defHp = round.defenderHpAfter ?? defHp;
           if (defBar) defBar.style.width = Math.max(0, (defHp / defMaxHp) * 100) + '%';
           if (defLabel) defLabel.textContent = `${Math.max(0, defHp)} HP`;
 
           if (round.defenderDmg != null) {
-            const critD = round.defenderCrit ? ' <span class="crit">КРИТ!</span>' : '';
-            el.innerHTML += `<div class="pvp-hit-line" style="color:#ff4444;">${def.username || 'Защитник'} наносит <strong>-${round.defenderDmg}</strong>${critD}</div>`;
+            const critD = round.defenderCrit ? ` <span class="crit">${t('pvp.crit')}</span>` : '';
+            el.innerHTML += `<div class="pvp-hit-line" style="color:#ff4444;">${def.username || 'Player'} ${t('pvp.deals', {n: round.defenderDmg})}</div>${critD}`;
             atkHp = round.attackerHpAfter ?? atkHp;
             if (atkBar) atkBar.style.width = Math.max(0, (atkHp / atkMaxHp) * 100) + '%';
             if (atkLabel) atkLabel.textContent = `${Math.max(0, atkHp)} HP`;
@@ -10833,14 +11832,14 @@ function playBattleAnimation(data) {
       const area = document.getElementById('pvp-result-area');
       if (!area) return;
       const bannerClass = iWon ? 'win' : 'lose';
-      const bannerText = iWon ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ';
+      const bannerText = iWon ? ('🏆 ' + t('pvp.victory')) : ('💀 ' + t('pvp.defeat'));
       const coinsText = iWon
-        ? `+${formatCoins(data.coinsWon)} монет, +${data.xpGain} XP`
-        : `-${formatCoins(data.coinsLost)} монет`;
+        ? t('pvp.win_reward', {coins: formatCoins(data.coinsWon), xp: data.xpGain})
+        : t('pvp.lose_penalty', {coins: formatCoins(data.coinsLost)});
       area.innerHTML = `
         <div class="pvp-result-banner ${bannerClass}">${bannerText}</div>
         <div class="pvp-result-detail">${coinsText}</div>
-        <div class="pvp-close-hint">Нажмите чтобы закрыть</div>
+        <div class="pvp-close-hint">${t('pvp.click_close')}</div>
       `;
       ov.onclick = () => {
         ov.classList.remove('open');
@@ -10872,7 +11871,7 @@ function updateShieldDisplay() {
     }
     const m = Math.floor(left / 60000);
     const s = Math.floor((left % 60000) / 1000);
-    el.textContent = `🛡️ ${m}м ${s}с`;
+    el.textContent = t('pvp.shield_timer', {m, s});
   }
   tick();
   if (_shieldInterval) clearInterval(_shieldInterval);
@@ -10890,7 +11889,7 @@ async function doAttackMine(mineId) {
   if (String(mineId).startsWith('_opt_')) return;
   const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
   if (!mine) return showToast(t('toast.mine_not_found'));
-  openCombatPopup(`⛏️ Шахта Ур.${mine.level}`, mine.id, 'mine', mine);
+  openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine);
 }
 
 async function doMineHit(mine) {
@@ -11176,7 +12175,7 @@ function showCombatHUD(target, mode) {
   hud.id = 'combat-hud';
   hud.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,20px) + 20px);left:50%;transform:translateX(-50%);z-index:5000;display:flex;gap:12px;align-items:center;';
 
-  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? `Рудник Ур.${target.level}` : mode === 'monument' ? `🏛️ ${target.name || 'Монумент'} Lv.${target.level}` : mode === 'defender' ? `${target.emoji || '👹'} Защитник` : mode === 'collector' ? `🧲 Сборщик Lv.${target.level}` : `Шахта Ур.${target.level}`;
+  const targetName = mode === 'pvp' ? displayName(target) : mode === 'ore' ? t('combat.ore_target', {level: target.level}) : mode === 'monument' ? `🏛️ ${target.name || 'Monument'} Lv.${target.level}` : mode === 'defender' ? `${target.emoji || '👹'} ${t('combat.defender_target')}` : mode === 'collector' ? `🧲 Lv.${target.level}` : t('combat.mine_target', {level: target.level});
 
   hud.innerHTML = `
     <div style="background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:8px 16px;display:flex;align-items:center;gap:12px;">
@@ -11475,7 +12474,7 @@ function showDeathScreen(killerName, coinsLost) {
   const screen = document.getElementById('death-screen');
   const timerEl = document.getElementById('death-timer');
   const infoEl = document.getElementById('death-info');
-  infoEl.textContent = `${killerName || 'Игрок'} убил вас · -${formatCoins(coinsLost)} монет · Щит 2 мин`;
+  infoEl.textContent = t('death.info', {killer: killerName || t('ore.owner'), coins: formatCoins(coinsLost)});
   screen.classList.add('open');
   let sec = 10;
   timerEl.textContent = sec;
@@ -11495,7 +12494,7 @@ function showMonumentDeathOverlay(seconds, killer) {
   const screen = document.getElementById('death-screen');
   const timerEl = document.getElementById('death-timer');
   const infoEl = document.getElementById('death-info');
-  infoEl.textContent = `💀 ${killer} убил вас`;
+  infoEl.textContent = t('death.info_short', {killer});
   screen.classList.add('open');
   let sec = seconds;
   timerEl.textContent = sec;
@@ -11624,24 +12623,24 @@ function updateDailyDiamondsUI(canClaim, nextClaimIn) {
 
   if (canClaim) {
     btn.disabled = false;
-    btn.textContent = 'Забрать 5 💎';
+    btn.textContent = t('shop.daily_btn');
     timer.textContent = '';
   } else {
     btn.disabled = true;
-    btn.textContent = 'Получено ✓';
+    btn.textContent = t('shop.daily_claimed');
     let msLeft = nextClaimIn || 0;
     function tick() {
       if (msLeft <= 0) {
         timer.textContent = '';
         btn.disabled = false;
-        btn.textContent = 'Забрать 5 💎';
+        btn.textContent = t('shop.daily_btn');
         if (_dailyCountdownInterval) clearInterval(_dailyCountdownInterval);
         return;
       }
       const h = Math.floor(msLeft / 3600000);
       const m = Math.floor((msLeft % 3600000) / 60000);
       const s = Math.floor((msLeft % 60000) / 1000);
-      timer.textContent = `⏰ ${h}ч ${m}м ${s}с`;
+      timer.textContent = t('shop.daily_timer', {h, m, s});
       msLeft -= 1000;
     }
     tick();
@@ -11664,7 +12663,7 @@ async function claimDailyDiamonds() {
     updateDailyDiamondsUI(false, 24 * 3600 * 1000);
   } catch (err) {
     showToast(`❌ ${err.message}`);
-    if (btn) { btn.disabled = false; btn.textContent = 'Забрать 5 💎'; }
+    if (btn) { btn.disabled = false; btn.textContent = t('shop.daily_btn'); }
   }
 }
 
@@ -11984,7 +12983,7 @@ function showOrePopup(oreId) {
 
   // Multitouch: if holding attack and can attack this ore, switch immediately
   if (combatState.isHolding && isOwned && !isMine && inAttackRange && !ownerOnline) {
-    return openCombatPopup(`⛏️ Рудник Ур.${ore.level}`, ore.id, 'ore', ore);
+    return openCombatPopup(t('combat.ore_target', {level: ore.level}), ore.id, 'ore', ore);
   }
 
   const distLabel = dist !== null
@@ -11998,37 +12997,36 @@ function showOrePopup(oreId) {
   const expStr = `${expDate.getDate().toString().padStart(2,'0')}.${(expDate.getMonth()+1).toString().padStart(2,'0')}`;
 
   const currencyEmoji = ore.currency === 'ether' ? '🌀' : '✨';
-  const currencyName = ore.currency === 'ether' ? 'Эфир' : 'Осколки';
+  const currencyName = ore.currency === 'ether' ? t('ore.ether') : t('ore.shards');
 
   const stats = [
-    ['Доход', `${ore.level} ${currencyEmoji}/ч (${currencyName})`],
+    [t('ore.income'), `${ore.level} ${currencyEmoji}/ч (${currencyName})`],
     ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
-    ['Владелец', isOwned ? (ore.owner_name || 'Игрок') : '<span style="color:#00ff88">Свободен</span>'],
-    ['Истекает', expStr],
+    [t('ore.owner'), isOwned ? (ore.owner_name || t('ore.owner')) : t('ore.free')],
+    [t('ore.expires'), expStr],
   ];
 
   const actions = [];
   if (isMine) {
     const otherCurrency = ore.currency === 'ether' ? 'shards' : 'ether';
-    const otherEmoji = otherCurrency === 'ether' ? '🌀 Эфир' : '✨ Осколки';
-    actions.push({ label: `Переключить на ${otherEmoji}`, cls: 'yellow', action: () => switchOreCurrency(oreId, otherCurrency) });
+    const otherEmoji = otherCurrency === 'ether' ? '🌀' : '✨';
+    actions.push({ label: t('ore.switch', {emoji: otherEmoji}), cls: 'yellow', action: () => switchOreCurrency(oreId, otherCurrency) });
   } else if (!isOwned && inRange) {
-    // Currency choice buttons for capturing
-    actions.push({ label: '✨ Захватить (Осколки)', cls: 'primary', action: () => captureOre(oreId, 'shards') });
-    actions.push({ label: '🌀 Захватить (Эфир)', cls: 'primary', action: () => captureOre(oreId, 'ether') });
+    actions.push({ label: t('ore.capture_shards'), cls: 'primary', action: () => captureOre(oreId, 'shards') });
+    actions.push({ label: t('ore.capture_ether'), cls: 'primary', action: () => captureOre(oreId, 'ether') });
   } else if (isOwned && inAttackRange) {
     if (ownerOnline) {
-      actions.push({ label: '⚔️ Атаковать владельца', cls: 'danger', action: () => attackOreOwnerPvp(ore) });
+      actions.push({ label: t('ore.attack_owner'), cls: 'danger', action: () => attackOreOwnerPvp(ore) });
     } else {
-      actions.push({ label: '⚔️ Атаковать рудник', cls: 'danger', action: () => attackOreNode(ore) });
+      actions.push({ label: t('ore.attack'), cls: 'danger', action: () => attackOreNode(ore) });
     }
   } else if (!inRange && !inAttackRange) {
-    actions.push({ label: '🔒 Подойди ближе', cls: '', disabled: true });
+    actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
   } else if (!isOwned && !inRange) {
-    actions.push({ label: '🔒 Подойди ближе (200м)', cls: '', disabled: true });
+    actions.push({ label: t('ore.come_closer_200'), cls: '', disabled: true });
   }
 
-  openPopup(`⛏️ Рудник Ур.${ore.level}`, distLabel, stats, actions);
+  openPopup(t('ore.title', {level: ore.level}), distLabel, stats, actions);
 }
 
 async function captureOre(oreId, currency = 'shards') {
@@ -12076,7 +13074,7 @@ function attackOreOwnerPvp(ore) {
 }
 
 function attackOreNode(ore) {
-  openCombatPopup(`⛏️ Рудник Ур.${ore.level}`, ore.id, 'ore', ore);
+  openCombatPopup(t('combat.ore_target', {level: ore.level}), ore.id, 'ore', ore);
 }
 
 // ── Clan HQ popup (minimal) ──
@@ -13094,44 +14092,44 @@ function showMonumentPopup(monumentId) {
     }
   }
 
-  const phaseLabel = m.phase === 'shield' ? '🛡️ Щит' : m.phase === 'open' ? '🔥 Открыт' : '💀 Повержен';
+  const phaseLabel = m.phase === 'shield' ? t('mon.phase_shield') : m.phase === 'open' ? t('mon.phase_open') : t('mon.phase_defeated');
   const distLabel = dist !== null
     ? (inRange ? `<span style="color:#00ff88">📍 ${Math.round(dist)}м</span>` : `<span style="color:#ff4444">📍 ${Math.round(dist)}м</span>`)
     : '<span style="color:#888">📍 GPS...</span>';
 
   const stats = [
-    ['Уровень', `⭐ ${m.level}`],
-    ['Фаза', phaseLabel],
+    [t('mon.level'), `⭐ ${m.level}`],
+    [t('mon.phase'), phaseLabel],
   ];
 
   if (m.phase === 'shield') {
     const pct = m.max_shield_hp > 0 ? Math.round(m.shield_hp / m.max_shield_hp * 100) : 0;
-    stats.push(['🛡️ Щит', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
+    stats.push([t('mon.shield_hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
     const dpsThresh = m.dps_threshold || MONUMENT_SHIELD_DPS_THRESHOLD[m.level] || 0;
-    if (dpsThresh > 0) stats.push(['DPS порог', `⚡ ${formatNumber(dpsThresh)}`]);
+    if (dpsThresh > 0) stats.push([t('mon.dps_threshold'), `⚡ ${formatNumber(dpsThresh)}`]);
   } else if (m.phase === 'open') {
     const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
-    stats.push(['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
+    stats.push([t('mon.hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
     const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
-    stats.push(['🌊 Защитники', `${defenders.length} живых`]);
+    stats.push([t('mon.defenders'), t('mon.defenders_alive', {n: defenders.length})]);
   } else if (m.phase === 'defeated' && m.respawn_at) {
     const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
-    stats.push(['⏰ Респавн', `${Math.floor(left/60)}ч ${left%60}мин`]);
+    stats.push([t('mon.respawn'), t('mon.respawn_time', {h: Math.floor(left/60), m: left%60})]);
   }
 
   const actions = [];
   if (m.phase === 'shield' && inRange) {
-    actions.push({ label: '⚔️ Атаковать щит', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'shield') });
+    actions.push({ label: t('mon.attack_shield'), cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'shield') });
   } else if (m.phase === 'open' && inRange) {
     const defenders = Object.values(defenderData).filter(d => d.monument_id === monumentId);
     if (defenders.length > 0) {
-      actions.push({ label: `⚔️ Убить защитников (${defenders.length})`, cls: 'danger', action: () => doStartDefenderCombat(monumentId) });
+      actions.push({ label: t('mon.kill_defenders', {n: defenders.length}), cls: 'danger', action: () => doStartDefenderCombat(monumentId) });
     } else {
-      actions.push({ label: '⚔️ Атаковать монумент', cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
+      actions.push({ label: t('mon.attack_monument'), cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
     }
   }
   if (!inRange && m.phase !== 'defeated') {
-    actions.push({ label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true });
+    actions.push({ label: `📍 ${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}`, cls: '', disabled: true });
   }
 
   openPopup(`🏛️ ${m.name}`, distLabel, stats, actions);
@@ -13147,14 +14145,14 @@ function showDefenderPopup(defenderId) {
 
   // In range or multitouch: compact combat popup
   if (inRange) {
-    return openCombatPopup(`${d.emoji} Защитник`, defenderId, 'defender',
+    return openCombatPopup(t('mon.defender_title', {emoji: d.emoji}), defenderId, 'defender',
       { id: defenderId, monument_id: d.monument_id, emoji: d.emoji, hp: d.hp, max_hp: d.max_hp },
       { barColor: '#ff6600' });
   }
 
   // Out of range — info popup
-  openPopup(`${d.emoji} Защитник монумента`, dist ? `📍 ${Math.round(dist)}м` : '', [], [
-    { label: `📍 ${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}`, cls: '', disabled: true },
+  openPopup(t('mon.defender_sub', {emoji: d.emoji}), dist ? `📍 ${Math.round(dist)}м` : '', [], [
+    { label: `📍 ${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}`, cls: '', disabled: true },
   ]);
 }
 
@@ -13164,14 +14162,14 @@ function showLootBoxPopup(boxId) {
   if (!box) return;
 
   const stats = [
-    ['Рейд', `${box.monument_level} ур.`],
+    [t('mon.raid'), t('misc.level_short', {n: box.monument_level})],
   ];
 
   const actions = [
-    { label: '🎊 Открыть', cls: 'danger', action: () => doOpenLootBox(boxId) },
+    { label: t('mon.open_loot'), cls: 'danger', action: () => doOpenLootBox(boxId) },
   ];
 
-  openPopup(`Награда за рейд ${box.player_avatar || ''} ${box.player_name || ''}`, '', stats, actions);
+  openPopup(t('mon.loot_reward', {avatar: box.player_avatar || '', name: box.player_name || ''}), '', stats, actions);
 }
 
 // ── Combat: attack monument shield or body ──
@@ -13197,7 +14195,7 @@ function doStartDefenderCombat(monumentId) {
     .map(([id, d]) => ({ id, ...d, dist: haversine(pos.lat, pos.lng, d.lat, d.lng) }))
     .sort((a, b) => a.dist - b.dist);
 
-  if (!defenders.length) return showToast('Нет живых защитников');
+  if (!defenders.length) return showToast(t('mon.no_defenders'));
   doStartSingleDefenderCombat(defenders[0].id);
 }
 
@@ -13240,9 +14238,9 @@ async function doMonumentShieldHit(target) {
       updateMonumentMarkerIcon(target.id);
     }
     if (data.dps_check === false) {
-      showToast(`⚠️ Мало DPS: ${formatNumber(data.current_dps)}/${formatNumber(data.required_dps)}`);
+      showToast(t('mon.low_dps', {current: formatNumber(data.current_dps), required: formatNumber(data.required_dps)}));
     }
-    if (data.shield_broken) { stopPopupCombat(); stopCombat(); closePopup(); showToast('💥 Щит пробит! Появились защитники!'); }
+    if (data.shield_broken) { stopPopupCombat(); stopCombat(); closePopup(); showToast(t('mon.shield_broken')); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
@@ -13268,7 +14266,7 @@ async function doMonumentBodyHit(target) {
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const m = monumentData[target.id];
     if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
-    if (data.defeated) { stopPopupCombat(); stopCombat(); closePopup(); showToast('🏆 Монумент повержен! Награды на карте!'); }
+    if (data.defeated) { stopPopupCombat(); stopCombat(); closePopup(); showToast(t('mon.defeated')); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
@@ -13316,7 +14314,7 @@ async function doDefenderHit(target) {
         stopPopupCombat();
         stopCombat();
         closePopup();
-        showToast('⚡ Все защитники убиты! Атакуйте монумент!');
+        showToast(t('mon.all_defenders_dead'));
       }
     } else {
       // Update defender HP
@@ -13339,7 +14337,7 @@ async function doJoinRaid(monumentId) {
       method: 'POST',
       body: JSON.stringify({ action: 'start-raid', telegram_id: TG_ID, monument_id: monumentId, lat: pos.lat, lng: pos.lng }),
     });
-    showToast(`👥 Присоединился к рейду! Участников: ${data.participants}`);
+    showToast(t('mon.joined_raid', {n: data.participants}));
     closePopup();
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
@@ -13479,38 +14477,38 @@ function showCollectorPopup(collectorId) {
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:16px;font-weight:600;color:#fff">🧲 Сборщик #${idx} · Ур.${c.level}</div>
+        <div style="font-size:16px;font-weight:600;color:#fff">${t('coll.title', {n: idx, level: c.level})}</div>
         <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div class="hq-stat-card"><span>❤️ HP</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>
-        <div class="hq-stat-card"><span>💰 Накоплено</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>
-        <div class="hq-stat-card"><span>📊 Заполнен</span><span>${fillPct}%</span></div>
-        <div class="hq-stat-card"><span>⏱️ Сбор</span><span>через ${nextMin} мин</span></div>
+        <div class="hq-stat-card"><span>${t('coll.hp')}</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>
+        <div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>
+        <div class="hq-stat-card"><span>${t('coll.fill')}</span><span>${fillPct}%</span></div>
+        <div class="hq-stat-card"><span>${t('coll.timer')}</span><span>${t('coll.timer_min', {n: nextMin})}</span></div>
       </div>
       <div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">⬆️ Улучшить — ${nextCost}💎</button>` : ''}
-        <button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">💸 Продать — 37💎</button>
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
+        <button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>
       </div>
-      <div style="font-size:11px;color:#555;margin-top:8px;text-align:center">Заказать доставку можно через штаб</div>
+      <div style="font-size:11px;color:#555;margin-top:8px;text-align:center">${t('coll.deliver_hint')}</div>
     `;
   } else {
     const approxCoins = Math.round(coins / 1000) * 1000;
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div style="font-size:16px;font-weight:600;color:#fff">🧲 Чужой сборщик · Ур.${c.level}</div>
+        <div style="font-size:16px;font-weight:600;color:#fff">${t('coll.enemy_title', {level: c.level})}</div>
         <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;color:#888">${c.owner_avatar || ''} ${c.owner_name || '?'}</div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div class="hq-stat-card"><span>💰 Накоплено</span><span style="color:#FFD700">~${formatCoins(approxCoins)}</span></div>
+        <div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">~${formatCoins(approxCoins)}</span></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         ${inAttackRange
-          ? `<button class="hq-btn red" onclick="closePopup();doStartCollectorCombat('${collectorId}')">⚔️ Атаковать</button>
-             <div style="font-size:11px;color:#888;text-align:center">При уничтожении получишь все накопленные монеты</div>`
-          : `<button class="hq-btn" disabled style="background:#333;color:#666">${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}</button>`
+          ? `<button class="hq-btn red" onclick="closePopup();doStartCollectorCombat('${collectorId}')">${t('coll.enemy_attack')}</button>
+             <div style="font-size:11px;color:#888;text-align:center">${t('coll.enemy_hint')}</div>`
+          : `<button class="hq-btn" disabled style="background:#333;color:#666">${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}</button>`
         }
       </div>
     `;
@@ -13521,7 +14519,7 @@ function showCollectorPopup(collectorId) {
 function doStartCollectorCombat(collectorId) {
   const c = collectorData[collectorId];
   if (!c) return;
-  openCombatPopup(`🧲 Сборщик Ур.${c.level}`, collectorId, 'collector', { id: collectorId, level: c.level, hp: c.hp, max_hp: c.max_hp });
+  openCombatPopup(`🧲 Lv.${c.level}`, collectorId, 'collector', { id: collectorId, level: c.level, hp: c.hp, max_hp: c.max_hp });
 }
 
 async function doCollectorHit(target) {
@@ -13542,7 +14540,7 @@ async function doCollectorHit(target) {
     if (data.destroyed) {
       stopPopupCombat(); stopCombat(); closePopup();
       if (collectorMarkers[target.id]) { map.removeLayer(collectorMarkers[target.id]); delete collectorMarkers[target.id]; delete collectorData[target.id]; }
-      showToast(`💥 Сборщик уничтожен! +${formatCoins(data.stolen_coins)} монет`);
+      showToast(t('coll.destroyed', {n: formatCoins(data.stolen_coins)}));
       _setPlayerCoins((state.player?.coins || 0) + data.stolen_coins);
     }
   } catch (err) {
@@ -13559,7 +14557,7 @@ async function doCollectorDeliver(collectorId) {
       body: JSON.stringify({ action: 'deliver', telegram_id: TG_ID, collector_id: collectorId }),
     });
     closePopup();
-    showToast(`📦 Курьер отправлен!\n💰 ${formatCoins(data.net)} монет\n📋 Комиссия: ${formatCoins(data.commission)}`);
+    showToast(t('coll.courier_sent', {coins: formatCoins(data.net), comm: formatCoins(data.commission)}));
     const c = collectorData[collectorId];
     if (c) { c.stored_coins = 0; updateCollectorMarker(collectorId); }
   } catch (err) { showToast(`❌ ${err.message}`); }
@@ -13572,7 +14570,7 @@ async function doCollectorUpgrade(collectorId) {
       body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, collector_id: collectorId }),
     });
     closePopup();
-    showToast(`⬆️ Сборщик улучшен до Lv.${data.level}!`);
+    showToast(t('coll.upgraded', {level: data.level}));
     const c = collectorData[collectorId];
     if (c) { c.level = data.level; c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(collectorId); }
     if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
@@ -13587,7 +14585,7 @@ async function doCollectorSell(collectorId) {
     });
     closePopup();
     if (collectorMarkers[collectorId]) { map.removeLayer(collectorMarkers[collectorId]); delete collectorMarkers[collectorId]; delete collectorData[collectorId]; }
-    showToast(`💸 Сборщик продан!\n+37💎\n+${formatCoins(data.coins_returned)} монет`);
+    showToast(t('coll.sold', {coins: formatCoins(data.coins_returned)}));
     if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
@@ -13608,12 +14606,12 @@ async function doCollectorSell(collectorId) {
       <span class="slot-empty">⚔️</span>
     </div>
     <div class="char-avatar-cell" id="profile-modal-avatar">🐺</div>
-    <div class="char-equip-slot locked" onclick="showToast('🔒 Скоро')">🔒</div>
+    <div class="char-equip-slot locked" onclick="showToast(t('locked.soon'))">🔒</div>
     <div class="char-equip-slot" id="equip-slot-shield" onclick="openEquipSlot('shield')">
       <span class="slot-empty">🛡️</span>
     </div>
     <!-- avatar spans row 1-2, col 2 -->
-    <div class="char-equip-slot locked" onclick="showToast('🔒 Скоро')">🔒</div>
+    <div class="char-equip-slot locked" onclick="showToast(t('locked.soon'))">🔒</div>
   </div>
 
   <!-- XP bar -->
@@ -13627,14 +14625,14 @@ async function doCollectorSell(collectorId) {
 
   <!-- Stats -->
   <div class="profile-section" id="profile-stats-section">
-    <div class="profile-section-title">Характеристики</div>
+    <div class="profile-section-title" data-i18n="profile.stats">Характеристики</div>
     <div id="profile-stat-rows"></div>
   </div>
 
   <!-- Inventory with tabs -->
   <div class="profile-inv-tabs">
-    <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">⚔️ Снаряжение</button>
-    <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">🔮 Ядра</button>
+    <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')" data-i18n="profile.tab.equip">⚔️ Снаряжение</button>
+    <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')" data-i18n="profile.tab.cores">🔮 Ядра</button>
     <div style="flex:1;"></div>
     <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
       <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
@@ -13643,7 +14641,7 @@ async function doCollectorSell(collectorId) {
   </div>
   <div class="profile-section" style="margin-bottom:16px;margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
     <div id="inv-panel-equip">
-      <div class="profile-section-title" id="inventory-title" style="margin-top:0;margin-bottom:0;">Инвентарь (0)</div>
+      <div class="profile-section-title" id="inventory-title" style="margin-top:0;margin-bottom:0;" data-i18n="profile.inventory">Инвентарь (0)</div>
       <div class="inventory-grid" id="inventory-grid" style="margin-top:12px;"></div>
     </div>
     <div id="inv-panel-cores" style="display:none;margin-top:0;">
@@ -13661,14 +14659,14 @@ async function doCollectorSell(collectorId) {
 <!-- Sell confirm dialog -->
 <div id="sell-confirm-overlay" onclick="if(event.target===this)closeSellConfirm()">
   <div id="sell-confirm-card">
-    <div style="font-size:14px;color:#ccc;margin-bottom:10px;">Продать предмет?</div>
+    <div style="font-size:14px;color:#ccc;margin-bottom:10px;" data-i18n="sell.confirm_q">Продать предмет?</div>
     <div id="sell-confirm-emoji" style="font-size:40px;text-align:center;"></div>
     <div id="sell-confirm-name" style="font-size:14px;font-weight:600;text-align:center;margin:6px 0;"></div>
     <div id="sell-confirm-price" style="font-size:13px;color:#00cfff;text-align:center;"></div>
-    <div style="font-size:11px;color:rgba(255,80,80,0.7);text-align:center;margin-top:6px;">Это невыгодно!</div>
+    <div style="font-size:11px;color:rgba(255,80,80,0.7);text-align:center;margin-top:6px;" data-i18n="sell.bad_deal">Это невыгодно!</div>
     <div style="display:flex;gap:10px;margin-top:14px;justify-content:center;">
-      <button class="btn" onclick="closeSellConfirm()">Отмена</button>
-      <button class="btn" id="sell-confirm-btn" style="color:#ff6b6b;">Продать</button>
+      <button class="btn" onclick="closeSellConfirm()" data-i18n="misc.cancel">Отмена</button>
+      <button class="btn" id="sell-confirm-btn" style="color:#ff6b6b;" data-i18n="sell.sell">Продать</button>
     </div>
   </div>
 </div>
@@ -13676,20 +14674,20 @@ async function doCollectorSell(collectorId) {
 <!-- Craft screen -->
 <div id="craft-overlay">
   <div id="craft-header" style="position:relative;">
-    <h2>⚒️ КРАФТ</h2>
-    <p>Объедини 10 предметов одной редкости</p>
+    <h2 data-i18n="craft.title">⚒️ КРАФТ</h2>
+    <p data-i18n="craft.desc">Объедини 10 предметов одной редкости</p>
     <button id="craft-close" onclick="closeCraftScreen()">✕</button>
   </div>
   <div class="craft-slots" id="craft-slots"></div>
   <div id="craft-info"></div>
   <div id="craft-result-preview"></div>
-  <button id="craft-btn" disabled onclick="doCraft()">⚒️ Скрафтить</button>
+  <button id="craft-btn" disabled onclick="doCraft()" data-i18n="craft.btn">⚒️ Скрафтить</button>
 </div>
 
 <!-- Craft pick items overlay -->
 <div id="craft-pick-overlay">
   <div id="craft-pick-header">
-    <h3>Выберите предмет</h3>
+    <h3 data-i18n="craft.pick">Выберите предмет</h3>
     <button id="craft-pick-close" onclick="closeCraftPick()">✕</button>
   </div>
   <div class="craft-pick-grid" id="craft-pick-grid"></div>
@@ -13698,7 +14696,7 @@ async function doCollectorSell(collectorId) {
 <!-- Vase drop popup -->
 <div id="vase-drop-popup">
   <div id="vase-drop-card">
-    <div class="vase-drop-title">🏺 Ваза разбита!</div>
+    <div class="vase-drop-title" data-i18n="vase.broken">🏺 Ваза разбита!</div>
     <div class="vase-drop-emoji" id="vase-drop-emoji">🗡️</div>
     <div class="vase-drop-name" id="vase-drop-name">—</div>
     <div class="vase-drop-rarity" id="vase-drop-rarity">—</div>
@@ -13712,7 +14710,7 @@ async function doCollectorSell(collectorId) {
   <div id="market-header">
     <div id="market-header-top">
       <button id="market-close">✕</button>
-      <h2>🎪 РЫНОК</h2>
+      <h2 data-i18n="market.title">🎪 РЫНОК</h2>
     </div>
     <div id="market-header-balances">
       <span>💰 <span id="market-coins">0</span></span>
@@ -13724,38 +14722,38 @@ async function doCollectorSell(collectorId) {
     <button class="market-tab" data-tab="my" data-i18n="market.tab.my">📦 Мои лоты</button>
   </div>
   <div id="market-subtabs">
-    <button class="market-subtab active" data-subtab="items">⚔️ Снаряга</button>
-    <button class="market-subtab" data-subtab="cores">🔮 Ядра</button>
+    <button class="market-subtab active" data-subtab="items" data-i18n="market.subtab.items">⚔️ Снаряга</button>
+    <button class="market-subtab" data-subtab="cores" data-i18n="market.subtab.cores">🔮 Ядра</button>
   </div>
   <div id="market-sort-row">
-    <button class="market-sort-btn" data-sort="cheap">💰 Дешевле</button>
-    <button class="market-sort-btn" data-sort="expensive">💎 Дороже</button>
-    <button class="market-sort-btn active" data-sort="new">🆕 Новые</button>
+    <button class="market-sort-btn" data-sort="cheap" data-i18n="market.sort.cheap">💰 Дешевле</button>
+    <button class="market-sort-btn" data-sort="expensive" data-i18n="market.sort.expensive">💎 Дороже</button>
+    <button class="market-sort-btn active" data-sort="new" data-i18n="market.sort.new">🆕 Новые</button>
   </div>
   <div id="market-sort-row-cores" style="display:none">
-    <button class="market-sort-btn-core active" data-sort="new">🆕 Новые</button>
-    <button class="market-sort-btn-core" data-sort="cheap">💰 Дешевле</button>
-    <button class="market-sort-btn-core" data-sort="expensive">💎 Дороже</button>
-    <button class="market-sort-btn-core" data-sort="level">📈 Уровень</button>
+    <button class="market-sort-btn-core active" data-sort="new" data-i18n="market.sort.new">🆕 Новые</button>
+    <button class="market-sort-btn-core" data-sort="cheap" data-i18n="market.sort.cheap">💰 Дешевле</button>
+    <button class="market-sort-btn-core" data-sort="expensive" data-i18n="market.sort.expensive">💎 Дороже</button>
+    <button class="market-sort-btn-core" data-sort="level" data-i18n="market.sort.level">📈 Уровень</button>
   </div>
   <div id="market-body">
     <div id="market-grid"></div>
-    <div id="market-empty" style="display:none;">Пока нет товаров на рынке</div>
-    <button id="market-load-more">Загрузить ещё</button>
+    <div id="market-empty" style="display:none;" data-i18n="market.empty">Пока нет товаров на рынке</div>
+    <button id="market-load-more" data-i18n="market.load_more">Загрузить ещё</button>
   </div>
-  <button id="market-fab">+ Разместить товар</button>
+  <button id="market-fab" data-i18n="market.list_item">+ Разместить товар</button>
 </div>
 
 <!-- Market buy confirm -->
 <div id="market-buy-overlay" onclick="if(event.target===this)closeMarketBuy()">
   <div id="market-buy-card">
-    <h3>Купить предмет?</h3>
+    <h3 data-i18n="market.buy_q">Купить предмет?</h3>
     <div id="market-buy-item-preview" style="text-align:center;"></div>
     <div id="market-buy-price-row" style="margin:12px 0;font-size:14px;"></div>
     <div id="market-buy-error" style="color:#ff6b6b;font-size:12px;text-align:center;display:none;"></div>
     <div style="display:flex;gap:10px;margin-top:14px;">
-      <button class="btn" onclick="closeMarketBuy()" style="flex:1;">Отмена</button>
-      <button class="btn primary" id="market-buy-btn" style="flex:1;">💎 Купить</button>
+      <button class="btn" onclick="closeMarketBuy()" style="flex:1;" data-i18n="misc.cancel">Отмена</button>
+      <button class="btn primary" id="market-buy-btn" style="flex:1;" data-i18n="market.buy_btn">💎 Купить</button>
     </div>
   </div>
 </div>
@@ -13763,12 +14761,12 @@ async function doCollectorSell(collectorId) {
 <!-- Market private code input -->
 <div id="market-private-overlay" onclick="if(event.target===this)closeMarketPrivate()">
   <div id="market-private-card">
-    <h3 style="text-align:center;">🔒 Приватный товар</h3>
-    <p style="color:#aaa;font-size:13px;text-align:center;">Введите код доступа:</p>
+    <h3 style="text-align:center;" data-i18n="market.private_title">🔒 Приватный товар</h3>
+    <p style="color:#aaa;font-size:13px;text-align:center;" data-i18n="market.private_desc">Введите код доступа:</p>
     <input id="market-private-input" maxlength="6" placeholder="______" autocomplete="off" />
     <div style="display:flex;gap:10px;margin-top:14px;">
-      <button class="btn" onclick="closeMarketPrivate()" style="flex:1;">Отмена</button>
-      <button class="btn primary" id="market-private-btn" style="flex:1;">Проверить</button>
+      <button class="btn" onclick="closeMarketPrivate()" style="flex:1;" data-i18n="misc.cancel">Отмена</button>
+      <button class="btn primary" id="market-private-btn" style="flex:1;" data-i18n="market.private_check">Проверить</button>
     </div>
   </div>
 </div>
@@ -13776,7 +14774,7 @@ async function doCollectorSell(collectorId) {
 <!-- Market list-item flow -->
 <div id="market-list-overlay">
   <div id="market-list-header">
-    <h2>Разместить товар</h2>
+    <h2 data-i18n="market.list_title">Разместить товар</h2>
     <button id="market-list-close" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,0.08);">&#x2715;</button>
   </div>
   <div id="market-list-body">
@@ -13788,10 +14786,10 @@ async function doCollectorSell(collectorId) {
       <div id="market-list-preview-name" style="text-align:center;font-size:16px;font-weight:700;"></div>
       <div id="market-list-preview-rarity" style="text-align:center;margin:4px 0;"></div>
       <div id="market-list-preview-stat" style="text-align:center;font-size:14px;color:#f5c518;margin-bottom:16px;"></div>
-      <p style="color:#aaa;font-size:13px;margin-bottom:4px;">Цена (алмазы):</p>
+      <p style="color:#aaa;font-size:13px;margin-bottom:4px;" data-i18n="market.price_label">Цена (алмазы):</p>
       <input id="market-list-price-input" type="number" min="10" max="100000" placeholder="от 10 до 100 000" />
       <div class="market-list-toggle-row">
-        <span>🔓 Приватный лот</span>
+        <span data-i18n="market.private_lot">🔓 Приватный лот</span>
         <button class="market-list-toggle" id="market-list-private-toggle"></button>
       </div>
       <div id="market-list-code-row">
@@ -13799,7 +14797,7 @@ async function doCollectorSell(collectorId) {
         <span id="market-list-code"></span>
         <button id="market-list-copy-code" style="background:none;border:none;color:#aaa;font-size:14px;cursor:pointer;margin-left:4px;">📋</button>
       </div>
-      <button class="btn primary" id="market-list-submit" style="width:100%;margin-top:16px;padding:14px;font-size:15px;">🎪 Разместить</button>
+      <button class="btn primary" id="market-list-submit" style="width:100%;margin-top:16px;padding:14px;font-size:15px;" data-i18n="market.submit">🎪 Разместить</button>
     </div>
   </div>
 </div>
@@ -13810,7 +14808,7 @@ async function doCollectorSell(collectorId) {
 <!-- Death screen -->
 <div id="death-screen">
   <div class="death-skull">💀</div>
-  <div class="death-text">Вы погибли</div>
+  <div class="death-text" data-i18n="death.title">Вы погибли</div>
   <div class="death-timer" id="death-timer">10</div>
   <div class="death-info" id="death-info"></div>
 </div>
@@ -13818,15 +14816,15 @@ async function doCollectorSell(collectorId) {
 <!-- Mine attack countdown overlay -->
 <div id="mine-attack-overlay">
   <div id="mine-attack-timer">0:00</div>
-  <div id="mine-attack-label">Атака шахты...</div>
+  <div id="mine-attack-label" data-i18n="mine.attack_label">Атака шахты...</div>
 </div>
 
 <!-- Mass selection bar -->
 <div id="selection-bar">
-  <div id="selection-bar-info">Выбрано: <strong id="sel-count">0</strong> | ✨ <strong id="sel-gems">0</strong></div>
+  <div id="selection-bar-info"><span data-i18n="sel.selected">Выбрано</span>: <strong id="sel-count">0</strong> | ✨ <strong id="sel-gems">0</strong></div>
   <div style="display:flex;gap:8px;">
-    <button class="btn" onclick="exitSelectionMode()">Отмена</button>
-    <button class="btn danger" id="sel-sell-btn" onclick="sellSelectedItems()">Продать</button>
+    <button class="btn" onclick="exitSelectionMode()" data-i18n="misc.cancel">Отмена</button>
+    <button class="btn danger" id="sel-sell-btn" onclick="sellSelectedItems()" data-i18n="sell.sell">Продать</button>
   </div>
 </div>
 
