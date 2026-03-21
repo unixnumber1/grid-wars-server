@@ -67,11 +67,13 @@ export function calcRaidDps(monument) {
 }
 
 // ── Weighted random level ──
+// TODO: TESTING — max level capped at 4, revert to 10 after testing
+const MONUMENT_MAX_LEVEL = 4;
 function randomMonumentLevel() {
   const r = Math.random() * 100;
-  if (r < 50) return 1 + Math.floor(Math.random() * 3);       // 1-3: 50%
-  if (r < 85) return 4 + Math.floor(Math.random() * 4);       // 4-7: 35%
-  return 8 + Math.floor(Math.random() * 3);                    // 8-10: 15%
+  if (r < 50) return 1 + Math.floor(Math.random() * Math.min(3, MONUMENT_MAX_LEVEL));       // 1-3: 50%
+  if (r < 85) return Math.min(4, MONUMENT_MAX_LEVEL);                                        // 4: 35%
+  return Math.min(4, MONUMENT_MAX_LEVEL);                                                     // 4: 15%
 }
 
 // ── Forbidden places filter ──
