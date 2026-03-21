@@ -2643,7 +2643,7 @@
   <div id="settings-tabs">
     <button class="settings-tab active" data-tab="profile" data-i18n="settings.tab.profile">&#x1F464; Профиль</button>
     <button class="settings-tab" data-tab="map" data-i18n="settings.tab.map">&#x1F5FA;&#xFE0F; Карта</button>
-    <button class="settings-tab" data-tab="lang" data-i18n="settings.tab.lang">&#x1F310; Язык</button>
+    <!-- lang tab hidden for now -->
   </div>
   <div id="settings-body">
     <!-- Profile tab -->
@@ -2666,16 +2666,7 @@
         <div id="map-style-list"></div>
       </div>
     </div>
-    <!-- Language tab -->
-    <div id="settings-tab-lang" class="settings-tab-content">
-      <div class="settings-card">
-        <div class="settings-section-title" data-i18n="settings.lang.title">ЯЗЫК ИНТЕРФЕЙСА</div>
-        <div style="display:flex;gap:10px;margin-top:8px;">
-          <button class="settings-action-btn s-default lang-btn" data-lang="ru" style="flex:1;justify-content:center;" onclick="setLang('ru')">&#x1F1F7;&#x1F1FA; Русский</button>
-          <button class="settings-action-btn s-default lang-btn" data-lang="en" style="flex:1;justify-content:center;" onclick="setLang('en')">&#x1F1EC;&#x1F1E7; English</button>
-        </div>
-      </div>
-    </div>
+    <!-- Language tab (hidden for now) -->
     <!-- Admin tab (hidden by default) -->
     <div id="settings-tab-admin" class="settings-tab-content">
       <div id="admin-stats"></div>
