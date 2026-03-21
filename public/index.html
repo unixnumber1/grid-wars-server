@@ -6503,8 +6503,8 @@ function _selectMarker(key, isOwn = true) {
   if (key && buildingMarkers[key]) {
     const pos = buildingMarkers[key].getLatLng();
     const color = isOwn ? '#aaa' : '#ff4444';
-    _selectedCircle = L.circle([pos.lat, pos.lng], {
-      radius: 25,
+    _selectedCircle = L.circleMarker([pos.lat, pos.lng], {
+      radius: 22,
       color: color,
       fillColor: color,
       fillOpacity: 0.1,
