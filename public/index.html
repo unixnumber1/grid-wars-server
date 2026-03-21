@@ -6733,9 +6733,8 @@ function showMinePopup(mine, isOwn, canCapture) {
 
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      mine.status === 'burning' ? t('mine.burning_warn') : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : (attacker ? t('mine.vampire_warn', {emoji: attacker.emoji || '👺', name: t('bot.goblin')}) : distLabel)),
+      mine.status === 'burning' ? t('mine.burning_warn') : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : distLabel),
       mine.status === 'burning' ? [] : [
-        ...(attacker ? [[t('mine.drained'), t('mine.drained_coins', {n: formatNumber(attacker.drained_amount || 0)})]] : []),
         ...(isUpgrading
           ? [[t('mine.upgrading_to'), t('misc.level_short', {n: pendingLevel})]]
           : [
