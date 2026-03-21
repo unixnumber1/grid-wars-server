@@ -495,7 +495,11 @@ async function handleUpgradePost(req, res) {
   const balance = player.coins ?? 0;
   if (balance < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${Math.round(cost).toLocaleString()})` });
   const newBalance = balance - cost;
-  const finishAt = new Date(Date.now() + 20000);
+  // Upgrade time: each level costs its number in seconds (lv1→2 = 1s, lv6→7 = 6s, bulk sums up)
+  let upgradeSecs = 0;
+  for (let l = mine.level; l < targetLevel; l++) upgradeSecs += l;
+  if (upgradeSecs < 1) upgradeSecs = 1;
+  const finishAt = new Date(Date.now() + upgradeSecs * 1000);
   const [{ data: coinsOk, error: playerUpdateError }, { error: mineUpdateError }] = await Promise.all([
     supabase.from('players').update({ coins: newBalance }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle(),
     supabase.from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() }).eq('id', mine_id),
@@ -510,7 +514,7 @@ async function handleUpgradePost(req, res) {
     if (p) { p.coins = newBalance; gameState.markDirty('players', p.id); }
   }
   logPlayer(telegram_id, 'action', `Улучшил шахту до уровня ${targetLevel}`, { mine_id, cost });
-  return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: 20, player_coins: newBalance, pendingLevel: targetLevel });
+  return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: upgradeSecs, player_coins: newBalance, pendingLevel: targetLevel });
 }
 
 // ─── Single-hit mine attack (projectile) ─────────────────────────────
