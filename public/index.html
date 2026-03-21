@@ -7065,7 +7065,7 @@ let _selectedCoreIds = new Set();
 function renderCoresInventory() {
   const grid = document.getElementById('cores-inv-grid');
   if (!grid) return;
-  const cores = (state._playerCores || []).filter(c => !c.mine_cell_id)
+  const cores = (state._playerCores || []).filter(c => !c.mine_cell_id && !c.on_market)
     .sort((a, b) => {
       const td = (CORE_TYPE_ORDER[a.core_type] ?? 9) - (CORE_TYPE_ORDER[b.core_type] ?? 9);
       if (td !== 0) return td;

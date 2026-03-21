@@ -631,7 +631,7 @@ async function handleTick(req, res) {
     etherIncome,
     hasClanHq,
     inventory,
-    player_cores: gameState.loaded ? gameState.getPlayerCores(Number(player.telegram_id)).concat(gameState.getPlayerCores(currentPlayerId)).filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i).map(c => ({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id || null, slot_index: c.slot_index ?? null })) : [],
+    player_cores: gameState.loaded ? gameState.getPlayerCores(Number(player.telegram_id)).concat(gameState.getPlayerCores(currentPlayerId)).filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i).map(c => ({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id || null, slot_index: c.slot_index ?? null, on_market: c.on_market || false })) : [],
     notifications,
     completedUpgrades,
     loot_boxes,

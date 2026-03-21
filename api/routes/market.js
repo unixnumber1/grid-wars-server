@@ -227,7 +227,6 @@ async function handleListItem(req, res) {
         .from('couriers')
         .insert({
           listing_id: listing.id,
-          core_id,
           owner_id: player.id,
           type: 'to_market',
           start_lat: pLat, start_lng: pLng,
@@ -243,7 +242,7 @@ async function handleListItem(req, res) {
         courierId = courier.id;
         if (gameState.loaded) {
           gameState.upsertCourier({
-            id: courier.id, listing_id: listing.id, core_id, owner_id: player.id,
+            id: courier.id, listing_id: listing.id, owner_id: player.id,
             type: 'to_market', start_lat: pLat, start_lng: pLng,
             target_lat: nearestMarket.lat, target_lng: nearestMarket.lng,
             current_lat: pLat, current_lng: pLng,
