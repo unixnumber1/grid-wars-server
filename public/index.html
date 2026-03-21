@@ -7222,7 +7222,7 @@ function showInstalledCorePopup(coreId) {
       [t('core.multiplier'), `<span style="color:#FFD700">x${mul}</span>`],
     ],
     [
-      { label: t('core.upgrade_short', {cost}), cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      { label: `⬆️ Улучшить ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       { label: t('core.extract_to_bag'), cls: 'danger', action: () => doCoreUninstall(coreId) },
       { label: t('misc.close'), isClose: true },
     ]
