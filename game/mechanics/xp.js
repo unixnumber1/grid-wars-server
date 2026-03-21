@@ -1,4 +1,4 @@
-import { calculateLevel, getXpForLevel } from '../../config/formulas.js';
+import { calculateLevel, getXpForLevel, getTotalXpForLevel } from '../../config/formulas.js';
 import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
 import { randomCoreType } from './cores.js';
@@ -95,9 +95,15 @@ export async function addXp(playerId, amount) {
     return null;
   }
 
-  const newXp     = (player.xp ?? 0) + amount;
-  const newLevel  = calculateLevel(newXp);
+  const currentXp = player.xp ?? 0;
   const oldLevel  = player.level ?? 1;
+
+  // Cap: max 1 level per addXp call — excess XP is discarded
+  const xpToNextLevel = getTotalXpForLevel(oldLevel + 1) - currentXp;
+  const cappedAmount  = Math.min(amount, Math.max(0, xpToNextLevel));
+
+  const newXp     = currentXp + cappedAmount;
+  const newLevel  = calculateLevel(newXp);
   const leveledUp = newLevel > oldLevel;
 
   const { error: updateErr } = await supabase
@@ -124,5 +130,5 @@ export async function addXp(playerId, amount) {
     }
   }
 
-  return { xpGained: amount, newXp, newLevel, leveledUp, xpForNextLevel: getXpForLevel(newLevel), rewards };
+  return { xpGained: cappedAmount, newXp, newLevel, leveledUp, xpForNextLevel: getXpForLevel(newLevel), rewards };
 }
