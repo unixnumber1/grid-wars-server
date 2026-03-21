@@ -14365,7 +14365,7 @@ async function doOpenLootBox(boxId) {
         }
       }
     }
-    if (data.xp?.xpGained) lines.push(`⭐ +${data.xp.xpGained} XP`);
+    // XP shown via handleXpResult below (no duplicate toast)
     showToast(lines.join('\n'), 5000);
     handleXpResult(data.xp);
   } catch (err) { showToast(`❌ ${err.message}`); }
