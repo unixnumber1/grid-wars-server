@@ -8606,7 +8606,7 @@ function showBotPopup(botId) {
   }
 
   const actions = inRange
-    ? [{ label: `⚔️ ${t('pvp.attack')}`, cls: 'danger', callback: () => {
+    ? [{ label: t('bot.attack'), cls: 'danger', action: () => {
         closePopup();
         openCombatPopup(`👺 ${t('bot.goblin')}`, botId, 'bot', { id: botId, hp: bot.hp ?? 3000, max_hp: bot.max_hp ?? 3000 });
       }}]
