@@ -5075,9 +5075,9 @@ function _startFloatingTimer(mine) {
 
   const icon = L.divIcon({
     className: '',
-    html: `<div id="float-timer-${mineId}" style="background:rgba(8,8,18,0.85);border:1px solid rgba(255,215,0,0.4);border-radius:10px;padding:2px 7px;font-size:11px;color:#FFD700;font-weight:700;white-space:nowrap;pointer-events:none;text-align:center"></div>`,
-    iconSize: [60, 20],
-    iconAnchor: [30, 40],
+    html: `<div id="float-timer-${mineId}" style="font-size:10px;color:#FFD700;font-weight:700;white-space:nowrap;pointer-events:none;text-align:center"></div>`,
+    iconSize: [50, 16],
+    iconAnchor: [25, 38],
   });
   const marker = L.marker([mine.lat, mine.lng], { icon, zIndexOffset: 6000, interactive: false }).addTo(map);
 
@@ -6942,6 +6942,8 @@ async function doUpgrade(mineId, targetLevel) {
           buildingMarkers[key]._gw_level = data.pendingLevel;
         }
       }
+      // Start floating timer immediately
+      if (mine) _startFloatingTimer(mine);
       // Re-open popup with timer only if user is still viewing this same mine
       const freshMine = state.mapBuildings.mines.find(m => m.id === mineId);
       if (freshMine && _currentPopupEntityId === `mine_${mineId}`) {
