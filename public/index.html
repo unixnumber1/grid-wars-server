@@ -10834,6 +10834,9 @@ function showDropPopup(dropId) {
       const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
       const glow = rc.startsWith('linear') ? '' : 'filter:drop-shadow(0 0 12px ' + rc + ')';
       stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px;${glow}">${item.emoji}</div><div style="font-size:14px;font-weight:700;margin:4px 0">${item.name} ${rarityLabel(item.rarity)}</div><div style="font-size:12px;color:#ccc">${itemStatLabel(item)}</div></div>`]);
+    } else if (drop.drop_type === 'coin_delivery') {
+      const coins = drop.coins || drop._coins || 0;
+      stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px">💰</div><div style="font-size:16px;font-weight:700;color:#FFD700;margin:4px 0">${formatCoins(coins)} монет</div></div>`]);
     } else {
       stats.push(['__fullwidth__', `<div style="text-align:center;font-size:13px;color:#FFD700">${t('drop.valuable')}</div>`]);
     }
@@ -10869,7 +10872,12 @@ async function doPickupDrop(dropId) {
       delete dropData[dropId];
     }
     if (data.item) state.inventory.unshift(data.item);
-    showToast(t('toast.item_picked_up', {message: data.message || 'OK'}));
+    if (data.coins > 0) {
+      if (state.player) _setPlayerCoins((state.player.coins || 0) + data.coins);
+      showToast(`💰 +${formatCoins(data.coins)} монет!`);
+    } else {
+      showToast(t('toast.item_picked_up', {message: data.message || 'OK'}));
+    }
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }

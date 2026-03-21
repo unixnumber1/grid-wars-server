@@ -288,6 +288,7 @@ class GameState {
         const courier = this.couriers.get(d.courier_id);
         courier_drops.push({
           ...d,
+          coins: d._coins || 0,
           owner_id: d.owner_id || (courier ? courier.owner_id : null),
           items: item ? { name: item.name, emoji: item.emoji, rarity: item.rarity, type: item.type, attack: item.attack, crit_chance: item.crit_chance, defense: item.defense } : null,
           couriers: courier ? { owner_id: courier.owner_id } : null,
