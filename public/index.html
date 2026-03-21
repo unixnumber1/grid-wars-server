@@ -6092,7 +6092,6 @@ function _applyPlayerPosition(lat, lng) {
     if (playerZoneCircle) playerZoneCircle.setLatLng([lat, lng]);
     if (playerCombatCircle) playerCombatCircle.setLatLng([lat, lng]);
   }
-  updateHexGrid();
   // Trigger building load when player moves (respects 2s throttle)
   loadVisibleBuildings();
 }
@@ -6120,11 +6119,12 @@ function _flashHexGrid() {
 
   for (const cellId of zoneCells) {
     const boundary = h3.cellToBoundary(cellId);
+    const building = getBuildingInCell(cellId);
     const poly = L.polygon(boundary, {
       color: 'rgba(255,255,255,0.6)',
       weight: 1.2,
-      fillColor: 'transparent',
-      fillOpacity: 0,
+      fillColor: building ? 'rgba(200,200,200,0.15)' : 'transparent',
+      fillOpacity: building ? 1 : 0,
       interactive: false,
     });
     if (poly._path) poly._path.style.transition = 'none';
@@ -6134,8 +6134,8 @@ function _flashHexGrid() {
   // Next frame: enable transition and fade to invisible
   requestAnimationFrame(() => {
     hexLayer.eachLayer(poly => {
-      if (poly._path) poly._path.style.transition = 'stroke-opacity 1s ease-out, stroke-width 1s ease-out';
-      poly.setStyle({ color: 'rgba(255,255,255,0)', weight: 0.3 });
+      if (poly._path) poly._path.style.transition = 'stroke-opacity 1s ease-out, stroke-width 1s ease-out, fill-opacity 1s ease-out';
+      poly.setStyle({ color: 'rgba(255,255,255,0)', weight: 0.3, fillOpacity: 0 });
     });
     _hexFlashTimeout = setTimeout(() => {
       hexLayer.clearLayers();
@@ -6217,8 +6217,6 @@ function otherPlayerIcon(avatar, shieldUntil) {
     className: 'leaflet-interactive',
   });
 }
-
-// Hex grid is no longer drawn permanently — only flashes on tap via _flashHexGrid()
 
 function showBuildMenu(cellLat, cellLng) {
   const hasHq = state.hq || (state.mapBuildings?.headquarters || []).some(h => h.is_mine);
@@ -7008,7 +7006,6 @@ async function doSellMine(mineId) {
     const key = `mine_${mineId}`;
     if (buildingMarkers[key]) { map.removeLayer(buildingMarkers[key]); delete buildingMarkers[key]; }
     state.mapBuildings.mines = (state.mapBuildings.mines || []).filter(m => m.id !== mineId);
-    updateHexGrid();
     closePopup();
 
     const data = await apiFetch('/api/buildings/attack', {
@@ -7325,7 +7322,6 @@ async function doBuildHq(lat, lng) {
         if (idx >= 0) state.mapBuildings.headquarters[idx] = hqEntry;
       }
       _addOrUpdateHqMarker(hqEntry);
-      updateHexGrid();
     }
     updateCoinDisplay();
     showToast(t('toast.hq_built'));
@@ -7361,7 +7357,6 @@ async function doSellHq() {
       const key = `hq_${myHq.id}`;
       if (buildingMarkers[key]) { map.removeLayer(buildingMarkers[key]); delete buildingMarkers[key]; }
       state.mapBuildings.headquarters = (state.mapBuildings.headquarters || []).filter(h => h.id !== myHq.id);
-      updateHexGrid();
     }
     state.hq = null;
     updateCoinDisplay();
@@ -7416,7 +7411,6 @@ async function doBuildMine(lat, lng) {
   };
   state.mapBuildings.mines = [...(state.mapBuildings.mines || []), tempMine];
   _addOrUpdateMineMarker(tempMine);
-  updateHexGrid();
 
   try {
     const data = await apiFetch('/api/buildings/mine', {
@@ -7436,14 +7430,12 @@ async function doBuildMine(lat, lng) {
       state.mapBuildings.mines.push(realMine);
       _addOrUpdateMineMarker(realMine);
     }
-    updateHexGrid();
     loadVisibleBuildings(true);
   } catch (err) {
     // Rollback optimistic marker
     const tempKey = `mine_${tempId}`;
     if (buildingMarkers[tempKey]) { map.removeLayer(buildingMarkers[tempKey]); delete buildingMarkers[tempKey]; }
     state.mapBuildings.mines = (state.mapBuildings.mines || []).filter(m => m.id !== tempId);
-    updateHexGrid();
     showToast(`❌ ${err.message}`);
   }
 }
@@ -7511,7 +7503,6 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
         state.mapBuildings.headquarters = [...(state.mapBuildings.headquarters || []), hqEntry];
       }
       _addOrUpdateHqMarker(hqEntry);
-      updateHexGrid();
     }
     document.getElementById('hq-prompt').classList.remove('open');
     updateCoinDisplay();
@@ -7671,7 +7662,6 @@ async function loadVisibleBuildings(force = false) {
     renderOreNodes(data.ore_nodes || []);
     renderMonuments(data.monuments || []);
     renderMonumentDefenders(data.monument_defenders || []);
-    updateHexGrid();
   } catch (err) {
     console.error('[map] fetch error:', err);
   } finally {
@@ -8068,7 +8058,6 @@ function processTickData(data) {
     for (const c of data.collectors) { if (c.is_mine) _myCollectorsCache[c.id] = c; }
   }
   renderLootBoxes(data.loot_boxes || []);
-  updateHexGrid();
   updateCoinDisplay();
   updatePlayerDisplay();
   updateShieldDisplay();
