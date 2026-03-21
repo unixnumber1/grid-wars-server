@@ -5594,9 +5594,9 @@ function openItemDetailPopup(item) {
   if (item.on_market) {
     // no actions — item in transit
   } else if (item.equipped) {
-    actions.push({ label: t('core.extract'), action: () => { closePopup(); doUnequipItem(item.id); } });
+    actions.push({ label: '❌ Снять', action: () => { closePopup(); doUnequipItem(item.id); } });
   } else {
-    actions.push({ label: '🗡️ ' + t('misc.confirm'), cls: 'primary', action: () => { closePopup(); doEquipItem(item.id); } });
+    actions.push({ label: `${item.emoji} Экипировать`, cls: 'primary', action: () => { closePopup(); doEquipItem(item.id); } });
     const sellPrice = getItemSellPrice(item.rarity, upgLvl);
     actions.push({ label: t('core.sell_for', {n: sellPrice + '✨'}), cls: 'danger', action: () => doSellItemDirect(item, sellPrice) });
   }
