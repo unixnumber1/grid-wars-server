@@ -797,7 +797,7 @@ async function handlePickupDrop(req, res) {
   const { data: drop, error: dErr } = await supabase
     .from('courier_drops')
     .select(`
-      id, item_id, listing_id, lat, lng, picked_up, expires_at, drop_type,
+      id, item_id, listing_id, lat, lng, picked_up, expires_at, drop_type, owner_id,
       couriers!courier_drops_courier_id_fkey(type, owner_id, listing_id)
     `)
     .eq('id', drop_id)
@@ -818,7 +818,7 @@ async function handlePickupDrop(req, res) {
 
   // ── Delivery box: only the buyer (courier owner) can pick up ──
   if (drop.drop_type === 'delivery') {
-    let courierOwner = drop.couriers?.owner_id;
+    let courierOwner = drop.owner_id || drop.couriers?.owner_id;
     // Fallback: if courier was deleted by cleanup, check listing buyer_id
     if (!courierOwner && drop.listing_id) {
       const { data: listing } = await supabase.from('market_listings').select('buyer_id').eq('id', drop.listing_id).maybeSingle();
@@ -854,7 +854,7 @@ async function handlePickupDrop(req, res) {
   if (drop.drop_type === 'coin_delivery') {
     // Check ownership from gameState (owner_id stored on drop in memory)
     const gd = gameState.loaded ? gameState.getDropById(drop_id) : null;
-    const coinOwner = gd?.owner_id || drop.couriers?.owner_id;
+    const coinOwner = drop.owner_id || gd?.owner_id || drop.couriers?.owner_id;
     // Allow pickup if no owner info (old drops before owner_id fix)
     if (coinOwner && coinOwner !== player.id) {
       return res.status(403).json({ error: 'Это не ваша посылка' });
