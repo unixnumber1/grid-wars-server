@@ -527,10 +527,28 @@ async function handleOpenLootBox(req, res) {
   gameState.markDirty('players', player.id);
   await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
 
-  // Grant items
+  // Grant items and cores
   const items = typeof box.items === 'string' ? JSON.parse(box.items) : (box.items || []);
   const insertedItems = [];
+  const insertedCores = [];
   for (const itemData of items) {
+    // Core entry (added by addCoresToLootBoxes)
+    if (itemData._type === 'core') {
+      const coreRow = {
+        owner_id: Number(telegram_id),
+        mine_cell_id: null,
+        slot_index: null,
+        core_type: itemData.core_type,
+        level: itemData.level || 0,
+        created_at: new Date().toISOString(),
+      };
+      const { data: ins, error: insErr } = await supabase.from('cores').insert(coreRow).select().single();
+      if (!insErr && ins) {
+        gameState.upsertCore(ins);
+        insertedCores.push(ins);
+      }
+      continue;
+    }
     const itemRow = {
       owner_id: player.id,
       type: itemData.type,
@@ -568,6 +586,7 @@ async function handleOpenLootBox(req, res) {
     success: true,
     gems: box.gems,
     items: insertedItems.map(i => ({ id: i.id, type: i.type, rarity: i.rarity, name: i.name, emoji: i.emoji, attack: i.attack, defense: i.defense, crit_chance: i.crit_chance })),
+    cores: insertedCores.map(c => ({ id: c.id, core_type: c.core_type, level: c.level })),
     diamonds: newDiamonds,
     xp: xpResult,
   });

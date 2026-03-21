@@ -14300,6 +14300,16 @@ async function doOpenLootBox(boxId) {
     if (data.items?.length) {
       for (const item of data.items) lines.push(`${item.emoji} ${item.name}`);
     }
+    if (data.cores?.length) {
+      for (const c of data.cores) {
+        const ci = CORE_TYPES[c.core_type] || {};
+        lines.push(`${ci.emoji || '🔮'} ${ci.name || 'Ядро'}`);
+        state._playerCores = state._playerCores || [];
+        if (!state._playerCores.find(x => x.id === c.id)) {
+          state._playerCores.push({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: null, slot_index: null });
+        }
+      }
+    }
     if (data.xp?.xpGained) lines.push(`⭐ +${data.xp.xpGained} XP`);
     showToast(lines.join('\n'), 5000);
     handleXpResult(data.xp);
