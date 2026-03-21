@@ -138,7 +138,12 @@ class GameState {
     for (const p of (pvpLog || []))        this.pvpLog.set(p.id, p);
     for (const o of (oreNodes || []))     this.oreNodes.set(o.id, o);
     for (const c of (collectors || []))  this.collectors.set(c.id, c);
-    for (const m of (monuments || []))   this.monuments.set(m.id, m);
+    for (const m of (monuments || [])) {
+      // Strip runtime fields that leaked into older rows
+      delete m.wave_started_at;
+      delete m.wave_shield_hp;
+      this.monuments.set(m.id, m);
+    }
     for (const d of (monumentDefs || []))this.monumentDefenders.set(d.id, d);
     for (const c of (cores || []))      this.cores.set(c.id, c);
 
