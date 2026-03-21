@@ -88,6 +88,11 @@ async function batchPersist() {
       for (const k of Object.keys(obj)) {
         if (!k.startsWith('_')) clean[k] = obj[k];
       }
+      // Strip leaked runtime fields from monuments
+      if (key === 'monuments') {
+        delete clean.wave_started_at;
+        delete clean.wave_shield_hp;
+      }
       // Items: ensure integer columns are integers (not floats)
       if (key === 'items') {
         for (const f of ['attack', 'crit_chance', 'defense', 'block_chance']) {
