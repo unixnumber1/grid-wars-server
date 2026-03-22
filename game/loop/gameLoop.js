@@ -355,7 +355,8 @@ async function moveCouriers(nowMs, nowISO) {
 
 // ── Move zombies toward player, scouts wander ──
 function moveZombies(nowMs, connectedPlayers) {
-  if (gameState.zombieHordes.size === 0) return; // early bail
+  if (_tickCount % 24 === 0) console.log(`[ZOMBIE] hordes=${gameState.zombieHordes.size} zombies=${gameState.zombies.size}`);
+  if (gameState.zombieHordes.size === 0) return;
 
   // Cache player socket+position per horde owner
   const ppCache = new Map();
