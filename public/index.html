@@ -2227,6 +2227,17 @@
       padding: 14px;
       max-width: 360px;
     }
+    #core-detail-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 9100;
+      align-items: center; justify-content: center;
+    }
+    #core-detail-overlay.open { display: flex; }
+    #core-detail-card {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 18px; width: 90%; max-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    }
     .popup-hp-live {
       display: flex;
       align-items: center;
@@ -2812,6 +2823,11 @@
     <div id="popup-stats"></div>
     <div class="popup-actions" id="popup-actions"></div>
   </div>
+</div>
+
+<!-- Core detail overlay (above main popup) -->
+<div id="core-detail-overlay">
+  <div id="core-detail-card"></div>
 </div>
 
 <!-- Level-up toast (created dynamically) -->
@@ -5175,6 +5191,8 @@ function getBuildingInCell(cellId) {
   if (hq) return { ...hq, type: 'hq' };
   const clanHq = (state.mapBuildings.clan_hqs || []).find(c => c.cell_id === cellId);
   if (clanHq) return { ...clanHq, type: 'clan_hq' };
+  const collector = Object.values(collectorData).find(c => c.cell_id === cellId);
+  if (collector) return { ...collector, type: 'collector' };
   return null;
 }
 
@@ -6537,6 +6555,7 @@ function _selectMarker(key, isOwn = true) {
 function closePopup() {
   stopPopupCombat();
   document.getElementById('popup-overlay').classList.remove('open');
+  document.getElementById('core-detail-overlay')?.classList.remove('open');
   if (_upgradeCountdownTimer) {
     clearInterval(_upgradeCountdownTimer);
     _upgradeCountdownTimer = null;
@@ -7222,28 +7241,41 @@ function showCoreDetailPopup(coreId) {
   );
 }
 
-// ── Core detail popup (installed in mine) ──
+// ── Core detail popup (installed in mine — opens ABOVE mine popup) ──
+function closeCoreDetail() {
+  document.getElementById('core-detail-overlay').classList.remove('open');
+}
 function showInstalledCorePopup(coreId) {
   const core = (state._playerCores || []).find(c => c.id === coreId);
   if (!core) return;
   const info = CORE_TYPES[core.core_type] || {};
   const mul = getCoreMultiplier(core.level);
+  const nextMul = getCoreMultiplier(core.level + 1);
   const cost = getCoreUpgradeCost(core.level);
   const ether = state.player?.ether || 0;
   const canUpgrade = ether >= cost;
-  openPopup(
-    `${info.emoji} ${info.name} Lv.${core.level}`,
-    t('core.multiplier_sub', {mul}),
-    [
-      [t('core.level'), core.level],
-      [t('core.multiplier'), `<span style="color:#FFD700">x${mul}</span>`],
-    ],
-    [
-      { label: `⬆️ Улучшить ${cost}🌀`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
-      { label: t('core.extract_to_bag'), cls: 'danger', action: () => doCoreUninstall(coreId) },
-    ]
-  );
+  const card = document.getElementById('core-detail-card');
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700;color:#fff">${info.emoji} ${info.name} Lv.${core.level}</div>
+      <button onclick="closeCoreDetail()" style="background:none;border:none;color:#666;font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#aaa">${t('core.multiplier')}</span><span style="color:#FFD700;font-weight:700">x${mul}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#aaa">${t('core.after_upgrade')}</span><span style="color:#4caf50">x${nextMul} (lv.${core.level + 1})</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="popup-btn ${canUpgrade ? 'yellow' : ''}" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} id="core-overlay-upgrade">⬆️ ${cost}🌀</button>
+      <button class="popup-btn danger" id="core-overlay-extract">${t('core.extract_to_bag')}</button>
+    </div>
+  `;
+  document.getElementById('core-detail-overlay').classList.add('open');
+  document.getElementById('core-overlay-upgrade')?.addEventListener('click', () => { closeCoreDetail(); doCoreUpgrade(coreId); });
+  document.getElementById('core-overlay-extract')?.addEventListener('click', () => { closeCoreDetail(); doCoreUninstall(coreId); });
 }
+document.getElementById('core-detail-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('core-detail-overlay')) closeCoreDetail();
+});
 
 async function doCoreUpgrade(coreId) {
   try {
@@ -8524,7 +8556,7 @@ function animateDrain(mineLatLng, botLatLng) {
   const botPos  = map.latLngToContainerPoint(botLatLng);
   const coin = document.createElement('div');
   coin.textContent = '💰';
-  coin.style.cssText = `position:fixed;font-size:16px;left:${minePos.x}px;top:${minePos.y}px;pointer-events:none;z-index:9999;transition:none;`;
+  coin.style.cssText = `position:fixed;font-size:16px;left:${minePos.x}px;top:${minePos.y}px;pointer-events:none;z-index:3500;transition:none;`;
   document.body.appendChild(coin);
   requestAnimationFrame(() => {
     coin.style.transition = 'all 0.8s ease-in';
