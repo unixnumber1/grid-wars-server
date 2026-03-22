@@ -202,7 +202,9 @@ async function handleMineCollect(req, res) {
       }
     }
   }
+  // Calculate accumulated coins per mine (save for XP calc later)
   let totalCoins = 0;
+  const mineCoinsMap = new Map(); // mine.id → coins collected from this mine
   for (const mine of mines) {
     const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
     const incBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
@@ -217,6 +219,7 @@ async function handleMineCollect(req, res) {
         if (clanBoostMul > 1) acc = Math.round(acc * clanBoostMul);
       }
     }
+    mineCoinsMap.set(mine.id, acc);
     totalCoins += acc;
   }
   const currentCoins = player.coins ?? 0;
@@ -238,24 +241,12 @@ async function handleMineCollect(req, res) {
   }
   const collectedAmount = Math.round(totalCoins);
   if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
-  // Per-mine XP: 1% of collected coins with 10% chance, for each mine separately
+  // Per-mine XP: 10% chance, 1% of coins — use saved mineCoinsMap (BEFORE last_collected was reset)
   const { getCollectXp } = await import('../../game/mechanics/xp.js');
   const xpEvents = [];
   let totalXpGained = 0;
   for (const mine of mines) {
-    const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-    const incBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
-    const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
-    let mineCoins = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
-    if (clanIncomeBonus > 0 && clanHqs.length > 0) {
-      const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
-      const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
-      const inZone = clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius);
-      if (inZone) {
-        mineCoins = Math.round(mineCoins * (1 + clanIncomeBonus / 100));
-        if (clanBoostMul > 1) mineCoins = Math.round(mineCoins * clanBoostMul);
-      }
-    }
+    const mineCoins = mineCoinsMap.get(mine.id) || 0;
     const xp = getCollectXp(mineCoins);
     if (xp > 0) {
       totalXpGained += xp;
