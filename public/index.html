@@ -8130,7 +8130,7 @@ function initSocket() {
       }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
-    _socket.on('zombie:attack_player', (data) => { screenShake(); if (state.player) state.player.hp = data.player_hp; });
+    _socket.on('zombie:attack_player', (data) => { if (state.player) state.player.hp = data.player_hp; });
 
     _socket.on('disconnect', () => {
       // Disconnected from server
