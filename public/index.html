@@ -6850,7 +6850,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const canAttack = inCombatZone && mine.level > 0 && (mine.status === 'normal' || mine.status === 'under_attack');
     // Multitouch: if holding attack, switch to mine immediately
     if (combatState.isHolding && canAttack) {
-      return openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine);
+      return openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine, { hideTargetHp: true });
     }
     const attackActions = [];
     if (canAttack) {
@@ -11859,7 +11859,7 @@ async function doAttackMine(mineId) {
   if (String(mineId).startsWith('_opt_')) return;
   const mine = (state.mapBuildings.mines || []).find(m => m.id === mineId);
   if (!mine) return showToast(t('toast.mine_not_found'));
-  openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine);
+  openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine, { hideTargetHp: true });
 }
 
 async function doMineHit(mine) {
