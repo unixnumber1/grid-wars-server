@@ -429,6 +429,7 @@ function moveZombies(nowMs, connectedPlayers) {
     if (player.hp == null) player.hp = player.max_hp || 1000;
     const dmg = Math.round((atk.zombie.attack || ZOMBIE_NORMAL_DAMAGE) * (0.8 + Math.random() * 0.4));
     player.hp = Math.max(0, player.hp - dmg);
+    player.last_hp_regen = new Date().toISOString();
     gameState.markDirty('players', player.id);
     _io.to(atk.sid).emit('zombie:attack_player', {
       zombie_id: atk.zombie.id, damage: dmg,

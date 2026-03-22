@@ -217,6 +217,20 @@
       transition: width 0.4s ease;
     }
 
+    #player-hp-bar-wrap {
+      margin-top: 2px; display: none;
+    }
+    #player-hp-bar-wrap.visible { display: block; }
+    #player-hp-bar-bg {
+      height: 3px; background: rgba(255,255,255,0.1);
+      border-radius: 2px; overflow: hidden;
+    }
+    #player-hp-bar-fill {
+      height: 100%; background: #e06060;
+      border-radius: 2px; width: 100%;
+      transition: width 0.3s ease;
+    }
+
     #btn-collect {
       flex-shrink: 0;
       background: rgba(0,230,118,0.12);
@@ -2803,6 +2817,9 @@
       <div id="shield-timer-display"></div>
       <div id="player-xp-bar-wrap">
         <div id="player-xp-bar-bg"><div id="player-xp-bar-fill"></div></div>
+      </div>
+      <div id="player-hp-bar-wrap">
+        <div id="player-hp-bar-bg"><div id="player-hp-bar-fill"></div></div>
       </div>
     </div>
   </div>
@@ -5856,12 +5873,41 @@ function updateXpBar() {
   document.getElementById('player-level-display').textContent = t('profile.level', {n: level});
 }
 
+let _hpRegenTimer = null;
+function updateHpBar() {
+  const p = state.player;
+  if (!p) return;
+  const hp = p.hp ?? p.max_hp ?? 1000;
+  const maxHp = p.max_hp || 1000;
+  const pct = Math.min(100, Math.max(0, Math.round(hp / maxHp * 100)));
+  const wrap = document.getElementById('player-hp-bar-wrap');
+  const fill = document.getElementById('player-hp-bar-fill');
+  if (pct >= 100) {
+    wrap.classList.remove('visible');
+    if (_hpRegenTimer) { clearInterval(_hpRegenTimer); _hpRegenTimer = null; }
+  } else {
+    wrap.classList.add('visible');
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 50 ? '#4caf50' : pct > 25 ? '#ff9800' : '#e06060';
+    // Start regen timer if not running (10 HP/sec visual)
+    if (!_hpRegenTimer) {
+      _hpRegenTimer = setInterval(() => {
+        if (!state.player) return;
+        const mhp = state.player.max_hp || 1000;
+        state.player.hp = Math.min(mhp, (state.player.hp || 0) + 10);
+        updateHpBar();
+      }, 1000);
+    }
+  }
+}
+
 function updatePlayerDisplay() {
   const avatar = state.player?.avatar || '🐺';
   const name   = displayName(state.player);
   document.getElementById('player-avatar-emoji').textContent = avatar;
   document.getElementById('player-name-display').textContent = name;
   updateXpBar();
+  updateHpBar();
 }
 
 function showXpToast(amount) {
@@ -8130,7 +8176,7 @@ function initSocket() {
       }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
-    _socket.on('zombie:attack_player', (data) => { if (state.player) state.player.hp = data.player_hp; });
+    _socket.on('zombie:attack_player', (data) => { if (state.player) { state.player.hp = data.player_hp; updateHpBar(); } });
 
     _socket.on('disconnect', () => {
       // Disconnected from server
@@ -8167,6 +8213,7 @@ function processTickData(data) {
     }
     _lastTickTime = Date.now();
     if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
+    updateHpBar();
   }
   if (data.mines_own) {
     state.mines = data.mines_own;
