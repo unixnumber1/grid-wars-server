@@ -184,7 +184,22 @@ async function handleAttack(req, res) {
     });
   }
 
-  // Zombie survived — no markDirty (positions not persisted)
+  // Zombie survived — counter-attack (hits player back)
+  let counterDamage = 0;
+  const zombieDmg = zombie.attack || 80;
+  counterDamage = Math.round(zombieDmg * (0.8 + Math.random() * 0.4));
+  if (player.hp == null) player.hp = player.max_hp || 1000;
+  player.hp = Math.max(0, player.hp - counterDamage);
+  gameState.markDirty('players', player.id);
+
+  // Emit counter-attack projectile (zombie → player)
+  emitToNearbyPlayers(zombie.lat, zombie.lng, 1000, 'projectile', {
+    from_lat: zombie.lat, from_lng: zombie.lng,
+    to_lat: pLat, to_lng: pLng,
+    damage: counterDamage, crit: false,
+    target_type: 'player', target_id: Number(telegram_id),
+    weapon_type: 'fist',
+  });
 
   emitToNearbyPlayers(zombie.lat, zombie.lng, 1000, 'zombie:hp_update', {
     zombie_id, hp: zombie.hp, max_hp: zombie.max_hp,
@@ -193,5 +208,6 @@ async function handleAttack(req, res) {
   return res.json({
     success: true, damage, crit: isCrit, killed: false,
     zombie_hp: zombie.hp, zombie_alive: true,
+    counterDamage, playerHp: player.hp, playerMaxHp: player.max_hp || 1000,
   });
 }

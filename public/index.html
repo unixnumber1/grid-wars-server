@@ -14879,10 +14879,14 @@ async function doZombieHit(target) {
       showToast(msg);
       if (data.xp) handleXpResult(data.xp);
     } else {
-      // Update HP
+      // Update zombie HP
       const z = zombieData[target.id];
       if (z) { z.hp = data.zombie_hp; if (zombieMarkers.has(target.id)) zombieMarkers.get(target.id).setIcon(zombieIcon(z)); }
       updatePopupHp(data.zombie_hp, z?.max_hp || 100, '#00cc44');
+      // Counter-attack damage to player
+      if (data.counterDamage > 0) {
+        if (state.player) state.player.hp = data.playerHp;
+      }
     }
   } catch (err) {
     const msg = err.message || '';
