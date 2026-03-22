@@ -3526,6 +3526,7 @@ const I18N = {
     'mine.extinguish': '🧯 Потушить (восстановит 25% HP)',
     'mine.demolish': '🗑️ Снести',
     'mine.burning_warn': '🔥 Шахта горит! Потушите в течение 24ч',
+    'mine.burn_timer': '🔥 Сгорит через',
     'mine.under_attack_warn': '⚔️ Шахту атакуют!',
     'mine.vampire_warn': '⚠️ Атакована! {emoji} {name} высасывает монеты',
     'mine.drained': 'Высосано',
@@ -4433,6 +4434,7 @@ const I18N = {
     'mine.extinguish': '🧯 Extinguish (restores 25% HP)',
     'mine.demolish': '🗑️ Demolish',
     'mine.burning_warn': '🔥 Mine is burning! Extinguish within 24h',
+    'mine.burn_timer': '🔥 Burns in',
     'mine.under_attack_warn': '⚔️ Mine under attack!',
     'mine.vampire_warn': '⚠️ Under attack! {emoji} {name} is draining coins',
     'mine.drained': 'Drained',
@@ -6746,9 +6748,19 @@ function showMinePopup(mine, isOwn, canCapture) {
       ? t('mine.upgrade_to', {n: targetBulkLevel, cost: formatCoins(bulkCost)})
       : null;
 
+    // Burning timer subtitle
+    let burningSubtitle = t('mine.burning_warn');
+    if (mine.status === 'burning' && mine.burning_started_at) {
+      const burnEnd = new Date(mine.burning_started_at).getTime() + 86400000;
+      const leftMs = Math.max(0, burnEnd - Date.now());
+      const h = Math.floor(leftMs / 3600000);
+      const m2 = Math.floor((leftMs % 3600000) / 60000);
+      burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${h}ч ${m2}м</span>`;
+    }
+
     openPopup(
       `${emoji} ${name} (${levelLabel})`,
-      mine.status === 'burning' ? t('mine.burning_warn') : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : distLabel),
+      mine.status === 'burning' ? burningSubtitle : (mine.status === 'under_attack' ? t('mine.under_attack_warn') : distLabel),
       mine.status === 'burning' ? [] : [
         ...(isUpgrading
           ? [[t('mine.upgrading_to'), t('misc.level_short', {n: pendingLevel})]]
@@ -6828,6 +6840,22 @@ function showMinePopup(mine, isOwn, canCapture) {
     // Upgrading countdown UI
     if (isUpgrading) {
       _startUpgradeCountdown(mine.upgrade_finish_at);
+    }
+
+    // Burning countdown
+    if (mine.status === 'burning' && mine.burning_started_at) {
+      const burnEnd = new Date(mine.burning_started_at).getTime() + 86400000;
+      if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      _accumulatedCoinsTimer = setInterval(() => {
+        const el = document.getElementById('burn-timer');
+        if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
+        const leftMs = Math.max(0, burnEnd - Date.now());
+        const h = Math.floor(leftMs / 3600000);
+        const m2 = Math.floor((leftMs % 3600000) / 60000);
+        const s = Math.floor((leftMs % 60000) / 1000);
+        el.textContent = `${h}ч ${m2}м ${s}с`;
+        if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      }, 1000);
     }
 
     // Live accumulated coins update every second
