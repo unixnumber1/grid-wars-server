@@ -6862,32 +6862,10 @@ function showMinePopup(mine, isOwn, canCapture) {
     }
     const statusLabel = isBurning ? (' 🔥 ' + t('misc.burning')) : (isUnderAttack ? (' ⚔️ ' + t('misc.under_attack')) : '');
 
-    // Enemy mine HP + clan shield info
-    const enemyStats = [];
-    if (mine.level > 0 && mine.hp != null && mine.max_hp) {
-      const hp = Math.round(mine.hp);
-      const mhp = mine.max_hp;
-      // Check if this mine is in any clan zone
-      let enemyClanDefense = null;
-      const allClanHqs = state.mapBuildings.clan_hqs || [];
-      for (const ch of allClanHqs) {
-        if (!ch.is_active || !ch.clan_level) continue;
-        const cfg = getClanLevelConfig(ch.clan_level);
-        if (mine.lat != null && mine.lng != null && haversine(mine.lat, mine.lng, ch.lat, ch.lng) <= cfg.radius) {
-          enemyClanDefense = cfg.defense;
-          break;
-        }
-      }
-      const boostedHp = enemyClanDefense ? Math.round(mhp * (1 + enemyClanDefense / 100)) : mhp;
-      const pct = Math.min(100, Math.round(hp / boostedHp * 100));
-      const barColor = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
-      enemyStats.push(['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px"></div></div><span>${formatNumber(hp)}/${formatNumber(boostedHp)}</span></div>${enemyClanDefense ? `<div style="font-size:11px;color:#D500F9;margin-top:2px">🛡️ +${enemyClanDefense}% защита клана</div>` : ''}`]);
-    }
-
     openPopup(
       `${emoji} ${name} (${t('misc.level_short', {n: mine.level})})`,
       `${t('mine.owner', {name: owner})} ${distLabel}${statusLabel}`,
-      enemyStats,
+      [],
       attackActions
     );
   }
