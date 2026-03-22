@@ -407,6 +407,9 @@ function moveZombies(nowMs, connectedPlayers) {
     }
 
     // Each zombie attacks independently, 1 hit per tick
+    if (_tickCount % 12 === 0 && zombie.type !== 'scout') {
+      console.log(`[ZOMBIE DEBUG] id=${zombie.id.slice(0,8)} dist=${Math.round(dist)}m range=${ZOMBIE_ATTACK_RANGE} hp=${zombie.hp} attack=${zombie.attack}`);
+    }
     if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > 1000) {
       zombie._lastAttack = nowMs;
       attacks.push({ ownerId, sid: pp.sid, zombie, playerLat: pp.lat, playerLng: pp.lng });
