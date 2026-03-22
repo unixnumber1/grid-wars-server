@@ -12300,6 +12300,7 @@ function bindAttackButton(targetType, target) {
     combatState.touchId = touchIdentifier ?? null;
     btn.classList.add('attacking');
     document.getElementById('popup-overlay')?.classList.add('combat-mode');
+    map.touchZoom?.disable();
     executePopupAttack();
     if (combatState.attackInterval) clearInterval(combatState.attackInterval);
     combatState.attackInterval = setInterval(executePopupAttack, cd + 50);
@@ -12310,6 +12311,7 @@ function bindAttackButton(targetType, target) {
     combatState.touchId = null;
     btn.classList.remove('attacking');
     if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+    map.touchZoom?.enable();
   }
 
   btn.addEventListener('touchstart', (e) => {
@@ -12354,6 +12356,7 @@ function stopPopupCombat(keepHolding) {
   if (!keepHolding) {
     combatState.isHolding = false;
     combatState.touchId = null;
+    map.touchZoom?.enable();
   }
   combatState.currentTarget = null;
   if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
@@ -12474,6 +12477,7 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
       combatState.isHolding = false;
       combatState.touchId = null;
       if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+      map.touchZoom?.enable();
     }
   }, { passive: true });
 })();
