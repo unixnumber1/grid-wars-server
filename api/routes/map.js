@@ -720,7 +720,8 @@ mapRouter.get('/', async (req, res) => {
       const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
       const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
       const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
-      const computedMaxHp = Math.round(getMineHp(m.level) * bHp);
+      const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
+      const computedMaxHp = Math.round(getMineHp(m.level) * bHp * clanDef);
       const regenPerHour = Math.round(getMineHpRegen(m.level) * bRegen);
       const rawHp = Math.min(m.hp ?? computedMaxHp, computedMaxHp);
       const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
