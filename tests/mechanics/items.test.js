@@ -41,13 +41,13 @@ describe('getMaxUpgradeLevel', () => {
 });
 
 describe('getUpgradeCost', () => {
-  it('low levels cost 40 shards', () => {
-    assert.strictEqual(getUpgradeCost(1), 40);
-    assert.strictEqual(getUpgradeCost(10), 40);
+  it('low levels cost 100 shards', () => {
+    assert.strictEqual(getUpgradeCost(1), 100);
+    assert.strictEqual(getUpgradeCost(10), 100);
   });
 
-  it('high levels cost 5000 shards', () => {
-    assert.strictEqual(getUpgradeCost(91), 5000);
+  it('high levels cost 53000 shards', () => {
+    assert.strictEqual(getUpgradeCost(91), 53000);
   });
 });
 
