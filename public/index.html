@@ -2551,21 +2551,20 @@
 
     /* Zombie markers */
     .zombie-marker {
-      font-size: 20px; cursor: pointer; pointer-events: auto !important;
+      cursor: pointer; pointer-events: auto !important;
       text-align: center; line-height: 1;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
       animation: zombieSway 2s ease-in-out infinite;
     }
     .zombie-boss {
-      font-size: 36px;
-      filter: drop-shadow(0 0 8px rgba(0,255,0,0.8)) drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+      filter: drop-shadow(0 0 10px rgba(0,255,0,0.9)) drop-shadow(0 0 20px rgba(0,255,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.8));
       animation: bossGlow 1s ease-in-out infinite;
     }
     @keyframes zombieSway { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
     @keyframes flashFade { 0% { opacity: 1; } 100% { opacity: 0; } }
     @keyframes bossGlow {
-      0%,100% { filter: drop-shadow(0 0 8px rgba(0,255,0,0.6)) drop-shadow(0 2px 4px rgba(0,0,0,0.8)); }
-      50% { filter: drop-shadow(0 0 16px rgba(0,255,0,1)) drop-shadow(0 2px 4px rgba(0,0,0,0.8)); }
+      0%,100% { filter: drop-shadow(0 0 10px rgba(0,255,0,0.6)) drop-shadow(0 0 20px rgba(0,255,0,0.3)) drop-shadow(0 2px 4px rgba(0,0,0,0.8)); }
+      50% { filter: drop-shadow(0 0 16px rgba(0,255,0,1)) drop-shadow(0 0 30px rgba(0,255,0,0.6)) drop-shadow(0 2px 4px rgba(0,0,0,0.8)); }
     }
   </style>
 </head>
@@ -14809,17 +14808,13 @@ const zombieData = {};
 
 function zombieIcon(z) {
   const isBoss = z.type === 'boss';
-  const hpPct = z.max_hp > 0 ? (z.hp / z.max_hp * 100) : 0;
-  const w = isBoss ? 56 : 40;
-  const h = isBoss ? 70 : 50;
+  const size = isBoss ? 48 : 32;
+  const emoji = isBoss ? '🧟' : (z.emoji || '🧟');
   return L.divIcon({
-    html: `<div class="zombie-marker ${isBoss ? 'zombie-boss' : ''}">
-      <span style="font-size:${isBoss ? 36 : 28}px">${z.emoji || '🧟'}</span>
-      <div class="defender-hp-bar"><div style="width:${Math.max(0,hpPct)}%;background:#00cc44"></div></div>
-    </div>`,
+    html: `<div class="zombie-marker ${isBoss ? 'zombie-boss' : ''}" style="font-size:${size}px">${emoji}</div>`,
     className: 'leaflet-interactive',
-    iconSize: [w, h],
-    iconAnchor: [w / 2, h / 2],
+    iconSize: [size + 8, size + 8],
+    iconAnchor: [(size + 8) / 2, (size + 8) / 2],
   });
 }
 
