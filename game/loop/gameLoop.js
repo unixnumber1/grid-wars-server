@@ -354,7 +354,12 @@ async function moveCouriers(nowMs, nowISO) {
 }
 
 // ── Move zombies toward player, scouts wander ──
+// Batched: collect all moves per horde, emit one event per horde owner
 function moveZombies(nowMs, connectedPlayers) {
+  // Cache player positions per horde to avoid repeated lookups
+  const playerPosCache = new Map(); // horde.player_id → {lat, lng, sid}
+  const moveBatch = new Map(); // horde.player_id → [{id, lat, lng}]
+
   for (const zombie of gameState.zombies.values()) {
     if (!zombie.alive) continue;
 
@@ -364,57 +369,62 @@ function moveZombies(nowMs, connectedPlayers) {
     // Scout: random wander
     if (zombie.type === 'scout') {
       const angle = Math.random() * Math.PI * 2;
-      const stepM = (zombie.speed || 1.5) * 5; // 5s tick
+      const stepM = (zombie.speed || 1.5) * 5;
       zombie.lat += (stepM / 111320) * Math.cos(angle);
       zombie.lng += (stepM / (111320 * Math.cos(zombie.lat * Math.PI / 180))) * Math.sin(angle);
-      gameState.markDirty('zombies', zombie.id);
-      _io.emit('zombie:move', { id: zombie.id, lat: zombie.lat, lng: zombie.lng });
+      // Emit only to horde owner
+      if (!moveBatch.has(horde.player_id)) moveBatch.set(horde.player_id, []);
+      moveBatch.get(horde.player_id).push({ id: zombie.id, lat: zombie.lat, lng: zombie.lng });
       continue;
     }
 
-    // Combat zombies: find player position from connectedPlayers
-    let playerLat, playerLng;
-    for (const [, info] of connectedPlayers) {
-      if (Number(info.telegram_id) === horde.player_id && info.lat && info.lng) {
-        playerLat = info.lat; playerLng = info.lng; break;
+    // Resolve player position (cached)
+    if (!playerPosCache.has(horde.player_id)) {
+      let found = null;
+      for (const [sid, info] of connectedPlayers) {
+        if (Number(info.telegram_id) === horde.player_id && info.lat && info.lng) {
+          found = { lat: info.lat, lng: info.lng, sid }; break;
+        }
       }
+      playerPosCache.set(horde.player_id, found);
     }
-    if (playerLat == null) continue;
+    const pp = playerPosCache.get(horde.player_id);
+    if (!pp) continue;
 
-    const dist = haversine(zombie.lat, zombie.lng, playerLat, playerLng);
+    const dist = haversine(zombie.lat, zombie.lng, pp.lat, pp.lng);
     if (dist > 15) {
-      const stepM = Math.min((zombie.speed || 3) * 5, dist);
-      const dLat = playerLat - zombie.lat;
-      const dLng = playerLng - zombie.lng;
+      const stepM = Math.min((zombie.speed || 15) * 5, dist);
+      const dLat = pp.lat - zombie.lat;
+      const dLng = pp.lng - zombie.lng;
       const ratio = stepM / dist;
-      // Add slight randomness to movement
       zombie.lat += dLat * ratio + (Math.random() - 0.5) * 0.00001;
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00001;
     }
 
-    // Attack player if within range (450m, ranged like defenders)
+    // Attack player if within range
     if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > ZOMBIE_ATTACK_INTERVAL) {
       zombie._lastAttack = nowMs;
       const player = gameState.getPlayerByTgId(horde.player_id);
       if (player && (player.hp || 0) > 0) {
         player.hp = Math.max(0, (player.hp || 1000) - (zombie.attack || 0));
         gameState.markDirty('players', player.id);
-
-        // Notify player
-        for (const [sid, info] of connectedPlayers) {
-          if (Number(info.telegram_id) === horde.player_id) {
-            _io.to(sid).emit('zombie:attack_player', {
-              zombie_id: zombie.id, damage: zombie.attack || 0,
-              player_hp: player.hp, player_max_hp: player.max_hp || 1000,
-            });
-            break;
-          }
-        }
+        _io.to(pp.sid).emit('zombie:attack_player', {
+          zombie_id: zombie.id, damage: zombie.attack || 0,
+          player_hp: player.hp, player_max_hp: player.max_hp || 1000,
+        });
       }
     }
 
-    gameState.markDirty('zombies', zombie.id);
-    _io.emit('zombie:move', { id: zombie.id, lat: zombie.lat, lng: zombie.lng });
+    if (!moveBatch.has(horde.player_id)) moveBatch.set(horde.player_id, []);
+    moveBatch.get(horde.player_id).push({ id: zombie.id, lat: zombie.lat, lng: zombie.lng });
+  }
+
+  // Emit one batched event per horde owner (not per zombie, not to all players)
+  for (const [tgId, moves] of moveBatch) {
+    const pp = playerPosCache.get(tgId);
+    if (pp?.sid) {
+      _io.to(pp.sid).emit('zombie:move_batch', moves);
+    }
   }
 }
 

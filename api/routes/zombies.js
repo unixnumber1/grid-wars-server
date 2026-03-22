@@ -82,7 +82,7 @@ async function handleAttack(req, res) {
   // Distance check
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, zombie.lat, zombie.lng);
-  if (dist > ZOMBIE_ATTACK_RANGE) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
+  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
 
   // Weapon cooldown
   const items = gameState.getPlayerItems(player.id);

@@ -8125,10 +8125,12 @@ function initSocket() {
     });
     _socket.on('zombie:removed', (data) => { removeZombieMarker(data.zombie_id); });
     _socket.on('zombie:remove_all', () => { for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
-    _socket.on('zombie:move', (data) => {
-      const z = zombieData[data.id]; if (z) { z.lat = data.lat; z.lng = data.lng; }
-      const m = zombieMarkers.get(data.id);
-      if (m) _animateMarkerTo(m, data.lat, data.lng, 4500);
+    _socket.on('zombie:move_batch', (moves) => {
+      for (const mv of moves) {
+        const z = zombieData[mv.id]; if (z) { z.lat = mv.lat; z.lng = mv.lng; }
+        const m = zombieMarkers.get(mv.id);
+        if (m) _animateMarkerTo(m, mv.lat, mv.lng, 4500);
+      }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
     _socket.on('zombie:attack_player', (data) => { screenShake(); if (state.player) state.player.hp = data.player_hp; });

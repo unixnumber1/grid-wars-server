@@ -46,7 +46,7 @@ async function batchPersist() {
     monuments: 'monuments',
     cores: 'cores',
     zombieHordes: 'zombie_hordes',
-    zombies: 'zombies',
+    // zombies: positions are temporary, persisted on create/death only
   };
 
   const stateMap = {
@@ -69,7 +69,6 @@ async function batchPersist() {
     monuments: gameState.monuments,
     cores: gameState.cores,
     zombieHordes: gameState.zombieHordes,
-    zombies: gameState.zombies,
   };
 
   for (const key of keys) {
