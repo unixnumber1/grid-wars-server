@@ -8104,6 +8104,28 @@ function initSocket() {
       }
     });
 
+    // ── Zombie horde socket events ──
+    _socket.on('zombie:scout_spawned', (data) => {
+      addZombieMarker({ id: data.zombie_id, type: 'scout', emoji: data.emoji, lat: data.lat, lng: data.lng });
+      showToast('🧟 Разведчик появился рядом!');
+    });
+    _socket.on('zombie:horde_started', () => { showToast('🧟 Разведчик убит! Орда приближается!'); });
+    _socket.on('zombie:wave_spawned', (data) => {
+      for (const z of (data.zombies || [])) addZombieMarker(z);
+      showToast(`🧟 Волна ${data.wave}!`);
+      const flash = document.createElement('div');
+      flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,0,0,0.2);z-index:9999;pointer-events:none;animation:flashFade 0.5s ease-out forwards;';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 500);
+    });
+    _socket.on('zombie:wave_cleared', (data) => { showToast(`✅ Волна ${data.next_wave - 1} уничтожена! Следующая через 5 сек...`); });
+    _socket.on('zombie:killed', (data) => { removeZombieMarker(data.zombie_id); });
+    _socket.on('zombie:removed', (data) => { removeZombieMarker(data.zombie_id); });
+    _socket.on('zombie:remove_all', () => { for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
+    _socket.on('zombie:move', (data) => { const m = zombieMarkers.get(data.id); if (m) m.setLatLng([data.lat, data.lng]); });
+    _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
+    _socket.on('zombie:attack_player', (data) => { screenShake(); if (state.player) state.player.hp = data.player_hp; });
+
     _socket.on('disconnect', () => {
       // Disconnected from server
     });
@@ -14824,64 +14846,6 @@ async function spawnZombieScout() {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
-// Socket handlers for zombies
-if (_socket) {
-  _socket.on('zombie:scout_spawned', (data) => {
-    addZombieMarker({ id: data.zombie_id, type: 'scout', emoji: data.emoji, lat: data.lat, lng: data.lng });
-    showToast('🧟 Разведчик появился рядом!');
-  });
-
-  _socket.on('zombie:horde_started', () => {
-    showToast('🧟 Разведчик убит! Орда приближается!');
-  });
-
-  _socket.on('zombie:wave_spawned', (data) => {
-    for (const z of (data.zombies || [])) addZombieMarker(z);
-    showToast(`🧟 Волна ${data.wave}!`);
-    // Red flash
-    const flash = document.createElement('div');
-    flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,0,0,0.2);z-index:9999;pointer-events:none;animation:flashFade 0.5s ease-out forwards;';
-    document.body.appendChild(flash);
-    setTimeout(() => flash.remove(), 500);
-  });
-
-  _socket.on('zombie:wave_cleared', (data) => {
-    showToast(`✅ Волна ${data.next_wave - 1} уничтожена! Следующая через 5 сек...`);
-  });
-
-  _socket.on('zombie:killed', (data) => {
-    removeZombieMarker(data.zombie_id);
-  });
-
-  _socket.on('zombie:removed', (data) => {
-    removeZombieMarker(data.zombie_id);
-  });
-
-  _socket.on('zombie:remove_all', (data) => {
-    for (const [id, m] of zombieMarkers) { map.removeLayer(m); }
-    zombieMarkers.clear();
-  });
-
-  _socket.on('zombie:hp_update', (data) => {
-    // HP bar update handled by floating damage from projectile event
-  });
-
-  _socket.on('zombie:move', (data) => {
-    const m = zombieMarkers.get(data.id);
-    if (m) m.setLatLng([data.lat, data.lng]);
-  });
-
-  _socket.on('zombie:horde_timeout', () => {
-    showToast('💨 Орда разошлась — слишком долго не атаковал!');
-    for (const [id, m] of zombieMarkers) { map.removeLayer(m); }
-    zombieMarkers.clear();
-  });
-
-  _socket.on('zombie:attack_player', (data) => {
-    screenShake();
-    if (state.player) state.player.hp = data.player_hp;
-  });
-}
 </script>
 
 <!-- Profile modal (fullscreen) -->

@@ -44,6 +44,18 @@ async function handleSpawnScout(req, res) {
   const lng = player.last_lng;
   if (!lat || !lng) return res.status(400).json({ error: 'GPS not ready' });
 
+  // Admin override: clear existing hordes for this player
+  for (const [id, h] of gameState.zombieHordes) {
+    if (h.player_id === Number(telegram_id)) {
+      for (const z of gameState.zombies.values()) {
+        if (z.horde_id === id) gameState.zombies.delete(z.id);
+      }
+      gameState.zombieHordes.delete(id);
+    }
+  }
+  await supabase.from('zombie_hordes').update({ status: 'defeated' }).eq('player_id', Number(telegram_id)).in('status', ['scout', 'active']);
+  await supabase.from('zombies').update({ alive: false }).eq('player_id', Number(telegram_id)).eq('alive', true);
+
   const result = await spawnScout(Number(telegram_id), lat, lng, io, connectedPlayers);
   return res.json(result);
 }

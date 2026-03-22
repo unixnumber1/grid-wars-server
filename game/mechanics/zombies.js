@@ -34,9 +34,9 @@ export async function spawnScout(playerTelegramId, centerLat, centerLng, io, con
   await supabase.from('zombie_hordes').insert(horde);
   gameState.zombieHordes.set(horde.id, horde);
 
-  // Spawn scout 100-200m away in random direction
+  // Spawn scout within 200m (50-150m away)
   const angle = Math.random() * Math.PI * 2;
-  const dist = 100 + Math.random() * 100;
+  const dist = 50 + Math.random() * 100;
   const lat = centerLat + (dist / 111320) * Math.cos(angle);
   const lng = centerLng + (dist / (111320 * Math.cos(centerLat * Math.PI / 180))) * Math.sin(angle);
 
