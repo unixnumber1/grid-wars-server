@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
+import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -203,11 +203,13 @@ async function handleMineCollect(req, res) {
     }
   }
   // Calculate accumulated coins per mine (save for XP calc later)
+  // mineCountBoost: +0.1% per mine owned (same as tick income calc)
+  const mineCountBoost = getMineCountBoost(allMines.length);
   let totalCoins = 0;
   const mineCoinsMap = new Map(); // mine.id → coins collected from this mine
   for (const mine of mines) {
     const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-    const incBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
+    const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineCountBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
     let acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
     if (clanIncomeBonus > 0 && clanHqs.length > 0) {
