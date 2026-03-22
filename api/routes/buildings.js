@@ -203,24 +203,25 @@ async function handleMineCollect(req, res) {
     }
   }
   // Calculate accumulated coins per mine (save for XP calc later)
-  // mineCountBoost: +0.1% per mine owned (same as tick income calc)
+  // Must match tick income formula: base * mineCountBoost * coreBoost * clanBonus * boostMul
   const mineCountBoost = getMineCountBoost(allMines.length);
   let totalCoins = 0;
-  const mineCoinsMap = new Map(); // mine.id → coins collected from this mine
+  const mineCoinsMap = new Map();
   for (const mine of mines) {
     const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-    const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineCountBoost;
+    let incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineCountBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
-    let acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
+    // Apply clan bonus to income rate (same as tick in map.js lines 527-531)
     if (clanIncomeBonus > 0 && clanHqs.length > 0) {
       const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
       const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
       const inZone = clanHqs.some(h => haversine(mLat, mLng, h.lat, h.lng) <= h.radius);
       if (inZone) {
-        acc = Math.round(acc * (1 + clanIncomeBonus / 100));
-        if (clanBoostMul > 1) acc = Math.round(acc * clanBoostMul);
+        incBoost *= (1 + clanIncomeBonus / 100);
+        if (clanBoostMul > 1) incBoost *= clanBoostMul;
       }
     }
+    const acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
     mineCoinsMap.set(mine.id, acc);
     totalCoins += acc;
   }
