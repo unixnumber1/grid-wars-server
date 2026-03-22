@@ -3,10 +3,12 @@ import { haversine } from '../../lib/haversine.js';
 import { supabase } from '../../lib/supabase.js';
 import {
   ZOMBIE_SCOUT_HP, ZOMBIE_SCOUT_SPEED, ZOMBIE_SCOUT_EMOJI,
-  ZOMBIE_NORMAL_HP, ZOMBIE_NORMAL_SPEED, ZOMBIE_NORMAL_DAMAGE,
-  ZOMBIE_BOSS_HP_MULTIPLIER, ZOMBIE_BOSS_DAMAGE_MULTIPLIER,
+  ZOMBIE_NORMAL_SPEED, ZOMBIE_NORMAL_DAMAGE,
+  ZOMBIE_BOSS_SPEED, ZOMBIE_BOSS_DAMAGE_MULTIPLIER,
   ZOMBIE_BOSS_EMOJI, ZOMBIE_EMOJIS,
+  ZOMBIE_SPAWN_RADIUS,
   getZombieCount, getZombieBossCount, getZombieFormation,
+  getZombieHp, getZombieBossHp,
   ZOMBIE_HORDE_TIMEOUT,
 } from '../../config/constants.js';
 
@@ -97,6 +99,7 @@ export async function spawnWave(horde, io, connectedPlayers) {
   console.log(`[ZOMBIES] Wave ${wave}: ${normalCount} zombies + ${bossCount} bosses (${formation})`);
 
   const spawnedZombies = [];
+  const normalHp = getZombieHp(wave);
   const positions = getFormationPositions(horde.center_lat, horde.center_lng, normalCount, formation);
 
   // Normal zombies
@@ -108,8 +111,8 @@ export async function spawnWave(horde, io, connectedPlayers) {
       player_id: horde.player_id,
       type: 'normal',
       emoji: ZOMBIE_EMOJIS[Math.floor(Math.random() * ZOMBIE_EMOJIS.length)],
-      hp: ZOMBIE_NORMAL_HP,
-      max_hp: ZOMBIE_NORMAL_HP,
+      hp: normalHp,
+      max_hp: normalHp,
       attack: ZOMBIE_NORMAL_DAMAGE,
       lat: pos.lat, lng: pos.lng,
       speed: ZOMBIE_NORMAL_SPEED,
@@ -122,10 +125,10 @@ export async function spawnWave(horde, io, connectedPlayers) {
 
   // Bosses
   for (let i = 0; i < bossCount; i++) {
-    const angle = (Math.PI * 2 * i) / Math.max(bossCount, 1);
-    const dist = 80 + Math.random() * 50;
+    const angle = (Math.PI * 2 * i) / Math.max(bossCount, 1) + (Math.random() - 0.5) * 0.5;
+    const dist = ZOMBIE_SPAWN_RADIUS * 0.8 + Math.random() * ZOMBIE_SPAWN_RADIUS * 0.3;
     const pos = calcPos(horde.center_lat, horde.center_lng, dist, angle);
-    const bossHp = ZOMBIE_NORMAL_HP * ZOMBIE_BOSS_HP_MULTIPLIER;
+    const bossHp = getZombieBossHp(wave);
     const boss = {
       id: globalThis.crypto.randomUUID(),
       horde_id: horde.id,
@@ -136,7 +139,7 @@ export async function spawnWave(horde, io, connectedPlayers) {
       max_hp: bossHp,
       attack: ZOMBIE_NORMAL_DAMAGE * ZOMBIE_BOSS_DAMAGE_MULTIPLIER,
       lat: pos.lat, lng: pos.lng,
-      speed: ZOMBIE_NORMAL_SPEED * 0.8,
+      speed: ZOMBIE_BOSS_SPEED,
       alive: true,
       created_at: nowISO,
     };
@@ -221,38 +224,43 @@ export async function checkHordeTimeout(horde, io, connectedPlayers) {
 // ── Formation positions ──
 function getFormationPositions(centerLat, centerLng, count, formation) {
   const positions = [];
-  const R = 150;
+  const R = ZOMBIE_SPAWN_RADIUS; // 700m
+  const jitter = () => (Math.random() - 0.5) * R * 0.4; // big random offset
 
   if (formation === 'cluster') {
     const baseAngle = Math.random() * Math.PI * 2;
     for (let i = 0; i < count; i++) {
-      const angle = baseAngle + (Math.random() - 0.5) * 1.0;
-      const dist = 50 + Math.random() * R;
-      positions.push(calcPos(centerLat, centerLng, dist, angle));
+      const angle = baseAngle + (Math.random() - 0.5) * 1.5;
+      const dist = R * 0.5 + Math.random() * R * 0.6;
+      const p = calcPos(centerLat, centerLng, dist, angle);
+      positions.push(calcPos(p.lat, p.lng, Math.abs(jitter()) * 0.3, Math.random() * Math.PI * 2));
     }
   } else if (formation === 'line') {
     const baseAngle = Math.random() * Math.PI * 2;
     for (let i = 0; i < count; i++) {
-      const spread = (i - count / 2) * 8;
-      positions.push(calcPos(centerLat, centerLng, R, baseAngle + spread * 0.01));
+      const spread = (i - count / 2) * 15 + (Math.random() - 0.5) * 30;
+      const dist = R * 0.7 + Math.random() * R * 0.4;
+      positions.push(calcPos(centerLat, centerLng, dist, baseAngle + spread * 0.005));
     }
   } else if (formation === 'two_sides') {
     for (let i = 0; i < count; i++) {
       const side = i < count / 2 ? 0 : Math.PI;
-      const angle = side + (Math.random() - 0.5) * 0.8;
-      positions.push(calcPos(centerLat, centerLng, R + Math.random() * 50, angle));
+      const angle = side + (Math.random() - 0.5) * 1.2;
+      const dist = R * 0.6 + Math.random() * R * 0.5;
+      positions.push(calcPos(centerLat, centerLng, dist, angle));
     }
   } else if (formation === 'three_sides') {
     for (let i = 0; i < count; i++) {
       const side = Math.floor(i / (count / 3)) * (Math.PI * 2 / 3);
-      const angle = side + (Math.random() - 0.5) * 0.6;
-      positions.push(calcPos(centerLat, centerLng, R + Math.random() * 50, angle));
+      const angle = side + (Math.random() - 0.5) * 1.0;
+      const dist = R * 0.6 + Math.random() * R * 0.5;
+      positions.push(calcPos(centerLat, centerLng, dist, angle));
     }
   } else {
-    // surround / chaos
+    // surround / chaos — scattered all around
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.5;
-      const dist = R + Math.random() * 80;
+      const angle = Math.random() * Math.PI * 2;
+      const dist = R * 0.5 + Math.random() * R * 0.6;
       positions.push(calcPos(centerLat, centerLng, dist, angle));
     }
   }

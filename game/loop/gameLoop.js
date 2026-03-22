@@ -10,6 +10,7 @@ import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/cons
 import { ts } from '../../config/i18n.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 import { checkHordeTimeout } from '../mechanics/zombies.js';
+import { ZOMBIE_ATTACK_RANGE, ZOMBIE_ATTACK_INTERVAL } from '../../config/constants.js';
 
 const TICK_INTERVAL = 5000;
 const BOTS_PER_ZONE = 10;
@@ -391,8 +392,8 @@ function moveZombies(nowMs, connectedPlayers) {
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00001;
     }
 
-    // Attack player if close enough
-    if (dist < 20 && nowMs - (zombie._lastAttack || 0) > 2000) {
+    // Attack player if within range (450m, ranged like defenders)
+    if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > ZOMBIE_ATTACK_INTERVAL) {
       zombie._lastAttack = nowMs;
       const player = gameState.getPlayerByTgId(horde.player_id);
       if (player && (player.hp || 0) > 0) {

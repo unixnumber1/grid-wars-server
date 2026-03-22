@@ -8119,10 +8119,17 @@ function initSocket() {
       setTimeout(() => flash.remove(), 500);
     });
     _socket.on('zombie:wave_cleared', (data) => { showToast(`✅ Волна ${data.next_wave - 1} уничтожена! Следующая через 5 сек...`); });
-    _socket.on('zombie:killed', (data) => { removeZombieMarker(data.zombie_id); });
+    _socket.on('zombie:killed', (data) => {
+      removeZombieMarker(data.zombie_id);
+      if (combatState.currentTarget?.type === 'zombie' && combatState.currentTarget.id === data.zombie_id) closePopupKeepHold();
+    });
     _socket.on('zombie:removed', (data) => { removeZombieMarker(data.zombie_id); });
     _socket.on('zombie:remove_all', () => { for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
-    _socket.on('zombie:move', (data) => { const m = zombieMarkers.get(data.id); if (m) m.setLatLng([data.lat, data.lng]); });
+    _socket.on('zombie:move', (data) => {
+      const z = zombieData[data.id]; if (z) { z.lat = data.lat; z.lng = data.lng; }
+      const m = zombieMarkers.get(data.id);
+      if (m) _animateMarkerTo(m, data.lat, data.lng, 4500);
+    });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
     _socket.on('zombie:attack_player', (data) => { screenShake(); if (state.player) state.player.hp = data.player_hp; });
 
@@ -12289,6 +12296,7 @@ function showCombatHUD(target, mode) {
       else doMonumentBodyHit(target);
     }
     else if (mode === 'defender') doDefenderHit(target);
+    else if (mode === 'zombie') doZombieHit(target);
     else if (mode === 'collector') doCollectorHit(target);
     else doMineHit(target);
   };
@@ -12353,6 +12361,7 @@ function getTargetCoords(id, type) {
   if (type === 'ore') { const o = oreData[id]; return o ? { lat: o.lat, lng: o.lng } : null; }
   if (type === 'monument_shield' || type === 'monument_body') { const m = monumentData[id]; return m ? { lat: m.lat, lng: m.lng } : null; }
   if (type === 'collector') { const c = collectorData[id]; return c ? { lat: c.lat, lng: c.lng } : null; }
+  if (type === 'zombie') { const z = zombieData[id]; return z ? { lat: z.lat, lng: z.lng } : null; }
   return null;
 }
 
@@ -12390,6 +12399,7 @@ function bindAttackButton(targetType, target) {
     else if (t.type === 'monument_shield') doMonumentShieldHit(t.data);
     else if (t.type === 'monument_body') doMonumentBodyHit(t.data);
     else if (t.type === 'collector') doCollectorHit(t.data);
+    else if (t.type === 'zombie') doZombieHit(t.data);
   }
 
   function startHold(touchIdentifier) {
@@ -12563,6 +12573,10 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
       // Collectors
       for (const [id, m] of Object.entries(collectorMarkers)) {
         if (m?._icon === markerEl) { showCollectorPopup(id); return; }
+      }
+      // Zombies
+      for (const [id, m] of zombieMarkers) {
+        if (m?._icon === markerEl) { showZombiePopup(id); return; }
       }
     }
   }, { passive: true });
@@ -14789,19 +14803,30 @@ async function doCollectorExtinguish(collectorId) {
 //  Zombie Horde System
 // ═══════════════════════════════════════════════════
 const zombieMarkers = new Map();
+const zombieData = {};
+
+function zombieIcon(z) {
+  const isBoss = z.type === 'boss';
+  const hpPct = z.max_hp > 0 ? (z.hp / z.max_hp * 100) : 0;
+  const w = isBoss ? 56 : 40;
+  const h = isBoss ? 70 : 50;
+  return L.divIcon({
+    html: `<div class="zombie-marker ${isBoss ? 'zombie-boss' : ''}">
+      <span style="font-size:${isBoss ? 36 : 28}px">${z.emoji || '🧟'}</span>
+      <div class="defender-hp-bar"><div style="width:${Math.max(0,hpPct)}%;background:#00cc44"></div></div>
+    </div>`,
+    className: 'leaflet-interactive',
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h / 2],
+  });
+}
 
 function addZombieMarker(z) {
+  zombieData[z.id] = z;
   if (zombieMarkers.has(z.id)) return;
   const isBoss = z.type === 'boss';
-  const size = isBoss ? 48 : 28;
-  const icon = L.divIcon({
-    html: `<div class="zombie-marker ${isBoss ? 'zombie-boss' : ''}">${z.emoji || '🧟'}</div>`,
-    className: '',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-  const marker = L.marker([z.lat, z.lng], { icon, zIndexOffset: isBoss ? 4500 : 4000, interactive: true });
-  marker.on('click', () => doZombieAttack(z.id));
+  const marker = L.marker([z.lat, z.lng], { icon: zombieIcon(z), zIndexOffset: isBoss ? 4500 : 4000 });
+  marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showZombiePopup(z.id); });
   marker.addTo(map);
   zombieMarkers.set(z.id, marker);
 }
@@ -14809,28 +14834,64 @@ function addZombieMarker(z) {
 function removeZombieMarker(id) {
   const m = zombieMarkers.get(id);
   if (m) { map.removeLayer(m); zombieMarkers.delete(id); }
+  delete zombieData[id];
 }
 
-async function doZombieAttack(zombieId) {
+function showZombiePopup(zombieId) {
+  const z = zombieData[zombieId];
+  if (!z) return;
+  const pos = state.playerPos;
+  const dist = pos ? haversine(pos.lat, pos.lng, z.lat, z.lng) : null;
+  const inRange = dist !== null && dist <= 450;
+
+  // Multitouch: if holding attack, switch target
+  if (combatState.isHolding && inRange) {
+    return openCombatPopup(`${z.emoji} ${z.type === 'boss' ? 'Зомбосс' : 'Зомби'}`, zombieId, 'zombie',
+      { id: zombieId, hp: z.hp, max_hp: z.max_hp }, { barColor: '#00cc44' });
+  }
+
+  if (inRange) {
+    openCombatPopup(`${z.emoji} ${z.type === 'boss' ? 'Зомбосс' : 'Зомби'}`, zombieId, 'zombie',
+      { id: zombieId, hp: z.hp, max_hp: z.max_hp }, { barColor: '#00cc44' });
+  } else {
+    openPopup(`${z.emoji} ${z.type === 'boss' ? 'Зомбосс' : 'Зомби'}`, dist ? `📍 ${Math.round(dist)}м` : '', [], [
+      { label: dist ? `📍 ${Math.round(dist)}м — подойди ближе` : 'GPS...', disabled: true },
+    ]);
+  }
+}
+
+async function doZombieHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
+
+  const popupCd = document.getElementById('popup-atk-cd');
+  if (popupCd) { popupCd.classList.add('active'); setTimeout(() => popupCd.classList.remove('active'), _pvpCdMs); }
+
   try {
     const data = await apiFetch('/api/zombies', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack', telegram_id: TG_ID, zombie_id: zombieId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'attack', telegram_id: TG_ID, zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.killed) {
-      const isBoss = data.loot && data.xp_gained > 1000;
-      let msg = isBoss ? '💀 БОСС УБИТ!' : '🧟 Убит!';
+      removeZombieMarker(target.id);
+      closePopupKeepHold();
+      let msg = data.loot && data.xp_gained > 1000 ? '💀 БОСС УБИТ!' : '🧟 Убит!';
       if (data.xp_gained > 0) msg += ` +${formatNumber(data.xp_gained)} XP`;
       if (data.loot?.count > 0) msg += ` +${data.loot.count}${data.loot.currency === 'shards' ? '✨' : '🌀'}`;
       showToast(msg);
       if (data.xp) handleXpResult(data.xp);
+    } else {
+      // Update HP
+      const z = zombieData[target.id];
+      if (z) { z.hp = data.zombie_hp; if (zombieMarkers.has(target.id)) zombieMarkers.get(target.id).setIcon(zombieIcon(z)); }
+      updatePopupHp(data.zombie_hp, z?.max_hp || 100, '#00cc44');
     }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    if (msg.includes('Too far') || msg.includes('далеко')) { showToast('📍 Подойди ближе!'); return; }
     showToast(`❌ ${msg}`);
   }
 }

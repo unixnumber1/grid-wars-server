@@ -229,13 +229,18 @@ export const ZOMBIE_SCOUT_HP = 30;
 export const ZOMBIE_SCOUT_SPEED = 1.5;
 export const ZOMBIE_SCOUT_EMOJI = '🧟';
 
-export const ZOMBIE_NORMAL_HP = 80;
-export const ZOMBIE_NORMAL_SPEED = 3;
+export const ZOMBIE_NORMAL_SPEED = 15;  // m/s — fast
 export const ZOMBIE_NORMAL_DAMAGE = 80;
-
-export const ZOMBIE_BOSS_HP_MULTIPLIER = 20;
+export const ZOMBIE_BOSS_SPEED = 10;
 export const ZOMBIE_BOSS_DAMAGE_MULTIPLIER = 3;
 export const ZOMBIE_BOSS_EMOJI = '💀';
+export const ZOMBIE_SPAWN_RADIUS = 700; // meters from player
+export const ZOMBIE_ATTACK_RANGE = 450; // meters — ranged attack like defenders
+export const ZOMBIE_ATTACK_INTERVAL = 1000; // 1 second
+
+// HP scales with wave
+export function getZombieHp(wave) { return 100 + (wave - 1) * 500; }
+export function getZombieBossHp(wave) { return Math.floor(wave / 5) * 5000; }
 
 export const ZOMBIE_EMOJIS = ['🧟', '🧟‍♂️', '🧟‍♀️'];
 

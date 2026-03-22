@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { LARGE_RADIUS } from '../../lib/formulas.js';
+import { ZOMBIE_ATTACK_RANGE } from '../../config/constants.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime } from '../../server.js';
@@ -81,7 +82,7 @@ async function handleAttack(req, res) {
   // Distance check
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, zombie.lat, zombie.lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
+  if (dist > ZOMBIE_ATTACK_RANGE) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
 
   // Weapon cooldown
   const items = gameState.getPlayerItems(player.id);
