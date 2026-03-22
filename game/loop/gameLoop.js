@@ -370,10 +370,10 @@ function moveZombies(nowMs, connectedPlayers) {
   }
 
   const moveBatch = new Map();
-  const attackBatch = new Map(); // ownerId → { sid, totalDmg }
+  const attacks = []; // individual zombie attacks
 
   for (const zombie of gameState.zombies.values()) {
-    if (!zombie.alive) { gameState.zombies.delete(zombie.id); continue; } // cleanup stale
+    if (!zombie.alive) { gameState.zombies.delete(zombie.id); continue; }
 
     const horde = gameState.zombieHordes.get(zombie.horde_id);
     if (!horde || (horde.status !== 'active' && horde.status !== 'scout')) continue;
@@ -395,9 +395,8 @@ function moveZombies(nowMs, connectedPlayers) {
     const pp = ppCache.get(ownerId);
     if (!pp) continue;
 
-    // Move toward player (haversine for accurate distance)
+    // Move toward player
     const dist = haversine(zombie.lat, zombie.lng, pp.lat, pp.lng);
-
     if (dist > 15) {
       const stepM = Math.min((zombie.speed || 15) * 5, dist);
       const ratio = stepM / dist;
@@ -407,40 +406,34 @@ function moveZombies(nowMs, connectedPlayers) {
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00002;
     }
 
-    // Auto-attack player if in range — 5 hits per tick (1 hit/sec, tick=5s)
-    if (dist < ZOMBIE_ATTACK_RANGE) {
-      const player = gameState.getPlayerByTgId(Number(ownerId));
-      if (player && (player.hp == null || player.hp > 0)) {
-        if (player.hp == null) player.hp = player.max_hp || 1000;
-        const dmgPerHit = zombie.attack || ZOMBIE_NORMAL_DAMAGE;
-        const totalDmg = Math.round(dmgPerHit * 5 * (0.8 + Math.random() * 0.4));
-        player.hp = Math.max(0, player.hp - totalDmg);
-        gameState.markDirty('players', player.id);
-        if (!attackBatch.has(ownerId)) attackBatch.set(ownerId, { sid: pp.sid, totalDmg: 0 });
-        attackBatch.get(ownerId).totalDmg += totalDmg;
-      }
+    // Each zombie attacks independently, 1 hit per tick
+    if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > 1000) {
+      zombie._lastAttack = nowMs;
+      attacks.push({ ownerId, sid: pp.sid, zombie, playerLat: pp.lat, playerLng: pp.lng });
     }
 
     if (!moveBatch.has(ownerId)) moveBatch.set(ownerId, []);
     moveBatch.get(ownerId).push({ id: zombie.id, lat: zombie.lat, lng: zombie.lng });
   }
 
-  // Emit batched moves (one per horde owner)
+  // Emit batched moves
   for (const [ownerId, moves] of moveBatch) {
     const pp = ppCache.get(ownerId);
     if (pp?.sid) _io.to(pp.sid).emit('zombie:move_batch', moves);
   }
 
-  // Emit aggregated attack damage per player
-  for (const [ownerId, atk] of attackBatch) {
-    const player = gameState.getPlayerByTgId(Number(ownerId));
-    if (player && atk.sid) {
-      _io.to(atk.sid).emit('zombie:attack_player', {
-        damage: atk.totalDmg,
-        player_hp: player.hp,
-        player_max_hp: player.max_hp || 1000,
-      });
-    }
+  // Process each zombie attack individually
+  for (const atk of attacks) {
+    const player = gameState.getPlayerByTgId(Number(atk.ownerId));
+    if (!player || player.hp <= 0) continue;
+    if (player.hp == null) player.hp = player.max_hp || 1000;
+    const dmg = Math.round((atk.zombie.attack || ZOMBIE_NORMAL_DAMAGE) * (0.8 + Math.random() * 0.4));
+    player.hp = Math.max(0, player.hp - dmg);
+    gameState.markDirty('players', player.id);
+    _io.to(atk.sid).emit('zombie:attack_player', {
+      zombie_id: atk.zombie.id, damage: dmg,
+      player_hp: player.hp, player_max_hp: player.max_hp || 1000,
+    });
   }
 }
 
