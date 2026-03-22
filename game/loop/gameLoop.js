@@ -9,6 +9,7 @@ import { dailyMarketCheck } from '../mechanics/market.js';
 import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/constants.js';
 import { ts } from '../../config/i18n.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
+import { checkHordeTimeout } from '../mechanics/zombies.js';
 
 const TICK_INTERVAL = 5000;
 const BOTS_PER_ZONE = 10;
@@ -45,6 +46,14 @@ export function startGameLoop(io, connectedPlayers) {
 
       // ── 3. Move couriers ───────────────────────────────────
       await moveCouriers(nowMs, nowISO);
+
+      // ── 3b. Move zombies + check timeout ──────────────────
+      moveZombies(nowMs, connectedPlayers);
+      if (_tickCount % 12 === 0) { // every ~1 min
+        for (const horde of [...gameState.zombieHordes.values()]) {
+          await checkHordeTimeout(horde, _io, connectedPlayers);
+        }
+      }
 
       // ── 4. Periodic cleanup every 60 ticks (~5 min) ───────
       if (_tickCount % 60 === 0) {
@@ -340,6 +349,71 @@ async function moveCouriers(nowMs, nowISO) {
     }
   } catch (e) {
     console.error('[gameLoop] courier move error:', e.message);
+  }
+}
+
+// ── Move zombies toward player, scouts wander ──
+function moveZombies(nowMs, connectedPlayers) {
+  for (const zombie of gameState.zombies.values()) {
+    if (!zombie.alive) continue;
+
+    const horde = gameState.zombieHordes.get(zombie.horde_id);
+    if (!horde || (horde.status !== 'active' && horde.status !== 'scout')) continue;
+
+    // Scout: random wander
+    if (zombie.type === 'scout') {
+      const angle = Math.random() * Math.PI * 2;
+      const stepM = (zombie.speed || 1.5) * 5; // 5s tick
+      zombie.lat += (stepM / 111320) * Math.cos(angle);
+      zombie.lng += (stepM / (111320 * Math.cos(zombie.lat * Math.PI / 180))) * Math.sin(angle);
+      gameState.markDirty('zombies', zombie.id);
+      _io.emit('zombie:move', { id: zombie.id, lat: zombie.lat, lng: zombie.lng });
+      continue;
+    }
+
+    // Combat zombies: find player position from connectedPlayers
+    let playerLat, playerLng;
+    for (const [, info] of connectedPlayers) {
+      if (Number(info.telegram_id) === horde.player_id && info.lat && info.lng) {
+        playerLat = info.lat; playerLng = info.lng; break;
+      }
+    }
+    if (playerLat == null) continue;
+
+    const dist = haversine(zombie.lat, zombie.lng, playerLat, playerLng);
+    if (dist > 15) {
+      const stepM = Math.min((zombie.speed || 3) * 5, dist);
+      const dLat = playerLat - zombie.lat;
+      const dLng = playerLng - zombie.lng;
+      const ratio = stepM / dist;
+      // Add slight randomness to movement
+      zombie.lat += dLat * ratio + (Math.random() - 0.5) * 0.00001;
+      zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00001;
+    }
+
+    // Attack player if close enough
+    if (dist < 20 && nowMs - (zombie._lastAttack || 0) > 2000) {
+      zombie._lastAttack = nowMs;
+      const player = gameState.getPlayerByTgId(horde.player_id);
+      if (player && (player.hp || 0) > 0) {
+        player.hp = Math.max(0, (player.hp || 1000) - (zombie.attack || 0));
+        gameState.markDirty('players', player.id);
+
+        // Notify player
+        for (const [sid, info] of connectedPlayers) {
+          if (Number(info.telegram_id) === horde.player_id) {
+            _io.to(sid).emit('zombie:attack_player', {
+              zombie_id: zombie.id, damage: zombie.attack || 0,
+              player_hp: player.hp, player_max_hp: player.max_hp || 1000,
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    gameState.markDirty('zombies', zombie.id);
+    _io.emit('zombie:move', { id: zombie.id, lat: zombie.lat, lng: zombie.lng });
   }
 }
 

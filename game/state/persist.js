@@ -45,6 +45,8 @@ async function batchPersist() {
     collectors: 'collectors',
     monuments: 'monuments',
     cores: 'cores',
+    zombieHordes: 'zombie_hordes',
+    zombies: 'zombies',
   };
 
   const stateMap = {
@@ -66,6 +68,8 @@ async function batchPersist() {
     collectors: gameState.collectors,
     monuments: gameState.monuments,
     cores: gameState.cores,
+    zombieHordes: gameState.zombieHordes,
+    zombies: gameState.zombies,
   };
 
   for (const key of keys) {

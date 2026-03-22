@@ -196,3 +196,72 @@ export const CLAN_BOOST_PRICES = [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2
 
 // ── Collector upgrade prices ──
 export const COLLECTOR_UPGRADE_PRICES = [0, 30, 50, 75, 100, 130, 160, 200, 250, 300];
+
+// ═══════════════════════════════════════════════════════
+//  Zombie Hordes
+// ═══════════════════════════════════════════════════════
+
+export const ZOMBIE_WAVE_COUNTS = [
+  0, 5, 10, 15, 25, 40, 55, 70, 90, 120, 150,
+];
+
+export function getZombieCount(wave) {
+  if (wave <= 10) return ZOMBIE_WAVE_COUNTS[wave] || 5;
+  return 150 + (wave - 10) * 20;
+}
+
+export function getZombieBossCount(wave) {
+  if (wave % 5 !== 0) return 0;
+  return wave / 5;
+}
+
+export const ZOMBIE_FORMATIONS = {
+  1: 'cluster', 2: 'cluster', 3: 'line', 4: 'two_sides', 5: 'cluster',
+  6: 'three_sides', 7: 'surround', 8: 'chaos', 9: 'surround', 10: 'chaos',
+};
+
+export function getZombieFormation(wave) {
+  if (wave <= 10) return ZOMBIE_FORMATIONS[wave] || 'chaos';
+  return wave % 2 === 0 ? 'surround' : 'chaos';
+}
+
+export const ZOMBIE_SCOUT_HP = 30;
+export const ZOMBIE_SCOUT_SPEED = 1.5;
+export const ZOMBIE_SCOUT_EMOJI = '🧟';
+
+export const ZOMBIE_NORMAL_HP = 80;
+export const ZOMBIE_NORMAL_SPEED = 3;
+export const ZOMBIE_NORMAL_DAMAGE = 80;
+
+export const ZOMBIE_BOSS_HP_MULTIPLIER = 20;
+export const ZOMBIE_BOSS_DAMAGE_MULTIPLIER = 3;
+export const ZOMBIE_BOSS_EMOJI = '💀';
+
+export const ZOMBIE_EMOJIS = ['🧟', '🧟‍♂️', '🧟‍♀️'];
+
+export function getZombieXp(playerLevel) {
+  const min = playerLevel * 1;
+  const max = playerLevel * 10;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function getZombieBossXp(playerLevel) {
+  const min = playerLevel * 100;
+  const max = playerLevel * 1000;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function getZombieLoot() {
+  const count = Math.floor(Math.random() * 4);
+  if (count === 0) return null;
+  const currency = Math.random() < 0.5 ? 'shards' : 'ether';
+  return { count, currency };
+}
+
+export function getZombieBossLoot() {
+  const count = Math.floor(Math.random() * 151) + 50;
+  const currency = Math.random() < 0.5 ? 'shards' : 'ether';
+  return { count, currency };
+}
+
+export const ZOMBIE_HORDE_TIMEOUT = 120000;

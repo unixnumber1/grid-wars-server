@@ -27,6 +27,8 @@ class GameState {
     this.monumentDefenders = new Map(); // id -> full row
     this.monumentDamage = new Map(); // monument_id -> Map(player_id -> damage)
     this.cores = new Map();            // id -> full row
+    this.zombieHordes = new Map();   // id -> full row
+    this.zombies = new Map();        // id -> full row
     this.activeWaves = new Map();    // monument_id -> { wave_number, last_wave_at, last_attack_at }
     this.appSettings = new Map();   // key -> value (string)
     this.pvpCooldowns = [];         // array of {attacker_id, defender_id, expires_at}
@@ -52,6 +54,8 @@ class GameState {
       collectors: new Set(),
       monuments: new Set(),
       cores: new Set(),
+      zombieHordes: new Set(),
+      zombies: new Set(),
     };
   }
 
@@ -81,7 +85,7 @@ class GameState {
     const t0 = Date.now();
 
     // Load all tables in parallel (paginated for large tables)
-    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores] = await Promise.all([
+    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies] = await Promise.all([
       this._loadAll('players'),
       this._loadAll('headquarters'),
       this._loadAll('mines'),
@@ -104,6 +108,8 @@ class GameState {
       this._loadAll('monuments'),
       this._loadAll('monument_defenders', q => q.eq('alive', true)),
       this._loadAll('cores'),
+      this._loadAll('zombie_hordes', q => q.in('status', ['scout', 'active'])),
+      this._loadAll('zombies', q => q.eq('alive', true)),
     ]);
 
     // Index players
@@ -146,6 +152,8 @@ class GameState {
     }
     for (const d of (monumentDefs || []))this.monumentDefenders.set(d.id, d);
     for (const c of (cores || []))      this.cores.set(c.id, c);
+    for (const h of (zHordes || []))   this.zombieHordes.set(h.id, h);
+    for (const z of (zZombies || []))  this.zombies.set(z.id, z);
 
     this._loaded = true;
     console.log('[gameState] Loaded in', Date.now() - t0, 'ms:', this.stats());
