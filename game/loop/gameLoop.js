@@ -10,7 +10,7 @@ import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/cons
 import { ts } from '../../config/i18n.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 import { checkHordeTimeout } from '../mechanics/zombies.js';
-// Zombie constants (attack range/interval unused — zombies are passive targets like defenders)
+import { ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE } from '../../config/constants.js';
 
 const TICK_INTERVAL = 5000;
 const BOTS_PER_ZONE = 10;
@@ -370,6 +370,7 @@ function moveZombies(nowMs, connectedPlayers) {
   }
 
   const moveBatch = new Map();
+  const attackBatch = new Map(); // ownerId → { sid, totalDmg }
 
   for (const zombie of gameState.zombies.values()) {
     if (!zombie.alive) { gameState.zombies.delete(zombie.id); continue; } // cleanup stale
@@ -406,6 +407,20 @@ function moveZombies(nowMs, connectedPlayers) {
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00002;
     }
 
+    // Auto-attack player if in range — 5 hits per tick (1 hit/sec, tick=5s)
+    if (dist < ZOMBIE_ATTACK_RANGE) {
+      const player = gameState.getPlayerByTgId(Number(ownerId));
+      if (player && (player.hp == null || player.hp > 0)) {
+        if (player.hp == null) player.hp = player.max_hp || 1000;
+        const dmgPerHit = zombie.attack || ZOMBIE_NORMAL_DAMAGE;
+        const totalDmg = Math.round(dmgPerHit * 5 * (0.8 + Math.random() * 0.4));
+        player.hp = Math.max(0, player.hp - totalDmg);
+        gameState.markDirty('players', player.id);
+        if (!attackBatch.has(ownerId)) attackBatch.set(ownerId, { sid: pp.sid, totalDmg: 0 });
+        attackBatch.get(ownerId).totalDmg += totalDmg;
+      }
+    }
+
     if (!moveBatch.has(ownerId)) moveBatch.set(ownerId, []);
     moveBatch.get(ownerId).push({ id: zombie.id, lat: zombie.lat, lng: zombie.lng });
   }
@@ -416,6 +431,17 @@ function moveZombies(nowMs, connectedPlayers) {
     if (pp?.sid) _io.to(pp.sid).emit('zombie:move_batch', moves);
   }
 
+  // Emit aggregated attack damage per player
+  for (const [ownerId, atk] of attackBatch) {
+    const player = gameState.getPlayerByTgId(Number(ownerId));
+    if (player && atk.sid) {
+      _io.to(atk.sid).emit('zombie:attack_player', {
+        damage: atk.totalDmg,
+        player_hp: player.hp,
+        player_max_hp: player.max_hp || 1000,
+      });
+    }
+  }
 }
 
 async function periodicCleanup(nowMs, nowISO) {
