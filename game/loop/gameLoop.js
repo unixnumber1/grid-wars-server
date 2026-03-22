@@ -10,7 +10,7 @@ import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/cons
 import { ts } from '../../config/i18n.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 import { checkHordeTimeout } from '../mechanics/zombies.js';
-import { ZOMBIE_ATTACK_RANGE, ZOMBIE_ATTACK_INTERVAL, ZOMBIE_NORMAL_DAMAGE } from '../../config/constants.js';
+// Zombie constants (attack range/interval unused — zombies are passive targets like defenders)
 
 const TICK_INTERVAL = 5000;
 const BOTS_PER_ZONE = 10;
@@ -370,7 +370,6 @@ function moveZombies(nowMs, connectedPlayers) {
   }
 
   const moveBatch = new Map();
-  const attackBatch = []; // {sid, data}
 
   for (const zombie of gameState.zombies.values()) {
     if (!zombie.alive) { gameState.zombies.delete(zombie.id); continue; } // cleanup stale
@@ -407,19 +406,6 @@ function moveZombies(nowMs, connectedPlayers) {
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00002;
     }
 
-    // Attack if in range
-    if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > ZOMBIE_ATTACK_INTERVAL) {
-      zombie._lastAttack = nowMs;
-      const player = gameState.getPlayerByTgId(Number(ownerId));
-      if (player) {
-        if (player.hp == null) player.hp = player.max_hp || 1000;
-        const dmg = zombie.attack || ZOMBIE_NORMAL_DAMAGE;
-        player.hp = Math.max(0, player.hp - dmg);
-        gameState.markDirty('players', player.id);
-        attackBatch.push({ sid: pp.sid, data: { zombie_id: zombie.id, damage: dmg, player_hp: player.hp, player_max_hp: player.max_hp || 1000 } });
-      }
-    }
-
     if (!moveBatch.has(ownerId)) moveBatch.set(ownerId, []);
     moveBatch.get(ownerId).push({ id: zombie.id, lat: zombie.lat, lng: zombie.lng });
   }
@@ -430,10 +416,6 @@ function moveZombies(nowMs, connectedPlayers) {
     if (pp?.sid) _io.to(pp.sid).emit('zombie:move_batch', moves);
   }
 
-  // Emit attack events
-  for (const { sid, data } of attackBatch) {
-    _io.to(sid).emit('zombie:attack_player', data);
-  }
 }
 
 async function periodicCleanup(nowMs, nowISO) {
