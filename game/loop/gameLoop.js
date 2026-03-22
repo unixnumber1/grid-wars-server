@@ -369,8 +369,12 @@ function moveZombies(nowMs, connectedPlayers) {
     }
   }
 
+  if (_tickCount % 12 === 0) {
+    console.log(`[ZOMBIE TICK] hordes=${gameState.zombieHordes.size} zombies=${gameState.zombies.size}`);
+    for (const h of gameState.zombieHordes.values()) console.log(`  horde ${h.id.slice(0,8)} status=${h.status} player=${h.player_id} wave=${h.wave}`);
+  }
   const moveBatch = new Map();
-  const attacks = []; // individual zombie attacks
+  const attacks = [];
 
   for (const zombie of gameState.zombies.values()) {
     if (!zombie.alive) { gameState.zombies.delete(zombie.id); continue; }
