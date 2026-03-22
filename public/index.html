@@ -6611,26 +6611,24 @@ function showHqPopup(hq, isOwn) {
       let cardsHtml = '';
       myCollectors.forEach((c, i) => {
         const coins = c.stored_coins || 0;
-        // Compute capacity from own mines list (not viewport-limited)
-        const minesNear = (state.mines || []).filter(m => haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
-        const incomePerSec = minesNear.reduce((s, m) => s + (m.income || 0), 0);
-        const capHours = [0,6,8,10,12,16,20,24,30,36,48][c.level] || 6;
-        const cap = Math.floor(incomePerSec * 3600 * capHours) || c._capacity || 1;
+        const COLL_CAP_HQ = {1:500000,2:1500000,3:5000000,4:15000000,5:50000000,6:150000000,7:500000000,8:1500000000,9:5000000000,10:15000000000};
+        const cap = COLL_CAP_HQ[c.level] || 500000;
         const pct = cap > 0 ? Math.min(100, Math.round(coins / cap * 100)) : 0;
         const hasCoins = coins > 0;
-        const comm = Math.floor(coins * 0.10);
+        const isBurning = c.status === 'burning';
         cardsHtml += `<div class="hq-collector-card" data-cid="${c.id}">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-weight:600;color:#fff">🧲 #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
+            <span style="font-weight:600;color:#fff">${isBurning ? '🔥' : '🧲'} #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
             <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">${t('hq.camera')}</span>
           </div>
+          ${isBurning ? '<div style="color:#ff6600;font-size:12px;margin-top:4px">🔥 Горит!</div>' : `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
             <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
             <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
           </div>
           <button class="hq-coll-btn ${hasCoins ? 'active' : ''}" ${hasCoins ? '' : 'disabled'} onclick="event.stopPropagation();doCollectorDeliver('${c.id}')">
-            ${hasCoins ? t('hq.delivery', {n: formatCoins(comm)}) : t('hq.empty')}
-          </button>
+            ${hasCoins ? '📦 Доставка' : t('hq.empty')}
+          </button>`}
         </div>`;
       });
       collectorsHtml = `<div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
@@ -14541,7 +14539,8 @@ function showCollectorPopup(collectorId) {
   if (combatState.isHolding && !c.is_mine && inAttackRange) {
     return doStartCollectorCombat(collectorId);
   }
-  const capacity = c._capacity || 1;
+  const COLL_CAP = {1:500000,2:1500000,3:5000000,4:15000000,5:50000000,6:150000000,7:500000000,8:1500000000,9:5000000000,10:15000000000};
+  const capacity = COLL_CAP[c.level] || 500000;
   const coins = c.stored_coins || 0;
   const fillPct = capacity > 0 ? Math.min(100, Math.round(coins / capacity * 100)) : 0;
   const hpPct = c.max_hp > 0 ? Math.round(c.hp / c.max_hp * 100) : 100;
@@ -14563,6 +14562,7 @@ function showCollectorPopup(collectorId) {
     const nextCost = c.level < 10 ? upgCostsDiamonds[c.level + 1] : null;
     const canUpgrade = !isBurning && nextCost && (state.player?.diamonds || 0) >= nextCost;
     const maxMineLevel = {1:20,2:40,3:60,4:80,5:100,6:120,7:140,8:160,9:180,10:200}[c.level] || 20;
+    const curMode = c.mode || 'collect';
 
     // Burning timer
     let burnTimerHtml = '';
@@ -14581,11 +14581,14 @@ function showCollectorPopup(collectorId) {
         <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
       </div>
       ${burnTimerHtml}
+      ${!isBurning ? `
+      <div style="display:flex;gap:4px;margin-bottom:10px">
+        <button id="coll-mode-collect" class="hq-btn ${curMode === 'collect' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'collect' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','collect')">💰 Сбор</button>
+        <button id="coll-mode-upgrade" class="hq-btn ${curMode === 'upgrade' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'upgrade' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','upgrade')">⚙️ Апгрейд до Lv.${maxMineLevel}</button>
+      </div>` : ''}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.hp')}</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>` : ''}
         ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>` : ''}
-        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.fill')}</span><span>${fillPct}%</span></div>` : ''}
-        <div class="hq-stat-card"><span>⚙️ Авто-прокачка</span><span>до Lv.${maxMineLevel}</span></div>
         ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.timer')}</span><span>${t('coll.timer_min', {n: nextMin})}</span></div>` : ''}
       </div>
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
@@ -14676,7 +14679,7 @@ async function doCollectorDeliver(collectorId) {
       body: JSON.stringify({ action: 'deliver', telegram_id: TG_ID, collector_id: collectorId }),
     });
     closePopup();
-    showToast(t('coll.courier_sent', {coins: formatCoins(data.net), comm: formatCoins(data.commission)}));
+    showToast(`📦 Курьер отправлен! 💰 ${formatCoins(data.net)} монет`);
     const c = collectorData[collectorId];
     if (c) { c.stored_coins = 0; updateCollectorMarker(collectorId); }
   } catch (err) { showToast(`❌ ${err.message}`); }
@@ -14706,6 +14709,20 @@ async function doCollectorSell(collectorId) {
     if (collectorMarkers[collectorId]) { map.removeLayer(collectorMarkers[collectorId]); delete collectorMarkers[collectorId]; delete collectorData[collectorId]; }
     showToast(t('coll.sold', {coins: formatCoins(data.coins_returned)}));
     if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectorSetMode(collectorId, mode) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'set-mode', telegram_id: TG_ID, collector_id: collectorId, mode }),
+    });
+    if (data.success) {
+      const c = collectorData[collectorId];
+      if (c) c.mode = mode;
+      showCollectorPopup(collectorId);
+    }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 

@@ -33,6 +33,7 @@ collectorsRouter.post('/', async (req, res) => {
   if (action === 'sell') return handleSell(req, res);
   if (action === 'hit') return handleHit(req, res);
   if (action === 'extinguish') return handleExtinguish(req, res);
+  if (action === 'set-mode') return handleSetMode(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
 
@@ -419,4 +420,23 @@ async function handleExtinguish(req, res) {
   }).eq('id', collector.id);
 
   return res.json({ success: true, hp: restoredHp, max_hp: cfg.hp, diamonds: newDiamonds });
+}
+
+// ── SET MODE (collect or upgrade) ──
+async function handleSetMode(req, res) {
+  const { telegram_id, collector_id, mode } = req.body || {};
+  if (!telegram_id || !collector_id || !mode) return res.status(400).json({ error: 'Missing fields' });
+  if (mode !== 'collect' && mode !== 'upgrade') return res.status(400).json({ error: 'Invalid mode' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const collector = gameState.collectors.get(collector_id);
+  if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+
+  collector.mode = mode;
+  gameState.markDirty('collectors', collector.id);
+  await supabase.from('collectors').update({ mode }).eq('id', collector.id);
+
+  return res.json({ success: true, mode });
 }

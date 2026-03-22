@@ -16,27 +16,24 @@ export const COLLECTOR_MAX_MINE_LEVEL = {
 };
 
 export const COLLECTOR_LEVELS = {
-  1:  { capacity_hours: 6,  hp: 3000,  upgradeCost: 0 },
-  2:  { capacity_hours: 8,  hp: 5000,  upgradeCost: 500_000 },
-  3:  { capacity_hours: 10, hp: 8000,  upgradeCost: 1_500_000 },
-  4:  { capacity_hours: 12, hp: 12000, upgradeCost: 4_500_000 },
-  5:  { capacity_hours: 16, hp: 18000, upgradeCost: 13_500_000 },
-  6:  { capacity_hours: 20, hp: 26000, upgradeCost: 40_500_000 },
-  7:  { capacity_hours: 24, hp: 36000, upgradeCost: 121_000_000 },
-  8:  { capacity_hours: 30, hp: 50000, upgradeCost: 364_000_000 },
-  9:  { capacity_hours: 36, hp: 68000, upgradeCost: 1_090_000_000 },
-  10: { capacity_hours: 48, hp: 90000, upgradeCost: 3_280_000_000 },
+  1:  { capacity: 500_000,         hp: 3000,  upgradeCost: 0 },
+  2:  { capacity: 1_500_000,       hp: 5000,  upgradeCost: 500_000 },
+  3:  { capacity: 5_000_000,       hp: 8000,  upgradeCost: 1_500_000 },
+  4:  { capacity: 15_000_000,      hp: 12000, upgradeCost: 4_500_000 },
+  5:  { capacity: 50_000_000,      hp: 18000, upgradeCost: 13_500_000 },
+  6:  { capacity: 150_000_000,     hp: 26000, upgradeCost: 40_500_000 },
+  7:  { capacity: 500_000_000,     hp: 36000, upgradeCost: 121_000_000 },
+  8:  { capacity: 1_500_000_000,   hp: 50000, upgradeCost: 364_000_000 },
+  9:  { capacity: 5_000_000_000,   hp: 68000, upgradeCost: 1_090_000_000 },
+  10: { capacity: 15_000_000_000,  hp: 90000, upgradeCost: 3_280_000_000 },
 };
 
 /**
- * Calculate capacity for a collector based on its level and nearby mines income.
+ * Fixed capacity for a collector based on its level.
  */
 export function getCollectorCapacity(collector) {
   const cfg = COLLECTOR_LEVELS[collector.level] || COLLECTOR_LEVELS[1];
-  const minesInRange = getCollectorMines(collector);
-  const totalIncomePerSec = minesInRange.reduce((sum, m) => sum + getMineIncome(m.level), 0);
-  const totalIncomePerHour = totalIncomePerSec * 3600;
-  return Math.floor(totalIncomePerHour * cfg.capacity_hours);
+  return cfg.capacity;
 }
 
 /**
@@ -138,8 +135,11 @@ export function autoCollectAll() {
     if (collector.status === 'burning') continue;
     const collected = autoCollect(collector);
     totalAll += collected;
-    const upgraded = autoUpgradeMines(collector);
-    totalUpgraded += upgraded;
+    // Auto-upgrade only in 'upgrade' mode (default is 'collect')
+    if (collector.mode === 'upgrade') {
+      const upgraded = autoUpgradeMines(collector);
+      totalUpgraded += upgraded;
+    }
   }
   if (totalAll > 0 || totalUpgraded > 0) {
     console.log(`[COLLECTORS] Cycle: collected ${totalAll} coins, upgraded ${totalUpgraded} mines`);
