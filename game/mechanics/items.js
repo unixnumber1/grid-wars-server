@@ -77,12 +77,12 @@ export function getMaxUpgradeLevel(rarity) {
 }
 
 export function getUpgradeCost(upgradeLevel) {
-  if (upgradeLevel <= 10) return 40;
-  if (upgradeLevel <= 25) return 120;
-  if (upgradeLevel <= 50) return 300;
-  if (upgradeLevel <= 75) return 800;
-  if (upgradeLevel <= 90) return 2000;
-  return 5000;
+  if (upgradeLevel <= 10) return 100;
+  if (upgradeLevel <= 25) return 400;
+  if (upgradeLevel <= 50) return 1500;
+  if (upgradeLevel <= 75) return 5000;
+  if (upgradeLevel <= 90) return 20000;
+  return 53000;
 }
 
 export function getUpgradedStats(item) {
