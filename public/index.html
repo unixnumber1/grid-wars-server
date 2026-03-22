@@ -11890,7 +11890,13 @@ async function doMineHit(mine) {
 
     if (data.burned) {
       stopCombat(); closePopupKeepHold();
-      showToast(t('toast.mine_burning'));
+      let msg = '🔥 ' + t('toast.mine_burning');
+      if (data.stolenCoins > 0) {
+        msg += ` +${formatCoins(data.stolenCoins)} 💰`;
+        _setPlayerCoins((state.player?.coins || 0) + data.stolenCoins);
+      }
+      if (data.xp?.xpGained > 0) msg += ` +${data.xp.xpGained} XP`;
+      showToast(msg);
     }
   } catch (err) {
     const msg = err.message || '';

@@ -607,14 +607,23 @@ async function handleMineHit(req, res) {
 
   const hpUpdateTime = new Date().toISOString();
   let burned = false;
+  let stolenCoins = 0;
+  let xpResult = null;
 
   if (currentHp <= 0) {
     // Mine is burning
     burned = true;
+
+    // Calculate accumulated coins in the destroyed mine (attacker loot)
+    const lootIncBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'income') : 1;
+    const lootCapBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'capacity') : 1;
+    stolenCoins = calcAccumulatedCoins(mine.level, mine.last_collected, lootIncBoost, lootCapBoost);
+
     mine.status = 'burning';
     mine.hp = 0;
     mine.max_hp = computedMaxHp;
     mine.burning_started_at = hpUpdateTime;
+    mine.last_collected = hpUpdateTime; // coins taken
     mine.attacker_id = null;
     mine.attack_started_at = null;
     mine.attack_ends_at = null;
@@ -624,9 +633,19 @@ async function handleMineHit(req, res) {
     // Write to DB immediately
     await supabase.from('mines').update({
       status: 'burning', hp: 0, max_hp: computedMaxHp,
-      burning_started_at: hpUpdateTime, attacker_id: null,
-      attack_started_at: null, attack_ends_at: null, last_hp_update: null,
+      burning_started_at: hpUpdateTime, last_collected: hpUpdateTime,
+      attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null,
     }).eq('id', mine_id);
+
+    // Add stolen coins to attacker
+    if (stolenCoins > 0) {
+      const attackerPlayer = gameState.getPlayerById(player.id);
+      const oldCoins = attackerPlayer?.coins ?? 0;
+      const newCoins = oldCoins + stolenCoins;
+      await supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', oldCoins);
+      if (attackerPlayer) { attackerPlayer.coins = newCoins; gameState.markDirty('players', player.id); }
+      logPlayer(player.telegram_id, 'action', `Разрушил шахту lv${mine.level}, украл ${stolenCoins.toLocaleString('ru')} монет`, { mine_id, stolenCoins });
+    }
 
     // Notify owner
     const hitBurnLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
@@ -639,9 +658,12 @@ async function handleMineHit(req, res) {
     const owner = gameState.getPlayerById(mine.owner_id);
     if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, hitBurnMsg);
 
-    // XP for destroying mine
-    const xpGain = mine.level * 10;
-    try { await addXp(player.id, xpGain); } catch (_) {}
+    // XP: 10% chance, 1% of stolen coins (same mechanic as own mine collection)
+    const { getCollectXp } = await import('../../game/mechanics/xp.js');
+    const xpGain = getCollectXp(stolenCoins);
+    if (xpGain > 0) {
+      try { xpResult = await addXp(player.id, xpGain); } catch (_) {}
+    }
   } else {
     // Update mine HP in gameState
     if (mine.status === 'normal') {
@@ -687,6 +709,7 @@ async function handleMineHit(req, res) {
     success: true, damage, crit: isCrit,
     mine_hp: burned ? 0 : currentHp, mine_max_hp: computedMaxHp,
     status: mine.status, burned,
+    ...(burned && { stolenCoins, xp: xpResult }),
   });
 }
 
