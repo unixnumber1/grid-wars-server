@@ -2220,7 +2220,7 @@
       pointer-events: none;
       background: transparent !important;
       transition: background 0.2s;
-      top: auto;
+      inset: auto 0 0 0;
     }
     #popup-overlay.combat-mode #popup-card {
       pointer-events: auto;
@@ -8129,7 +8129,7 @@ function initSocket() {
       for (const mv of moves) {
         const z = zombieData[mv.id]; if (z) { z.lat = mv.lat; z.lng = mv.lng; }
         const m = zombieMarkers.get(mv.id);
-        if (m) _animateMarkerTo(m, mv.lat, mv.lng, 4500);
+        if (m) m.setLatLng([mv.lat, mv.lng]);
       }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
@@ -14840,7 +14840,7 @@ function showZombiePopup(zombieId) {
   if (!z) return;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, z.lat, z.lng) : null;
-  const inRange = dist !== null && dist <= 450;
+  const inRange = dist !== null && dist <= LARGE_RADIUS;
 
   // Multitouch: if holding attack, switch target
   if (combatState.isHolding && inRange) {

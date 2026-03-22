@@ -10,7 +10,7 @@ import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/cons
 import { ts } from '../../config/i18n.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 import { checkHordeTimeout } from '../mechanics/zombies.js';
-import { ZOMBIE_ATTACK_RANGE, ZOMBIE_ATTACK_INTERVAL } from '../../config/constants.js';
+import { ZOMBIE_ATTACK_RANGE, ZOMBIE_ATTACK_INTERVAL, ZOMBIE_NORMAL_DAMAGE } from '../../config/constants.js';
 
 const TICK_INTERVAL = 5000;
 const BOTS_PER_ZONE = 10;
@@ -382,7 +382,7 @@ function moveZombies(nowMs, connectedPlayers) {
     if (!playerPosCache.has(horde.player_id)) {
       let found = null;
       for (const [sid, info] of connectedPlayers) {
-        if (Number(info.telegram_id) === horde.player_id && info.lat && info.lng) {
+        if (String(info.telegram_id) === String(horde.player_id) && info.lat && info.lng) {
           found = { lat: info.lat, lng: info.lng, sid }; break;
         }
       }
@@ -404,9 +404,10 @@ function moveZombies(nowMs, connectedPlayers) {
     // Attack player if within range
     if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > ZOMBIE_ATTACK_INTERVAL) {
       zombie._lastAttack = nowMs;
-      const player = gameState.getPlayerByTgId(horde.player_id);
-      if (player && (player.hp || 0) > 0) {
-        player.hp = Math.max(0, (player.hp || 1000) - (zombie.attack || 0));
+      const player = gameState.getPlayerByTgId(Number(horde.player_id));
+      if (player) {
+        if (player.hp == null) player.hp = player.max_hp || 1000;
+        player.hp = Math.max(0, player.hp - (zombie.attack || ZOMBIE_NORMAL_DAMAGE));
         gameState.markDirty('players', player.id);
         _io.to(pp.sid).emit('zombie:attack_player', {
           zombie_id: zombie.id, damage: zombie.attack || 0,
