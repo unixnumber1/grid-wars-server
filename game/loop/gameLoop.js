@@ -395,21 +395,20 @@ function moveZombies(nowMs, connectedPlayers) {
     const pp = ppCache.get(ownerId);
     if (!pp) continue;
 
-    // Move toward player
-    const dLat = pp.lat - zombie.lat;
-    const dLng = pp.lng - zombie.lng;
-    // Fast approximate distance (degrees → meters)
-    const approxDist = Math.sqrt(dLat * dLat + dLng * dLng) * 111320;
+    // Move toward player (haversine for accurate distance)
+    const dist = haversine(zombie.lat, zombie.lng, pp.lat, pp.lng);
 
-    if (approxDist > 15) {
-      const stepM = Math.min((zombie.speed || 15) * 5, approxDist);
-      const ratio = stepM / approxDist;
+    if (dist > 15) {
+      const stepM = Math.min((zombie.speed || 15) * 5, dist);
+      const ratio = stepM / dist;
+      const dLat = pp.lat - zombie.lat;
+      const dLng = pp.lng - zombie.lng;
       zombie.lat += dLat * ratio + (Math.random() - 0.5) * 0.00002;
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00002;
     }
 
-    // Attack if in range (use approx distance, close enough for 450m check)
-    if (approxDist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > ZOMBIE_ATTACK_INTERVAL) {
+    // Attack if in range
+    if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > ZOMBIE_ATTACK_INTERVAL) {
       zombie._lastAttack = nowMs;
       const player = gameState.getPlayerByTgId(Number(ownerId));
       if (player) {
