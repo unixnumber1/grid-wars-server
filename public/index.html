@@ -8130,16 +8130,16 @@ function initSocket() {
     _socket.on('zombie:removed', (data) => { removeZombieMarker(data.zombie_id); });
     _socket.on('zombie:remove_all', () => { for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
     _socket.on('zombie:move_batch', (moves) => {
-      const bounds = map.getBounds();
       for (const mv of moves) {
         const z = zombieData[mv.id]; if (z) { z.lat = mv.lat; z.lng = mv.lng; }
         const m = zombieMarkers.get(mv.id);
         if (!m) continue;
-        if (bounds.contains([mv.lat, mv.lng])) {
-          _animateMarkerTo(m, mv.lat, mv.lng, 4800);
-        } else {
-          m.setLatLng([mv.lat, mv.lng]);
+        // CSS transition handles smooth animation via GPU — no JS rAF needed
+        if (m._icon && !m._icon._zt) {
+          m._icon.style.transition = 'transform 4.5s linear';
+          m._icon._zt = true;
         }
+        m.setLatLng([mv.lat, mv.lng]);
       }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
@@ -14836,6 +14836,7 @@ function addZombieMarker(z) {
   const marker = L.marker([z.lat, z.lng], { icon: zombieIcon(z), zIndexOffset: isBoss ? 4500 : 4000 });
   marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showZombiePopup(z.id); });
   marker.addTo(map);
+  if (marker._icon) { marker._icon.style.transition = 'transform 4.5s linear'; marker._icon._zt = true; }
   zombieMarkers.set(z.id, marker);
 }
 
