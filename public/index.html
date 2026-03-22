@@ -627,16 +627,14 @@
       background: #252538;
       font-size: 13px;
     }
-    .lb-row.rank-1 { background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.25); }
-    .lb-row.rank-2 { background: rgba(192,192,192,0.08); border: 1px solid rgba(192,192,192,0.2); }
-    .lb-row.rank-3 { background: rgba(205,127,50,0.08); border: 1px solid rgba(205,127,50,0.2); }
     .lb-row.current-player { background: rgba(100,150,255,0.12); border: 1px solid rgba(100,150,255,0.25); }
-    .lb-rank { min-width: 32px; font-weight: 700; font-size: 13px; text-align: center; }
-    .lb-rank.gold { color: #FFD700; }
+    .lb-rank { min-width: 28px; font-weight: 700; font-size: 13px; text-align: center; color: #666; }
+    .lb-rank.medal { font-size: 20px; }
     .lb-avatar { font-size: 22px; }
-    .lb-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
-    .lb-level { font-size: 11px; color: #888; white-space: nowrap; }
-    .lb-xp { color: #FFD700; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    .lb-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
+    .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: 13px; }
+    .lb-xp { font-size: 11px; color: #666; white-space: nowrap; }
+    .lb-level { color: #FFD700; font-weight: 800; font-size: 15px; white-space: nowrap; }
 
     /* Leaderboard button in header */
 
@@ -11603,21 +11601,23 @@ function renderLeaderboard(data) {
   list.innerHTML = '';
   currentDiv.innerHTML = '';
 
+  const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
   for (const p of data.top) {
     const row = document.createElement('div');
     let cls = 'lb-row';
-    if (p.rank === 1) cls += ' rank-1';
-    else if (p.rank === 2) cls += ' rank-2';
-    else if (p.rank === 3) cls += ' rank-3';
     if (String(p.telegram_id) === String(TG_ID)) cls += ' current-player';
     row.className = cls;
-    const rankCls = p.rank <= 3 ? 'lb-rank gold' : 'lb-rank';
+    const rankHtml = medals[p.rank]
+      ? `<span class="lb-rank medal">${medals[p.rank]}</span>`
+      : `<span class="lb-rank">${p.rank}</span>`;
     row.innerHTML = `
-      <span class="${rankCls}">#${p.rank}</span>
+      ${rankHtml}
       <span class="lb-avatar">${p.avatar || '🐺'}</span>
-      <span class="lb-name">${displayName(p)}</span>
-      <span class="lb-level">${t('lb.level', {n: p.level || 1})}</span>
-      <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
+      <div class="lb-info">
+        <span class="lb-name">${displayName(p)}</span>
+        <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
+      </div>
+      <span class="lb-level">${p.level || 1}</span>
     `;
     list.appendChild(row);
   }
@@ -11627,11 +11627,13 @@ function renderLeaderboard(data) {
     currentDiv.innerHTML = `
       <div style="padding:8px 16px 2px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">${t('lb.your_pos')}</div>
       <div class="lb-row current-player" style="margin-bottom:8px;">
-        <span class="lb-rank">#${p.rank}</span>
+        <span class="lb-rank${medals[p.rank] ? ' medal' : ''}">${medals[p.rank] || p.rank}</span>
         <span class="lb-avatar">${p.avatar || '🐺'}</span>
-        <span class="lb-name">${displayName(p)}</span>
-        <span class="lb-level">${t('lb.level', {n: p.level || 1})}</span>
-        <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
+        <div class="lb-info">
+          <span class="lb-name">${displayName(p)}</span>
+          <span class="lb-xp">⭐ ${formatNumber(p.xp || 0)}</span>
+        </div>
+        <span class="lb-level">${p.level || 1}</span>
       </div>
     `;
   }
