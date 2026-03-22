@@ -958,17 +958,19 @@
     .xp-float-map {
       position: absolute;
       color: #FFD700;
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 18px;
+      font-weight: 800;
       pointer-events: none;
       z-index: 9999;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-      animation: xpFloatUp 2s ease-out forwards;
+      text-shadow: 0 0 6px rgba(255,215,0,0.8), 0 2px 4px rgba(0,0,0,0.9);
+      animation: xpFloatUp 2.5s ease-out forwards;
       white-space: nowrap;
+      transform: translateX(-50%);
     }
     @keyframes xpFloatUp {
-      0%   { opacity: 1; transform: translateY(0); }
-      100% { opacity: 0; transform: translateY(-50px); }
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1.2); }
+      20%  { opacity: 1; transform: translateX(-50%) translateY(-15px) scale(1); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(0.9); }
     }
 
     /* Screen shake */
@@ -5255,10 +5257,6 @@ function handleXpResult(xp) {
   if (!xp) return;
   if (xp.xpGained > 0) {
     showXpToast(xp.xpGained);
-    // Floating +XP text over player
-    if (state.playerPos) {
-      showFloatingText(L.latLng(state.playerPos.lat, state.playerPos.lng), `+${xp.xpGained} XP`, '#FFD700');
-    }
   }
   if (state.player && xp.newXp != null) {
     state.player.xp    = xp.newXp;
@@ -11924,7 +11922,11 @@ async function doMineHit(mine) {
         msg += ` +${formatCoins(data.stolenCoins)} 💰`;
         _setPlayerCoins((state.player?.coins || 0) + data.stolenCoins);
       }
-      if (data.xp?.xpGained > 0) msg += ` +${data.xp.xpGained} XP`;
+      if (data.xp?.xpGained > 0) {
+        msg += ` +${data.xp.xpGained} XP`;
+        showXpFloatOnMap(data.xp.xpGained, mine.lat, mine.lng);
+        handleXpResult(data.xp);
+      }
       showToast(msg);
     }
   } catch (err) {
