@@ -6547,6 +6547,21 @@ function closePopup() {
   _selectMarker(null);
 }
 
+// Close popup but preserve isHolding so multitouch can pick next target
+function closePopupKeepHold() {
+  const wasHolding = combatState.isHolding;
+  stopPopupCombat(wasHolding);
+  document.getElementById('popup-overlay').classList.remove('open');
+  if (_upgradeCountdownTimer) { clearInterval(_upgradeCountdownTimer); _upgradeCountdownTimer = null; }
+  if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+  _currentPopupEntityId = null;
+  _selectMarker(null);
+  if (wasHolding) {
+    combatState.isHolding = true;
+    combatState.touchId = null; // null so old button's touchend is ignored
+  }
+}
+
 document.getElementById('popup-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('popup-overlay')) closePopup();
 });
@@ -7875,9 +7890,8 @@ function initSocket() {
       if (data.winner_id === myId) {
         showToast(t('toast.pvp_victory', {amount: formatCoins(data.coins_transferred)}));
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
-        stopPopupCombat();
         stopCombat();
-        closePopup();
+        closePopupKeepHold();
       } else if (data.loser_id === myId) {
         // I died — show death screen
         stopPopupCombat();
@@ -7897,7 +7911,7 @@ function initSocket() {
       showToast(t('toast.monument_shield_broken', {name: data.breaker_name}), 3000);
       updateMonumentPhase(data.monument_id, 'open');
       if (combatState.currentTarget?.type === 'monument_shield' && combatState.currentTarget.id === data.monument_id) {
-        stopPopupCombat(); closePopup();
+        closePopupKeepHold();
       }
       try { Telegram.WebApp.HapticFeedback.notificationOccurred('warning'); } catch(_){}
     });
@@ -7937,7 +7951,7 @@ function initSocket() {
         for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
       }
       if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id) {
-        stopPopupCombat(); closePopup();
+        closePopupKeepHold();
       }
     });
 
@@ -7962,7 +7976,7 @@ function initSocket() {
     _socket.on('monument:shield_restored', (data) => {
       updateMonumentPhase(data.monument_id, 'shield');
       if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id) {
-        stopPopupCombat(); closePopup(); showToast(t('toast.shield_restored'));
+        closePopupKeepHold(); showToast(t('toast.shield_restored'));
       }
     });
 
@@ -8007,20 +8021,9 @@ function initSocket() {
           }
         }, 1500);
       }
-      // If we were attacking this defender via popup, switch to next alive defender
+      // If we were attacking this defender, close popup (let player pick next target)
       if (combatState.currentTarget?.id === data.defender_id) {
-        const monId = combatState.currentTarget.monument_id;
-        combatState.currentTarget = null;
-        const alive = Object.entries(defenderData).filter(([id, d]) => d.monument_id === monId && !d._dead && id !== data.defender_id);
-        if (alive.length > 0 && combatState.isHolding) {
-          const pos = state.playerPos;
-          if (pos) {
-            alive.sort((a, b) => haversine(pos.lat, pos.lng, a[1].lat, a[1].lng) - haversine(pos.lat, pos.lng, b[1].lat, b[1].lng));
-          }
-          doStartSingleDefenderCombat(alive[0][0]);
-        } else if (alive.length === 0) {
-          stopPopupCombat();
-        }
+        closePopupKeepHold();
       }
     });
 
@@ -8036,7 +8039,7 @@ function initSocket() {
       if (collectorMarkers[data.collector_id]) { map.removeLayer(collectorMarkers[data.collector_id]); delete collectorMarkers[data.collector_id]; delete collectorData[data.collector_id]; }
       if (data.stolen_coins > 0) showToast(t('toast.collector_destroyed_enemy', {name: data.attacker_name, amount: formatCoins(data.stolen_coins)}));
       if (combatState.currentTarget?.type === 'collector' && combatState.currentTarget.id === data.collector_id) {
-        stopPopupCombat(); closePopup();
+        closePopupKeepHold();
       }
     });
 
@@ -8725,8 +8728,7 @@ async function doAttackBot(botId) {
     }
     if (data.botDefeated) {
       if (ref?.marker) { botLayer.removeLayer(ref.marker); delete botMarkers[botId]; delete botData[botId]; }
-      stopPopupCombat();
-      closePopup();
+      closePopupKeepHold();
       const xpGained = data.xp?.xpGained || 0;
       const diamonds = data.diamondReward || 0;
       const coinDrop = data.coinDrop || 0;
@@ -11909,14 +11911,14 @@ async function doMineHit(mine) {
     });
 
     if (data.burned) {
-      stopPopupCombat(); stopCombat(); closePopup();
+      stopCombat(); closePopupKeepHold();
       showToast(t('toast.mine_burning'));
     }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
-    stopPopupCombat(); stopCombat(); closePopup();
+    stopCombat(); closePopupKeepHold();
   }
 }
 
@@ -11934,14 +11936,14 @@ async function doOreHit(target) {
       body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.captured) {
-      stopPopupCombat(); stopCombat(); closePopup();
+      stopCombat(); closePopupKeepHold();
       showToast(t('toast.ore_captured'));
     }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
-    stopPopupCombat(); stopCombat(); closePopup();
+    stopCombat(); closePopupKeepHold();
   }
 }
 
@@ -12348,14 +12350,18 @@ function updatePopupHp(hp, maxHp, color) {
   text.textContent = `${formatNumber(hp)}/${formatNumber(maxHp)}`;
 }
 
-function stopPopupCombat() {
-  combatState.isHolding = false;
+function stopPopupCombat(keepHolding) {
+  if (!keepHolding) {
+    combatState.isHolding = false;
+    combatState.touchId = null;
+  }
   combatState.currentTarget = null;
-  combatState.touchId = null;
   if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
-  document.getElementById('popup-overlay')?.classList.remove('combat-mode');
-  const btn = document.getElementById('popup-atk-btn');
-  if (btn) btn.classList.remove('attacking');
+  if (!keepHolding) {
+    document.getElementById('popup-overlay')?.classList.remove('combat-mode');
+    const btn = document.getElementById('popup-atk-btn');
+    if (btn) btn.classList.remove('attacking');
+  }
 }
 
 function openCombatPopup(title, targetId, targetType, target, opts = {}) {
@@ -12460,6 +12466,16 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
       }
     }
   }, { passive: true });
+
+  // Safety: reset isHolding when all fingers are lifted
+  document.addEventListener('touchend', (e) => {
+    if (!combatState.isHolding) return;
+    if (e.touches.length === 0) {
+      combatState.isHolding = false;
+      combatState.touchId = null;
+      if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+    }
+  }, { passive: true });
 })();
 
 function showDeathScreen(killerName, coinsLost) {
@@ -12537,9 +12553,8 @@ async function doPvpHit(target) {
     });
 
     if (data.killed) {
-      stopPopupCombat();
       stopCombat();
-      closePopup();
+      closePopupKeepHold();
       showToast(t('toast.pvp_won', {amount: formatCoins(data.coins_won)}));
       _setPlayerCoins((state.player.coins || 0) + data.coins_won);
     }
@@ -12548,8 +12563,8 @@ async function doPvpHit(target) {
     // Ignore cooldown / rate-limit errors silently
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
-    stopPopupCombat();
     stopCombat();
+    closePopupKeepHold();
   }
 }
 
@@ -14252,11 +14267,11 @@ async function doMonumentShieldHit(target) {
     if (data.dps_check === false) {
       showToast(t('mon.low_dps', {current: formatNumber(data.current_dps), required: formatNumber(data.required_dps)}));
     }
-    if (data.shield_broken) { stopPopupCombat(); stopCombat(); closePopup(); showToast(t('mon.shield_broken')); }
+    if (data.shield_broken) { stopCombat(); closePopupKeepHold(); showToast(t('mon.shield_broken')); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   }
 }
 
@@ -14278,12 +14293,12 @@ async function doMonumentBodyHit(target) {
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const m = monumentData[target.id];
     if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
-    if (data.defeated) { stopPopupCombat(); stopCombat(); closePopup(); showToast(t('mon.defeated')); }
+    if (data.defeated) { stopCombat(); closePopupKeepHold(); showToast(t('mon.defeated')); }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopPopupCombat(); stopCombat(); closePopup(); showToast('⚔️ ' + msg); return; }
-    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
+    if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopCombat(); closePopupKeepHold(); showToast('⚔️ ' + msg); return; }
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   }
 }
 
@@ -14308,24 +14323,12 @@ async function doDefenderHit(target) {
     if (data.killed) {
       // Remove defender marker
       if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
-      // Check if more defenders for this monument
       const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id && !d._dead);
       if (remaining.length > 0) {
-        // Switch to next closest defender
-        const pos2 = state.playerPos;
-        remaining.sort((a, b) => haversine(pos2.lat, pos2.lng, a.lat, a.lng) - haversine(pos2.lat, pos2.lng, b.lat, b.lng));
-        const nextId = remaining[0].id || Object.keys(defenderData).find(k => defenderData[k].monument_id === target.monument_id);
-        if (combatState.isHolding) {
-          // Popup combat: switch target in popup without losing hold state
-          showDefenderPopup(nextId);
-        } else {
-          stopCombat();
-          doStartSingleDefenderCombat(nextId);
-        }
+        // Don't auto-switch — let player pick next target via multitouch
+        stopCombat(); closePopupKeepHold();
       } else {
-        stopPopupCombat();
-        stopCombat();
-        closePopup();
+        stopCombat(); closePopupKeepHold();
         showToast(t('mon.all_defenders_dead'));
       }
     } else {
@@ -14337,7 +14340,7 @@ async function doDefenderHit(target) {
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   }
 }
 
@@ -14561,7 +14564,7 @@ async function doCollectorHit(target) {
     const c = collectorData[target.id];
     if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
     if (data.destroyed) {
-      stopPopupCombat(); stopCombat(); closePopup();
+      stopCombat(); closePopupKeepHold();
       if (collectorMarkers[target.id]) { map.removeLayer(collectorMarkers[target.id]); delete collectorMarkers[target.id]; delete collectorData[target.id]; }
       showToast(t('coll.destroyed', {n: formatCoins(data.stolen_coins)}));
       _setPlayerCoins((state.player?.coins || 0) + data.stolen_coins);
@@ -14569,7 +14572,7 @@ async function doCollectorHit(target) {
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
-    showToast(`❌ ${msg}`); stopPopupCombat(); stopCombat(); closePopup();
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   }
 }
 
