@@ -6755,7 +6755,8 @@ function showMinePopup(mine, isOwn, canCapture) {
       const leftMs = Math.max(0, burnEnd - Date.now());
       const h = Math.floor(leftMs / 3600000);
       const m2 = Math.floor((leftMs % 3600000) / 60000);
-      burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${h}ч ${m2}м</span>`;
+      const burnLabel = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${Math.floor(leftMs / 1000)}с`;
+      burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnLabel}</span>`;
     }
 
     openPopup(
@@ -6853,7 +6854,7 @@ function showMinePopup(mine, isOwn, canCapture) {
         const h = Math.floor(leftMs / 3600000);
         const m2 = Math.floor((leftMs % 3600000) / 60000);
         const s = Math.floor((leftMs % 60000) / 1000);
-        el.textContent = `${h}ч ${m2}м ${s}с`;
+        el.textContent = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${s}с`;
         if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
       }, 1000);
     }

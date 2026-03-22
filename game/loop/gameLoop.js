@@ -416,6 +416,16 @@ async function periodicCleanup(nowMs, nowISO) {
         m.status = 'destroyed';
         gameState.markDirty('mines', m.id);
         supabase.from('mines').update({ status: 'destroyed' }).eq('id', m.id).then(() => {}).catch(() => {});
+        // Destroy installed cores
+        if (m.cell_id) {
+          const cores = gameState.getCoresForMine(m.cell_id);
+          for (const c of cores) {
+            gameState.cores.delete(c.id);
+          }
+          if (cores.length > 0) {
+            supabase.from('cores').delete().eq('mine_cell_id', m.cell_id).then(() => {}).catch(() => {});
+          }
+        }
         const destroyLang = gameState.getPlayerById(m.owner_id)?.language || 'en';
         const notif = {
           id: globalThis.crypto.randomUUID(),
