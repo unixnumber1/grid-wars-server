@@ -8130,10 +8130,16 @@ function initSocket() {
     _socket.on('zombie:removed', (data) => { removeZombieMarker(data.zombie_id); });
     _socket.on('zombie:remove_all', () => { for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
     _socket.on('zombie:move_batch', (moves) => {
+      const bounds = map.getBounds();
       for (const mv of moves) {
         const z = zombieData[mv.id]; if (z) { z.lat = mv.lat; z.lng = mv.lng; }
         const m = zombieMarkers.get(mv.id);
-        if (m) m.setLatLng([mv.lat, mv.lng]);
+        if (!m) continue;
+        if (bounds.contains([mv.lat, mv.lng])) {
+          _animateMarkerTo(m, mv.lat, mv.lng, 4800);
+        } else {
+          m.setLatLng([mv.lat, mv.lng]);
+        }
       }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });

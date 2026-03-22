@@ -184,8 +184,7 @@ async function handleAttack(req, res) {
     });
   }
 
-  // Zombie survived
-  gameState.markDirty('zombies', zombie.id);
+  // Zombie survived — no markDirty (positions not persisted)
 
   emitToNearbyPlayers(zombie.lat, zombie.lng, 1000, 'zombie:hp_update', {
     zombie_id, hp: zombie.hp, max_hp: zombie.max_hp,
