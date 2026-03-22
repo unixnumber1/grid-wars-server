@@ -1,6 +1,6 @@
 import { gameState } from '../state/GameState.js';
 import { haversine } from '../../lib/haversine.js';
-import { getMineIncome, getMineUpgradeCost, getMineHp } from '../../config/formulas.js';
+import { getMineIncome, getMineUpgradeCost, getMineHp, getMineCapacity } from '../../config/formulas.js';
 import { supabase } from '../../lib/supabase.js';
 
 export const COLLECTOR_COST_DIAMONDS = 50;
@@ -16,24 +16,24 @@ export const COLLECTOR_MAX_MINE_LEVEL = {
 };
 
 export const COLLECTOR_LEVELS = {
-  1:  { capacity: 500_000,         hp: 3000,  upgradeCost: 0 },
-  2:  { capacity: 1_500_000,       hp: 5000,  upgradeCost: 500_000 },
-  3:  { capacity: 5_000_000,       hp: 8000,  upgradeCost: 1_500_000 },
-  4:  { capacity: 15_000_000,      hp: 12000, upgradeCost: 4_500_000 },
-  5:  { capacity: 50_000_000,      hp: 18000, upgradeCost: 13_500_000 },
-  6:  { capacity: 150_000_000,     hp: 26000, upgradeCost: 40_500_000 },
-  7:  { capacity: 500_000_000,     hp: 36000, upgradeCost: 121_000_000 },
-  8:  { capacity: 1_500_000_000,   hp: 50000, upgradeCost: 364_000_000 },
-  9:  { capacity: 5_000_000_000,   hp: 68000, upgradeCost: 1_090_000_000 },
-  10: { capacity: 15_000_000_000,  hp: 90000, upgradeCost: 3_280_000_000 },
+  1:  { hp: 3000,  upgradeCost: 0 },
+  2:  { hp: 5000,  upgradeCost: 500_000 },
+  3:  { hp: 8000,  upgradeCost: 1_500_000 },
+  4:  { hp: 12000, upgradeCost: 4_500_000 },
+  5:  { hp: 18000, upgradeCost: 13_500_000 },
+  6:  { hp: 26000, upgradeCost: 40_500_000 },
+  7:  { hp: 36000, upgradeCost: 121_000_000 },
+  8:  { hp: 50000, upgradeCost: 364_000_000 },
+  9:  { hp: 68000, upgradeCost: 1_090_000_000 },
+  10: { hp: 90000, upgradeCost: 3_280_000_000 },
 };
 
 /**
- * Fixed capacity for a collector based on its level.
+ * Capacity = sum of getMineCapacity for all owner's mines in radius.
  */
 export function getCollectorCapacity(collector) {
-  const cfg = COLLECTOR_LEVELS[collector.level] || COLLECTOR_LEVELS[1];
-  return cfg.capacity;
+  const mines = getCollectorMines(collector);
+  return mines.reduce((sum, m) => sum + getMineCapacity(m.level), 0);
 }
 
 /**
