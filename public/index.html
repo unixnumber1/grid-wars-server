@@ -5554,12 +5554,12 @@ const ITEM_SELL_PRICE = {
 };
 
 function getItemUpgradeCost(upgradeLevel) {
-  if (upgradeLevel <= 10) return 40;
-  if (upgradeLevel <= 25) return 120;
-  if (upgradeLevel <= 50) return 300;
-  if (upgradeLevel <= 75) return 800;
-  if (upgradeLevel <= 90) return 2000;
-  return 5000;
+  if (upgradeLevel <= 10) return 100;
+  if (upgradeLevel <= 25) return 400;
+  if (upgradeLevel <= 50) return 1500;
+  if (upgradeLevel <= 75) return 5000;
+  if (upgradeLevel <= 90) return 20000;
+  return 53000;
 }
 
 function getItemSellPrice(rarity, upgradeLevel = 0) {
@@ -7287,7 +7287,7 @@ function showInstalledCorePopup(coreId) {
       <div class="hq-stat-card"><span>${t('core.after_upgrade')}</span><span class="val" style="color:#4caf50">x${nextMul} (lv.${core.level + 1})</span></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <button id="core-overlay-upgrade" style="background:#2196f3;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;${canUpgrade ? '' : 'opacity:0.5;cursor:not-allowed;'}" ${canUpgrade ? '' : 'disabled'}>⬆️ ${t('core.upgrade_label', {cost: cost + '🌀'}) || cost + '🌀'}</button>
+      <button id="core-overlay-upgrade" style="background:#2196f3;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;${canUpgrade ? '' : 'opacity:0.5;cursor:not-allowed;'}" ${canUpgrade ? '' : 'disabled'}>⬆️ Улучшить ${cost}🌀</button>
       <button id="core-overlay-extract" style="background:#f44336;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">${t('core.extract_to_bag')}</button>
     </div>
   `;
