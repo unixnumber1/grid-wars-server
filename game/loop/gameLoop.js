@@ -355,7 +355,6 @@ async function moveCouriers(nowMs, nowISO) {
 
 // ── Move zombies toward player, scouts wander ──
 function moveZombies(nowMs, connectedPlayers) {
-  if (_tickCount % 24 === 0) console.log(`[ZOMBIE] hordes=${gameState.zombieHordes.size} zombies=${gameState.zombies.size}`);
   if (gameState.zombieHordes.size === 0) return;
 
   // Cache player socket+position per horde owner
@@ -370,10 +369,6 @@ function moveZombies(nowMs, connectedPlayers) {
     }
   }
 
-  if (_tickCount % 12 === 0) {
-    console.log(`[ZOMBIE TICK] hordes=${gameState.zombieHordes.size} zombies=${gameState.zombies.size}`);
-    for (const h of gameState.zombieHordes.values()) console.log(`  horde ${h.id.slice(0,8)} status=${h.status} player=${h.player_id} wave=${h.wave}`);
-  }
   const moveBatch = new Map();
   const attacks = [];
 
@@ -411,10 +406,10 @@ function moveZombies(nowMs, connectedPlayers) {
       zombie.lng += dLng * ratio + (Math.random() - 0.5) * 0.00002;
     }
 
+    // Keep horde alive while zombies are active
+    horde.last_attack_at = new Date(nowMs).toISOString();
+
     // Each zombie attacks independently, 1 hit per tick
-    if (_tickCount % 12 === 0 && zombie.type !== 'scout') {
-      console.log(`[ZOMBIE DEBUG] id=${zombie.id.slice(0,8)} dist=${Math.round(dist)}m range=${ZOMBIE_ATTACK_RANGE} hp=${zombie.hp} attack=${zombie.attack}`);
-    }
     if (dist < ZOMBIE_ATTACK_RANGE && nowMs - (zombie._lastAttack || 0) > 1000) {
       zombie._lastAttack = nowMs;
       attacks.push({ ownerId, sid: pp.sid, zombie, playerLat: pp.lat, playerLng: pp.lng });

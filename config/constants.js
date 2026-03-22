@@ -269,4 +269,4 @@ export function getZombieBossLoot() {
   return { count, currency };
 }
 
-export const ZOMBIE_HORDE_TIMEOUT = 120000;
+export const ZOMBIE_HORDE_TIMEOUT = 300000; // 5 minutes
