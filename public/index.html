@@ -8077,8 +8077,9 @@ function initSocket() {
         updatePopupHp(data.hp, data.max_hp);
     });
 
-    _socket.on('collector:destroyed', (data) => {
-      if (collectorMarkers[data.collector_id]) { map.removeLayer(collectorMarkers[data.collector_id]); delete collectorMarkers[data.collector_id]; delete collectorData[data.collector_id]; }
+    _socket.on('collector:burning', (data) => {
+      const c = collectorData[data.collector_id];
+      if (c) { c.status = 'burning'; c.burning_started_at = new Date().toISOString(); c.hp = 0; c.stored_coins = 0; }
       if (data.stolen_coins > 0) showToast(t('toast.collector_destroyed_enemy', {name: data.attacker_name, amount: formatCoins(data.stolen_coins)}));
       if (combatState.currentTarget?.type === 'collector' && combatState.currentTarget.id === data.collector_id) {
         closePopupKeepHold();
@@ -14557,28 +14558,60 @@ function showCollectorPopup(collectorId) {
   const card = document.getElementById('popup-card');
 
   if (c.is_mine) {
+    const isBurning = c.status === 'burning';
     const upgCostsDiamonds = [0,0,50,100,200,400,750,1200,2000,3500,6000];
     const nextCost = c.level < 10 ? upgCostsDiamonds[c.level + 1] : null;
-    const canUpgrade = nextCost && (state.player?.diamonds || 0) >= nextCost;
+    const canUpgrade = !isBurning && nextCost && (state.player?.diamonds || 0) >= nextCost;
+    const maxMineLevel = {1:20,2:40,3:60,4:80,5:100,6:120,7:140,8:160,9:180,10:200}[c.level] || 20;
+
+    // Burning timer
+    let burnTimerHtml = '';
+    if (isBurning && c.burning_started_at) {
+      const burnEnd = new Date(c.burning_started_at).getTime() + 86400000;
+      const leftMs = Math.max(0, burnEnd - Date.now());
+      const h = Math.floor(leftMs / 3600000);
+      const m2 = Math.floor((leftMs % 3600000) / 60000);
+      const burnLabel = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${Math.floor(leftMs / 1000)}с`;
+      burnTimerHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 Сгорит через <span id="coll-burn-timer">${burnLabel}</span></div>`;
+    }
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:16px;font-weight:600;color:#fff">${t('coll.title', {n: idx, level: c.level})}</div>
         <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
       </div>
+      ${burnTimerHtml}
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div class="hq-stat-card"><span>${t('coll.hp')}</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>
-        <div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>
-        <div class="hq-stat-card"><span>${t('coll.fill')}</span><span>${fillPct}%</span></div>
-        <div class="hq-stat-card"><span>${t('coll.timer')}</span><span>${t('coll.timer_min', {n: nextMin})}</span></div>
+        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.hp')}</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>` : ''}
+        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>` : ''}
+        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.fill')}</span><span>${fillPct}%</span></div>` : ''}
+        <div class="hq-stat-card"><span>⚙️ Авто-прокачка</span><span>до Lv.${maxMineLevel}</span></div>
+        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.timer')}</span><span>${t('coll.timer_min', {n: nextMin})}</span></div>` : ''}
       </div>
-      <div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>
+      ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
-        <button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>
+        ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">🧯 Потушить (5💎)</button>` : ''}
+        ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
+        ${!isBurning ? `<button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>` : ''}
       </div>
-      <div style="font-size:11px;color:#555;margin-top:8px;text-align:center">${t('coll.deliver_hint')}</div>
+      ${!isBurning ? `<div style="font-size:11px;color:#555;margin-top:8px;text-align:center">${t('coll.deliver_hint')}</div>` : ''}
     `;
+
+    // Burning countdown
+    if (isBurning && c.burning_started_at) {
+      const burnEnd = new Date(c.burning_started_at).getTime() + 86400000;
+      if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      _accumulatedCoinsTimer = setInterval(() => {
+        const el = document.getElementById('coll-burn-timer');
+        if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
+        const leftMs = Math.max(0, burnEnd - Date.now());
+        const h = Math.floor(leftMs / 3600000);
+        const m2 = Math.floor((leftMs % 3600000) / 60000);
+        const s = Math.floor((leftMs % 60000) / 1000);
+        el.textContent = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${s}с`;
+        if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      }, 1000);
+    }
   } else {
     const approxCoins = Math.round(coins / 1000) * 1000;
     card.innerHTML = `
@@ -14673,6 +14706,22 @@ async function doCollectorSell(collectorId) {
     if (collectorMarkers[collectorId]) { map.removeLayer(collectorMarkers[collectorId]); delete collectorMarkers[collectorId]; delete collectorData[collectorId]; }
     showToast(t('coll.sold', {coins: formatCoins(data.coins_returned)}));
     if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectorExtinguish(collectorId) {
+  try {
+    const data = await apiFetch('/api/collectors', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'extinguish', telegram_id: TG_ID, collector_id: collectorId }),
+    });
+    if (data.success) {
+      const c = collectorData[collectorId];
+      if (c) { c.status = 'normal'; c.burning_started_at = null; c.hp = data.hp; c.max_hp = data.max_hp; }
+      showToast(`🧯 Потушено! HP: ${formatNumber(data.hp)}/${formatNumber(data.max_hp)}`);
+      if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+      showCollectorPopup(collectorId);
+    }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 </script>

@@ -452,6 +452,28 @@ async function periodicCleanup(nowMs, nowISO) {
       }
     }
 
+    // Destroy burned collectors (>24h burning)
+    for (const c of gameState.collectors.values()) {
+      if (c.status !== 'burning' || !c.burning_started_at) continue;
+      const burnedMs = nowMs - new Date(c.burning_started_at).getTime();
+      if (burnedMs > 86400000) {
+        gameState.collectors.delete(c.id);
+        supabase.from('collectors').delete().eq('id', c.id).then(() => {}).catch(() => {});
+        const owner = gameState.getPlayerById(c.owner_id);
+        if (owner) {
+          const cLang = owner.language || 'en';
+          const notif = {
+            id: globalThis.crypto.randomUUID(),
+            player_id: owner.id, type: 'collector_destroyed',
+            message: ts(cLang, 'notif.collector_burned'),
+            read: false, created_at: nowISO,
+          };
+          gameState.addNotification(notif);
+          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+        }
+      }
+    }
+
     // Inactive clan leader auto-transfer (still reads from DB as clan data may not be in gameState)
     const { data: leaders } = await supabase.from('clan_members').select('clan_id,player_id,players(last_seen)')
       .eq('role', 'leader').is('left_at', null).limit(20);

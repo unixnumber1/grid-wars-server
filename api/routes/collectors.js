@@ -9,8 +9,8 @@ import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import {
   COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
-  COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS,
-  getCollectorCapacity, getCollectorMines,
+  COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS, COLLECTOR_EXTINGUISH_COST,
+  COLLECTOR_MAX_MINE_LEVEL, getCollectorCapacity, getCollectorMines,
 } from '../../lib/collectors.js';
 
 export const collectorsRouter = Router();
@@ -32,6 +32,7 @@ collectorsRouter.post('/', async (req, res) => {
   if (action === 'deliver') return handleDeliver(req, res);
   if (action === 'sell') return handleSell(req, res);
   if (action === 'hit') return handleHit(req, res);
+  if (action === 'extinguish') return handleExtinguish(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
 
@@ -161,11 +162,12 @@ async function handleDeliver(req, res) {
 
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+  if (collector.status === 'burning') return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.collector_burning') });
   if ((collector.stored_coins || 0) <= 0) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.nothing_to_deliver') });
 
   const gross = collector.stored_coins;
-  const commission = Math.floor(gross * COLLECTOR_DELIVERY_COMMISSION);
-  const net = gross - commission;
+  const commission = 0;
+  const net = gross;
 
   // Clear collector storage
   collector.stored_coins = 0;
@@ -264,7 +266,7 @@ async function handleHit(req, res) {
   if (!collector) return res.status(404).json({ error: 'Collector not found' });
   const lang = getLang(gameState, telegram_id);
   if (collector.owner_id === player.id) return res.status(400).json({ error: ts(lang, 'err.cant_attack_own_collector') });
-  if (collector.hp <= 0) return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
+  if (collector.hp <= 0 || collector.status === 'burning') return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, collector.lat, collector.lng);
@@ -321,6 +323,13 @@ async function handleHit(req, res) {
   if (collector.hp <= 0) {
     destroyed = true;
     stolenCoins = collector.stored_coins || 0;
+    const nowISO = new Date().toISOString();
+
+    // Set burning status (24h to extinguish)
+    collector.status = 'burning';
+    collector.burning_started_at = nowISO;
+    collector.stored_coins = 0;
+    gameState.markDirty('collectors', collector.id);
 
     // Transfer coins to attacker
     if (stolenCoins > 0) {
@@ -329,37 +338,85 @@ async function handleHit(req, res) {
       await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
     }
 
+    // Persist burning status immediately
+    await supabase.from('collectors').update({
+      hp: 0, status: 'burning', burning_started_at: nowISO, stored_coins: 0,
+    }).eq('id', collector.id);
+
     // Notify owner
     const owner = gameState.getPlayerById(collector.owner_id);
     if (owner) {
       const ownerLang = owner.language || 'en';
-      const msg = ts(ownerLang, 'notif.collector_destroyed', { coins: stolenCoins });
+      const msg = ts(ownerLang, 'notif.collector_burning', { coins: stolenCoins });
       const notif = {
         id: globalThis.crypto.randomUUID(),
-        player_id: owner.id, type: 'collector_destroyed', message: msg, read: false,
-        created_at: new Date().toISOString(),
+        player_id: owner.id, type: 'collector_burning', message: msg, read: false,
+        created_at: nowISO,
       };
       gameState.addNotification(notif);
       supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
       if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg);
     }
 
-    // Emit destroy event
-    emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'collector:destroyed', {
+    // Emit burning event
+    emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'collector:burning', {
       collector_id: collector.id,
       attacker_name: player.game_username || '?',
       stolen_coins: stolenCoins,
     });
 
-    // Remove from DB and gameState
-    gameState.collectors.delete(collector.id);
-    await supabase.from('collectors').delete().eq('id', collector.id);
-
     // XP
     try { await addXp(player.id, 100); } catch (_) {}
 
-    logActivity(player.game_username, `destroyed collector (stole ${stolenCoins} coins)`);
+    logActivity(player.game_username, `burned collector (stole ${stolenCoins} coins)`);
   }
 
-  return res.json({ damage, crit: isCrit, destroyed, stolen_coins: stolenCoins, hp: collector.hp, max_hp: collector.max_hp });
+  return res.json({ damage, crit: isCrit, destroyed, stolen_coins: stolenCoins, hp: collector.hp, max_hp: collector.max_hp, status: collector.status });
+}
+
+// ── EXTINGUISH (put out burning collector) ──
+async function handleExtinguish(req, res) {
+  const { telegram_id, collector_id } = req.body || {};
+  if (!telegram_id || !collector_id) return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const collector = gameState.collectors.get(collector_id);
+  if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+  const lang = getLang(gameState, telegram_id);
+  if (collector.status !== 'burning') return res.status(400).json({ error: ts(lang, 'err.not_burning') });
+
+  // Check 24h not passed
+  if (Date.now() - new Date(collector.burning_started_at).getTime() > 86400000) {
+    gameState.collectors.delete(collector.id);
+    await supabase.from('collectors').delete().eq('id', collector.id);
+    return res.status(400).json({ error: ts(lang, 'err.too_late') });
+  }
+
+  // Check diamonds
+  const cost = COLLECTOR_EXTINGUISH_COST;
+  const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const actualDiamonds = freshP?.diamonds ?? player.diamonds ?? 0;
+  if (actualDiamonds < cost) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost }) });
+
+  // Deduct diamonds
+  const newDiamonds = actualDiamonds - cost;
+  player.diamonds = newDiamonds;
+  gameState.markDirty('players', player.id);
+  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+
+  // Restore collector
+  const cfg = COLLECTOR_LEVELS[collector.level] || COLLECTOR_LEVELS[1];
+  const restoredHp = Math.round(cfg.hp * 0.25);
+  collector.status = 'normal';
+  collector.burning_started_at = null;
+  collector.hp = restoredHp;
+  gameState.markDirty('collectors', collector.id);
+
+  await supabase.from('collectors').update({
+    status: 'normal', burning_started_at: null, hp: restoredHp,
+  }).eq('id', collector.id);
+
+  return res.json({ success: true, hp: restoredHp, max_hp: cfg.hp, diamonds: newDiamonds });
 }
