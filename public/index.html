@@ -7520,9 +7520,12 @@ async function doCollect() {
         }
       }
       const now = new Date().toISOString();
-      for (const mine of (state.mines || [])) mine.last_collected = now;
+      const collectedIds = new Set(data.collected_mine_ids || []);
+      for (const mine of (state.mines || [])) {
+        if (collectedIds.has(mine.id)) mine.last_collected = now;
+      }
       for (const mine of (state.mapBuildings.mines || [])) {
-        if (mine.owner_id === state.player?.id) mine.last_collected = now;
+        if (collectedIds.has(mine.id)) mine.last_collected = now;
       }
     } else {
       showToast(t('toast.nothing_to_collect'));

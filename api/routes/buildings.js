@@ -174,9 +174,8 @@ async function handleMineCollect(req, res) {
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, coins, clan_id');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: allMines, error: minesError } = await supabase.from('mines').select('id, level, last_collected, cell_id, lat, lng, status').eq('owner_id', player.id);
-  if (minesError) return res.status(500).json({ error: 'Failed to fetch mines' });
-  if (!allMines || allMines.length === 0) return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
+  const allMines = gameState.loaded ? [...gameState.mines.values()].filter(m => m.owner_id === player.id) : [];
+  if (allMines.length === 0) return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   if (lat == null || lng == null) return res.status(400).json({ error: 'Координаты игрока не переданы' });
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const mines = allMines.filter(m => {
@@ -266,7 +265,7 @@ async function handleMineCollect(req, res) {
   let xpResult = null;
   if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) {} }
   const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
-  return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, xp_events: xpEvents, totalIncome });
+  return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, xp_events: xpEvents, totalIncome, collected_mine_ids: mines.map(m => m.id) });
 }
 
 // ─── Attack handlers ─────────────────────────────────────────────────
