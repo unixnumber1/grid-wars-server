@@ -5874,30 +5874,43 @@ function updateXpBar() {
 }
 
 let _hpRegenTimer = null;
+let _hpRegenBase = null;   // { hp, time } — snapshot when regen started
 function updateHpBar() {
   const p = state.player;
   if (!p) return;
-  const hp = p.hp ?? p.max_hp ?? 1000;
   const maxHp = p.max_hp || 1000;
+  let hp = p.hp ?? maxHp;
+  // Apply local regen from snapshot
+  if (_hpRegenBase && hp < maxHp) {
+    const elapsed = (Date.now() - _hpRegenBase.time) / 1000;
+    hp = Math.min(maxHp, _hpRegenBase.hp + Math.floor(elapsed * 10));
+  }
   const pct = Math.min(100, Math.max(0, Math.round(hp / maxHp * 100)));
   const wrap = document.getElementById('player-hp-bar-wrap');
   const fill = document.getElementById('player-hp-bar-fill');
   if (pct >= 100) {
     wrap.classList.remove('visible');
     if (_hpRegenTimer) { clearInterval(_hpRegenTimer); _hpRegenTimer = null; }
+    _hpRegenBase = null;
+    p.hp = maxHp;
   } else {
     wrap.classList.add('visible');
     fill.style.width = pct + '%';
     fill.style.background = pct > 50 ? '#4caf50' : pct > 25 ? '#ff9800' : '#e06060';
-    // Start regen timer if not running (10 HP/sec visual)
     if (!_hpRegenTimer) {
-      _hpRegenTimer = setInterval(() => {
-        if (!state.player) return;
-        const mhp = state.player.max_hp || 1000;
-        state.player.hp = Math.min(mhp, (state.player.hp || 0) + 10);
-        updateHpBar();
-      }, 1000);
+      _hpRegenTimer = setInterval(() => { updateHpBar(); }, 1000);
     }
+  }
+}
+function _resetHpRegenBase() {
+  const p = state.player;
+  if (!p) return;
+  const maxHp = p.max_hp || 1000;
+  const hp = p.hp ?? maxHp;
+  if (hp < maxHp) {
+    _hpRegenBase = { hp, time: Date.now() };
+  } else {
+    _hpRegenBase = null;
   }
 }
 
@@ -5907,6 +5920,7 @@ function updatePlayerDisplay() {
   document.getElementById('player-avatar-emoji').textContent = avatar;
   document.getElementById('player-name-display').textContent = name;
   updateXpBar();
+  _resetHpRegenBase();
   updateHpBar();
 }
 
@@ -8177,7 +8191,7 @@ function initSocket() {
       }
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
-    _socket.on('zombie:attack_player', (data) => { if (state.player) { state.player.hp = data.player_hp; updateHpBar(); } });
+    _socket.on('zombie:attack_player', (data) => { if (state.player) { state.player.hp = data.player_hp; _resetHpRegenBase(); updateHpBar(); } });
 
     _socket.on('disconnect', () => {
       // Disconnected from server
@@ -8214,6 +8228,7 @@ function processTickData(data) {
     }
     _lastTickTime = Date.now();
     if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
+    _resetHpRegenBase();
     updateHpBar();
   }
   if (data.mines_own) {
