@@ -3118,6 +3118,7 @@ const I18N = {
     'hud.diamonds': 'Алмазы',
     'hud.shards': 'Осколки',
     'hud.ether': 'Эфир',
+    'hud.mine_bonus': '· +{pct}% от {n} шахт ·',
     'hud.collapse': '▲ закрыть',
     'hud.expand': '▼ развернуть',
     'nav.pin': '📌',
@@ -3510,6 +3511,7 @@ const I18N = {
     'misc.enter_nickname': 'Введите игровой ник (3-16 символов):',
     'misc.enter_nickname_cost': 'Смена ника стоит {cost} 💎. Новый ник:',
     'misc.lib_error': 'Ошибка загрузки библиотеки. Обнови страницу.',
+    'misc.expired': '⏳ истекла',
     'misc.burning': 'Горит!',
     'misc.under_attack': 'Под атакой',
     'misc.destroyed': 'Уничтожена',
@@ -3681,6 +3683,7 @@ const I18N = {
     'bot.carrying_coins': '{n} монет',
     'bot.killed': '⚔️ Убит!',
     'bot.loot': '+{n} монет (лут)',
+    'bot.stolen': '💰 Награбил',
     'bot.attack': '⚔️ Атаковать',
 
     // === Collector ===
@@ -4110,6 +4113,10 @@ const I18N = {
     'zombie.boss': '{emoji} Зомбосс',
     'zombie.boss_killed': '💀 БОСС УБИТ!',
     'zombie.killed': '🧟 Убит!',
+    'zombie.wave': '🧟 Волна {n}!',
+    'zombie.wave_cleared': '✅ Волна {n} уничтожена! Следующая через 5 сек...',
+    'zombie.scout_nearby': '🧟 Разведчик появился рядом!',
+    'zombie.scout_killed': '🧟 Разведчик убит! Орда приближается!',
 
     // === Loot Box ===
     'loot.reward': '🎊 Награда!',
@@ -4135,6 +4142,7 @@ const I18N = {
     'hud.diamonds': 'Diamonds',
     'hud.shards': 'Shards',
     'hud.ether': 'Ether',
+    'hud.mine_bonus': '· +{pct}% from {n} mines ·',
     'hud.collapse': '▲ collapse',
     'hud.expand': '▼ expand',
     'nav.pin': '📌',
@@ -4527,6 +4535,7 @@ const I18N = {
     'misc.enter_nickname': 'Enter game nickname (3-16 characters):',
     'misc.enter_nickname_cost': 'Name change costs {cost} 💎. New name:',
     'misc.lib_error': 'Library loading error. Refresh the page.',
+    'misc.expired': '⏳ expired',
     'misc.burning': 'Burning!',
     'misc.under_attack': 'Under attack',
     'misc.destroyed': 'Destroyed',
@@ -4698,6 +4707,7 @@ const I18N = {
     'bot.carrying_coins': '{n} coins',
     'bot.killed': '⚔️ Killed!',
     'bot.loot': '+{n} coins (loot)',
+    'bot.stolen': '💰 Stolen',
     'bot.attack': '⚔️ Attack',
 
     // === Collector ===
@@ -5127,6 +5137,10 @@ const I18N = {
     'zombie.boss': '{emoji} Zomboss',
     'zombie.boss_killed': '💀 BOSS KILLED!',
     'zombie.killed': '🧟 Killed!',
+    'zombie.wave': '🧟 Wave {n}!',
+    'zombie.wave_cleared': '✅ Wave {n} cleared! Next in 5 sec...',
+    'zombie.scout_nearby': '🧟 Scout appeared nearby!',
+    'zombie.scout_killed': '🧟 Scout killed! Horde approaching!',
 
     // === Loot Box ===
     'loot.reward': '🎊 Reward!',
@@ -7360,7 +7374,7 @@ async function doUpgrade(mineId, targetLevel) {
       }
     }
   } catch (err) {
-    if (err.message && err.message.includes('200м')) {
+    if (err.message && err.message.includes('200') && (err.message.includes('м') || err.message.includes('m'))) {
       showToast(t('toast.approach_mine'));
     } else {
       showToast(`❌ ${err.message}`);
@@ -7382,7 +7396,7 @@ async function pollCompleteUpgrades() {
       const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
       const newApp = getMineAppearance(mine.level);
       if (prevName && newApp.name !== prevName) {
-        evolutions.push(`${newApp.emoji} ${newApp.name} (Ур.${mine.level})`);
+        evolutions.push(`${newApp.emoji} ${newApp.name} (${t('lv')}${mine.level})`);
       } else {
         normals.push(mine.level);
       }
@@ -7485,8 +7499,8 @@ function renderCoresInventory() {
     headerHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <span style="font-size:13px;color:#aaa;">${t('core.selected', {n: _selectedCoreIds.size, ether: formatNumber(totalEther)})}</span>
       <div style="display:flex;gap:8px;">
-        <button onclick="sellSelectedCores()" class="btn danger" style="font-size:12px;padding:5px 10px;" ${_selectedCoreIds.size ? '' : 'disabled'}>Продать</button>
-        <button onclick="toggleCoreSellMode()" class="btn" style="font-size:12px;padding:5px 10px;">Отмена</button>
+        <button onclick="sellSelectedCores()" class="btn danger" style="font-size:12px;padding:5px 10px;" ${_selectedCoreIds.size ? '' : 'disabled'}>${t('core.sell_btn')}</button>
+        <button onclick="toggleCoreSellMode()" class="btn" style="font-size:12px;padding:5px 10px;">${t('btn.cancel')}</button>
       </div>
     </div>`;
   } else {
@@ -8010,7 +8024,7 @@ function updateCoinDisplay() {
       let txt = `⚡ +${formatCoins(totalPerHour)}/${t('per_hour')}`;
       if (bonus > 0) {
         const color = state.clanColor || '#D500F9';
-        txt += ` <span style="color:${color}">(+${formatCoins(bonus)} клан)</span>`;
+        txt += ` <span style="color:${color}">${t('clan.clan_bonus', { n: formatCoins(bonus) })}</span>`;
       }
       incEl.innerHTML = txt;
     } else {
@@ -8045,7 +8059,7 @@ function updateCoinDisplay() {
     const mcb = state.player?.mine_count_boost || 1;
     const mineCount = state.player?.mine_count || 0;
     if (mcb > 1.001) {
-      boostEl.textContent = `· +${((mcb - 1) * 100).toFixed(0)}% от ${mineCount} шахт ·`;
+      boostEl.textContent = t('hud.mine_bonus', { pct: ((mcb - 1) * 100).toFixed(0), n: mineCount });
       boostEl.style.display = '';
     } else {
       boostEl.style.display = 'none';
@@ -8355,7 +8369,7 @@ function initSocket() {
 
     _socket.on('player:died', (data) => {
       stopCombat();
-      showMonumentDeathOverlay(data.respawn_in || 30, data.killer || 'Защитник');
+      showMonumentDeathOverlay(data.respawn_in || 30, data.killer || t('combat.defender_target'));
     });
 
     _socket.on('player:respawned', () => {
@@ -8437,18 +8451,18 @@ function initSocket() {
     // ── Zombie horde socket events ──
     _socket.on('zombie:scout_spawned', (data) => {
       addZombieMarker({ id: data.zombie_id, type: 'scout', emoji: data.emoji, lat: data.lat, lng: data.lng });
-      showToast('🧟 Разведчик появился рядом!');
+      showToast(t('zombie.scout_nearby'));
     });
-    _socket.on('zombie:horde_started', () => { showToast('🧟 Разведчик убит! Орда приближается!'); });
+    _socket.on('zombie:horde_started', () => { showToast(t('zombie.scout_killed')); });
     _socket.on('zombie:wave_spawned', (data) => {
       for (const z of (data.zombies || [])) addZombieMarker(z);
-      showToast(`🧟 Волна ${data.wave}!`);
+      showToast(t('zombie.wave', { n: data.wave }));
       const flash = document.createElement('div');
       flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,0,0,0.2);z-index:9999;pointer-events:none;animation:flashFade 0.5s ease-out forwards;';
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 500);
     });
-    _socket.on('zombie:wave_cleared', (data) => { showToast(`✅ Волна ${data.next_wave - 1} уничтожена! Следующая через 5 сек...`); });
+    _socket.on('zombie:wave_cleared', (data) => { showToast(t('zombie.wave_cleared', { n: data.next_wave - 1 })); });
     _socket.on('zombie:killed', (data) => {
       removeZombieMarker(data.zombie_id);
       if (combatState.currentTarget?.type === 'zombie' && combatState.currentTarget.id === data.zombie_id) closePopupKeepHold();
@@ -8562,7 +8576,7 @@ function processTickData(data) {
       const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
       const newApp = getMineAppearance(mine.level);
       if (prevName && newApp.name !== prevName) {
-        evolutions.push(`${newApp.emoji} ${newApp.name} (Ур.${mine.level})`);
+        evolutions.push(`${newApp.emoji} ${newApp.name} (${t('lv')}${mine.level})`);
       } else {
         normals.push(mine.level);
       }
@@ -8751,7 +8765,7 @@ let   _knownVaseIds = new Set();
 
 function _formatVaseTimer(expiresAt) {
   const ms   = new Date(expiresAt) - Date.now();
-  if (ms <= 0) return '⏳ истекла';
+  if (ms <= 0) return t('misc.expired');
   const h    = Math.floor(ms / 3600000);
   const m    = Math.floor((ms % 3600000) / 60000);
   const s    = Math.floor((ms % 60000) / 1000);
@@ -8823,7 +8837,7 @@ function showVasePopup(vaseId) {
   const near = dist <= SMALL_RADIUS;
 
   const stats = [
-    ['💎 Награда', '???'],
+    ['💎 ' + t('vase.reward'), '???'],
     ['__fullwidth__', `<span id="vase-popup-timer" data-vase-id="${vaseId}">${_formatVaseTimer(vase.expires_at)}</span>`],
   ];
 
@@ -8879,7 +8893,7 @@ async function doBreakVase(vaseId) {
       showToast(t('toast.vase_diamonds', {amount: data.diamonds}));
     }
   } catch (err) {
-    if (err.message && err.message.includes('200м')) {
+    if (err.message && err.message.includes('200') && (err.message.includes('м') || err.message.includes('m'))) {
       showToast(t('toast.approach_vase'));
     } else {
       showToast(`❌ ${err.message}`);
@@ -9082,7 +9096,7 @@ function showBotPopup(botId) {
   const stats = [
     [t('bot.state'), stateLabel],
     ['__fullwidth__', `<div class="popup-hp-live"><span style="color:#aaa;font-size:12px;min-width:20px">HP</span><div class="hp-bar-bg"><div class="hp-bar-fill" id="popup-target-hp-bar" style="width:${hpPct}%;background:#e06060"></div></div><span id="popup-target-hp-text" style="color:#fff;font-size:12px;min-width:50px;text-align:right">${botHp}/${botMaxHp}</span></div>`],
-    ['💰 Награбил', formatNumber(stolenAmount) + ' монет'],
+    [t('bot.stolen'), formatNumber(stolenAmount) + ' ' + t('misc.coins')],
   ];
 
   const actions = inRange
@@ -9163,11 +9177,11 @@ async function doAttackBot(botId) {
       const diamonds = data.diamondReward || 0;
       const coinDrop = data.coinDrop || 0;
       const coinReward = data.reward || 0;
-      let msg = `⚔️ Убит!`;
+      let msg = t('bot.killed');
       if (xpGained > 0) msg += ` +${xpGained} XP`;
       if (diamonds > 0) msg += ` +${diamonds} 💎`;
-      if (coinDrop > 0) msg += ` +${formatCoins(coinDrop)} монет (лут)`;
-      if (coinReward > 0) msg += ` +${formatCoins(coinReward)} монет`;
+      if (coinDrop > 0) msg += ` +${formatCoins(coinDrop)} ${t('misc.coins')}`;
+      if (coinReward > 0) msg += ` +${formatCoins(coinReward)} ${t('misc.coins')}`;
       showToast(msg);
       if (state.player && diamonds > 0) { state.player.diamonds = data.player_diamonds ?? ((state.player.diamonds || 0) + diamonds); }
       if (state.player && (coinDrop > 0 || coinReward > 0)) { _setPlayerCoins(data.player_coins ?? (state.player.coins || 0)); }
@@ -14722,7 +14736,7 @@ function doStartDefenderCombat(monumentId) {
 function doStartSingleDefenderCombat(defenderId) {
   const d = defenderData[defenderId];
   if (!d || d._dead) return;
-  openCombatPopup(`${d.emoji} Защитник`, defenderId, 'defender',
+  openCombatPopup(`${d.emoji} ${t('combat.defender_target')}`, defenderId, 'defender',
     { id: defenderId, monument_id: d.monument_id, emoji: d.emoji, hp: d.hp, max_hp: d.max_hp },
     { barColor: '#ff6600' });
 }
@@ -15252,7 +15266,7 @@ async function doZombieHit(target) {
     if (data.killed) {
       removeZombieMarker(target.id);
       closePopupKeepHold();
-      let msg = data.loot && data.xp_gained > 1000 ? '💀 БОСС УБИТ!' : '🧟 Убит!';
+      let msg = data.loot && data.xp_gained > 1000 ? t('zombie.boss_killed') : t('zombie.killed');
       if (data.xp_gained > 0) msg += ` +${formatNumber(data.xp_gained)} XP`;
       if (data.loot?.count > 0) msg += ` +${data.loot.count}${data.loot.currency === 'shards' ? '✨' : '🌀'}`;
       showToast(msg);
