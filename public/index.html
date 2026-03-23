@@ -2740,7 +2740,7 @@
           <input type="hidden" id="req-level" value="1">
           <div style="font-size:11px;color:#666;margin-top:4px">Уровень влияет на сложность рейда и награды</div>
         </div>
-        <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
+        <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
       </div>
     </div>
     <!-- Language tab (hidden for now) -->
@@ -7113,7 +7113,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       const leftMs = Math.max(0, burnEnd - Date.now());
       const h = Math.floor(leftMs / 3600000);
       const m2 = Math.floor((leftMs % 3600000) / 60000);
-      const burnLabel = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${Math.floor(leftMs / 1000)}с`;
+      const burnLabel = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${Math.floor(leftMs / 1000)}${t('time.sec')}`;
       burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnLabel}</span>`;
     }
 
@@ -7212,7 +7212,7 @@ function showMinePopup(mine, isOwn, canCapture) {
         const h = Math.floor(leftMs / 3600000);
         const m2 = Math.floor((leftMs % 3600000) / 60000);
         const s = Math.floor((leftMs % 60000) / 1000);
-        el.textContent = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${s}с`;
+        el.textContent = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${s}${t('time.sec')}`;
         if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
       }, 1000);
     }
@@ -9811,26 +9811,26 @@ async function submitMonumentRequest() {
   const name = document.getElementById('req-name').value.trim();
   const emoji = document.getElementById('req-emoji').value.trim();
   const level = parseInt(document.getElementById('req-level').value);
-  if (!coordsInput) { showToast('Укажи координаты'); return; }
-  if (!name || name.length < 3) { showToast('Название от 3 символов'); return; }
-  if (!emoji) { showToast('Укажи эмоджи'); return; }
+  if (!coordsInput) { showToast(t('monreq.no_coords')); return; }
+  if (!name || name.length < 3) { showToast(t('monreq.name_short')); return; }
+  if (!emoji) { showToast(t('monreq.no_emoji')); return; }
   const coords = parseCoords(coordsInput);
-  if (!coords) { showToast('Не удалось распознать координаты. Формат: 55.7558, 37.6176'); return; }
-  if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) { showToast('Некорректные координаты'); return; }
+  if (!coords) { showToast(t('monreq.bad_coords')); return; }
+  if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) { showToast(t('monreq.invalid_coords')); return; }
   const btn = document.getElementById('btn-submit-monument-request');
-  btn.disabled = true; btn.textContent = '⏳ Отправляем...';
+  btn.disabled = true; btn.textContent = t('monreq.submitting');
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
       body: JSON.stringify({ action: 'request', telegram_id: TG_ID, lat: coords.lat, lng: coords.lng, name, emoji, level }),
     });
-    showToast('✅ Заявка #' + data.request_id + ' отправлена!');
+    showToast(t('monreq.sent', {id: data.request_id}));
     document.getElementById('req-coords').value = '';
     document.getElementById('req-name').value = '';
   } catch (err) {
     showToast('❌ ' + err.message);
   }
-  btn.disabled = false; btn.textContent = '📨 Отправить заявку';
+  btn.disabled = false; btn.textContent = t('monreq.submit');
 }
 
 //  Settings drawer
@@ -13580,7 +13580,7 @@ function showClanHqPopup(ch) {
   if (isOwn && !isActive) {
     openPopup('🏰 Штаб Клана', 'Не активен', [], [
       { label: '🔍 Найти клан', cls: 'primary', action: () => openClanScreen(null, 'browse') },
-      { label: '⚔️ Создать клан', cls: 'yellow', action: () => openClanScreen(null, 'create') },
+      { label: t('clan.create'), cls: 'yellow', action: () => openClanScreen(null, 'create') },
       [
         { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
         { label: 'Закрыть', isClose: true },
@@ -13767,16 +13767,16 @@ function _renderHqTab(body) {
   const actionsEl = document.getElementById('cs-hq-actions');
   if (isOwn && actionsEl) {
     // Donate
-    const donateBtn = _makeBtn('💎 Пополнить казну', 'primary', () => doClanDonate());
+    const donateBtn = _makeBtn(t('clan.donate'), 'primary', () => doClanDonate());
     actionsEl.appendChild(donateBtn);
 
     // Boost
     if (isLeader || isOfficer) {
       if (boostActive) {
-        const bb = _makeBtn(`🚀 Буст активен`, '', null); bb.disabled = true;
+        const bb = _makeBtn(t('clan.boost_btn'), '', null); bb.disabled = true;
         actionsEl.appendChild(bb);
       } else {
-        actionsEl.appendChild(_makeBtn(`🚀 Буст x${config.boostMul} (${config.boostCost} 💎)`, 'yellow', () => doClanBoost(config)));
+        actionsEl.appendChild(_makeBtn(t('clan.boost_buy', {mul: config.boostMul, cost: config.boostCost}), 'yellow', () => doClanBoost(config)));
       }
     }
 
@@ -13784,7 +13784,7 @@ function _renderHqTab(body) {
     const canUpgrade = (isLeader || isOfficer) && clan.level < 10 && treasury >= getClanLevelConfig(clan.level + 1).cost;
     if ((isLeader || isOfficer) && clan.level < 10) {
       const nc = getClanLevelConfig(clan.level + 1).cost;
-      const ub = _makeBtn(`⬆️ Улучшить клан (${formatNumber(nc)} 💎)`, 'yellow', () => doClanUpgrade());
+      const ub = _makeBtn(t('clan.upgrade_btn', {cost: formatNumber(nc)}), 'yellow', () => doClanUpgrade());
       if (!canUpgrade) ub.disabled = true;
       actionsEl.appendChild(ub);
     }
@@ -13794,9 +13794,9 @@ function _renderHqTab(body) {
   if (!isOwn && !state.player?.clan_id && actionsEl) {
     const hasClanHq = (state.mapBuildings.clan_hqs || []).some(c => c.is_mine);
     if (hasClanHq) {
-      actionsEl.appendChild(_makeBtn('⚔️ Вступить в клан', 'primary', () => doClanJoin(_clanScreenId)));
+      actionsEl.appendChild(_makeBtn(t('clan.join'), 'primary', () => doClanJoin(_clanScreenId)));
     } else {
-      const jb = _makeBtn('Сначала постройте штаб клана', '', null); jb.disabled = true;
+      const jb = _makeBtn(t('clan.build_hq_first'), '', null); jb.disabled = true;
       actionsEl.appendChild(jb);
     }
   }
@@ -13806,9 +13806,9 @@ function _renderHqTab(body) {
   const dangerEl = document.getElementById('cs-danger');
   if (dangerEl && isOwn) {
     if (isLeader) {
-      dangerEl.appendChild(_makeBtn('💀 Распустить', 'danger', () => doClanDisband()));
+      dangerEl.appendChild(_makeBtn(t('clan.disband'), 'danger', () => doClanDisband()));
     } else {
-      dangerEl.appendChild(_makeBtn('🚪 Покинуть', 'danger', () => doClanLeave()));
+      dangerEl.appendChild(_makeBtn(t('clan.leave'), 'danger', () => doClanLeave()));
     }
   }
 }
@@ -13960,19 +13960,19 @@ function _renderEditTab(body) {
 
   body.innerHTML = `
     <div style="${cardStyle}">
-      <div style="${sectionLabelStyle}"><span>СИМВОЛ КЛАНА</span>${badgeHtml}</div>
+      <div style="${sectionLabelStyle}"><span>${t('clan.edit.symbol')}</span>${badgeHtml}</div>
       <div class="cs-emoji-grid" id="cs-edit-symbol-grid"></div>
     </div>
     <div style="${cardStyle}">
-      <div style="${sectionLabelStyle}"><span>НАЗВАНИЕ</span>${badgeHtml}</div>
+      <div style="${sectionLabelStyle}"><span>${t('clan.edit.name')}</span>${badgeHtml}</div>
       <input id="cs-edit-name" maxlength="20" value="${clan.name}" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;outline:none;">
     </div>
     <div style="${cardStyle}">
-      <div style="${sectionLabelStyle}">ЦВЕТ КЛАНА</div>
+      <div style="${sectionLabelStyle}">${t('clan.edit.color')}</div>
       <div class="cs-color-grid" id="cs-edit-color-grid"></div>
     </div>
     <div style="${cardStyle}">
-      <div style="${sectionLabelStyle}">МИН. УРОВЕНЬ</div>
+      <div style="${sectionLabelStyle}">${t('clan.edit.min_level')}</div>
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="btn" id="cs-edit-lvl-dec" style="width:40px;padding:8px;">−</button>
         <span id="cs-edit-lvl-val" style="font-size:18px;font-weight:700;color:#fff;width:40px;text-align:center;">${minLevel}</span>
@@ -13980,11 +13980,11 @@ function _renderEditTab(body) {
       </div>
     </div>
     <div style="${cardStyle}">
-      <div style="${sectionLabelStyle}">ОПИСАНИЕ</div>
+      <div style="${sectionLabelStyle}">${t('clan.edit.desc')}</div>
       <textarea id="cs-edit-desc" maxlength="100" style="width:100%;min-height:60px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;resize:vertical;outline:none;">${clan.description || ''}</textarea>
     </div>
     <div id="cs-edit-cost" style="text-align:center;color:#64B5F6;font-size:13px;margin-bottom:8px;"></div>
-    <button id="cs-edit-save" style="position:sticky;bottom:16px;width:100%;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.35);border-radius:14px;color:#00E676;padding:14px;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">💾 Сохранить</button>
+    <button id="cs-edit-save" style="position:sticky;bottom:16px;width:100%;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.35);border-radius:14px;color:#00E676;padding:14px;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">${t('clan.edit.save')}</button>
   `;
 
   // Symbol grid
@@ -14028,7 +14028,7 @@ function _renderEditTab(body) {
     if (newName !== origName) cost += 100;
     if (selectedSymbol !== origSymbol) cost += 100;
     const el = document.getElementById('cs-edit-cost');
-    el.textContent = cost > 0 ? `Будет списано: ${cost} 💎` : '';
+    el.textContent = cost > 0 ? t('clan.edit.cost', {n: cost}) : '';
   }
 
   // Save
@@ -14041,11 +14041,11 @@ function _renderEditTab(body) {
 
     if (diamondCost > 0) {
       closeClanScreen();
-      openPopup('💎 Подтвердите изменения', `Будет списано ${diamondCost} 💎`, [
-        ...(nameChanged ? [['Новое название', nameVal]] : []),
-        ...(symbolChanged ? [['Новый символ', selectedSymbol]] : []),
+      openPopup(t('clan.confirm_changes'), t('clan.deducted', {n: diamondCost}), [
+        ...(nameChanged ? [[t('clan.new_name'), nameVal]] : []),
+        ...(symbolChanged ? [[t('clan.new_symbol'), selectedSymbol]] : []),
       ], [
-        { label: `✅ Подтвердить (${diamondCost} 💎)`, cls: 'yellow', action: async () => {
+        { label: `✅ ${t('misc.confirm')} (${diamondCost} 💎)`, cls: 'yellow', action: async () => {
           closePopup();
           await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal);
         }},
@@ -14080,21 +14080,21 @@ function _renderCreateTab(body) {
   let minLevel = 1;
 
   body.innerHTML = `
-    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:16px;">⚔️ Создать клан</div>
+    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:16px;">${t('clan.create')}</div>
     <div class="cs-form-field">
-      <label>Символ клана</label>
+      <label>${t('clan.create.symbol')}</label>
       <div class="cs-emoji-grid" id="cs-symbol-grid"></div>
     </div>
     <div class="cs-form-field">
-      <label>Название (3-20 символов)</label>
-      <input id="cs-clan-name-input" maxlength="20" placeholder="Название клана">
+      <label>${t('clan.create.name_label')}</label>
+      <input id="cs-clan-name-input" maxlength="20" placeholder="${t('clan.create.name_ph')}">
     </div>
     <div class="cs-form-field">
-      <label>Цвет клана</label>
+      <label>${t('clan.create.color')}</label>
       <div class="cs-color-grid" id="cs-color-grid"></div>
     </div>
     <div class="cs-form-field">
-      <label>Мин. уровень для вступления</label>
+      <label>${t('clan.create.min_level_label')}</label>
       <div style="display:flex;align-items:center;gap:12px;">
         <button class="btn" id="cs-lvl-dec" style="width:40px;padding:8px;">−</button>
         <span id="cs-lvl-val" style="font-size:18px;font-weight:700;color:#fff;width:40px;text-align:center;">${minLevel}</span>
@@ -14102,10 +14102,10 @@ function _renderCreateTab(body) {
       </div>
     </div>
     <div class="cs-form-field">
-      <label>Описание (до 100 символов)</label>
-      <textarea id="cs-clan-desc" maxlength="100" placeholder="Описание клана..."></textarea>
+      <label>${t('clan.create.desc_label')}</label>
+      <textarea id="cs-clan-desc" maxlength="100" placeholder="${t('clan.create.desc_ph')}"></textarea>
     </div>
-    <button class="btn yellow" id="cs-create-btn" style="width:100%;padding:12px;font-size:15px;">⚔️ Создать клан</button>
+    <button class="btn yellow" id="cs-create-btn" style="width:100%;padding:12px;font-size:15px;">${t('clan.create.btn')}</button>
   `;
 
   // Symbol grid
@@ -14184,8 +14184,8 @@ window.doClanJoin = async function doClanJoin(clanId) {
 }
 
 async function doClanLeave() {
-  openPopup('🚪 Покинуть клан?', 'Вы уверены?', [], [
-    { label: '🚪 Покинуть', cls: 'danger', action: async () => {
+  openPopup(t('clan.leave_q'), t('clan.leave_confirm'), [], [
+    { label: t('clan.leave'), cls: 'danger', action: async () => {
       closePopup();
       try {
         await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'leave' }) });
@@ -14198,8 +14198,8 @@ async function doClanLeave() {
 }
 
 async function doClanBoost(config) {
-  openPopup('🚀 Активировать буст?', `x${config.boostMul} доход на 24 часа`, [['Стоимость', `${config.boostCost} 💎 из казны`]], [
-    { label: `🚀 Активировать (${config.boostCost} 💎)`, cls: 'yellow', action: async () => {
+  openPopup(t('clan.boost_q'), t('pvp.income_24h', {mul: config.boostMul}), [[t('clan.boost_cost'), t('clan.boost_cost_val', {n: config.boostCost})]], [
+    { label: `🚀 ${t('misc.confirm')} (${config.boostCost} 💎)`, cls: 'yellow', action: async () => {
       closePopup();
       try {
         const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'boost' }) });
@@ -14212,8 +14212,8 @@ async function doClanBoost(config) {
 }
 
 async function doClanDisband() {
-  openPopup('💀 Распустить клан?', 'Все участники будут исключены. Это необратимо!', [], [
-    { label: '💀 Распустить', cls: 'danger', action: async () => {
+  openPopup(t('clan.disband_q'), t('clan.disband_warn'), [], [
+    { label: t('clan.disband'), cls: 'danger', action: async () => {
       closePopup();
       try {
         await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'disband' }) });
@@ -14227,12 +14227,12 @@ async function doClanDisband() {
 
 async function doClanDonate() {
   const currentDiamonds = state.player?.diamonds ?? 0;
-  openPopup('💎 Пополнить казну', `У вас: ${currentDiamonds} 💎`,
-    [['__fullwidth__', `<input id="donate-amount-input" type="number" min="1" max="${currentDiamonds}" placeholder="Количество алмазов" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;text-align:center;outline:none;box-sizing:border-box;" />`]],
+  openPopup(t('clan.donate_title'), `У вас: ${currentDiamonds} 💎`,
+    [['__fullwidth__', `<input id="donate-amount-input" type="number" min="1" max="${currentDiamonds}" placeholder="${t('clan.enter_amount')}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:16px;text-align:center;outline:none;box-sizing:border-box;" />`]],
     [
-      { label: '💎 Отправить', cls: 'primary', noClose: true, action: () => {
+      { label: '💎 ' + t('misc.confirm'), cls: 'primary', noClose: true, action: () => {
         const val = parseInt(document.getElementById('donate-amount-input')?.value);
-        if (!val || val <= 0) { showToast('Введите количество'); return; }
+        if (!val || val <= 0) { showToast(t('clan.enter_amount')); return; }
         if (val > currentDiamonds) { showToast('❌ Недостаточно алмазов'); return; }
         closePopup(); _executeDonate(val, currentDiamonds);
       }},
@@ -14263,8 +14263,8 @@ async function _executeDonate(amount, prevDiamonds) {
 
 async function doSellClanHq() {
   closePopup();
-  openPopup('🗑️ Продать штаб?', `Вернётся ${formatCoins(CLAN_HQ_COST / 2)} монет`, [], [
-    { label: '✅ Продать', cls: 'danger', action: async () => {
+  openPopup(t('clan.sell_hq_q'), t('clan.sell_hq_refund', {n: formatCoins(CLAN_HQ_COST / 2)}), [], [
+    { label: t('inv.sell_btn'), cls: 'danger', action: async () => {
       closePopup();
       try {
         const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'sell-hq' }) });
@@ -14311,16 +14311,16 @@ function _showClanLevelUpScreen(level, oldCfg, newCfg) {
   overlay.innerHTML = `
     <div style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:28px 24px;max-width:340px;width:90%;text-align:center;">
       <div style="font-size:48px;margin-bottom:8px;">🎉</div>
-      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px;">Клан достиг уровня ${level}!</div>
-      <div style="color:#888;font-size:13px;margin-bottom:20px;">Новые бонусы активны</div>
+      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px;">${t('clan.levelup', {n: level})}</div>
+      <div style="color:#888;font-size:13px;margin-bottom:20px;">${t('clan.levelup_sub')}</div>
       <div style="text-align:left;margin-bottom:20px;">
-        ${diff('Зона', '📍', oldCfg.radius, newCfg.radius, 'м')}
-        ${diff('Доход', '⚡', oldCfg.income, newCfg.income, '%')}
-        ${diff('Защита', '🛡️', oldCfg.defense, newCfg.defense, '%')}
-        ${diff('Участники', '👥', oldCfg.maxMembers, newCfg.maxMembers)}
-        ${diff('Буст', '🚀', 'x' + oldCfg.boostMul, 'x' + newCfg.boostMul, '')}
+        ${diff(t('clan.zone_label'), '📍', oldCfg.radius, newCfg.radius, 'м')}
+        ${diff(t('clan.income_label'), '⚡', oldCfg.income, newCfg.income, '%')}
+        ${diff(t('clan.defense_label'), '🛡️', oldCfg.defense, newCfg.defense, '%')}
+        ${diff(t('clan.members_count'), '👥', oldCfg.maxMembers, newCfg.maxMembers)}
+        ${diff(t('clan.boost_label'), '🚀', 'x' + oldCfg.boostMul, 'x' + newCfg.boostMul, '')}
       </div>
-      <button class="btn primary" style="width:100%;padding:12px;font-size:15px;" id="clan-lvlup-close">Отлично!</button>
+      <button class="btn primary" style="width:100%;padding:12px;font-size:15px;" id="clan-lvlup-close">${t('clan.great')}</button>
     </div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('#clan-lvlup-close').addEventListener('click', () => overlay.remove());
@@ -14330,14 +14330,14 @@ function _showClanLevelUpScreen(level, oldCfg, newCfg) {
 async function doClanSetRole(targetTgId, role) {
   try {
     await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'set-role', target_telegram_id: targetTgId, role }) });
-    showToast(`Роль изменена на ${role}`);
+    showToast(t('clan.role_changed', {role}));
     if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
   } catch (err) { showToast(err.message); }
 }
 
 async function doClanKick(targetTgId) {
-  openPopup('🚫 Исключить?', 'Игрок будет удалён из клана', [], [
-    { label: '🚫 Исключить', cls: 'danger', action: async () => {
+  openPopup(t('clan.kick_q'), t('clan.kick_warn'), [], [
+    { label: t('clan.kick'), cls: 'danger', action: async () => {
       closePopup();
       try {
         await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'kick', target_telegram_id: targetTgId }) });
@@ -14518,7 +14518,7 @@ function renderLootBoxes(boxes) {
       _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
       const isMine = Number(box.player_id) === Number(TG_ID);
       if (isMine) showLootBoxPopup(box.id);
-      else showToast(`${box.player_avatar} ${box.player_name} — чужая награда`);
+      else showToast(t('mon.other_loot', {avatar: box.player_avatar, name: box.player_name}));
     });
     marker.addTo(map);
     lootBoxMarkers[box.id] = marker;
@@ -14573,7 +14573,7 @@ function addLootBoxMarkerImmediate(box) {
     _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e);
     const isMine = Number(box.player_id) === Number(TG_ID);
     if (isMine) showLootBoxPopup(box.id);
-    else showToast(`${box.player_avatar} ${box.player_name} — чужая награда`);
+    else showToast(t('mon.other_loot', {avatar: box.player_avatar, name: box.player_name}));
   });
   marker.addTo(map);
   lootBoxMarkers[box.id] = marker;
@@ -15001,7 +15001,7 @@ function showCollectorPopup(collectorId) {
       const leftMs = Math.max(0, burnEnd - Date.now());
       const h = Math.floor(leftMs / 3600000);
       const m2 = Math.floor((leftMs % 3600000) / 60000);
-      const burnLabel = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${Math.floor(leftMs / 1000)}с`;
+      const burnLabel = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${Math.floor(leftMs / 1000)}${t('time.sec')}`;
       burnTimerHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 Сгорит через <span id="coll-burn-timer">${burnLabel}</span></div>`;
     }
 
@@ -15013,8 +15013,8 @@ function showCollectorPopup(collectorId) {
       ${burnTimerHtml}
       ${!isBurning ? `
       <div style="display:flex;gap:4px;margin-bottom:10px">
-        <button id="coll-mode-collect" class="hq-btn ${curMode === 'collect' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'collect' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','collect')">💰 Сбор</button>
-        <button id="coll-mode-upgrade" class="hq-btn ${curMode === 'upgrade' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'upgrade' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','upgrade')">⚙️ Апгрейд до Lv.${maxMineLevel}</button>
+        <button id="coll-mode-collect" class="hq-btn ${curMode === 'collect' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'collect' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','collect')">${t('misc.collect_mode')}</button>
+        <button id="coll-mode-upgrade" class="hq-btn ${curMode === 'upgrade' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'upgrade' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','upgrade')">${t('misc.upgrade_mode', {n: maxMineLevel})}</button>
       </div>` : ''}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.hp')}</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>` : ''}
@@ -15023,7 +15023,7 @@ function showCollectorPopup(collectorId) {
       </div>
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">🧯 Потушить (5💎)</button>` : ''}
+        ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>` : ''}
         ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
         ${!isBurning ? `<button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>` : ''}
       </div>
@@ -15041,7 +15041,7 @@ function showCollectorPopup(collectorId) {
         const h = Math.floor(leftMs / 3600000);
         const m2 = Math.floor((leftMs % 3600000) / 60000);
         const s = Math.floor((leftMs % 60000) / 1000);
-        el.textContent = h > 0 ? `${h}ч` : m2 > 0 ? `${m2}м` : `${s}с`;
+        el.textContent = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${s}${t('time.sec')}`;
         if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
       }, 1000);
     }
@@ -15109,7 +15109,7 @@ async function doCollectorDeliver(collectorId) {
       body: JSON.stringify({ action: 'deliver', telegram_id: TG_ID, collector_id: collectorId }),
     });
     closePopup();
-    showToast(`📦 Курьер отправлен! 💰 ${formatCoins(data.net)} монет`);
+    showToast(t('courier.sent', {n: formatCoins(data.net)}));
     const c = collectorData[collectorId];
     if (c) { c.stored_coins = 0; updateCollectorMarker(collectorId); }
   } catch (err) { showToast(`❌ ${err.message}`); }
