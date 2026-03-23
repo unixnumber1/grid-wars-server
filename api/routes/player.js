@@ -40,6 +40,15 @@ async function handleSetUsername(req, res) {
   if (changes > 0) updateObj.diamonds = newDiamonds;
   const { error: updateErr } = await supabase.from('players').update(updateObj).eq('id', player.id);
   if (updateErr) return res.status(500).json({ error: updateErr.message });
+  if (gameState.loaded) {
+    const p = gameState.getPlayerById(player.id);
+    if (p) {
+      p.game_username = trimmed;
+      p.username_changes = changes + 1;
+      if (changes > 0) p.diamonds = newDiamonds;
+      gameState.markDirty('players', p.id);
+    }
+  }
   return res.status(200).json({ success: true, game_username: trimmed, diamonds: newDiamonds, username_changes: changes + 1 });
 }
 

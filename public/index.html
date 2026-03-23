@@ -1921,54 +1921,61 @@
     }
     /* Username setup screen */
     #username-setup-screen {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      background: radial-gradient(ellipse at top, rgba(30,0,60,0.98), rgba(0,0,0,0.99));
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      overflow-y: auto;
+      display: none; position: fixed; inset: 0; z-index: 99999;
+      background: #0d0d0d;
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px; overflow-y: auto;
     }
     #username-setup-screen.open { display: flex; }
-    #username-setup-screen h1 { font-size: 28px; margin: 0 0 4px; color: #FFD700; }
-    #username-setup-screen .subtitle { color: #aaa; font-size: 14px; margin-bottom: 24px; }
+    .setup-card {
+      background: #1a1a2e; border-radius: 16px; padding: 28px 24px;
+      max-width: 360px; width: 100%; box-sizing: border-box;
+    }
+    .setup-card .setup-title {
+      font-size: 26px; font-weight: 800; color: #FFD700;
+      text-align: center; margin: 0 0 2px;
+    }
+    .setup-card .setup-subtitle {
+      color: #888; font-size: 13px; text-align: center; margin-bottom: 22px;
+    }
+    .setup-section-label {
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.35);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+    }
     #setup-avatar-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 6px;
-      max-width: 300px;
-      margin-bottom: 16px;
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      gap: 6px; margin-bottom: 14px;
     }
-    #setup-avatar-grid .avatar-cell { font-size: 24px; }
-    #setup-avatar-preview {
-      width: 80px; height: 80px;
+    #setup-avatar-grid .avatar-cell {
+      font-size: 24px; width: 44px; height: 44px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 48px; border-radius: 16px;
-      background: rgba(255,255,255,0.06);
-      border: 2px solid rgba(255,255,255,0.15);
-      margin-bottom: 20px;
+      border-radius: 10px; cursor: pointer; border: 2px solid transparent;
+      background: #252538; transition: border-color 0.15s;
     }
+    #setup-avatar-grid .avatar-cell.selected { border-color: #FFD700; background: rgba(255,215,0,0.1); }
+    #setup-avatar-preview {
+      width: 72px; height: 72px; margin: 0 auto 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 44px; border-radius: 50%;
+      background: #252538; border: 3px solid #FFD700;
+    }
+    .setup-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 18px 0; }
     #setup-username-input {
-      width: 100%; max-width: 300px; padding: 12px 14px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.15);
+      width: 100%; padding: 12px 14px;
+      background: #111; border: 1px solid #333;
       border-radius: 10px; color: #fff; font-size: 15px;
-      box-sizing: border-box; outline: none;
-      text-align: center;
+      box-sizing: border-box; outline: none; text-align: center;
     }
     #setup-username-input:focus { border-color: #FFD700; }
-    #setup-username-hint { color: #666; font-size: 11px; margin-top: 6px; margin-bottom: 4px; }
-    #setup-username-error { color: #e06060; font-size: 12px; min-height: 18px; margin-top: 4px; }
+    #setup-username-hint { color: #555; font-size: 11px; margin-top: 6px; text-align: center; }
+    #setup-username-error { color: #e06060; font-size: 12px; min-height: 18px; margin-top: 6px; text-align: center; }
     #btn-setup-start {
-      margin-top: 16px; padding: 14px 48px; font-size: 16px; font-weight: 700;
+      width: 100%; margin-top: 14px; padding: 14px; font-size: 16px; font-weight: 700;
       border: none; border-radius: 12px; cursor: pointer;
-      background: linear-gradient(135deg, #FFD700, #FFA000); color: #000;
+      background: linear-gradient(135deg, #4caf50, #2e7d32); color: #fff;
       transition: opacity 0.2s;
     }
-    #btn-setup-start:disabled { opacity: 0.35; cursor: default; }
+    #btn-setup-start:disabled { opacity: 0.3; cursor: default; }
 
     /* Change username modal */
     #change-username-overlay {
@@ -2582,21 +2589,23 @@
 
 <!-- Username setup screen (first login) -->
 <div id="username-setup-screen">
-  <h1>&#x2694;&#xFE0F; OVERTHROW</h1>
-  <div class="subtitle">&#x0414;&#x043E;&#x0431;&#x0440;&#x043E; &#x043F;&#x043E;&#x0436;&#x0430;&#x043B;&#x043E;&#x0432;&#x0430;&#x0442;&#x044C;!</div>
+  <div class="setup-card">
+    <div class="setup-title">&#x2694;&#xFE0F; OVERTHROW</div>
+    <div class="setup-subtitle">&#x0413;&#x0435;&#x043E;&#x043B;&#x043E;&#x043A;&#x0430;&#x0446;&#x0438;&#x043E;&#x043D;&#x043D;&#x0430;&#x044F; &#x0441;&#x0442;&#x0440;&#x0430;&#x0442;&#x0435;&#x0433;&#x0438;&#x044F; &#x0432; &#x0440;&#x0435;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x043C; &#x043C;&#x0438;&#x0440;&#x0435;</div>
 
-  <div style="color:#ccc;font-size:13px;margin-bottom:10px;">&#x0412;&#x044B;&#x0431;&#x0435;&#x0440;&#x0438; &#x0430;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;:</div>
-  <div id="setup-avatar-grid"></div>
+    <div class="setup-section-label">&#x0410;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;</div>
+    <div id="setup-avatar-preview">&#x1F43A;</div>
+    <div id="setup-avatar-grid"></div>
 
-  <div style="color:#ccc;font-size:13px;margin-bottom:8px;">&#x0412;&#x044B;&#x0431;&#x0440;&#x0430;&#x043D;&#x043D;&#x044B;&#x0439; &#x0430;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;:</div>
-  <div id="setup-avatar-preview">&#x1F43A;</div>
+    <div class="setup-divider"></div>
 
-  <div style="color:#ccc;font-size:13px;margin-bottom:8px;">&#x041F;&#x0440;&#x0438;&#x0434;&#x0443;&#x043C;&#x0430;&#x0439; &#x043D;&#x0438;&#x043A;:</div>
-  <input id="setup-username-input" type="text" placeholder="&#x0412;&#x0432;&#x0435;&#x0434;&#x0438; &#x043D;&#x0438;&#x043A;..." maxlength="16" autocomplete="off">
-  <div id="setup-username-hint">3-16 &#x0441;&#x0438;&#x043C;&#x0432;&#x043E;&#x043B;&#x043E;&#x0432;, &#x0431;&#x0443;&#x043A;&#x0432;&#x044B;/&#x0446;&#x0438;&#x0444;&#x0440;&#x044B;/_</div>
-  <div id="setup-username-error"></div>
+    <div class="setup-section-label">&#x041D;&#x0438;&#x043A;&#x043D;&#x0435;&#x0439;&#x043C;</div>
+    <input id="setup-username-input" type="text" placeholder="&#x0412;&#x0432;&#x0435;&#x0434;&#x0438; &#x043D;&#x0438;&#x043A;..." maxlength="16" autocomplete="off">
+    <div id="setup-username-hint">3-16 &#x0441;&#x0438;&#x043C;&#x0432;&#x043E;&#x043B;&#x043E;&#x0432;, &#x0431;&#x0443;&#x043A;&#x0432;&#x044B;/&#x0446;&#x0438;&#x0444;&#x0440;&#x044B;/_</div>
+    <div id="setup-username-error"></div>
 
-  <button id="btn-setup-start" disabled>&#x2705; &#x041D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;</button>
+    <button id="btn-setup-start" disabled>&#x1F3AE; &#x041D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;</button>
+  </div>
 </div>
 
 <!-- Change username modal -->

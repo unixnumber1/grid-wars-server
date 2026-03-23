@@ -133,7 +133,8 @@ ecosystem.config.cjs       — PM2 конфиг
 | `clans` | name, symbol, color, level(1-10), treasury(BIGINT), leader_id |
 | `clan_members` | clan_id, player_id, role(leader/officer/member) |
 | `clan_headquarters` | player_id, clan_id, lat, lng, cell_id |
-| `monuments` | lat, lng, level(1-10), name, hp, shield_hp, phase(shield/open/defeated) |
+| `monuments` | lat, lng, level(1-10), name, emoji, hp, shield_hp, phase(shield/open/defeated) |
+| `monument_requests` | player_id, status(pending/approved/rejected), lat, lng, name, emoji, level(1-10) |
 | `monument_defenders` | monument_id, emoji, hp, attack, wave, lat, lng, alive |
 | `monument_loot_boxes` | monument_id, player_id, box_type, gems, items(JSONB) |
 | `collectors` | owner_id, lat, lng, level(1-10), hp, stored_coins(BIGINT) |
@@ -253,17 +254,20 @@ ecosystem.config.cjs       — PM2 конфиг
 - Продажа штаба клана доступна даже из клана
 
 ### Монументы (рейд-боссы)
-- Спавн: Overpass API (attraction, museum, gallery, viewpoint, castle, fort, ruins, archaeological_site, manor, palace, monument+name, theatre, arts_centre, fountain+name, park+name, civic+name)
-- Запрещённые места: religion, place_of_worship, war_memorial, battlefield, wayside_cross/shrine, church/cathedral/mosque/temple/chapel
+- Спавн: через систему заявок (игрок отправляет форму → админ одобряет в Telegram)
+- Автогенерация через Overpass API удалена
+- Таблица `monument_requests`: player_id, lat, lng, name, emoji, level, status (pending/approved/rejected)
+- Webhook: callback_data `approve_monument_{id}` / `reject_monument_{id}` в server.js
+- Каждый монумент имеет поле `emoji` — отображается на маркере карты
 - 10 уровней: HP 50K-40M (`MONUMENT_HP`), щит 8K-10M (`MONUMENT_SHIELD_HP`)
-- DPS порог щита: `MONUMENT_SHIELD_DPS_THRESHOLD` [400-40000] — рейд должен превысить мин. DPS чтобы наносить урон щиту
-- Эффективный урон = `damage * (totalDps - threshold) / totalDps`
-- Реген щита: `threshold * 1.2/sec` когда DPS рейда ниже порога (в gameLoop каждый тик)
+- DPS порог щита: `MONUMENT_SHIELD_DPS_THRESHOLD` [400-40000]
 - Фазы: shield -> open (защитники) -> defeated (7 дней респавн)
-- Open >4ч без слома -> полная регенерация
-- Лут: пропорционально урону, trophy/gift, гемы + предметы + ядра
+- Лут (константы в config/constants.js):
+  - `MONUMENT_GEMS_LOOT` — гемы по уровням (2-1000)
+  - `MONUMENT_ITEMS_LOOT` — предметы, отдельные таблицы для trophy/gift
+  - `MONUMENT_CORES_LOOT` — ядра (шанс + min/max)
+- Trophy (топ-1 по урону) получает больше/лучше предметов
 - Еженедельный ресет: воскресенье 00:00 МСК
-- Рекалькуляция: `node scripts/recalc-monuments.js`
 
 ### Автосборщики
 - 75 алмазов, автосбор каждый час с шахт в 200м
