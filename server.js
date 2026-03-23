@@ -171,7 +171,8 @@ app.post('/api/telegram-webhook', async (req, res) => {
       await answerCallback('Игрок разбанен');
       await editMessage(`✅ Игрок ${tgId} разбанен.`);
       const { sendTelegramNotification: notify } = await import('./lib/supabase.js');
-      notify(tgId, '✅ Вы разбанены! Добро пожаловать обратно.');
+      const { ts: _ts, getLang: _gl } = await import('./config/i18n.js');
+      notify(tgId, _ts(_gl(gameState, tgId), 'admin.unbanned'));
 
     } else if (data.startsWith('approve_monument_')) {
       const reqId = parseInt(data.replace('approve_monument_', ''), 10);
@@ -194,7 +195,9 @@ app.post('/api/telegram-webhook', async (req, res) => {
       if (gameState.loaded) gameState.monuments.set(monument.id, monument);
 
       await sb.from('monument_requests').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', reqId);
-      notify(mreq.player_id, `✅ Твоя заявка #${reqId} одобрена!\n${mreq.emoji} ${mreq.name} (lv${mreq.level}) появился на карте!`).catch(() => {});
+      const { ts: _ts2, getLang: _gl2 } = await import('./config/i18n.js');
+      const _pLang = _gl2(gameState, mreq.player_id);
+      notify(mreq.player_id, _ts2(_pLang, 'monreq.approved', { id: reqId, emoji: mreq.emoji, name: mreq.name, level: mreq.level })).catch(() => {});
       await editMessage(`✅ ОДОБРЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name} lv${mreq.level}\nМонумент создан!`);
       await answerCallback('✅ Монумент создан!');
       console.log(`[MONUMENTS] Request #${reqId} approved, monument created`);
@@ -206,7 +209,9 @@ app.post('/api/telegram-webhook', async (req, res) => {
       if (!mreq || mreq.status !== 'pending') { await answerCallback('Заявка не найдена или уже обработана'); return; }
 
       await sb.from('monument_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', reqId);
-      notify(mreq.player_id, `❌ Твоя заявка #${reqId} отклонена.\n${mreq.emoji} ${mreq.name}\nПопробуй предложить другое место завтра.`).catch(() => {});
+      const { ts: _ts3, getLang: _gl3 } = await import('./config/i18n.js');
+      const _rLang = _gl3(gameState, mreq.player_id);
+      notify(mreq.player_id, _ts3(_rLang, 'monreq.rejected', { id: reqId, emoji: mreq.emoji, name: mreq.name })).catch(() => {});
       await editMessage(`❌ ОТКЛОНЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name}`);
       await answerCallback('❌ Заявка отклонена');
     }
@@ -619,7 +624,7 @@ function startDefenderLoop() {
 
           if (target._socketId) {
             io.to(target._socketId).emit('pvp:hit', {
-              attacker_name: defender.emoji + ' Защитник',
+              attacker_name: defender.emoji + ' Defender',
               damage, hp_left: hp, max_hp: maxHp,
             });
           }
@@ -630,7 +635,7 @@ function startDefenderLoop() {
             target.respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();
             gameState.markDirty('players', target.id);
             if (target._socketId) {
-              io.to(target._socketId).emit('player:died', { respawn_in: 30, killer: defender.emoji + ' Защитник' });
+              io.to(target._socketId).emit('player:died', { respawn_in: 30, killer: defender.emoji + ' Defender' });
             }
             const idx = nearbyPlayers.indexOf(target);
             if (idx !== -1) nearbyPlayers.splice(idx, 1);

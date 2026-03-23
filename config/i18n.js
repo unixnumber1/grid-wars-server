@@ -203,6 +203,45 @@ const TRANSLATIONS = {
 
     // ── Kill messages ──
     'kill.defenders': '⚠️ Убейте защитников!',
+
+    // ── Monument requests (player-facing) ──
+    'monreq.approved': '✅ Твоя заявка #{id} одобрена!\n{emoji} {name} (lv{level}) появился на карте!',
+    'monreq.rejected': '❌ Твоя заявка #{id} отклонена.\n{emoji} {name}\nПопробуй предложить другое место завтра.',
+    'monreq.fill_all': 'Заполни все поля',
+    'monreq.level_range': 'Уровень от 1 до 10',
+    'monreq.name_length': 'Название от 3 до 50 символов',
+    'monreq.daily_limit': 'Ты уже подал заявку сегодня. Попробуй завтра!',
+    'monreq.create_error': 'Ошибка создания заявки',
+
+    // ── Core names ──
+    'core.name.income': 'Ядро дохода',
+    'core.name.capacity': 'Ядро вместимости',
+    'core.name.hp': 'Ядро здоровья',
+    'core.name.regen': 'Ядро регенерации',
+
+    // ── Item names ──
+    'item.sword.common': 'Ржавый меч',
+    'item.sword.uncommon': 'Стальной меч',
+    'item.sword.rare': 'Клинок теней',
+    'item.sword.epic': 'Меч демона',
+    'item.sword.mythic': 'Адский клинок',
+    'item.sword.legendary': 'Экскалибур',
+    'item.axe.common': 'Каменный топор',
+    'item.axe.uncommon': 'Железный топор',
+    'item.axe.rare': 'Боевой топор',
+    'item.axe.epic': 'Топор берсерка',
+    'item.axe.mythic': 'Топор хаоса',
+    'item.axe.legendary': 'Топор Тора',
+    'item.shield.common': 'Деревянный щит',
+    'item.shield.uncommon': 'Железный щит',
+    'item.shield.rare': 'Щит стражника',
+    'item.shield.epic': 'Щит дракона',
+    'item.shield.mythic': 'Щит титана',
+    'item.shield.legendary': 'Щит богов',
+
+    // ── Market ──
+    'market.replaced_mine': '🏪 Рынок заменил вашу шахту Ур.{level}!',
+    'market.default_name': 'Рынок',
   },
 
   en: {
@@ -405,6 +444,45 @@ const TRANSLATIONS = {
 
     // ── Kill messages ──
     'kill.defenders': '⚠️ Kill the defenders!',
+
+    // ── Monument requests (player-facing) ──
+    'monreq.approved': '✅ Your request #{id} approved!\n{emoji} {name} (lv{level}) appeared on the map!',
+    'monreq.rejected': '❌ Your request #{id} rejected.\n{emoji} {name}\nTry suggesting another place tomorrow.',
+    'monreq.fill_all': 'Fill in all fields',
+    'monreq.level_range': 'Level must be 1-10',
+    'monreq.name_length': 'Name must be 3-50 characters',
+    'monreq.daily_limit': 'You already submitted a request today. Try again tomorrow!',
+    'monreq.create_error': 'Failed to create request',
+
+    // ── Core names ──
+    'core.name.income': 'Income Core',
+    'core.name.capacity': 'Capacity Core',
+    'core.name.hp': 'HP Core',
+    'core.name.regen': 'Regen Core',
+
+    // ── Item names ──
+    'item.sword.common': 'Rusty Sword',
+    'item.sword.uncommon': 'Steel Sword',
+    'item.sword.rare': 'Shadow Blade',
+    'item.sword.epic': 'Demon Sword',
+    'item.sword.mythic': 'Infernal Blade',
+    'item.sword.legendary': 'Excalibur',
+    'item.axe.common': 'Stone Axe',
+    'item.axe.uncommon': 'Iron Axe',
+    'item.axe.rare': 'Battle Axe',
+    'item.axe.epic': 'Berserker Axe',
+    'item.axe.mythic': 'Chaos Axe',
+    'item.axe.legendary': "Thor's Axe",
+    'item.shield.common': 'Wooden Shield',
+    'item.shield.uncommon': 'Iron Shield',
+    'item.shield.rare': 'Guardian Shield',
+    'item.shield.epic': 'Dragon Shield',
+    'item.shield.mythic': 'Titan Shield',
+    'item.shield.legendary': 'Divine Shield',
+
+    // ── Market ──
+    'market.replaced_mine': '🏪 Market replaced your mine Lv.{level}!',
+    'market.default_name': 'Market',
   },
 };
 

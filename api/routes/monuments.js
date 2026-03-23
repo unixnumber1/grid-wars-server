@@ -604,15 +604,16 @@ const ADMIN_TG_ID = 560013667;
 async function handleMonumentRequest(req, res) {
   const { telegram_id, lat, lng, name, emoji, level } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  const lang = getLang(gameState, telegram_id);
   if (!lat || !lng || !name || !emoji || !level)
-    return res.status(400).json({ error: 'Заполни все поля' });
+    return res.status(400).json({ error: ts(lang, 'monreq.fill_all') });
   if (level < 1 || level > 10)
-    return res.status(400).json({ error: 'Уровень от 1 до 10' });
+    return res.status(400).json({ error: ts(lang, 'monreq.level_range') });
   if (name.length < 3 || name.length > 50)
-    return res.status(400).json({ error: 'Название от 3 до 50 символов' });
+    return res.status(400).json({ error: ts(lang, 'monreq.name_length') });
 
   const player = gameState.getPlayerByTgId(Number(telegram_id));
-  if (!player) return res.status(404).json({ error: 'Игрок не найден' });
+  if (!player) return res.status(404).json({ error: ts(lang, 'err.player_not_found') });
 
   // 1 request per day limit
   const today = new Date();
@@ -622,13 +623,13 @@ async function handleMonumentRequest(req, res) {
     .eq('player_id', Number(telegram_id))
     .gte('created_at', today.toISOString());
   if (todayRequests?.length > 0)
-    return res.status(400).json({ error: 'Ты уже подал заявку сегодня. Попробуй завтра!' });
+    return res.status(400).json({ error: ts(lang, 'monreq.daily_limit') });
 
   const { data: request, error } = await supabase
     .from('monument_requests')
     .insert({ player_id: Number(telegram_id), lat, lng, name, emoji, level, status: 'pending' })
     .select().single();
-  if (error) return res.status(500).json({ error: 'Ошибка создания заявки' });
+  if (error) return res.status(500).json({ error: ts(lang, 'monreq.create_error') });
 
   sendAdminMonumentRequest(request, player).catch(e => console.error('[MONUMENT_REQ] admin notify error:', e.message));
 
