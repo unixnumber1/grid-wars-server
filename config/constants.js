@@ -97,9 +97,39 @@ export const MONUMENT_SHIELD_DPS_THRESHOLD = [
 ];
 export const MONUMENT_DPS_WINDOW_MS = 3000;
 
+// Monument gems loot by level
+export const MONUMENT_GEMS_LOOT = [
+  null,
+  { min: 2,   max: 8    }, // lv1
+  { min: 5,   max: 15   }, // lv2
+  { min: 10,  max: 25   }, // lv3
+  { min: 20,  max: 50   }, // lv4
+  { min: 40,  max: 90   }, // lv5
+  { min: 70,  max: 150  }, // lv6
+  { min: 120, max: 250  }, // lv7
+  { min: 200, max: 400  }, // lv8
+  { min: 300, max: 600  }, // lv9
+  { min: 500, max: 1000 }, // lv10
+];
+
+// Monument items loot: trophy = top damage, gift = others
+export const MONUMENT_ITEMS_LOOT = [
+  null,
+  { trophy: [{ count: 3, rarity: 'rare' }], gift: [{ count: 1, rarity: 'rare' }] },
+  { trophy: [{ count: 4, rarity: 'rare' }], gift: [{ count: 2, rarity: 'rare' }] },
+  { trophy: [{ count: 3, rarity: 'rare' }, { count: 1, rarity: 'epic' }], gift: [{ count: 2, rarity: 'rare' }, { count: 1, rarity: 'epic' }] },
+  { trophy: [{ count: 4, rarity: 'rare' }, { count: 1, rarity: 'epic' }], gift: [{ count: 3, rarity: 'rare' }, { count: 1, rarity: 'epic' }] },
+  { trophy: [{ count: 3, rarity: 'epic' }, { count: 2, rarity: 'rare' }], gift: [{ count: 2, rarity: 'epic' }, { count: 2, rarity: 'rare' }] },
+  { trophy: [{ count: 4, rarity: 'epic' }, { count: 1, rarity: 'rare' }], gift: [{ count: 3, rarity: 'epic' }, { count: 1, rarity: 'rare' }] },
+  { trophy: [{ count: 5, rarity: 'epic' }], gift: [{ count: 3, rarity: 'epic' }, { count: 2, rarity: 'rare' }] },
+  { trophy: [{ count: 4, rarity: 'epic' }, { count: 1, rarity: 'mythic' }], gift: [{ count: 4, rarity: 'epic' }] },
+  { trophy: [{ count: 5, rarity: 'epic' }, { count: 1, rarity: 'mythic' }], gift: [{ count: 4, rarity: 'epic' }, { count: 1, rarity: 'mythic' }] },
+  { trophy: [{ count: 6, rarity: 'epic' }, { count: 1, rarity: 'mythic' }, { count: 1, rarity: 'legendary', chance: 0.15 }], gift: [{ count: 5, rarity: 'epic' }, { count: 1, rarity: 'mythic', chance: 0.10 }, { count: 1, rarity: 'legendary', chance: 0.05 }] },
+];
+
 // Monument core drop table: chance (0-1), min/max cores per raid
-export const MONUMENT_CORE_DROP = [
-  null, // index 0 unused
+export const MONUMENT_CORES_LOOT = [
+  null,
   { chance: 0.10, min: 1, max: 1 }, // lv1
   { chance: 0.15, min: 1, max: 1 }, // lv2
   { chance: 0.25, min: 1, max: 2 }, // lv3

@@ -6,7 +6,7 @@ import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.
 import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
-  MONUMENT_LEVELS, MONUMENT_LOOT_TABLE, MONUMENT_ATTACK_RADIUS,
+  MONUMENT_LEVELS, MONUMENT_ATTACK_RADIUS,
   WAVE_INTERVAL_SECONDS, spawnDefenderWave, defeatMonument, getPlayersNearMonument,
   getMonumentAttackers, calcRaidDps, checkWaveTrigger, checkWaveComplete,
 } from '../../lib/monuments.js';

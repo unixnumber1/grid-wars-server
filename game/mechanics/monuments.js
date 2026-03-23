@@ -9,6 +9,7 @@ import {
   MONUMENT_WAVE_COUNTS, MONUMENT_DEFENDER_HP, MONUMENT_DEFENDER_DAMAGE,
   MONUMENT_DEFENDER_SPEED, MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_WAVE_TRIGGERS,
   MONUMENT_DEFENDER_ATTACK_CD, WAVE_EMOJIS,
+  MONUMENT_GEMS_LOOT, MONUMENT_ITEMS_LOOT,
 } from '../../config/constants.js';
 
 // ── Emojis for defenders ──
@@ -16,30 +17,16 @@ export const MONUMENT_EMOJIS = ['🐲','⛄️','😡','😈','👿','👹','�
 
 // ── Level config ──
 export const MONUMENT_LEVELS = {
-  1:  { hp: 50000,     max_shield_hp: 8000,     defenders_per_wave: [1,2],  defender_hp: 300,    defender_attack: 40,   gems: [30,60]    },
-  2:  { hp: 120000,    max_shield_hp: 20000,    defenders_per_wave: [1,3],  defender_hp: 500,    defender_attack: 70,   gems: [60,100]   },
-  3:  { hp: 280000,    max_shield_hp: 50000,    defenders_per_wave: [2,4],  defender_hp: 900,    defender_attack: 110,  gems: [100,200]  },
-  4:  { hp: 600000,    max_shield_hp: 120000,   defenders_per_wave: [2,5],  defender_hp: 1800,   defender_attack: 160,  gems: [200,350]  },
-  5:  { hp: 1200000,   max_shield_hp: 300000,   defenders_per_wave: [3,7],  defender_hp: 3500,   defender_attack: 240,  gems: [350,600]  },
-  6:  { hp: 2500000,   max_shield_hp: 700000,   defenders_per_wave: [3,8],  defender_hp: 7000,   defender_attack: 340,  gems: [600,1000] },
-  7:  { hp: 5000000,   max_shield_hp: 1500000,  defenders_per_wave: [4,10], defender_hp: 14000,  defender_attack: 480,  gems: [1000,1500]},
-  8:  { hp: 10000000,  max_shield_hp: 3500000,  defenders_per_wave: [5,13], defender_hp: 28000,  defender_attack: 680,  gems: [1500,2500]},
-  9:  { hp: 22000000,  max_shield_hp: 6000000,  defenders_per_wave: [6,16], defender_hp: 55000,  defender_attack: 960,  gems: [2500,3500]},
-  10: { hp: 40000000,  max_shield_hp: 10000000, defenders_per_wave: [8,20], defender_hp: 110000, defender_attack: 1360, gems: [3500,5000]},
-};
-
-// ── Loot table by monument level ──
-export const MONUMENT_LOOT_TABLE = {
-  1:  [{ rarity: 'rare', count: 1 }, { rarity: 'epic', count: 1 }],
-  2:  [{ rarity: 'rare', count: 1 }, { rarity: 'epic', count: 2 }],
-  3:  [{ rarity: 'epic', count: 2 }, { rarity: 'epic', count: 1 }],
-  4:  [{ rarity: 'epic', count: 2 }, { rarity: 'mythic', count: 1 }],
-  5:  [{ rarity: 'mythic', count: 2 }, { rarity: 'mythic', count: 1 }],
-  6:  [{ rarity: 'mythic', count: 2 }, { rarity: 'legendary', count: 1, chance: 0.3 }],
-  7:  [{ rarity: 'legendary', count: 1 }, { rarity: 'mythic', count: 1 }],
-  8:  [{ rarity: 'legendary', count: 2 }],
-  9:  [{ rarity: 'legendary', count: 3 }],
-  10: [{ rarity: 'legendary', count: 4 }, { rarity: 'legendary', count: 1 }],
+  1:  { hp: 50000,     max_shield_hp: 8000,     defenders_per_wave: [1,2],  defender_hp: 300,    defender_attack: 40   },
+  2:  { hp: 120000,    max_shield_hp: 20000,    defenders_per_wave: [1,3],  defender_hp: 500,    defender_attack: 70   },
+  3:  { hp: 280000,    max_shield_hp: 50000,    defenders_per_wave: [2,4],  defender_hp: 900,    defender_attack: 110  },
+  4:  { hp: 600000,    max_shield_hp: 120000,   defenders_per_wave: [2,5],  defender_hp: 1800,   defender_attack: 160  },
+  5:  { hp: 1200000,   max_shield_hp: 300000,   defenders_per_wave: [3,7],  defender_hp: 3500,   defender_attack: 240  },
+  6:  { hp: 2500000,   max_shield_hp: 700000,   defenders_per_wave: [3,8],  defender_hp: 7000,   defender_attack: 340  },
+  7:  { hp: 5000000,   max_shield_hp: 1500000,  defenders_per_wave: [4,10], defender_hp: 14000,  defender_attack: 480  },
+  8:  { hp: 10000000,  max_shield_hp: 3500000,  defenders_per_wave: [5,13], defender_hp: 28000,  defender_attack: 680  },
+  9:  { hp: 22000000,  max_shield_hp: 6000000,  defenders_per_wave: [6,16], defender_hp: 55000,  defender_attack: 960  },
+  10: { hp: 40000000,  max_shield_hp: 10000000, defenders_per_wave: [8,20], defender_hp: 110000, defender_attack: 1360 },
 };
 
 export const MONUMENT_ATTACK_RADIUS = 500;
@@ -203,8 +190,8 @@ export async function defeatMonument(monument, io, connectedPlayers) {
   if (participants.length === 0) return;
 
   const totalDamage = participants.reduce((s, p) => s + p.damage, 0);
-  const levelConfig = MONUMENT_LEVELS[monument.level];
-  const lootTable = MONUMENT_LOOT_TABLE[monument.level];
+  const gemsConfig = MONUMENT_GEMS_LOOT[monument.level];
+  const itemsConfig = MONUMENT_ITEMS_LOOT[monument.level];
 
   const lootBoxes = [];
 
@@ -218,19 +205,20 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     const box_type = isTop ? 'trophy' : 'gift';
 
     // Gems proportional to damage
-    const [minGems, maxGems] = levelConfig.gems;
-    const totalGems = minGems + Math.floor(Math.random() * (maxGems - minGems));
+    const totalGems = gemsConfig ? gemsConfig.min + Math.floor(Math.random() * (gemsConfig.max - gemsConfig.min + 1)) : 1;
     const playerGems = Math.max(1, Math.floor(totalGems * contribution));
 
-    // Items — top player gets more
+    // Items — separate tables for trophy/gift
     const items = [];
-    for (const lootEntry of lootTable) {
-      const cnt = isTop ? lootEntry.count : Math.max(1, Math.floor(lootEntry.count * contribution * 2));
-      if (lootEntry.chance && Math.random() > lootEntry.chance) continue;
-      for (let j = 0; j < cnt; j++) {
-        const types = ['sword', 'axe', 'shield'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        items.push(generateItem(type, lootEntry.rarity));
+    const lootTable = isTop ? itemsConfig?.trophy : itemsConfig?.gift;
+    if (lootTable) {
+      for (const lootEntry of lootTable) {
+        if (lootEntry.chance && Math.random() > lootEntry.chance) continue;
+        for (let j = 0; j < lootEntry.count; j++) {
+          const types = ['sword', 'axe', 'shield'];
+          const type = types[Math.floor(Math.random() * types.length)];
+          items.push(generateItem(type, lootEntry.rarity));
+        }
       }
     }
 
