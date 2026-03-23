@@ -9297,21 +9297,16 @@ function renderBanForm(player) {
 // ─────────────────────────────────────────────
 //  Username setup screen (first login)
 // ─────────────────────────────────────────────
-const SETUP_AVATARS = [
-  '🐺','🦊','🐻','🐯','🦁','🐸',
-  '🦅','🐉','👻','🤖','👾','🎭',
-  '🧙','⚔️','🛡️','💀','🌙','⭐',
-];
 let _setupAvatar = '🐺';
 
 function showUsernameSetupScreen() {
   const screen = document.getElementById('username-setup-screen');
   screen.classList.add('open');
 
-  // Build avatar grid
+  // Build avatar grid (all available avatars)
   const grid = document.getElementById('setup-avatar-grid');
   grid.innerHTML = '';
-  for (const em of SETUP_AVATARS) {
+  for (const em of ALLOWED_AVATARS) {
     const cell = document.createElement('div');
     cell.className = 'avatar-cell' + (em === _setupAvatar ? ' selected' : '');
     cell.textContent = em;
