@@ -6503,7 +6503,7 @@ function openPopup(title, subtitle, stats, actions) {
 
   // Stats as cards
   if (stats && stats.length > 0) {
-    html += '<div style="display:flex;flex-direction:column;gap:5px">';
+    html += '<div id="popup-stats" style="display:flex;flex-direction:column;gap:5px">';
     for (const [label, val] of stats) {
       if (label === '__dual__') {
         html += '<div style="display:flex;gap:5px">';
@@ -6561,6 +6561,7 @@ function _startUpgradeCountdown(finishAtStr) {
 
   // Inject ⏳ countdown into popup-stats
   const statsEl = document.getElementById('popup-stats');
+  if (!statsEl) return;
   const countRow = document.createElement('div');
   countRow.className = 'popup-stat';
   countRow.id = 'upgrade-countdown-row';

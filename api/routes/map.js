@@ -268,6 +268,7 @@ async function handleTick(req, res) {
   const maxHp = 1000 + (player.bonus_hp ?? 0);
   let currentHp = player.hp ?? maxHp;
   if (currentHp < maxHp) {
+    if (!player.last_hp_regen) player.last_hp_regen = new Date().toISOString();
     currentHp = calcHpRegen(currentHp, maxHp, player.last_hp_regen);
     // Persist regen result to gameState so next tick continues from here
     if (gameState.loaded) {

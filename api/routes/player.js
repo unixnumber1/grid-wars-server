@@ -500,7 +500,11 @@ playerRouter.post('/init', async (req, res) => {
   let regenApplied = false;
   if (currentHp > maxHp) { currentHp = maxHp; regenApplied = true; }
   if (currentHp < maxHp) { const regenedHp = calcHpRegen(currentHp, maxHp, player.last_hp_regen); if (regenedHp !== currentHp) { currentHp = regenedHp; regenApplied = true; } }
-  if (player.hp == null || player.max_hp !== maxHp || regenApplied) { await supabase.from('players').update({ hp: currentHp, max_hp: maxHp, last_hp_regen: new Date().toISOString() }).eq('id', player.id); }
+  if (player.hp == null || player.max_hp !== maxHp || regenApplied) {
+    const regenTs = new Date().toISOString();
+    await supabase.from('players').update({ hp: currentHp, max_hp: maxHp, last_hp_regen: regenTs }).eq('id', player.id);
+    player.last_hp_regen = regenTs;
+  }
   // Sync player to gameState (merge to avoid overwriting fields not selected from DB)
   if (gameState.loaded) {
     const existing = gameState.getPlayerById(player.id);
