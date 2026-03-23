@@ -2758,7 +2758,7 @@
         <div class="settings-section-title">ИГРОВЫЕ СОБЫТИЯ</div>
         <button id="btn-spawn-vases" class="settings-action-btn s-purple">&#x1F7E3; Заспаунить вазы</button>
         <button id="btn-spawn-zombie" class="settings-action-btn s-danger" onclick="spawnZombieScout()">&#x1F9DF; Спавн зомби-разведчика</button>
-        <button id="btn-joystick-toggle" class="settings-action-btn s-blue" onclick="toggleJoystick()">&#x1F579;&#xFE0F; Джойстик: ВЫКЛ</button>
+        <button id="btn-joystick-toggle" class="settings-action-btn s-blue" onclick="toggleJoystick()" data-i18n="joy.off">&#x1F579;&#xFE0F; Джойстик: ВЫКЛ</button>
       </div>
       <div class="settings-card">
         <div class="settings-section-title">ВЫДАТЬ РЕСУРСЫ</div>
@@ -3818,6 +3818,9 @@ const I18N = {
     'pvp.too_far': '⚔️ Слишком далеко',
     'pvp.fight': '⚔️ В бой!',
     'pvp.shield_timer': '🛡️ {m}м {s}с',
+    'pvp.block_msg': '🛡️ БЛОК!',
+    'pvp.exec_msg': '💀 КАЗНЬ!',
+    'pvp.crit_msg': '💥 КРИТ! ',
 
     // === Core types ===
     'core.income': 'Ядро дохода',
@@ -4001,6 +4004,20 @@ const I18N = {
     'clan.kick_q': '🚫 Исключить?',
     'clan.kick_warn': 'Игрок будет удалён из клана',
     'clan.clan_bonus': '(+{n} клан)',
+    'clan.no_clan_short': t('clan.no_clan_short'),
+    'clan.find': '🔍 Найти клан',
+    'clan.view': '🔍 Посмотреть клан',
+    'clan.enter_hq': '⚔️ Войти в штаб',
+    'clan.demolish': '🗑️ Снести',
+    'clan.hq_inactive_full': 'Неактивный штаб',
+    'clan.edit_title': '✏️ Редактировать клан',
+    'misc.back': '← Назад',
+    'inv.sell_confirm': 'Продать {n} предметов за ~{crystals} ✨?',
+    'ore.ether_emoji': '🌀 Эфир',
+    'ore.shards_emoji': '✨ Осколки',
+    'ore.switched': 'Переключено на {name}',
+    'courier.label_courier': 'Курьер',
+
 
     // === Locked ===
     'locked.soon': '🔒 Скоро',
@@ -4842,6 +4859,9 @@ const I18N = {
     'pvp.too_far': '⚔️ Too far',
     'pvp.fight': '⚔️ Fight!',
     'pvp.shield_timer': '🛡️ {m}m {s}s',
+    'pvp.block_msg': '🛡️ BLOCK!',
+    'pvp.exec_msg': '💀 EXECUTION!',
+    'pvp.crit_msg': '💥 CRIT! ',
 
     // === Core types ===
     'core.income': 'Income Core',
@@ -5025,6 +5045,20 @@ const I18N = {
     'clan.kick_q': '🚫 Kick?',
     'clan.kick_warn': 'Player will be removed from clan',
     'clan.clan_bonus': '(+{n} clan)',
+    'clan.no_clan_short': 'No clan',
+    'clan.find': '🔍 Find clan',
+    'clan.view': '🔍 View clan',
+    'clan.enter_hq': '⚔️ Enter HQ',
+    'clan.demolish': '🗑️ Demolish',
+    'clan.hq_inactive_full': 'Inactive HQ',
+    'clan.edit_title': '✏️ Edit clan',
+    'misc.back': '← Back',
+    'inv.sell_confirm': 'Sell {n} items for ~{crystals} ✨?',
+    'ore.ether_emoji': '🌀 Ether',
+    'ore.shards_emoji': '✨ Shards',
+    'ore.switched': 'Switched to {name}',
+    'courier.label_courier': 'Courier',
+
 
     // === Locked ===
     'locked.soon': '🔒 Coming soon',
@@ -10325,7 +10359,7 @@ function _showBoxInfo(boxType) {
   const title = titles[boxType] || '📦 Бокс';
   const stats = Object.entries(odds).map(([r, pct]) => [rarityName(r), `${pct}%`]);
   stats.unshift(['Содержимое', '⚔️ Меч · 🪓 Топор · 🛡️ Щит']);
-  openPopup(title, 'Случайный предмет одного из типов', stats, [{ label: 'Понятно', isClose: true }]);
+  openPopup(title, t('shop.box_random'), stats, [{ label: t('misc.ok'), isClose: true }]);
 }
 
 function showMythicInfo(type) {
@@ -10355,11 +10389,11 @@ function showMythicInfo(type) {
   };
   const i = info[type];
   if (!i) return;
-  openPopup(i.title, 'Характеристики мифического предмета', i.stats, [{ label: 'Понятно', isClose: true }]);
+  openPopup(i.title, t('shop.mythic_stats'), i.stats, [{ label: t('misc.ok'), isClose: true }]);
 }
 
 async function buyMythic(weaponType) {
-  if (!confirm(`Купить мифический ${weaponType === 'sword' ? 'меч' : weaponType === 'axe' ? 'топор' : 'щит'} за 600 💎?`)) return;
+  if (!confirm(t('shop.buy_mythic', { type: t('item.' + weaponType) }))) return;
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
@@ -10468,7 +10502,7 @@ function _animateBoxOpen(boxType, item) {
 }
 
 async function buyMythicSet() {
-  if (!confirm('Купить мифический комплект (меч + топор + щит) за 1500 💎?')) return;
+  if (!confirm(t('shop.buy_mythic_set'))) return;
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
@@ -10510,7 +10544,7 @@ function _renderCorePacks() {
 }
 
 async function buyCorePack(packIndex) {
-  if (!confirm('Купить пак ядер?')) return;
+  if (!confirm(t('shop.core_pack_buy'))) return;
   const CORE_PACKS = [
     { label: '🌀 Стартовый', cores: 3, core_level: 0, ether: 0, price: 300 },
     { label: '🌀 Боевой', cores: 5, core_level: 0, ether: 500, price: 750 },
@@ -10650,7 +10684,7 @@ function _updateCraftInfo() {
   for (const [type, count] of Object.entries(typeCounts)) {
     const pct = count * 10;
     const emoji = ITEM_EMOJI_MAP[type] || '';
-    const name = type === 'sword' ? 'Меч' : type === 'axe' ? 'Топор' : 'Щит';
+    const name = t('item.' + type);
     chancesHtml += `
       <div class="craft-chance-row">
         <span class="craft-chance-label">${emoji} ${name}</span>
@@ -10663,9 +10697,9 @@ function _updateCraftInfo() {
   }
 
   previewEl.innerHTML = `
-    <div style="font-size:14px;color:#ccc;margin-bottom:4px;">Результат:</div>
+    <div style="font-size:14px;color:#ccc;margin-bottom:4px;">${t('craft.result')}</div>
     <div style="font-size:15px;font-weight:700;">✨ ${rarityLabel(nextRar)}</div>
-    <div style="font-size:12px;color:#888;margin:4px 0 8px;">Шансы типа:</div>
+    <div style="font-size:12px;color:#888;margin:4px 0 8px;">${t('craft.type_chance')}</div>
     <div class="craft-chances">${chancesHtml}</div>
   `;
   btn.disabled = false;
@@ -10707,7 +10741,7 @@ function openCraftPick() {
   }
 
   if (grid.children.length === 0) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">Нет подходящих предметов</div>';
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">${t('craft.no_items')}</div>`;
   }
 
   document.getElementById('craft-pick-overlay').classList.add('open');
@@ -10721,7 +10755,7 @@ async function doCraft() {
   if (_craftSelected.length !== 10) return;
   const btn = document.getElementById('craft-btn');
   btn.disabled = true;
-  btn.textContent = '⚒️ Крафтим...';
+  btn.textContent = t('craft.crafting');
 
   try {
     const sourceItems = _craftSelected.slice();
@@ -10748,7 +10782,7 @@ async function doCraft() {
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
-    btn.textContent = '⚒️ Скрафтить';
+    btn.textContent = t('craft.btn');
     btn.disabled = _craftSelected.length !== 10;
   }
 }
@@ -10860,11 +10894,11 @@ function toggleJoystick() {
   localStorage.setItem('joystickEnabled', _joystickEnabled ? 'true' : 'false');
   const btn = document.getElementById('btn-joystick-toggle');
   if (_joystickEnabled) {
-    btn.textContent = '🕹️ Джойстик: ВКЛ';
+    btn.textContent = t('joy.on');
     btn.style.background = '#00c853';
     _showJoystick();
   } else {
-    btn.textContent = '🕹️ Джойстик: ВЫКЛ';
+    btn.textContent = t('joy.off');
     btn.style.background = 'rgba(255,255,255,0.1)';
     _hideJoystick();
   }
@@ -10963,7 +10997,7 @@ function setJoystickSpeed(idx) {
   if (localStorage.getItem('joystickEnabled') === 'true') {
     _joystickEnabled = true;
     const btn = document.getElementById('btn-joystick-toggle');
-    if (btn) { btn.textContent = '🕹️ Джойстик: ВКЛ'; btn.style.background = '#00c853'; }
+    if (btn) { btn.textContent = t('joy.on'); btn.style.background = '#00c853'; }
     _showJoystick();
   }
 })();
@@ -11019,7 +11053,7 @@ function _courierIcon(courier) {
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
   const isMy = courier.owner_id === state.player?.id;
   const ownerName = courier.owner?.game_username || courier.owner?.username || '';
-  const label = isMy ? '📦 Мой' : ('🚶 ' + (ownerName || 'Курьер'));
+  const label = isMy ? t('courier.my') : ('🚶 ' + (ownerName || t('courier.label_courier')));
   const labelColor = isMy ? '#FFD700' : '#fff';
   const labelBorder = isMy ? '#FFD700' : 'rgba(255,255,255,0.2)';
   return L.divIcon({
@@ -11183,13 +11217,13 @@ function _showCourierPopup(courierId) {
 
   const actions = [];
   if (!isOwn && near) {
-    actions.push({ label: '⚔️ Атаковать', cls: 'danger', noClose: true, action: () => doAttackCourier(courierId) });
+    actions.push({ label: t('btn.attack'), cls: 'danger', noClose: true, action: () => doAttackCourier(courierId) });
   } else if (!isOwn && !near) {
-    actions.push({ label: `📍 Подойди ближе (${Math.round(dist)}м)`, cls: '', disabled: true });
+    actions.push({ label: `📍 ${t('misc.distance', {n: Math.round(dist)})}`, cls: '', disabled: true });
   }
-  actions.push({ label: 'Закрыть', isClose: true });
+  actions.push({ label: t('btn.close'), isClose: true });
 
-  openPopup(`${emoji} Курьер`, isOwn ? 'Ваш курьер' : 'Курьер другого игрока', stats, actions);
+  openPopup(t('courier.title', {emoji}), isOwn ? t('courier.own') : t('courier.other'), stats, actions);
 }
 
 async function doAttackCourier(courierId) {
@@ -11213,7 +11247,7 @@ async function doAttackCourier(courierId) {
       const dLng = ci ? ci.displayLng : c.current_lng;
       const latlng = L.latLng(dLat, dLng);
       const color = data.isCrit ? '#FFD700' : '#ff4444';
-      showFloatingText(latlng, `${data.isCrit ? 'КРИТ! ' : ''}-${data.damage}`, color);
+      showFloatingText(latlng, `${data.isCrit ? t('pvp.crit_msg') : ''}-${data.damage}`, color);
     }
 
     if (data.killed) {
@@ -11254,11 +11288,11 @@ async function doAttackCourier(courierId) {
       const label = document.getElementById('courier-hp-label');
       if (bar) bar.style.width = hpPct + '%';
       if (label) label.textContent = `❤️ ${data.courierHp} / ${data.courierMaxHp} HP`;
-      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+      if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = t('btn.attack'); }
     }
   } catch (err) {
     showToast(`❌ ${err.message}`);
-    if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = '⚔️ Атаковать'; }
+    if (atkBtn) { atkBtn.disabled = false; atkBtn.innerHTML = t('btn.attack'); }
   }
 }
 
@@ -12248,14 +12282,14 @@ function playBattleAnimation(data) {
       <div class="pvp-vs-row">
         <div class="pvp-fighter">
           <div class="pvp-fighter-avatar">${atk.avatar || '🐺'}</div>
-          <div class="pvp-fighter-name" style="color:#2979ff;">${atk.username || 'Игрок'}</div>
+          <div class="pvp-fighter-name" style="color:#2979ff;">${atk.username || t('misc.player')}</div>
           <div class="pvp-hp-bar"><div class="pvp-hp-fill attacker" id="pvp-atk-hp" style="width:100%"></div></div>
           <div class="pvp-hp-label" id="pvp-atk-hp-label">${atkHp} HP</div>
         </div>
         <div class="pvp-vs-icon">⚔️</div>
         <div class="pvp-fighter">
           <div class="pvp-fighter-avatar">${def.avatar || '🐺'}</div>
-          <div class="pvp-fighter-name" style="color:#ff4444;">${def.username || 'Игрок'}</div>
+          <div class="pvp-fighter-name" style="color:#ff4444;">${def.username || t('misc.player')}</div>
           <div class="pvp-hp-bar"><div class="pvp-hp-fill defender" id="pvp-def-hp" style="width:100%"></div></div>
           <div class="pvp-hp-label" id="pvp-def-hp-label">${defHp} HP</div>
         </div>
@@ -12590,14 +12624,14 @@ function animateCombatProjectile(data) {
       dmgEl.style.left = to.x + 'px';
       dmgEl.style.top = (to.y - 10) + 'px';
       if (data.blocked) {
-        dmgEl.textContent = '🛡️ БЛОК!';
+        dmgEl.textContent = t('pvp.block_msg');
         dmgEl.style.color = '#4fc3f7';
       } else if (data.execution) {
-        dmgEl.textContent = '💀 КАЗНЬ!';
+        dmgEl.textContent = t('pvp.exec_msg');
         dmgEl.style.color = '#f44336';
         dmgEl.style.fontSize = '28px';
       } else {
-        dmgEl.textContent = (data.crit ? '💥 КРИТ! ' : '') + '-' + data.damage;
+        dmgEl.textContent = (data.crit ? t('pvp.crit_msg') : '') + '-' + data.damage;
         dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
       }
       document.body.appendChild(dmgEl);
@@ -12764,9 +12798,9 @@ function getAttackButton(targetId, targetType) {
   const inRange = dist !== null && dist <= LARGE_RADIUS;
 
   if (!inRange) {
-    return `<button class="btn-attack-universal" disabled>${dist ? Math.round(dist) + 'м — подойди ближе' : 'GPS...'}</button>`;
+    return `<button class="btn-attack-universal" disabled>${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}</button>`;
   }
-  return `<button class="btn-attack-universal" id="popup-atk-btn">⚔️ Атаковать<div class="popup-atk-cd" id="popup-atk-cd"></div></button>`;
+  return `<button class="btn-attack-universal" id="popup-atk-btn">${t('btn.attack')}<div class="popup-atk-cd" id="popup-atk-cd"></div></button>`;
 }
 
 function bindAttackButton(targetType, target) {
@@ -13296,7 +13330,7 @@ async function sellSelectedItems() {
     return sum + getItemSellPrice(item?.rarity, item?.upgrade_level || 0);
   }, 0);
 
-  if (!confirm(`Продать ${ids.length} предметов за ~${totalCrystals} ✨?`)) return;
+  if (!confirm(t('inv.sell_confirm', { n: ids.length, crystals: totalCrystals }))) return;
 
   try {
     const data = await apiFetch('/api/items', {
@@ -13409,7 +13443,7 @@ function renderClanHqs(clanHqs) {
       }
       // Label above marker
       if (!clanHqLabels[ch.id]) {
-        const labelText = ch.clan_name ? `${ch.symbol || '🏰'} ${ch.clan_name}` : 'Без клана';
+        const labelText = ch.clan_name ? `${ch.symbol || '🏰'} ${ch.clan_name}` : t('clan.no_clan_short');
         const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${labelText}</div>`;
         clanHqLabels[ch.id] = L.marker([ch.lat, ch.lng], {
           icon: L.divIcon({
@@ -13569,8 +13603,8 @@ async function switchOreCurrency(oreId, currency) {
       method: 'POST',
       body: JSON.stringify({ action: 'switch-currency', telegram_id: TG_ID, ore_node_id: oreId, currency }),
     });
-    const emoji = currency === 'ether' ? '🌀 Эфир' : '✨ Осколки';
-    showToast(`Переключено на ${emoji}`);
+    const currName = currency === 'ether' ? t('ore.ether_emoji') : t('ore.shards_emoji');
+    showToast(t('ore.switched', {name: currName}));
     closePopup();
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
@@ -13597,36 +13631,36 @@ function showClanHqPopup(ch) {
   const isActive = ch.is_active;
 
   if (isOwn && !isActive) {
-    openPopup('🏰 Штаб Клана', 'Не активен', [], [
-      { label: '🔍 Найти клан', cls: 'primary', action: () => openClanScreen(null, 'browse') },
+    openPopup(t('clan.hq_title'), t('clan.hq_inactive'), [], [
+      { label: t('clan.find'), cls: 'primary', action: () => openClanScreen(null, 'browse') },
       { label: t('clan.create'), cls: 'yellow', action: () => openClanScreen(null, 'create') },
       [
-        { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
-        { label: 'Закрыть', isClose: true },
+        { label: t('clan.demolish'), cls: 'danger', action: () => doSellClanHq() },
+        { label: t('btn.close'), isClose: true },
       ],
     ]);
   } else if (isOwn && isActive) {
     openPopup(
-      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
-      `Уровень ${ch.clan_level}`,
+      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : t('clan.no_clan_short')}`,
+      t('clan.level', {n: ch.clan_level}),
       [],
       [
-        { label: '⚔️ Войти в штаб', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') },
+        { label: t('clan.enter_hq'), cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') },
         [
-          { label: '🗑️ Снести', cls: 'danger', action: () => doSellClanHq() },
-          { label: 'Закрыть', isClose: true },
+          { label: t('clan.demolish'), cls: 'danger', action: () => doSellClanHq() },
+          { label: t('btn.close'), isClose: true },
         ],
       ]
     );
   } else if (isActive) {
     openPopup(
-      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : 'Без клана'}`,
-      `Уровень ${ch.clan_level}`,
+      `🏰 ${ch.clan_name ? `${ch.symbol || ''} ${ch.clan_name}` : t('clan.no_clan_short')}`,
+      t('clan.level', {n: ch.clan_level}),
       [],
-      [{ label: '🔍 Посмотреть клан', cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') }]
+      [{ label: t('clan.view'), cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') }]
     );
   } else {
-    openPopup('🏰 Штаб Клана', 'Неактивный штаб', [], []);
+    openPopup(t('clan.hq_title'), t('clan.hq_inactive_full'), [], []);
   }
 }
 
@@ -13649,14 +13683,14 @@ async function openClanScreen(clanId, tab) {
   document.getElementById('clan-screen').classList.add('open');
 
   if (_clanScreenId) {
-    document.getElementById('cs-clan-name').textContent = 'Загрузка...';
+    document.getElementById('cs-clan-name').textContent = t('misc.loading');
     document.getElementById('cs-clan-sub').textContent = '';
     try {
       const data = await apiFetch(`/api/clan?view=info&clan_id=${_clanScreenId}`);
       _clanScreenData = data;
       const clan = data.clan;
       document.getElementById('cs-clan-name').textContent = `${clan.symbol || '🏰'} ${clan.name}`;
-      document.getElementById('cs-clan-sub').textContent = `Уровень ${clan.level}`;
+      document.getElementById('cs-clan-sub').textContent = t('clan.level', {n: clan.level});
     } catch (e) {
       document.getElementById('cs-clan-name').textContent = 'Ошибка';
       document.getElementById('cs-clan-sub').textContent = e.message;
@@ -13730,7 +13764,7 @@ function _renderClanTab() {
 // ── HQ Tab ──
 function _renderHqTab(body) {
   if (!_clanScreenData?.clan) {
-    body.innerHTML = '<div style="text-align:center;color:#888;padding:40px;">Нет данных</div>';
+    body.innerHTML = `<div style="text-align:center;color:#888;padding:40px;">${t('clan.no_data')}</div>`;
     return;
   }
   const clan = _clanScreenData.clan;
@@ -13844,7 +13878,7 @@ function _makeBtn(label, cls, action) {
 // ── Members Tab ──
 async function _renderMembersTab(body) {
   if (!_clanScreenData?.members) {
-    body.innerHTML = '<div style="text-align:center;color:#888;padding:40px;">Нет данных</div>';
+    body.innerHTML = `<div style="text-align:center;color:#888;padding:40px;">${t('clan.no_data')}</div>`;
     return;
   }
   const members = _clanScreenData.members;
@@ -13858,7 +13892,7 @@ async function _renderMembersTab(body) {
     const p = m.players || {};
     const name = p.game_username || p.username || '???';
     const avatar = p.avatar || '🐺';
-    const roleLabel = m.role === 'leader' ? 'Лидер' : m.role === 'officer' ? 'Офицер' : 'Участник';
+    const roleLabel = t('clan.role.' + m.role);
     const roleIcon = m.role === 'leader' ? '👑' : m.role === 'officer' ? '⭐' : '';
     const canManage = isLeader && m.role !== 'leader';
     const escapedName = name.replace(/'/g, "\\'");
@@ -13878,7 +13912,7 @@ async function _renderMembersTab(body) {
         ${canManage ? `<button style="font-size:18px;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;cursor:pointer;line-height:1;" onclick="event.stopPropagation();_showMemberActions('${p.telegram_id}','${m.role}','${escapedName}')">⋯</button>` : ''}
       </div>`;
   }
-  body.innerHTML = html || '<div style="color:#888;padding:20px;text-align:center;">Нет участников</div>';
+  body.innerHTML = html || `<div style="color:#888;padding:20px;text-align:center;">${t('clan.no_members')}</div>`;
 }
 
 window._showMemberActions = function(tgId, currentRole, name) {
@@ -13912,20 +13946,20 @@ let _allClans = [];
 function _filterAndRenderClans(query) {
   const list = query ? _allClans.filter(c => c.name.toLowerCase().includes(query)) : _allClans;
   const el = document.getElementById('cs-clan-list');
-  if (!list.length) { el.innerHTML = '<div style="color:#888;padding:20px;text-align:center;">Кланов не найдено</div>'; return; }
+  if (!list.length) { el.innerHTML = `<div style="color:#888;padding:20px;text-align:center;">${t('clan.not_found')}</div>`; return; }
 
   el.innerHTML = list.map(c => {
     const playerInClan = !!state.player?.clan_id;
     const isOwnClan = state.player?.clan_id === c.id;
     let btnHtml = '';
     if (isOwnClan) {
-      btnHtml = '<span style="color:#00ff88;font-size:12px;">✓ Ваш клан</span>';
+      btnHtml = `<span style="color:#00ff88;font-size:12px;">${t('clan.your_clan')}</span>`;
     } else if (c.can_join) {
-      btnHtml = `<button class="btn primary" style="padding:6px 12px;font-size:12px;" onclick="doClanJoin('${c.id}')">Вступить</button>`;
+      btnHtml = `<button class="btn primary" style="padding:6px 12px;font-size:12px;" onclick="doClanJoin('${c.id}')">${t('btn.join')}</button>`;
     } else if (playerInClan) {
-      btnHtml = '<span style="color:#666;font-size:11px;">Уже в клане</span>';
+      btnHtml = `<span style="color:#666;font-size:11px;">${t('clan.already_in')}</span>`;
     } else {
-      btnHtml = '<span style="color:#666;font-size:11px;">Нельзя</span>';
+      btnHtml = `<span style="color:#666;font-size:11px;">${t('clan.cant')}</span>`;
     }
     return `
       <div class="cs-clan-card">
@@ -13947,16 +13981,16 @@ function _filterAndRenderClans(query) {
 
 // ── Create Tab ──
 function _renderEditTab(body) {
-  if (!_clanScreenData?.clan) { body.innerHTML = '<div style="color:#888;padding:20px;text-align:center;">Нет данных</div>'; return; }
+  if (!_clanScreenData?.clan) { body.innerHTML = `<div style="color:#888;padding:20px;text-align:center;">${t('clan.no_data')}</div>`; return; }
   const clan = _clanScreenData.clan;
 
   // Hide normal tabs, show edit header
   const tabsEl = document.getElementById('cs-tabs');
   tabsEl.innerHTML = `<div style="display:flex;align-items:center;width:100%;padding:4px 0;">
     <button id="cs-edit-back" style="background:none;border:none;color:#888;font-size:14px;cursor:pointer;padding:8px 12px;display:flex;align-items:center;gap:4px;">
-      <span style="font-size:18px;">←</span> Назад
+      <span style="font-size:18px;">←</span> ${t('misc.back')}
     </button>
-    <div style="flex:1;text-align:center;font-size:14px;font-weight:700;color:#fff;">✏️ Редактировать клан</div>
+    <div style="flex:1;text-align:center;font-size:14px;font-weight:700;color:#fff;">${t('clan.edit_title')}</div>
     <div style="width:70px;"></div>
   </div>`;
   document.getElementById('cs-edit-back').addEventListener('click', () => {
@@ -15243,7 +15277,7 @@ function showZombiePopup(zombieId) {
       { id: zombieId, hp: z.hp, max_hp: z.max_hp }, { barColor: '#00cc44' });
   } else {
     openPopup(z.type === 'boss' ? t('zombie.boss', { emoji: z.emoji }) : t('zombie.title', { emoji: z.emoji }), dist ? `📍 ${Math.round(dist)}м` : '', [], [
-      { label: dist ? `📍 ${Math.round(dist)}м — подойди ближе` : 'GPS...', disabled: true },
+      { label: dist ? `📍 ${t('misc.distance', {n: Math.round(dist)})}` : t('misc.gps'), disabled: true },
     ]);
   }
 }
