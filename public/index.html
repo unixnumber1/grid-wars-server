@@ -503,9 +503,6 @@
     .monument-request-section .section-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
     .monument-request-section .section-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.4; }
     .monument-request-section .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
-    .emoji-picker-row { display: flex; flex-wrap: wrap; gap: 6px; }
-    .emoji-option { font-size: 24px; cursor: pointer; padding: 4px; border-radius: 8px; border: 2px solid transparent; transition: border-color 0.15s; }
-    .emoji-option.selected { border-color: #2196f3; background: rgba(33,150,243,0.1); }
     .level-selector { display: flex; gap: 6px; flex-wrap: wrap; }
     .level-option { width: 36px; height: 36px; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; cursor: pointer; color: #888; }
     .level-option.selected { background: #2196f3; border-color: #2196f3; color: #fff; }
@@ -2714,25 +2711,8 @@
         </div>
         <div class="form-group" style="margin-top:12px">
           <label>&#x1F3A8; Иконка монумента</label>
-          <div class="emoji-picker-row" id="emoji-picker">
-            <div class="emoji-option selected" onclick="selectMonumentEmoji(this,'&#x1F3DB;&#xFE0F;')">&#x1F3DB;&#xFE0F;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F5FF;')">&#x1F5FF;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x26E9;&#xFE0F;')">&#x26E9;&#xFE0F;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3EF;')">&#x1F3EF;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F5FC;')">&#x1F5FC;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3F0;')">&#x1F3F0;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x26EA;')">&#x26EA;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F54C;')">&#x1F54C;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F54D;')">&#x1F54D;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F5FD;')">&#x1F5FD;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3AD;')">&#x1F3AD;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3AA;')">&#x1F3AA;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3DF;&#xFE0F;')">&#x1F3DF;&#xFE0F;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F30B;')">&#x1F30B;</div>
-            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3D4;&#xFE0F;')">&#x1F3D4;&#xFE0F;</div>
-          </div>
-          <input type="hidden" id="req-emoji" value="&#x1F3DB;&#xFE0F;">
-          <div style="font-size:13px;color:#888;margin-top:6px">Выбрано: <span id="selected-emoji-display">&#x1F3DB;&#xFE0F;</span></div>
+          <input type="text" id="req-emoji" value="&#x1F3DB;&#xFE0F;" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
+          <div style="font-size:11px;color:#666;margin-top:4px">Вставь любой эмоджи</div>
         </div>
         <div class="form-group" style="margin-top:12px">
           <label>&#x26A1; Желаемый уровень (1-10)</label>
@@ -9592,12 +9572,6 @@ async function boot() {
 // ─────────────────────────────────────────────
 //  Monument request form
 // ─────────────────────────────────────────────
-function selectMonumentEmoji(el, emoji) {
-  document.getElementById('req-emoji').value = emoji;
-  document.getElementById('selected-emoji-display').textContent = emoji;
-  document.querySelectorAll('.emoji-option').forEach(e => e.classList.remove('selected'));
-  el.classList.add('selected');
-}
 function selectMonumentLevel(el, level) {
   document.getElementById('req-level').value = level;
   document.querySelectorAll('.level-option').forEach(e => e.classList.remove('selected'));
@@ -9615,10 +9589,11 @@ function parseCoords(input) {
 async function submitMonumentRequest() {
   const coordsInput = document.getElementById('req-coords').value.trim();
   const name = document.getElementById('req-name').value.trim();
-  const emoji = document.getElementById('req-emoji').value;
+  const emoji = document.getElementById('req-emoji').value.trim();
   const level = parseInt(document.getElementById('req-level').value);
   if (!coordsInput) { showToast('Укажи координаты'); return; }
   if (!name || name.length < 3) { showToast('Название от 3 символов'); return; }
+  if (!emoji) { showToast('Укажи эмоджи'); return; }
   const coords = parseCoords(coordsInput);
   if (!coords) { showToast('Не удалось распознать координаты. Формат: 55.7558, 37.6176'); return; }
   if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) { showToast('Некорректные координаты'); return; }
@@ -14229,7 +14204,7 @@ function monumentIcon(m) {
   return L.divIcon({
     html: `<div class="monument-marker ${m.phase}" style="width:${size}px;height:${size}px">
       ${domeHtml}
-      <span style="font-size:${emojiSize}px;position:relative;z-index:1">🏛️</span>
+      <span style="font-size:${emojiSize}px;position:relative;z-index:1">${m.emoji || '🏛️'}</span>
       ${barsHtml}
     </div>`,
     className: 'leaflet-interactive',

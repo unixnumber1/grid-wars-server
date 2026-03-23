@@ -694,8 +694,6 @@ async function start() {
 
         const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
 
-        // Monuments — disabled, now via player requests (monument_requests table)
-
         // Ore nodes
         await spawnOreNodesForCity(cityKey, bounds, playerCount);
 

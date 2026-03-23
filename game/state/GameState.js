@@ -365,7 +365,7 @@ class GameState {
     for (const m of this.monuments.values()) {
       if (m.lat >= s && m.lat <= n && m.lng >= w && m.lng <= e) {
         monumentsArr.push({
-          id: m.id, lat: m.lat, lng: m.lng, level: m.level, name: m.name,
+          id: m.id, lat: m.lat, lng: m.lng, level: m.level, name: m.name, emoji: m.emoji || '🏛️',
           hp: m.hp, max_hp: m.max_hp,
           shield_hp: m.shield_hp, max_shield_hp: m.max_shield_hp,
           wave_shield_hp: m._wave_shield_hp || 0,
