@@ -10,8 +10,9 @@ import {
   WAVE_INTERVAL_SECONDS, spawnDefenderWave, defeatMonument, getPlayersNearMonument,
   getMonumentAttackers, calcRaidDps, checkWaveTrigger, checkWaveComplete,
 } from '../../lib/monuments.js';
-import { MONUMENT_WAVE_TRIGGERS } from '../../config/constants.js';
+import { MONUMENT_WAVE_TRIGGERS, MONUMENT_HP, MONUMENT_SHIELD_HP } from '../../config/constants.js';
 import { MONUMENT_SHIELD_DPS_THRESHOLD, MONUMENT_DPS_WINDOW_MS } from '../../config/constants.js';
+import { sendTelegramNotification } from '../../lib/supabase.js';
 import { ts, getLang } from '../../config/i18n.js';
 
 export const monumentsRouter = Router();
@@ -46,6 +47,7 @@ monumentsRouter.post('/', async (req, res) => {
   if (action === 'attack-monument') return handleAttackMonument(req, res);
   if (action === 'attack-defender') return handleAttackDefender(req, res);
   if (action === 'open-loot-box') return handleOpenLootBox(req, res);
+  if (action === 'request') return handleMonumentRequest(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
 
@@ -593,5 +595,71 @@ async function handleOpenLootBox(req, res) {
     cores: insertedCores.map(c => ({ id: c.id, core_type: c.core_type, level: c.level })),
     diamonds: newDiamonds,
     xp: xpResult,
+  });
+}
+
+// ── Monument Request ──
+const ADMIN_TG_ID = 560013667;
+
+async function handleMonumentRequest(req, res) {
+  const { telegram_id, lat, lng, name, emoji, level } = req.body;
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  if (!lat || !lng || !name || !emoji || !level)
+    return res.status(400).json({ error: 'Заполни все поля' });
+  if (level < 1 || level > 10)
+    return res.status(400).json({ error: 'Уровень от 1 до 10' });
+  if (name.length < 3 || name.length > 50)
+    return res.status(400).json({ error: 'Название от 3 до 50 символов' });
+
+  const player = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!player) return res.status(404).json({ error: 'Игрок не найден' });
+
+  // 1 request per day limit
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const { data: todayRequests } = await supabase
+    .from('monument_requests').select('id')
+    .eq('player_id', Number(telegram_id))
+    .gte('created_at', today.toISOString());
+  if (todayRequests?.length > 0)
+    return res.status(400).json({ error: 'Ты уже подал заявку сегодня. Попробуй завтра!' });
+
+  const { data: request, error } = await supabase
+    .from('monument_requests')
+    .insert({ player_id: Number(telegram_id), lat, lng, name, emoji, level, status: 'pending' })
+    .select().single();
+  if (error) return res.status(500).json({ error: 'Ошибка создания заявки' });
+
+  sendAdminMonumentRequest(request, player).catch(e => console.error('[MONUMENT_REQ] admin notify error:', e.message));
+
+  return res.json({ ok: true, request_id: request.id });
+}
+
+async function sendAdminMonumentRequest(request, player) {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return;
+  const gmapsUrl = `https://www.google.com/maps?q=${request.lat},${request.lng}`;
+  const message =
+    `🏛️ ЗАЯВКА НА МОНУМЕНТ #${request.id}\n\n` +
+    `👤 Игрок: ${player.game_username || 'Неизвестно'}\n` +
+    `🔖 Тег: @${player.username || 'нет'}\n` +
+    `🆔 ID: ${player.telegram_id}\n\n` +
+    `${request.emoji} Название: ${request.name}\n` +
+    `⚡ Уровень: ${request.level}\n` +
+    `📍 Координаты: ${request.lat}, ${request.lng}\n` +
+    `🗺 Карта: ${gmapsUrl}\n\n` +
+    `🕐 Время: ${new Date().toLocaleString('ru')}`;
+
+  const keyboard = {
+    inline_keyboard: [[
+      { text: '✅ Одобрить', callback_data: `approve_monument_${request.id}` },
+      { text: '❌ Отклонить', callback_data: `reject_monument_${request.id}` },
+    ]],
+  };
+
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: ADMIN_TG_ID, text: message, reply_markup: keyboard, disable_web_page_preview: false }),
   });
 }

@@ -172,6 +172,43 @@ app.post('/api/telegram-webhook', async (req, res) => {
       await editMessage(`✅ Игрок ${tgId} разбанен.`);
       const { sendTelegramNotification: notify } = await import('./lib/supabase.js');
       notify(tgId, '✅ Вы разбанены! Добро пожаловать обратно.');
+
+    } else if (data.startsWith('approve_monument_')) {
+      const reqId = parseInt(data.replace('approve_monument_', ''), 10);
+      const { supabase: sb, sendTelegramNotification: notify } = await import('./lib/supabase.js');
+      const { MONUMENT_HP: MHP, MONUMENT_SHIELD_HP: MSHP } = await import('./config/constants.js');
+      const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
+      if (!mreq) { await answerCallback('Заявка не найдена'); return; }
+      if (mreq.status !== 'pending') { await answerCallback('Заявка уже обработана'); return; }
+
+      const monument = {
+        id: crypto.randomUUID(),
+        lat: mreq.lat, lng: mreq.lng,
+        name: mreq.name, emoji: mreq.emoji, level: mreq.level,
+        hp: MHP[mreq.level], max_hp: MHP[mreq.level],
+        shield_hp: MSHP[mreq.level], max_shield_hp: MSHP[mreq.level],
+        phase: 'shield', waves_triggered: [],
+        created_at: new Date().toISOString(),
+      };
+      await sb.from('monuments').insert(monument);
+      if (gameState.loaded) gameState.monuments.set(monument.id, monument);
+
+      await sb.from('monument_requests').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', reqId);
+      notify(mreq.player_id, `✅ Твоя заявка #${reqId} одобрена!\n${mreq.emoji} ${mreq.name} (lv${mreq.level}) появился на карте!`).catch(() => {});
+      await editMessage(`✅ ОДОБРЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name} lv${mreq.level}\nМонумент создан!`);
+      await answerCallback('✅ Монумент создан!');
+      console.log(`[MONUMENTS] Request #${reqId} approved, monument created`);
+
+    } else if (data.startsWith('reject_monument_')) {
+      const reqId = parseInt(data.replace('reject_monument_', ''), 10);
+      const { supabase: sb, sendTelegramNotification: notify } = await import('./lib/supabase.js');
+      const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
+      if (!mreq || mreq.status !== 'pending') { await answerCallback('Заявка не найдена или уже обработана'); return; }
+
+      await sb.from('monument_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', reqId);
+      notify(mreq.player_id, `❌ Твоя заявка #${reqId} отклонена.\n${mreq.emoji} ${mreq.name}\nПопробуй предложить другое место завтра.`).catch(() => {});
+      await editMessage(`❌ ОТКЛОНЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name}`);
+      await answerCallback('❌ Заявка отклонена');
     }
   } catch (e) {
     console.error('[webhook] callback error:', e.message);
@@ -642,11 +679,8 @@ async function start() {
   async function citySpawnCycle() {
     try {
       const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
-      const { spawnMonumentsForCity } = await import('./lib/monuments.js');
       const { spawnOreNodesForCity } = await import('./lib/oreNodes.js');
       const { spawnVasesForCity } = await import('./lib/vases.js');
-      const { sendTelegramNotification } = await import('./lib/supabase.js');
-      const { haversine: hav } = await import('./lib/haversine.js');
 
       const cityKeys = getAllCityKeys();
       if (!cityKeys.length) { console.log('[SPAWN] No cities in cache yet'); return; }
@@ -660,17 +694,7 @@ async function start() {
 
         const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
 
-        // Monuments
-        const spawned = await spawnMonumentsForCity(cityKey, bounds, playerCount);
-        if (spawned?.length) {
-          const allPlayers = [...gameState.players.values()];
-          for (const m of spawned) {
-            const nearby = allPlayers.filter(p => p.last_lat && p.last_lng && hav(p.last_lat, p.last_lng, m.lat, m.lng) <= 10000);
-            for (const p of nearby) {
-              sendTelegramNotification(p.telegram_id, `🏛️ Монумент "${m.name}" (ур.${m.level}) появился в вашем городе! Собирайте рейд!`).catch(() => {});
-            }
-          }
-        }
+        // Monuments — disabled, now via player requests (monument_requests table)
 
         // Ore nodes
         await spawnOreNodesForCity(cityKey, bounds, playerCount);

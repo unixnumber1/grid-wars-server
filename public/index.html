@@ -499,6 +499,17 @@
       margin-bottom: 12px;
     }
 
+    .monument-request-section { padding: 16px; }
+    .monument-request-section .section-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .monument-request-section .section-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.4; }
+    .monument-request-section .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
+    .emoji-picker-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .emoji-option { font-size: 24px; cursor: pointer; padding: 4px; border-radius: 8px; border: 2px solid transparent; transition: border-color 0.15s; }
+    .emoji-option.selected { border-color: #2196f3; background: rgba(33,150,243,0.1); }
+    .level-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+    .level-option { width: 36px; height: 36px; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; cursor: pointer; color: #888; }
+    .level-option.selected { background: #2196f3; border-color: #2196f3; color: #fff; }
+
     .settings-action-btn {
       border-radius: 12px;
       padding: 12px 16px;
@@ -2663,6 +2674,7 @@
   <div id="settings-tabs">
     <button class="settings-tab active" data-tab="profile" data-i18n="settings.tab.profile">&#x1F464; Профиль</button>
     <button class="settings-tab" data-tab="map" data-i18n="settings.tab.map">&#x1F5FA;&#xFE0F; Карта</button>
+    <button class="settings-tab" data-tab="monuments">&#x1F3DB;&#xFE0F; Монументы</button>
     <!-- lang tab hidden for now -->
   </div>
   <div id="settings-body">
@@ -2684,6 +2696,62 @@
       <div class="settings-card">
         <div class="settings-section-title" data-i18n="settings.map_style">СТИЛЬ КАРТЫ</div>
         <div id="map-style-list"></div>
+      </div>
+    </div>
+    <!-- Monuments tab -->
+    <div id="settings-tab-monuments" class="settings-tab-content">
+      <div class="settings-card monument-request-section">
+        <div class="section-title">&#x1F3DB;&#xFE0F; Предложить монумент</div>
+        <div class="section-subtitle">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
+        <div class="form-group">
+          <label>&#x1F4CD; Координаты Google Maps</label>
+          <input type="text" id="req-coords" placeholder="55.7558, 37.6176 или ссылка на Google Maps" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+          <div style="font-size:11px;color:#666;margin-top:4px">Открой Google Maps &#x2192; долгое нажатие на место &#x2192; скопируй координаты</div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>&#x270F;&#xFE0F; Название места</label>
+          <input type="text" id="req-name" placeholder="Например: Александровский сад" maxlength="50" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>&#x1F3A8; Иконка монумента</label>
+          <div class="emoji-picker-row" id="emoji-picker">
+            <div class="emoji-option selected" onclick="selectMonumentEmoji(this,'&#x1F3DB;&#xFE0F;')">&#x1F3DB;&#xFE0F;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F5FF;')">&#x1F5FF;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x26E9;&#xFE0F;')">&#x26E9;&#xFE0F;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3EF;')">&#x1F3EF;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F5FC;')">&#x1F5FC;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3F0;')">&#x1F3F0;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x26EA;')">&#x26EA;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F54C;')">&#x1F54C;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F54D;')">&#x1F54D;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F5FD;')">&#x1F5FD;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3AD;')">&#x1F3AD;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3AA;')">&#x1F3AA;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3DF;&#xFE0F;')">&#x1F3DF;&#xFE0F;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F30B;')">&#x1F30B;</div>
+            <div class="emoji-option" onclick="selectMonumentEmoji(this,'&#x1F3D4;&#xFE0F;')">&#x1F3D4;&#xFE0F;</div>
+          </div>
+          <input type="hidden" id="req-emoji" value="&#x1F3DB;&#xFE0F;">
+          <div style="font-size:13px;color:#888;margin-top:6px">Выбрано: <span id="selected-emoji-display">&#x1F3DB;&#xFE0F;</span></div>
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>&#x26A1; Желаемый уровень (1-10)</label>
+          <div class="level-selector">
+            <div class="level-option selected" onclick="selectMonumentLevel(this,1)" id="level-opt-1">1</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,2)" id="level-opt-2">2</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,3)" id="level-opt-3">3</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,4)" id="level-opt-4">4</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,5)" id="level-opt-5">5</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,6)" id="level-opt-6">6</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,7)" id="level-opt-7">7</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,8)" id="level-opt-8">8</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,9)" id="level-opt-9">9</div>
+            <div class="level-option" onclick="selectMonumentLevel(this,10)" id="level-opt-10">10</div>
+          </div>
+          <input type="hidden" id="req-level" value="1">
+          <div style="font-size:11px;color:#666;margin-top:4px">Уровень влияет на сложность рейда и награды</div>
+        </div>
+        <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
       </div>
     </div>
     <!-- Language tab (hidden for now) -->
@@ -9522,6 +9590,54 @@ async function boot() {
 }
 
 // ─────────────────────────────────────────────
+//  Monument request form
+// ─────────────────────────────────────────────
+function selectMonumentEmoji(el, emoji) {
+  document.getElementById('req-emoji').value = emoji;
+  document.getElementById('selected-emoji-display').textContent = emoji;
+  document.querySelectorAll('.emoji-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function selectMonumentLevel(el, level) {
+  document.getElementById('req-level').value = level;
+  document.querySelectorAll('.level-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function parseCoords(input) {
+  const simple = input.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/);
+  if (simple) return { lat: parseFloat(simple[1]), lng: parseFloat(simple[2]) };
+  const gmaps = input.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (gmaps) return { lat: parseFloat(gmaps[1]), lng: parseFloat(gmaps[2]) };
+  const query = input.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (query) return { lat: parseFloat(query[1]), lng: parseFloat(query[2]) };
+  return null;
+}
+async function submitMonumentRequest() {
+  const coordsInput = document.getElementById('req-coords').value.trim();
+  const name = document.getElementById('req-name').value.trim();
+  const emoji = document.getElementById('req-emoji').value;
+  const level = parseInt(document.getElementById('req-level').value);
+  if (!coordsInput) { showToast('Укажи координаты'); return; }
+  if (!name || name.length < 3) { showToast('Название от 3 символов'); return; }
+  const coords = parseCoords(coordsInput);
+  if (!coords) { showToast('Не удалось распознать координаты. Формат: 55.7558, 37.6176'); return; }
+  if (coords.lat < -90 || coords.lat > 90 || coords.lng < -180 || coords.lng > 180) { showToast('Некорректные координаты'); return; }
+  const btn = document.getElementById('btn-submit-monument-request');
+  btn.disabled = true; btn.textContent = '⏳ Отправляем...';
+  try {
+    const data = await apiFetch('/api/monuments', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'request', telegram_id: TG_ID, lat: coords.lat, lng: coords.lng, name, emoji, level }),
+    });
+    showToast('✅ Заявка #' + data.request_id + ' отправлена!');
+    document.getElementById('req-coords').value = '';
+    document.getElementById('req-name').value = '';
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  }
+  btn.disabled = false; btn.textContent = '📨 Отправить заявку';
+}
+
 //  Settings drawer
 // ─────────────────────────────────────────────
 function buildAvatarGrid() {
