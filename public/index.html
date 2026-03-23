@@ -2696,6 +2696,13 @@
         <div id="settings-nick-display" style="font-size:16px;font-weight:700;color:#fff;margin-bottom:12px;"></div>
         <button id="btn-change-username" class="settings-action-btn s-default" style="justify-content:center;" data-i18n="settings.nick.change">&#x270F;&#xFE0F; Сменить ник</button>
       </div>
+      <div class="settings-card">
+        <div class="settings-section-title" data-i18n="settings.lang.title">ЯЗЫК</div>
+        <div style="display:flex;gap:8px;">
+          <button class="lang-btn" data-lang="ru" onclick="setLang('ru')" style="flex:1;padding:10px;border-radius:10px;border:2px solid transparent;background:#252538;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:border-color 0.15s;">🇷🇺 Русский</button>
+          <button class="lang-btn" data-lang="en" onclick="setLang('en')" style="flex:1;padding:10px;border-radius:10px;border:2px solid transparent;background:#252538;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:border-color 0.15s;">🇬🇧 English</button>
+        </div>
+      </div>
     </div>
     <!-- Map tab -->
     <div id="settings-tab-map" class="settings-tab-content">
@@ -9936,6 +9943,10 @@ document.getElementById('btn-settings').addEventListener('click', () => {
   _updateSettingsAdminTab();
   // Render map styles
   _renderMapStyles();
+  // Highlight active language button
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.style.border = btn.dataset.lang === _lang ? '2px solid #FFD700' : '2px solid transparent';
+  });
   document.getElementById('settings-drawer').classList.add('open');
 });
 
