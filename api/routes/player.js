@@ -543,7 +543,7 @@ playerRouter.post('/init', async (req, res) => {
 
   return res.status(200).json({
     needUsername,
-    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'en' },
+    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'ru' },
     headquarters: headquarters || null,
     mines: mines || [],
     totalIncome,
