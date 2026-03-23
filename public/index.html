@@ -2590,21 +2590,21 @@
 <!-- Username setup screen (first login) -->
 <div id="username-setup-screen">
   <div class="setup-card">
-    <div class="setup-title">&#x2694;&#xFE0F; OVERTHROW</div>
-    <div class="setup-subtitle">&#x0413;&#x0435;&#x043E;&#x043B;&#x043E;&#x043A;&#x0430;&#x0446;&#x0438;&#x043E;&#x043D;&#x043D;&#x0430;&#x044F; &#x0441;&#x0442;&#x0440;&#x0430;&#x0442;&#x0435;&#x0433;&#x0438;&#x044F; &#x0432; &#x0440;&#x0435;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x043C; &#x043C;&#x0438;&#x0440;&#x0435;</div>
+    <div class="setup-title" data-i18n="setup.title">&#x2694;&#xFE0F; OVERTHROW</div>
+    <div class="setup-subtitle" data-i18n="setup.subtitle">&#x0413;&#x0435;&#x043E;&#x043B;&#x043E;&#x043A;&#x0430;&#x0446;&#x0438;&#x043E;&#x043D;&#x043D;&#x0430;&#x044F; &#x0441;&#x0442;&#x0440;&#x0430;&#x0442;&#x0435;&#x0433;&#x0438;&#x044F; &#x0432; &#x0440;&#x0435;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x043C; &#x043C;&#x0438;&#x0440;&#x0435;</div>
 
-    <div class="setup-section-label">&#x0410;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;</div>
+    <div class="setup-section-label" data-i18n="setup.avatar_label">&#x0410;&#x0432;&#x0430;&#x0442;&#x0430;&#x0440;</div>
     <div id="setup-avatar-preview">&#x1F43A;</div>
     <div id="setup-avatar-grid"></div>
 
     <div class="setup-divider"></div>
 
-    <div class="setup-section-label">&#x041D;&#x0438;&#x043A;&#x043D;&#x0435;&#x0439;&#x043C;</div>
-    <input id="setup-username-input" type="text" placeholder="&#x0412;&#x0432;&#x0435;&#x0434;&#x0438; &#x043D;&#x0438;&#x043A;..." maxlength="16" autocomplete="off">
-    <div id="setup-username-hint">3-16 &#x0441;&#x0438;&#x043C;&#x0432;&#x043E;&#x043B;&#x043E;&#x0432;, &#x0431;&#x0443;&#x043A;&#x0432;&#x044B;/&#x0446;&#x0438;&#x0444;&#x0440;&#x044B;/_</div>
+    <div class="setup-section-label" data-i18n="setup.nick_label">&#x041D;&#x0438;&#x043A;&#x043D;&#x0435;&#x0439;&#x043C;</div>
+    <input id="setup-username-input" type="text" data-i18n-placeholder="setup.nick_ph" placeholder="&#x0412;&#x0432;&#x0435;&#x0434;&#x0438; &#x043D;&#x0438;&#x043A;..." maxlength="16" autocomplete="off">
+    <div id="setup-username-hint" data-i18n="setup.nick_hint">3-16 &#x0441;&#x0438;&#x043C;&#x0432;&#x043E;&#x043B;&#x043E;&#x0432;, &#x0431;&#x0443;&#x043A;&#x0432;&#x044B;/&#x0446;&#x0438;&#x0444;&#x0440;&#x044B;/_</div>
     <div id="setup-username-error"></div>
 
-    <button id="btn-setup-start" disabled>&#x1F3AE; &#x041D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;</button>
+    <button id="btn-setup-start" data-i18n="setup.start" disabled>&#x1F3AE; &#x041D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;</button>
   </div>
 </div>
 
@@ -2680,7 +2680,7 @@
   <div id="settings-tabs">
     <button class="settings-tab active" data-tab="profile" data-i18n="settings.tab.profile">&#x1F464; Профиль</button>
     <button class="settings-tab" data-tab="map" data-i18n="settings.tab.map">&#x1F5FA;&#xFE0F; Карта</button>
-    <button class="settings-tab" data-tab="monuments">&#x1F3DB;&#xFE0F; Монументы</button>
+    <button class="settings-tab" data-tab="monuments" data-i18n="monreq.tab">&#x1F3DB;&#xFE0F; Монументы</button>
     <!-- lang tab hidden for now -->
   </div>
   <div id="settings-body">
@@ -2707,24 +2707,24 @@
     <!-- Monuments tab -->
     <div id="settings-tab-monuments" class="settings-tab-content">
       <div class="settings-card monument-request-section">
-        <div class="section-title">&#x1F3DB;&#xFE0F; Предложить монумент</div>
-        <div class="section-subtitle">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
+        <div class="section-title" data-i18n="monreq.title">&#x1F3DB;&#xFE0F; Предложить монумент</div>
+        <div class="section-subtitle" data-i18n-html="monreq.subtitle_html">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
         <div class="form-group">
-          <label>&#x1F4CD; Координаты Google Maps</label>
-          <input type="text" id="req-coords" placeholder="55.7558, 37.6176 или ссылка на Google Maps" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
-          <div style="font-size:11px;color:#666;margin-top:4px">Открой Google Maps &#x2192; долгое нажатие на место &#x2192; скопируй координаты</div>
+          <label data-i18n="monreq.coords_label">&#x1F4CD; Координаты Google Maps</label>
+          <input type="text" id="req-coords" data-i18n-placeholder="monreq.coords_ph" placeholder="55.7558, 37.6176 или ссылка на Google Maps" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+          <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.coords_hint">Открой Google Maps &#x2192; долгое нажатие на место &#x2192; скопируй координаты</div>
         </div>
         <div class="form-group" style="margin-top:12px">
-          <label>&#x270F;&#xFE0F; Название места</label>
-          <input type="text" id="req-name" placeholder="Например: Александровский сад" maxlength="50" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+          <label data-i18n="monreq.name_label">&#x270F;&#xFE0F; Название места</label>
+          <input type="text" id="req-name" data-i18n-placeholder="monreq.name_ph" placeholder="Например: Александровский сад" maxlength="50" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
         </div>
         <div class="form-group" style="margin-top:12px">
-          <label>&#x1F3A8; Иконка монумента</label>
+          <label data-i18n="monreq.emoji_label">&#x1F3A8; Иконка монумента</label>
           <input type="text" id="req-emoji" value="&#x1F3DB;&#xFE0F;" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
-          <div style="font-size:11px;color:#666;margin-top:4px">Вставь любой эмоджи</div>
+          <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.emoji_hint">Вставь любой эмоджи</div>
         </div>
         <div class="form-group" style="margin-top:12px">
-          <label>&#x26A1; Желаемый уровень (1-10)</label>
+          <label data-i18n="monreq.level_label">&#x26A1; Желаемый уровень (1-10)</label>
           <div class="level-selector">
             <div class="level-option selected" onclick="selectMonumentLevel(this,1)" id="level-opt-1">1</div>
             <div class="level-option" onclick="selectMonumentLevel(this,2)" id="level-opt-2">2</div>
@@ -2738,7 +2738,7 @@
             <div class="level-option" onclick="selectMonumentLevel(this,10)" id="level-opt-10">10</div>
           </div>
           <input type="hidden" id="req-level" value="1">
-          <div style="font-size:11px;color:#666;margin-top:4px">Уровень влияет на сложность рейда и награды</div>
+          <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.level_hint">Уровень влияет на сложность рейда и награды</div>
         </div>
         <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
       </div>
@@ -4021,6 +4021,7 @@ const I18N = {
     'monreq.tab': '🏛️ Монументы',
     'monreq.title': '🏛️ Предложить монумент',
     'monreq.subtitle': 'Знаешь интересное место? Предложи его как монумент!',
+    'monreq.subtitle_html': 'Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span>',
     'monreq.limit': '1 заявка в день',
     'monreq.coords_label': '📍 Координаты Google Maps',
     'monreq.coords_ph': '55.7558, 37.6176 или ссылка на Google Maps',
@@ -5037,6 +5038,7 @@ const I18N = {
     'monreq.tab': '🏛️ Monuments',
     'monreq.title': '🏛️ Suggest Monument',
     'monreq.subtitle': 'Know an interesting place? Suggest it as a monument!',
+    'monreq.subtitle_html': 'Know an interesting place? Suggest it as a monument!<br><span style="color:#888;font-size:12px">1 request per day</span>',
     'monreq.limit': '1 request per day',
     'monreq.coords_label': '📍 Google Maps Coordinates',
     'monreq.coords_ph': '55.7558, 37.6176 or Google Maps link',
@@ -5167,6 +5169,9 @@ function setLang(lang) {
 function applyI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    el.innerHTML = t(el.dataset.i18nHtml);
   });
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     el.title = t(el.dataset.i18nTitle);
@@ -5763,7 +5768,7 @@ function _renderEquipSlots() {
   if (weapon) {
     const wl = weapon.upgrade_level || 0;
     weaponSlot.className = `char-equip-slot filled ${rarityClass(weapon.rarity)}`;
-    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span><span class="inv-lvl">${wl > 0 ? '+' + wl : 'Ур.0'}</span>`;
+    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span><span class="inv-lvl">${wl > 0 ? '+' + wl : t('lv') + '0'}</span>`;
   } else {
     weaponSlot.className = 'char-equip-slot';
     weaponSlot.innerHTML = '<span class="slot-empty">⚔️</span>';
@@ -5772,7 +5777,7 @@ function _renderEquipSlots() {
   if (shield) {
     const sl = shield.upgrade_level || 0;
     shieldSlot.className = `char-equip-slot filled ${rarityClass(shield.rarity)}`;
-    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span><span class="inv-lvl">${sl > 0 ? '+' + sl : 'Ур.0'}</span>`;
+    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span><span class="inv-lvl">${sl > 0 ? '+' + sl : t('lv') + '0'}</span>`;
   } else {
     shieldSlot.className = 'char-equip-slot';
     shieldSlot.innerHTML = '<span class="slot-empty">🛡️</span>';
@@ -5795,7 +5800,7 @@ function _renderInventoryGrid() {
     const cell = document.createElement('div');
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
     const lvl = item.upgrade_level || 0;
-    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${lvl > 0 ? '+' + lvl : 'Ур.0'}</span>`;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${lvl > 0 ? '+' + lvl : t('lv') + '0'}</span>`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -6238,7 +6243,7 @@ function showCoreDropAnimation(emoji, name, monumentLevel) {
     <div style="font-size:80px;animation:bounceIn 0.5s ease;">${emoji}</div>
     <div style="color:#FFD700;font-size:22px;font-weight:bold;margin-top:16px;text-shadow:0 0 20px #FFD700;">${name}</div>
     <div style="color:#aaa;font-size:14px;margin-top:8px;">${t('core.drop_title', {level: monumentLevel})}</div>
-    <div style="color:#7DF9FF;font-size:13px;margin-top:4px;">Множитель: x1.5 (Lv.0)</div>
+    <div style="color:#7DF9FF;font-size:13px;margin-top:4px;">${t('core.multiplier')}: x1.5 (Lv.0)</div>
   `;
   document.body.appendChild(overlay);
   setTimeout(() => {
@@ -6356,13 +6361,13 @@ function updatePinButton() {
   if (!btn) return;
   if (pinMode) {
     btn.textContent = '📌';
-    btn.title = 'Вернуться на реальную позицию';
+    btn.title = t('joy.back_real');
     btn.style.background = 'rgba(255,215,0,0.15)';
     btn.style.borderColor = 'rgba(255,215,0,0.4)';
     btn.style.boxShadow = '0 0 12px rgba(255,215,0,0.2)';
   } else {
     btn.textContent = '📌';
-    btn.title = 'Телепорт на штаб';
+    btn.title = t('hud.pin_title');
     btn.style.background = 'rgba(8,8,18,0.88)';
     btn.style.borderColor = 'rgba(255,255,255,0.08)';
     btn.style.boxShadow = 'none';
@@ -6962,7 +6967,7 @@ function showHqPopup(hq, isOwn) {
             <span style="font-weight:600;color:#fff">${isBurning ? '🔥' : '🧲'} #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
             <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">${t('hq.camera')}</span>
           </div>
-          ${isBurning ? '<div style="color:#ff6600;font-size:12px;margin-top:4px">🔥 Горит!</div>' : `
+          ${isBurning ? '<div style="color:#ff6600;font-size:12px;margin-top:4px">' + t('misc.burning_label') + '</div>' : `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
             <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
             <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
@@ -7128,7 +7133,7 @@ function showMinePopup(mine, isOwn, canCapture) {
                 ? (() => {
                     let tags = `+${clanBonusInfo.income}%`;
                     if (clanBonusInfo.boost) tags += ` · x${clanBonusInfo.boost} 🚀`;
-                    return `${formatCoins(rate)}/ч <span style="color:#D500F9">(${tags})</span>`;
+                    return `${formatCoins(rate)}/${t('per_hour')} <span style="color:#D500F9">(${tags})</span>`;
                   })()
                 : `${formatCoins(rate)}/${t('per_hour')}`],
               ...(mine.level > 0 ? [[t('mine.stored'), `<span id="accumulated-coins-val">${formatCoins(accumulated)}</span> / ${formatCoins(capacity)}${isFull ? ' 🔴' : ''}`]] : []),
@@ -13238,7 +13243,7 @@ function _renderInventoryGridSelectable() {
     check.textContent = '✓';
     if (!canSelect) check.style.display = 'none';
     const slvl = item.upgrade_level || 0;
-    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : 'Ур.0'}</span>`;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : t('lv') + '0'}</span>`;
     cell.appendChild(check);
 
     if (canSelect) {
@@ -13495,7 +13500,7 @@ function showOrePopup(oreId) {
   const currencyName = ore.currency === 'ether' ? t('ore.ether') : t('ore.shards');
 
   const stats = [
-    [t('ore.income'), `${ore.level} ${currencyEmoji}/ч (${currencyName})`],
+    [t('ore.income'), `${ore.level} ${currencyEmoji}/${t('per_hour')} (${currencyName})`],
     ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
     [t('ore.owner'), isOwned ? (ore.owner_name || t('ore.owner')) : t('ore.free')],
     [t('ore.expires'), expStr],
