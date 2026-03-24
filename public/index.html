@@ -6245,19 +6245,15 @@ function _refreshProfileStats() {
     </div>`;
   };
 
-  // ── Left column: Defense ──
+  // ── Left column: Defense (player combat) ──
   let defHtml = '';
   defHtml += R('❤️', 'HP', formatNumber(maxHp), fx.player_hp_bonus ? `+${Math.round(fx.player_hp_bonus*100)}%` : '');
   defHtml += R('♻️', 'Реген', `10/${t('time.sec')}`, '');
   if (blockChance > 0) defHtml += R('🛡️', 'Блок', `${blockChance.toFixed(1)}%`, '');
-  if (fx.mine_hp_bonus) defHtml += R('🏗️', 'HP шахт', `+${Math.round(fx.mine_hp_bonus*100)}%`, '');
-  if (fx.mine_regen_bonus) defHtml += R('🔧', 'Реген шахт', `+${Math.round(fx.mine_regen_bonus*100)}%`, '');
-  if (fx.mine_damage_reduction) defHtml += R('🛡️', 'Защита шахт', `-${Math.round(fx.mine_damage_reduction*100)}%`, '');
   if (fx.safe_pvp_loss) defHtml += R('🔐', 'Сейф', '5%', 'вместо 10%');
   if (fx.lifesteal) defHtml += R('🩸', 'Вампиризм', `${(fx.lifesteal*100).toFixed(1)}%`, '');
-  if (fx.radius_bonus) defHtml += R('🌍', 'Радиус', `${200 + fx.radius_bonus}м`, `+${fx.radius_bonus}`);
 
-  // ── Right column: Attack ──
+  // ── Right column: Attack (player combat) ──
   let atkHtml = '';
   atkHtml += R('⚔️', 'Урон', formatNumber(totalAtk), fx.weapon_damage_bonus ? `+${Math.round(fx.weapon_damage_bonus*100)}%` : '');
   if (totalCrit > 0) atkHtml += R('🎯', 'Крит', `${totalCrit.toFixed(1)}%`, fx.crit_chance_bonus ? `+${(fx.crit_chance_bonus*100).toFixed(1)}%` : '');
@@ -6265,7 +6261,6 @@ function _refreshProfileStats() {
   if (fx.attack_speed_bonus) atkHtml += R('💨', 'Скорость', `-${Math.round(fx.attack_speed_bonus*100)}%`, 'КД');
   if (fx.pve_damage_bonus) atkHtml += R('🏛️', 'PvE', `+${Math.round(fx.pve_damage_bonus*100)}%`, '');
   if (fx.pvp_loot_bonus) atkHtml += R('💰', 'PvP лут', `+${Math.round(fx.pvp_loot_bonus*100)}%`, '');
-  if (fx.attack_radius_bonus) atkHtml += R('🎭', 'Радиус атаки', `${500 + fx.attack_radius_bonus}м`, `+${fx.attack_radius_bonus}`);
   if (fx.sniper_ability) atkHtml += R('🎯', 'Снайпер', 'вкл', '1-й удар=крит');
 
   // ── Two columns ──
@@ -6280,11 +6275,19 @@ function _refreshProfileStats() {
     </div>
   </div>`;
 
-  // ── Expandable: economy & abilities ──
+  // ── Expandable: economy, mines, abilities ──
   const extRows = [];
+  // Mine bonuses
   if (fx.mine_income_bonus) extRows.push(['💰', 'Доход шахт', `+${Math.round(fx.mine_income_bonus*100)}%`, 'ко всем шахтам']);
   if (fx.mine_capacity_bonus) extRows.push(['📦', 'Вместимость', `+${Math.round(fx.mine_capacity_bonus*100)}%`, 'макс монет в шахте']);
+  if (fx.mine_hp_bonus) extRows.push(['🏗️', 'HP шахт', `+${Math.round(fx.mine_hp_bonus*100)}%`, 'прочность шахт']);
+  if (fx.mine_regen_bonus) extRows.push(['🔧', 'Реген шахт', `+${Math.round(fx.mine_regen_bonus*100)}%`, 'восстановление HP']);
+  if (fx.mine_damage_reduction) extRows.push(['🛡️', 'Защита шахт', `-${Math.round(fx.mine_damage_reduction*100)}%`, 'урон по шахтам']);
   if (fx.ore_bonus) extRows.push(['✨', 'Руда', `+${Math.round(fx.ore_bonus*100)}%`, 'осколки и эфир']);
+  // Radius
+  if (fx.radius_bonus) extRows.push(['🌍', 'Радиус', `${200 + fx.radius_bonus}м`, `+${fx.radius_bonus}м к зоне`]);
+  if (fx.attack_radius_bonus) extRows.push(['🎭', 'Радиус атаки', `${500 + fx.attack_radius_bonus}м`, `+${fx.attack_radius_bonus}м к атаке`]);
+  // Abilities
   if (fx.instant_collector) extRows.push(['⚙️', 'Телепортация', 'вкл', 'мгновенный сбор']);
   if (fx.landlord_bonus) extRows.push(['👑', 'Землевладелец', '+15%', 'ближние шахты онлайн']);
   if (fx.shadow_ability) extRows.push(['🎭', 'Тень', 'доступна', 'невидимость 30 мин']);
@@ -6293,7 +6296,7 @@ function _refreshProfileStats() {
     html += `<div style="margin-top:8px;">
       <div onclick="const d=this.nextElementSibling;d.style.display=d.style.display==='none'?'':'none';this.querySelector('.ps-arrow').textContent=d.style.display==='none'?'▸':'▾'" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 0;-webkit-tap-highlight-color:transparent;">
         <span class="ps-arrow" style="color:#666;font-size:11px;">▸</span>
-        <span style="font-size:11px;color:#888;">Экономика и способности</span>
+        <span style="font-size:11px;color:#888;">Экономика, шахты и способности</span>
       </div>
       <div style="display:none;background:#1a1a2e;border-radius:8px;padding:6px 10px;margin-top:4px;">
         ${extRows.map(([icon, name, val, desc]) =>

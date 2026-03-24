@@ -528,7 +528,9 @@ playerRouter.post('/init', async (req, res) => {
   } catch (err) { return res.status(503).json({ error: 'DB unavailable', message: 'Сервер временно недоступен, попробуй через минуту' }); }
   const level = player.level ?? 1;
   const xp = player.xp ?? 0;
-  const maxHp = 1000 + (player.bonus_hp ?? 0);
+  const _initSkRow = gameState.loaded ? gameState.getPlayerSkills(tgId) : null;
+  const _initSkFx = _initSkRow ? getPlayerSkillEffects(_initSkRow) : null;
+  const maxHp = Math.round((1000 + (player.bonus_hp ?? 0)) * (1 + (_initSkFx?.player_hp_bonus || 0)));
   const attack = 10 + (player.bonus_attack ?? 0);
   let currentHp = player.hp ?? maxHp;
   let regenApplied = false;
@@ -568,12 +570,14 @@ playerRouter.post('/init', async (req, res) => {
 
   return res.status(200).json({
     needUsername,
-    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS, hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'ru' },
+    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS + (_initSkFx?.radius_bonus || 0), largeRadius: LARGE_RADIUS + (_initSkFx?.attack_radius_bonus || 0), hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'ru' },
     headquarters: headquarters || null,
     mines: mines || [],
     totalIncome,
     inventory: inventory || [],
     player_cores: playerCores,
     notifications: unreadNotifs,
+    skill_effects: _initSkFx || {},
+    player_skills: _initSkRow || { farmer: {}, raider: {}, skill_points_used: 0 },
   });
 });
