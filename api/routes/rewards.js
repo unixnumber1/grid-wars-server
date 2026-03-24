@@ -44,7 +44,14 @@ async function handleGetRewards(res, player, tgId) {
     rewards.push({ level: lv, reward, claimed: isClaimed });
   }
 
-  return res.json({ success: true, rewards, unclaimed_count });
+  // Find next locked reward (first level above player that has a reward)
+  let next_reward = null;
+  for (let lv = playerLevel + 1; lv <= 100; lv++) {
+    const r = LEVEL_REWARDS_MAP.get(lv);
+    if (r) { next_reward = { level: lv, reward: r }; break; }
+  }
+
+  return res.json({ success: true, rewards, unclaimed_count, next_reward });
 }
 
 // ── claim-reward ───────────────────────────────────────────────

@@ -1211,6 +1211,7 @@
     }
     .reward-card.unclaimed { border-left: 3px solid #FFD700; }
     .reward-card.claimed { opacity: 0.45; border-left: 3px solid #444; }
+    .reward-card.locked { opacity: 0.35; border-left: 3px solid #333; }
     .reward-level { font-size: 14px; font-weight: 800; color: #FFD700; min-width: 36px; text-align: center; }
     .reward-card.claimed .reward-level { color: #666; }
     .reward-icons { flex: 1; font-size: 12px; color: #ccc; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
@@ -7635,12 +7636,7 @@ function renderRewardsList(data) {
     return;
   }
 
-  // Show newest first (highest level on top)
-  const sorted = [...rewards].reverse();
-  let html = '';
-  for (const r of sorted) {
-    const rw = r.reward;
-    const cls = r.claimed ? 'claimed' : 'unclaimed';
+  function buildRewardIcons(rw) {
     let icons = '';
     if (rw.diamonds > 0) icons += `<span class="reward-icon-tag">💎 ${rw.diamonds}</span>`;
     if (rw.shards > 0) icons += `<span class="reward-icon-tag">✨ ${rw.shards}</span>`;
@@ -7649,18 +7645,33 @@ function renderRewardsList(data) {
       const boxCounts = {};
       for (const b of rw.boxes) boxCounts[b] = (boxCounts[b] || 0) + 1;
       for (const [rarity, count] of Object.entries(boxCounts)) {
-        const emoji = { common: '📦', rare: '🟦', epic: '🟪', mythic: '🟥' }[rarity] || '📦';
+        const emoji = { common: '📦', rare: '📦', epic: '🎁', mythic: '🏆' }[rarity] || '📦';
         icons += `<span class="reward-icon-tag">${emoji} x${count}</span>`;
       }
     }
     if (rw.cores && rw.cores.length) {
-      icons += `<span class="reward-icon-tag">⚙️ x${rw.cores.length}${rw.cores[0].level > 0 ? ' lv' + rw.cores[0].level : ''}</span>`;
+      icons += `<span class="reward-icon-tag">🔮 x${rw.cores.length}${rw.cores[0].level > 0 ? ' lv' + rw.cores[0].level : ''}</span>`;
     }
+    return icons;
+  }
 
+  // Show newest first (highest level on top)
+  const sorted = [...rewards].reverse();
+  let html = '';
+
+  // Next locked reward at top
+  if (data.next_reward) {
+    const nr = data.next_reward;
+    const nrIcons = buildRewardIcons(nr.reward);
+    html += `<div class="reward-card locked"><div class="reward-level" style="color:#444;">${nr.level}</div><div class="reward-icons" style="opacity:0.3;">${nrIcons}</div><span style="font-size:18px;color:#555;">🔒</span></div>`;
+  }
+
+  for (const r of sorted) {
+    const icons = buildRewardIcons(r.reward);
+    const cls = r.claimed ? 'claimed' : 'unclaimed';
     const action = r.claimed
       ? `<span class="reward-claimed-label">${t('rewards.claimed')}</span>`
       : `<button class="reward-claim-btn" onclick="claimReward(${r.level})">${t('rewards.claim')}</button>`;
-
     html += `<div class="reward-card ${cls}"><div class="reward-level">${r.level}</div><div class="reward-icons">${icons}</div>${action}</div>`;
   }
   list.innerHTML = html;
@@ -7712,7 +7723,10 @@ async function claimReward(level) {
     updateCrystalDisplay();
     updateCoinDisplay();
     try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
+    const _body = document.getElementById('profile-modal-body');
+    const _scrollY = _body?.scrollTop || 0;
     await loadLevelRewards();
+    if (_body) _body.scrollTop = _scrollY;
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
@@ -7741,7 +7755,10 @@ async function claimAllRewards() {
     updateCrystalDisplay();
     updateCoinDisplay();
     try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
+    const _body2 = document.getElementById('profile-modal-body');
+    const _scrollY2 = _body2?.scrollTop || 0;
     await loadLevelRewards();
+    if (_body2) _body2.scrollTop = _scrollY2;
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
@@ -7761,7 +7778,7 @@ function showRewardPreview(level, rw) {
     if (rw.shards > 0) icons.push({ emoji: '✨', label: rw.shards, color: '#e040fb', size: 56 });
     if (rw.ether > 0) icons.push({ emoji: '🌀', label: rw.ether, color: '#7DF9FF', size: 56 });
     if (rw.boxes && rw.boxes.length) {
-      const boxEmojis = { common: '📦', rare: '🟦', epic: '🟪', mythic: '🟥' };
+      const boxEmojis = { common: '📦', rare: '📦', epic: '🎁', mythic: '🏆' };
       const counts = {};
       for (const b of rw.boxes) counts[b] = (counts[b] || 0) + 1;
       for (const [r, n] of Object.entries(counts)) {
@@ -7770,7 +7787,7 @@ function showRewardPreview(level, rw) {
     }
     if (rw.cores && rw.cores.length) {
       const lv = rw.cores[0].level || 0;
-      icons.push({ emoji: '⚙️', label: (rw.cores.length > 1 ? 'x' + rw.cores.length + ' ' : '') + 'lv' + lv, color: '#7DF9FF', size: 56 });
+      icons.push({ emoji: '🔮', label: (rw.cores.length > 1 ? 'x' + rw.cores.length + ' ' : '') + 'lv' + lv, color: '#7DF9FF', size: 56 });
     }
 
     // Layout: 1 = center, 2 = row, 3 = triangle, 4+ = grid
@@ -10804,23 +10821,23 @@ function showMythicInfo(type) {
     sword: {
       title: '🗡️ Мифический меч',
       stats: [
-        ['⚔️ Атака', '90'],
-        ['💥 Крит шанс', '13%'],
+        ['⚔️ Атака', '380'],
+        ['💥 Крит шанс', '16%'],
         ['🔥 Крит множитель', '×1.5 → ×2.2 при прокачке'],
       ]
     },
     axe: {
       title: '🪓 Мифический топор',
       stats: [
-        ['⚔️ Атака', '125'],
+        ['⚔️ Атака', '520'],
         ['💀 Казнь врага <50% HP', 'шанс 7% → 17% при прокачке'],
       ]
     },
     shield: {
       title: '🛡️ Мифический щит',
       stats: [
-        ['🛡️ Защита', '+790'],
-        ['🔰 Блок удара', '15% → 25% при прокачке'],
+        ['🛡️ Защита', '+3800'],
+        ['🔰 Блок удара', '10-20% → 15-25% при прокачке'],
       ]
     },
   };
