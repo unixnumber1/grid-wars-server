@@ -40,39 +40,9 @@ export function getLevelUpRewards(level) {
   return rewards;
 }
 
-async function grantLevelUpRewards(playerId, level) {
-  const rewards = getLevelUpRewards(level);
-
-  // Grant diamonds and crystals — read fresh from DB to avoid stale gameState
-  if (rewards.diamonds > 0 || rewards.crystals > 0) {
-    const { data: freshP } = await supabase.from('players').select('diamonds, crystals').eq('id', playerId).single();
-    const updates = {};
-    if (rewards.diamonds > 0) updates.diamonds = (freshP?.diamonds ?? 0) + rewards.diamonds;
-    if (rewards.crystals > 0) updates.crystals = (freshP?.crystals ?? 0) + rewards.crystals;
-
-    await supabase.from('players').update(updates).eq('id', playerId);
-    const p = gameState.getPlayerById(playerId);
-    if (p) {
-      if (updates.diamonds != null) p.diamonds = updates.diamonds;
-      if (updates.crystals != null) p.crystals = updates.crystals;
-      gameState.markDirty('players', p.id);
-    }
-  }
-
-  // Grant core if earned
-  if (rewards.core) {
-    const coreRow = {
-      owner_id: Number((gameState.getPlayerById(playerId))?.telegram_id || playerId),
-      mine_cell_id: null,
-      slot_index: null,
-      core_type: rewards.core_type,
-      level: rewards.core_level,
-    };
-    const { data: inserted } = await supabase.from('cores').insert(coreRow).select().single();
-    if (inserted) gameState.upsertCore(inserted);
-  }
-
-  return rewards;
+// Rewards are now granted via the manual claim system (api/routes/rewards.js)
+async function grantLevelUpRewards(_playerId, _level) {
+  return {};
 }
 
 // ─── Main addXp ──────────────────────────────────────────────────────────────

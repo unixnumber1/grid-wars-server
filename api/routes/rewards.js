@@ -1,0 +1,200 @@
+import { Router } from 'express';
+import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
+import { generateItem, BOX_ODDS, rollWeighted, rollRandomType } from '../../lib/items.js';
+import { randomCoreType } from '../../game/mechanics/cores.js';
+import { gameState } from '../../lib/gameState.js';
+import { LEVEL_REWARDS_MAP } from '../../config/levelRewards.js';
+
+export const rewardsRouter = Router();
+
+rewardsRouter.post('/', async (req, res) => {
+  const { action, telegram_id } = req.body || {};
+
+  let tgId;
+  try { tgId = parseTgId(telegram_id); } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  const player = gameState.getPlayerByTgId(tgId);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  if (action === 'get-level-rewards') return handleGetRewards(res, player, tgId);
+  if (action === 'claim-reward')      return handleClaimReward(res, player, tgId, req.body);
+  if (action === 'claim-all')         return handleClaimAll(res, player, tgId);
+  return res.status(400).json({ error: 'Unknown action' });
+});
+
+// ── get-level-rewards ──────────────────────────────────────────
+async function handleGetRewards(res, player, tgId) {
+  const { data: claimed } = await supabase
+    .from('level_rewards_claimed')
+    .select('level')
+    .eq('player_id', tgId);
+
+  const claimedSet = new Set((claimed || []).map(r => r.level));
+  const playerLevel = player.level || 1;
+
+  const rewards = [];
+  let unclaimed_count = 0;
+  for (let lv = 1; lv <= Math.min(playerLevel, 100); lv++) {
+    const reward = LEVEL_REWARDS_MAP.get(lv);
+    if (!reward) continue;
+    const isClaimed = claimedSet.has(lv);
+    if (!isClaimed) unclaimed_count++;
+    rewards.push({ level: lv, reward, claimed: isClaimed });
+  }
+
+  return res.json({ success: true, rewards, unclaimed_count });
+}
+
+// ── claim-reward ───────────────────────────────────────────────
+async function handleClaimReward(res, player, tgId, body) {
+  const level = Number(body.level);
+  if (!level || level < 1 || level > 100) return res.status(400).json({ error: 'Invalid level' });
+  if (level > (player.level || 1)) return res.status(400).json({ error: 'Level not reached' });
+
+  const reward = LEVEL_REWARDS_MAP.get(level);
+  if (!reward) return res.status(400).json({ error: 'No reward for this level' });
+
+  // Check not already claimed (PK constraint also prevents duplicates)
+  const { data: existing } = await supabase
+    .from('level_rewards_claimed')
+    .select('level')
+    .eq('player_id', tgId)
+    .eq('level', level)
+    .maybeSingle();
+  if (existing) return res.status(400).json({ error: 'Already claimed' });
+
+  const result = await grantReward(player, tgId, reward);
+
+  // Record claim
+  await supabase.from('level_rewards_claimed').insert({ player_id: tgId, level });
+
+  return res.json({
+    success: true,
+    level,
+    granted: result,
+    diamonds_total: player.diamonds,
+    crystals_total: player.crystals,
+    ether_total: player.ether,
+  });
+}
+
+// ── claim-all ──────────────────────────────────────────────────
+async function handleClaimAll(res, player, tgId) {
+  const playerLevel = player.level || 1;
+
+  const { data: claimed } = await supabase
+    .from('level_rewards_claimed')
+    .select('level')
+    .eq('player_id', tgId);
+  const claimedSet = new Set((claimed || []).map(r => r.level));
+
+  const unclaimed = [];
+  for (let lv = 1; lv <= Math.min(playerLevel, 100); lv++) {
+    const reward = LEVEL_REWARDS_MAP.get(lv);
+    if (reward && !claimedSet.has(lv)) unclaimed.push(lv);
+  }
+
+  if (!unclaimed.length) return res.json({ success: true, granted: null, message: 'Nothing to claim' });
+
+  const totals = { diamonds: 0, shards: 0, ether: 0, items: [], cores: [] };
+
+  for (const lv of unclaimed) {
+    const reward = LEVEL_REWARDS_MAP.get(lv);
+    const result = await grantReward(player, tgId, reward);
+    totals.diamonds += result.diamonds;
+    totals.shards += result.shards;
+    totals.ether += result.ether;
+    totals.items.push(...result.items);
+    totals.cores.push(...result.cores);
+  }
+
+  // Batch insert claim records
+  const claimRows = unclaimed.map(lv => ({ player_id: tgId, level: lv }));
+  await supabase.from('level_rewards_claimed').insert(claimRows);
+
+  return res.json({
+    success: true,
+    claimed_levels: unclaimed,
+    granted: totals,
+    diamonds_total: player.diamonds,
+    crystals_total: player.crystals,
+    ether_total: player.ether,
+  });
+}
+
+// ── Grant reward helper ────────────────────────────────────────
+async function grantReward(player, tgId, reward) {
+  const result = { diamonds: 0, shards: 0, ether: 0, items: [], cores: [] };
+
+  // Grant currencies — fresh DB read, immediate write
+  const hasCurrency = (reward.diamonds > 0) || (reward.shards > 0) || (reward.ether > 0);
+  if (hasCurrency) {
+    const { data: freshP } = await supabase
+      .from('players')
+      .select('diamonds, crystals, ether')
+      .eq('telegram_id', tgId)
+      .single();
+
+    const updates = {};
+    if (reward.diamonds > 0) {
+      updates.diamonds = (freshP?.diamonds ?? 0) + reward.diamonds;
+      result.diamonds = reward.diamonds;
+    }
+    if (reward.shards > 0) {
+      updates.crystals = (freshP?.crystals ?? 0) + reward.shards;
+      result.shards = reward.shards;
+    }
+    if (reward.ether > 0) {
+      updates.ether = (freshP?.ether ?? 0) + reward.ether;
+      result.ether = reward.ether;
+    }
+
+    await supabase.from('players').update(updates).eq('telegram_id', tgId);
+    if (updates.diamonds != null) player.diamonds = updates.diamonds;
+    if (updates.crystals != null) player.crystals = updates.crystals;
+    if (updates.ether != null) player.ether = updates.ether;
+    gameState.markDirty('players', player.id);
+  }
+
+  // Grant boxes → items
+  for (const boxRarity of (reward.boxes || [])) {
+    const odds = BOX_ODDS[boxRarity];
+    if (!odds) continue;
+    const itemRarity = rollWeighted(odds);
+    const itemType = rollRandomType();
+    const item = generateItem(itemType, itemRarity);
+
+    const insertData = {
+      type: itemType, rarity: item.rarity, name: item.name, emoji: item.emoji,
+      stat_value: item.stat_value, owner_id: player.id, equipped: false,
+      attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
+      base_attack: item.base_attack || 0, base_crit_chance: item.base_crit_chance || 0,
+      base_defense: item.base_defense || 0, block_chance: item.block_chance || 0, upgrade_level: 0,
+    };
+    const { data: newItem } = await supabase.from('items').insert(insertData).select().single();
+    if (newItem) {
+      if (gameState.loaded) gameState.upsertItem(newItem);
+      result.items.push({ id: newItem.id, type: itemType, rarity: item.rarity, name: item.name, emoji: item.emoji });
+    }
+  }
+
+  // Grant cores
+  for (const coreDef of (reward.cores || [])) {
+    const coreRow = {
+      owner_id: Number(tgId),
+      mine_cell_id: null,
+      slot_index: null,
+      core_type: randomCoreType(),
+      level: coreDef.level || 0,
+    };
+    const { data: inserted } = await supabase.from('cores').insert(coreRow).select().single();
+    if (inserted) {
+      if (gameState.loaded) gameState.upsertCore(inserted);
+      result.cores.push({ id: inserted.id, core_type: inserted.core_type, level: inserted.level });
+    }
+  }
+
+  return result;
+}

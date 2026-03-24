@@ -155,7 +155,24 @@ export const RARITY_NAMES = { common:'\u041E\u0431\u044B\u0447\u043D\u044B\u0439
 export const RARITY_ORDER = { common: 1, uncommon: 2, rare: 3, epic: 4, mythic: 5, legendary: 6 };
 
 const ITEM_TYPES_ARR = ['sword', 'axe', 'shield'];
-function rollRandomType() { return ITEM_TYPES_ARR[Math.floor(Math.random() * ITEM_TYPES_ARR.length)]; }
+export function rollRandomType() { return ITEM_TYPES_ARR[Math.floor(Math.random() * ITEM_TYPES_ARR.length)]; }
+
+export const BOX_ODDS = {
+  common: { common: 70, uncommon: 25, rare: 5 },
+  rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
+  epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
+  mythic: { rare: 20, epic: 40, mythic: 39, legendary: 1 },
+};
+
+export function rollWeighted(weights) {
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let rand = Math.random() * total;
+  for (const [key, weight] of Object.entries(weights)) {
+    rand -= weight;
+    if (rand <= 0) return key;
+  }
+  return Object.keys(weights)[0];
+}
 
 export function rollRarity() {
   const total = Object.values(RARITY_WEIGHTS).reduce((a, b) => a + b, 0);

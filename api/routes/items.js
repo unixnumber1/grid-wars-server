@@ -1,31 +1,15 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
-import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats } from '../../lib/items.js';
+import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { ITEM_TYPES } from '../../config/constants.js';
 
 export const itemsRouter = Router();
 
 // ── Shop box constants ────────────────────────────────────────
 const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
-const BOX_ODDS = {
-  common: { common: 70, uncommon: 25, rare: 5 },
-  rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
-  epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
-  mythic: { rare: 20, epic: 40, mythic: 39, legendary: 1 },
-};
-const ITEM_TYPES = ['sword', 'axe', 'shield'];
-
-function rollWeighted(weights) {
-  const total = Object.values(weights).reduce((a, b) => a + b, 0);
-  let rand = Math.random() * total;
-  for (const [key, weight] of Object.entries(weights)) {
-    rand -= weight;
-    if (rand <= 0) return key;
-  }
-  return Object.keys(weights)[0];
-}
 
 async function recalcBonuses(playerId, level) {
   const { data: equipped } = await supabase

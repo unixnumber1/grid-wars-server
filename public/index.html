@@ -1199,6 +1199,29 @@
       -webkit-tap-highlight-color: transparent;
     }
     .profile-inv-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
+    .profile-inv-tab { position: relative; }
+    .reward-tab-dot {
+      position: absolute; top: 6px; right: -4px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ff4444; display: none;
+    }
+    .reward-card {
+      background: #252538; border-radius: 10px; padding: 10px 12px;
+      margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
+    }
+    .reward-card.unclaimed { border-left: 3px solid #FFD700; }
+    .reward-card.claimed { opacity: 0.45; border-left: 3px solid #444; }
+    .reward-level { font-size: 14px; font-weight: 800; color: #FFD700; min-width: 36px; text-align: center; }
+    .reward-card.claimed .reward-level { color: #666; }
+    .reward-icons { flex: 1; font-size: 12px; color: #ccc; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .reward-icon-tag { background: rgba(255,255,255,0.06); border-radius: 6px; padding: 2px 6px; font-size: 11px; white-space: nowrap; }
+    .reward-claim-btn {
+      background: #FFD700; color: #000; border: none; border-radius: 8px;
+      padding: 6px 14px; font-weight: 700; font-size: 12px; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .reward-claim-btn:active { opacity: 0.7; }
+    .reward-claimed-label { color: #555; font-size: 16px; flex-shrink: 0; }
     .inv-action-btn {
       background: rgba(255,255,255,0.08); color: #aaa;
       border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
@@ -2067,7 +2090,7 @@
 
     /* ── Projectile animation ── */
     .attack-projectile {
-      position: fixed; z-index: 2000; font-size: 24px; pointer-events: none;
+      position: fixed; z-index: 4999; font-size: 24px; pointer-events: none;
       transition: none; filter: none; border-radius: 50%;
     }
     @keyframes projectileSpinCCW { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
@@ -2081,14 +2104,14 @@
     /* ── Combat projectile system ── */
     .combat-projectile {
       position: fixed;
-      z-index: 9999;
+      z-index: 4999;
       pointer-events: none;
       font-size: 20px;
       transform: translate(-50%, -50%);
     }
     .combat-hit-flash {
       position: fixed;
-      z-index: 9998;
+      z-index: 4999;
       pointer-events: none;
       font-size: 28px;
       transform: translate(-50%, -50%);
@@ -2101,7 +2124,7 @@
     }
     .floating-damage {
       position: fixed;
-      z-index: 9999;
+      z-index: 4999;
       pointer-events: none;
       font-weight: 900;
       font-size: 18px;
@@ -2887,7 +2910,7 @@
       </div>
     </div>
   </div>
-  <button id="btn-inventory" data-i18n-title="hud.inv_title">🎒</button>
+  <button id="btn-inventory" data-i18n-title="hud.inv_title" style="position:relative;">🎒<span class="reward-tab-dot" id="inv-rewards-dot" style="position:absolute;top:4px;right:4px;"></span></button>
   <button id="btn-collect" disabled data-i18n="btn.collect">💰 Собрать</button>
 </div>
 
@@ -3572,6 +3595,16 @@ const I18N = {
     'profile.stats': 'Характеристики',
     'profile.tab.equip': '⚔️ Снаряжение',
     'profile.tab.cores': '🔮 Ядра',
+    'profile.tab.rewards': '🎁 Награды',
+    'rewards.title': 'Награды за уровни',
+    'rewards.claim': 'Забрать',
+    'rewards.claim_all': 'Забрать всё',
+    'rewards.claimed': '✅',
+    'rewards.available': 'Доступно наград: {n}',
+    'rewards.received': 'Получены награды за ур. {n}!',
+    'rewards.all_claimed': 'Все награды получены!',
+    'rewards.received_all': 'Получено наград: {n}!',
+    'rewards.none': 'Нет доступных наград',
     'profile.inventory': 'Инвентарь (0)',
     'profile.inventory_n': 'Инвентарь ({n})',
     'profile.level': 'Ур. {n}',
@@ -3842,7 +3875,7 @@ const I18N = {
     'core.upgrade_short': '⬆️ Прокачать ({cost}🌀)',
     'core.extract': '📤 Извлечь',
     'core.extract_to_bag': '📤 Извлечь в сумку',
-    'core.sell_for': '🗑️ Продать за {n}🌀',
+    'core.sell_for': '🗑️ Продать за {n}',
     'core.pick_title': '🔮 Выбери ядро',
     'core.bag_count': '{n} ядер в сумке',
     'core.no_cores': 'Нет ядер в сумке\nПолучай с монументов 🏛️',
@@ -4613,6 +4646,16 @@ const I18N = {
     'profile.stats': 'Stats',
     'profile.tab.equip': '⚔️ Equipment',
     'profile.tab.cores': '🔮 Cores',
+    'profile.tab.rewards': '🎁 Rewards',
+    'rewards.title': 'Level Rewards',
+    'rewards.claim': 'Claim',
+    'rewards.claim_all': 'Claim All',
+    'rewards.claimed': '✅',
+    'rewards.available': 'Available rewards: {n}',
+    'rewards.received': 'Received rewards for lv. {n}!',
+    'rewards.all_claimed': 'All rewards claimed!',
+    'rewards.received_all': 'Claimed {n} rewards!',
+    'rewards.none': 'No rewards available',
     'profile.inventory': 'Inventory (0)',
     'profile.inventory_n': 'Inventory ({n})',
     'profile.level': 'Lv. {n}',
@@ -4883,7 +4926,7 @@ const I18N = {
     'core.upgrade_short': '⬆️ Upgrade ({cost}🌀)',
     'core.extract': '📤 Extract',
     'core.extract_to_bag': '📤 Extract to bag',
-    'core.sell_for': '🗑️ Sell for {n}🌀',
+    'core.sell_for': '🗑️ Sell for {n}',
     'core.pick_title': '🔮 Pick a core',
     'core.bag_count': '{n} cores in bag',
     'core.no_cores': 'No cores in bag\nGet them from monuments 🏛️',
@@ -5582,7 +5625,7 @@ function _spawnLevelUpParticles(x, y) {
     const p = document.createElement('div');
     p.textContent = '✨';
     const px = Math.round((Math.random() - 0.5) * 60);
-    p.style.cssText = `position:fixed;left:${x}px;top:${y}px;font-size:14px;pointer-events:none;z-index:10000;opacity:0;--px:${px}px;animation:particleFloat 1s ease forwards;animation-delay:${i * 0.1}s;`;
+    p.style.cssText = `position:fixed;left:${x}px;top:${y}px;font-size:14px;pointer-events:none;z-index:4999;opacity:0;--px:${px}px;animation:particleFloat 1s ease forwards;animation-delay:${i * 0.1}s;`;
     document.body.appendChild(p);
     setTimeout(() => p.remove(), 1200);
   }
@@ -5805,6 +5848,9 @@ function showProfilePopup() {
 
   // Inventory
   _renderInventoryGrid();
+
+  // Check unclaimed rewards for dot
+  checkUnclaimedRewards();
 
   // Show with slide-up animation
   const modal = document.getElementById('profile-modal');
@@ -7501,19 +7547,170 @@ async function doSellMine(mineId) {
 function switchInvTab(tab) {
   const eqBtn = document.getElementById('inv-tab-equip');
   const crBtn = document.getElementById('inv-tab-cores');
+  const rwBtn = document.getElementById('inv-tab-rewards');
   const eqPanel = document.getElementById('inv-panel-equip');
   const crPanel = document.getElementById('inv-panel-cores');
+  const rwPanel = document.getElementById('inv-panel-rewards');
   const eqActions = document.getElementById('inv-equip-actions');
+
+  eqBtn.classList.remove('active');
+  crBtn.classList.remove('active');
+  rwBtn.classList.remove('active');
+  eqPanel.style.display = 'none';
+  crPanel.style.display = 'none';
+  rwPanel.style.display = 'none';
+  if (eqActions) eqActions.style.display = 'none';
+
   if (tab === 'cores') {
-    eqBtn.classList.remove('active'); crBtn.classList.add('active');
-    eqPanel.style.display = 'none'; crPanel.style.display = '';
-    if (eqActions) eqActions.style.display = 'none';
+    crBtn.classList.add('active');
+    crPanel.style.display = '';
     renderCoresInventory();
+  } else if (tab === 'rewards') {
+    rwBtn.classList.add('active');
+    rwPanel.style.display = '';
+    loadLevelRewards();
   } else {
-    eqBtn.classList.add('active'); crBtn.classList.remove('active');
-    eqPanel.style.display = ''; crPanel.style.display = 'none';
+    eqBtn.classList.add('active');
+    eqPanel.style.display = '';
     if (eqActions) eqActions.style.display = 'flex';
   }
+}
+
+// ── Level Rewards ──────────────────────────────────────────────
+let _rewardsCache = null;
+
+async function loadLevelRewards() {
+  const list = document.getElementById('rewards-list');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">...</div>';
+  try {
+    const data = await apiFetch('/api/rewards', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'get-level-rewards', telegram_id: TG_ID }),
+    });
+    _rewardsCache = data;
+    renderRewardsList(data);
+    updateRewardsDot(data.unclaimed_count);
+  } catch (err) {
+    list.innerHTML = `<div style="text-align:center;color:#f44;padding:20px;">${err.message}</div>`;
+  }
+}
+
+function renderRewardsList(data) {
+  const list = document.getElementById('rewards-list');
+  const statusEl = document.getElementById('rewards-status');
+  const claimAllBtn = document.getElementById('btn-claim-all');
+  if (!list) return;
+
+  const rewards = data.rewards || [];
+  const unclaimed = data.unclaimed_count || 0;
+
+  if (statusEl) {
+    statusEl.textContent = unclaimed > 0 ? t('rewards.available', { n: unclaimed }) : t('rewards.all_claimed');
+    statusEl.style.color = unclaimed > 0 ? '#FFD700' : '#555';
+  }
+  if (claimAllBtn) {
+    claimAllBtn.style.display = unclaimed > 1 ? '' : 'none';
+    claimAllBtn.textContent = t('rewards.claim_all');
+  }
+
+  if (!rewards.length) {
+    list.innerHTML = `<div style="text-align:center;color:#666;padding:20px;">${t('rewards.none')}</div>`;
+    return;
+  }
+
+  // Show newest first (highest level on top)
+  const sorted = [...rewards].reverse();
+  let html = '';
+  for (const r of sorted) {
+    const rw = r.reward;
+    const cls = r.claimed ? 'claimed' : 'unclaimed';
+    let icons = '';
+    if (rw.diamonds > 0) icons += `<span class="reward-icon-tag">💎 ${rw.diamonds}</span>`;
+    if (rw.shards > 0) icons += `<span class="reward-icon-tag">✨ ${rw.shards}</span>`;
+    if (rw.ether > 0) icons += `<span class="reward-icon-tag">🌀 ${rw.ether}</span>`;
+    if (rw.boxes && rw.boxes.length) {
+      const boxCounts = {};
+      for (const b of rw.boxes) boxCounts[b] = (boxCounts[b] || 0) + 1;
+      for (const [rarity, count] of Object.entries(boxCounts)) {
+        const emoji = { common: '📦', rare: '🟦', epic: '🟪', mythic: '🟥' }[rarity] || '📦';
+        icons += `<span class="reward-icon-tag">${emoji} x${count}</span>`;
+      }
+    }
+    if (rw.cores && rw.cores.length) {
+      icons += `<span class="reward-icon-tag">⚙️ x${rw.cores.length}${rw.cores[0].level > 0 ? ' lv' + rw.cores[0].level : ''}</span>`;
+    }
+
+    const action = r.claimed
+      ? `<span class="reward-claimed-label">${t('rewards.claimed')}</span>`
+      : `<button class="reward-claim-btn" onclick="claimReward(${r.level})">${t('rewards.claim')}</button>`;
+
+    html += `<div class="reward-card ${cls}"><div class="reward-level">${r.level}</div><div class="reward-icons">${icons}</div>${action}</div>`;
+  }
+  list.innerHTML = html;
+}
+
+async function claimReward(level) {
+  try {
+    const data = await apiFetch('/api/rewards', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'claim-reward', telegram_id: TG_ID, level }),
+    });
+    if (state.player) {
+      if (data.diamonds_total != null) state.player.diamonds = data.diamonds_total;
+      if (data.crystals_total != null) state.player.crystals = data.crystals_total;
+      if (data.ether_total != null) state.player.ether = data.ether_total;
+    }
+    updateDiamondDisplay();
+    updateCrystalDisplay();
+    updateCoinDisplay();
+    showToast(t('rewards.received', { n: level }));
+    try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
+    loadLevelRewards();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function claimAllRewards() {
+  try {
+    const data = await apiFetch('/api/rewards', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'claim-all', telegram_id: TG_ID }),
+    });
+    if (state.player) {
+      if (data.diamonds_total != null) state.player.diamonds = data.diamonds_total;
+      if (data.crystals_total != null) state.player.crystals = data.crystals_total;
+      if (data.ether_total != null) state.player.ether = data.ether_total;
+    }
+    updateDiamondDisplay();
+    updateCrystalDisplay();
+    updateCoinDisplay();
+    const count = data.claimed_levels ? data.claimed_levels.length : 0;
+    showToast(count > 0 ? t('rewards.received_all', { n: count }) : t('rewards.all_claimed'));
+    try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
+    loadLevelRewards();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+function updateRewardsDot(count) {
+  const tabDot = document.getElementById('rewards-tab-dot');
+  const invDot = document.getElementById('inv-rewards-dot');
+  if (tabDot) tabDot.style.display = count > 0 ? 'block' : 'none';
+  if (invDot) invDot.style.display = count > 0 ? 'block' : 'none';
+}
+
+async function checkUnclaimedRewards() {
+  try {
+    const data = await apiFetch('/api/rewards', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'get-level-rewards', telegram_id: TG_ID }),
+    });
+    _rewardsCache = data;
+    updateRewardsDot(data.unclaimed_count || 0);
+  } catch(_) {}
 }
 
 const CORE_TYPE_ORDER = { income: 0, capacity: 1, hp: 2, regen: 3 };
@@ -8179,6 +8376,7 @@ async function refreshAll() {
     }
     if (prevLevel && data.player.level > prevLevel) {
       showLevelUp(data.player.level);
+      checkUnclaimedRewards();
     }
     updateCoinDisplay();
     updatePlayerDisplay();
@@ -8376,7 +8574,7 @@ function initSocket() {
       }
       // Red flash
       const flash = document.createElement('div');
-      flash.style.cssText = 'position:fixed;inset:0;z-index:19999;background:rgba(255,0,0,0.3);pointer-events:none;animation:waveFlash 0.6s ease-out forwards;';
+      flash.style.cssText = 'position:fixed;inset:0;z-index:4999;background:rgba(255,0,0,0.3);pointer-events:none;animation:waveFlash 0.6s ease-out forwards;';
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 700);
       try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
@@ -8499,7 +8697,7 @@ function initSocket() {
       for (const z of (data.zombies || [])) addZombieMarker(z);
       showToast(t('zombie.wave', { n: data.wave }));
       const flash = document.createElement('div');
-      flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,0,0,0.2);z-index:9999;pointer-events:none;animation:flashFade 0.5s ease-out forwards;';
+      flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,0,0,0.2);z-index:4999;pointer-events:none;animation:flashFade 0.5s ease-out forwards;';
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 500);
     });
@@ -8560,7 +8758,7 @@ function processTickData(data) {
       _localCoins = serverCoins;
     }
     _lastTickTime = Date.now();
-    if (prevLevel && data.player.level > prevLevel) showLevelUp(data.player.level);
+    if (prevLevel && data.player.level > prevLevel) { showLevelUp(data.player.level); checkUnclaimedRewards(); }
     _resetHpRegenBase();
     updateHpBar();
   }
@@ -8953,7 +9151,7 @@ function _flyingDiamonds(marker) {
   [0, 72, 144, 216, 288].forEach(angle => {
     const gem = document.createElement('div');
     gem.textContent = '💎';
-    gem.style.cssText = `position:fixed;font-size:22px;left:${cx}px;top:${cy}px;pointer-events:none;z-index:9999;transition:all 0.6s ease-out;`;
+    gem.style.cssText = `position:fixed;font-size:22px;left:${cx}px;top:${cy}px;pointer-events:none;z-index:4999;transition:all 0.6s ease-out;`;
     document.body.appendChild(gem);
     requestAnimationFrame(() => {
       const rad = angle * Math.PI / 180;
@@ -9154,7 +9352,7 @@ function showFloatingText(latLng, text, color) {
   const pt = map.latLngToContainerPoint(latLng);
   const el = document.createElement('div');
   el.textContent = text;
-  el.style.cssText = `position:fixed;left:${pt.x}px;top:${pt.y}px;color:${color};font-size:16px;font-weight:bold;pointer-events:none;z-index:9999;animation:floatUp 1.5s ease-out forwards;`;
+  el.style.cssText = `position:fixed;left:${pt.x}px;top:${pt.y}px;color:${color};font-size:16px;font-weight:bold;pointer-events:none;z-index:4999;animation:floatUp 1.5s ease-out forwards;`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1500);
 }
@@ -9823,6 +10021,9 @@ async function boot() {
     // HQ is optional — no forced prompt
 
     updateCoinDisplay();
+
+    // Check unclaimed rewards for dot on inventory button
+    checkUnclaimedRewards();
 
     // Start GPS watch
     navigator.geolocation.watchPosition(onPosition, onGpsError, {
@@ -15384,6 +15585,7 @@ async function spawnZombieScout() {
   <div class="profile-inv-tabs">
     <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')" data-i18n="profile.tab.equip">⚔️ Снаряжение</button>
     <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')" data-i18n="profile.tab.cores">🔮 Ядра</button>
+    <button class="profile-inv-tab" id="inv-tab-rewards" onclick="switchInvTab('rewards')" data-i18n="profile.tab.rewards">🎁 Награды<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
     <div style="flex:1;"></div>
     <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
       <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
@@ -15397,6 +15599,13 @@ async function spawnZombieScout() {
     </div>
     <div id="inv-panel-cores" style="display:none;margin-top:0;">
       <div id="cores-inv-grid"></div>
+    </div>
+    <div id="inv-panel-rewards" style="display:none;margin-top:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div id="rewards-status" style="font-size:12px;color:#FFD700;"></div>
+        <button class="reward-claim-btn" id="btn-claim-all" onclick="claimAllRewards()" style="display:none;font-size:11px;padding:5px 12px;">Забрать всё</button>
+      </div>
+      <div id="rewards-list"></div>
     </div>
   </div>
   </div><!-- /profile-modal-body -->

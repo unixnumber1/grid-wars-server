@@ -24,6 +24,7 @@ import { oreRouter } from './routes/ore.js';
 import { monumentsRouter } from './routes/monuments.js';
 import { collectorsRouter } from './routes/collectors.js';
 import { coresRouter } from './routes/cores.js';
+import { rewardsRouter } from './routes/rewards.js';
 import { startGameLoop } from './socket/gameLoop.js';
 
 import { log } from './lib/log.js';
@@ -237,6 +238,7 @@ app.use('/api/ore', oreRouter);
 app.use('/api/monuments', monumentsRouter);
 app.use('/api/collectors', collectorsRouter);
 app.use('/api/cores', coresRouter);
+app.use('/api/rewards', rewardsRouter);
 
 // Catch unhandled route errors
 app.use((err, req, res, next) => {
