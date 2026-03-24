@@ -7584,7 +7584,7 @@ async function doSellMine(mineId) {
 function switchInvTab(tab) {
   const eqBtn = document.getElementById('inv-tab-equip');
   const crBtn = document.getElementById('inv-tab-cores');
-  const skBtn = document.getElementById('inv-tab-skills');
+  const skBtn = document.getElementById('btn-skills-open');
   const eqPanel = document.getElementById('inv-panel-equip');
   const crPanel = document.getElementById('inv-panel-cores');
   const rwPanel = document.getElementById('inv-panel-rewards');
@@ -7594,7 +7594,7 @@ function switchInvTab(tab) {
 
   eqBtn.classList.remove('active');
   crBtn.classList.remove('active');
-  if (skBtn) skBtn.classList.remove('active');
+  if (skBtn) skBtn.style.borderColor = 'rgba(76,175,80,0.25)';
   eqPanel.style.display = 'none';
   crPanel.style.display = 'none';
   rwPanel.style.display = 'none';
@@ -7611,7 +7611,7 @@ function switchInvTab(tab) {
     rwPanel.style.display = '';
     loadLevelRewards();
   } else if (tab === 'skills') {
-    if (skBtn) skBtn.classList.add('active');
+    if (skBtn) skBtn.style.borderColor = '#4caf50';
     if (skPanel) skPanel.style.display = '';
     renderSkillsTab();
   } else {
@@ -7682,7 +7682,7 @@ function renderSkillsUI(el, data) {
 
   let html = `<div class="skills-header">
     <div class="skills-points">Очков: <span style="color:#fff">${avail}</span></div>
-    ${data.skill_points_used > 0 ? `<button class="skills-reset-btn" onclick="resetSkills()">Сброс (${formatNum(resetCost)}💎)</button>` : ''}
+    ${data.skill_points_used > 0 ? `<button class="skills-reset-btn" onclick="resetSkills()">Сброс (${formatNumber(resetCost)}💎)</button>` : ''}
   </div>`;
 
   html += `<div class="skills-branch-tabs">
@@ -7752,7 +7752,7 @@ function openSkillPopup(tree, skillId) {
 
   const actions = [];
   if (canInvest) {
-    actions.push({ label:`+ Вложить очко (${avail} своб.)`, cls:'primary', action: async () => {
+    actions.push({ label:`Улучшить +1 (${avail} своб.)`, cls:'primary', action: async () => {
       try {
         const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'invest', tree, skill_id:skillId }) });
         _skillData = res;
@@ -7777,11 +7777,11 @@ function openSkillPopup(tree, skillId) {
 async function resetSkills() {
   if (!_skillData || _skillData.skill_points_used === 0) return;
   const cost = _skillData.reset_cost;
-  openPopup('Сброс навыков', `Стоимость: ${formatNum(cost)} 💎`, [
+  openPopup('Сброс навыков', `Стоимость: ${formatNumber(cost)} 💎`, [
     ['Все очки будут возвращены', ''],
     ['Навыки обнулятся', ''],
   ], [
-    { label:`Сбросить за ${formatNum(cost)}💎`, cls:'danger', action: async () => {
+    { label:`Сбросить за ${formatNumber(cost)}💎`, cls:'danger', action: async () => {
       try {
         const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'reset' }) });
         _skillData = res;
@@ -16002,6 +16002,7 @@ async function spawnZombieScout() {
     <button id="profile-modal-close">✕</button>
     <span class="pm-name" id="profile-modal-name">—</span>
     <span class="pm-level" id="profile-modal-level">1ур</span>
+    <button id="btn-skills-open" onclick="switchInvTab('skills')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🌿</button>
     <button id="btn-rewards-open" onclick="switchInvTab('rewards')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎁<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
   </div>
   <div id="profile-modal-body">
@@ -16039,7 +16040,6 @@ async function spawnZombieScout() {
   <div class="profile-inv-tabs">
     <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')" data-i18n="profile.tab.equip">⚔️ Снаряжение</button>
     <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')" data-i18n="profile.tab.cores">🔮 Ядра</button>
-    <button class="profile-inv-tab" id="inv-tab-skills" onclick="switchInvTab('skills')">🌿 Навыки</button>
     <div style="flex:1;"></div>
     <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
       <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
