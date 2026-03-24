@@ -7563,26 +7563,26 @@ async function doSellMine(mineId) {
 function switchInvTab(tab) {
   const eqBtn = document.getElementById('inv-tab-equip');
   const crBtn = document.getElementById('inv-tab-cores');
-  const rwBtn = document.getElementById('inv-tab-rewards');
   const eqPanel = document.getElementById('inv-panel-equip');
   const crPanel = document.getElementById('inv-panel-cores');
   const rwPanel = document.getElementById('inv-panel-rewards');
   const eqActions = document.getElementById('inv-equip-actions');
+  const rwBtn = document.getElementById('btn-rewards-open');
 
   eqBtn.classList.remove('active');
   crBtn.classList.remove('active');
-  rwBtn.classList.remove('active');
   eqPanel.style.display = 'none';
   crPanel.style.display = 'none';
   rwPanel.style.display = 'none';
   if (eqActions) eqActions.style.display = 'none';
+  if (rwBtn) rwBtn.style.borderColor = 'rgba(255,215,0,0.25)';
 
   if (tab === 'cores') {
     crBtn.classList.add('active');
     crPanel.style.display = '';
     renderCoresInventory();
   } else if (tab === 'rewards') {
-    rwBtn.classList.add('active');
+    if (rwBtn) rwBtn.style.borderColor = '#FFD700';
     rwPanel.style.display = '';
     loadLevelRewards();
   } else {
@@ -7676,7 +7676,12 @@ async function claimReward(level) {
     const rw = _rewardsCache?.rewards?.find(r => r.level === level)?.reward;
     if (!rw) { showToast('Error'); return; }
 
-    await showRewardPreview(level, rw);
+    try {
+      await showRewardPreview(level, rw);
+    } catch (e) {
+      if (e.message === 'cancelled') return; // user closed with X
+      throw e;
+    }
 
     // Now actually claim
     const data = await apiFetch('/api/rewards', {
@@ -7746,7 +7751,7 @@ async function claimAllRewards() {
 
 // ── Reward preview screen ──────────────────────────────────────
 function showRewardPreview(level, rw) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;animation:fadeIn 0.3s ease;';
 
@@ -7786,7 +7791,6 @@ function showRewardPreview(level, rw) {
       }
       iconsHtml += `</div>`;
     } else if (icons.length === 3) {
-      // Triangle: 1 on top, 2 on bottom
       const top = icons[0];
       iconsHtml = `<div style="text-align:center;margin-bottom:20px;">
         <div style="font-size:${top.size}px;filter:drop-shadow(0 0 15px ${top.color});animation:bounceIn 0.5s ease;">${top.emoji}</div>
@@ -7802,7 +7806,6 @@ function showRewardPreview(level, rw) {
       }
       iconsHtml += `</div>`;
     } else {
-      // Grid for 4+
       iconsHtml = `<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:center;max-width:280px;">`;
       for (const ic of icons) {
         iconsHtml += `<div style="text-align:center;min-width:80px;">
@@ -7813,9 +7816,15 @@ function showRewardPreview(level, rw) {
       iconsHtml += `</div>`;
     }
 
+    function closeOv(cb) {
+      ov.style.transition = 'opacity 0.3s';
+      ov.style.opacity = '0';
+      setTimeout(() => { ov.remove(); cb(); }, 300);
+    }
+
     ov.innerHTML = `
+      <button id="reward-close-x" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;background:none;border:none;font-size:22px;color:#666;cursor:pointer;z-index:2;padding:8px;-webkit-tap-highlight-color:transparent;">✕</button>
       <div style="position:relative;z-index:1;text-align:center;max-width:320px;width:100%;">
-        <div style="font-size:13px;color:#888;margin-bottom:6px;letter-spacing:1px;text-transform:uppercase;">${t('rewards.title')}</div>
         <div style="font-size:28px;font-weight:900;color:#FFD700;margin-bottom:24px;text-shadow:0 0 30px rgba(255,215,0,0.3);">${t('misc.level_short', {n: level})}</div>
         ${iconsHtml}
         <button id="reward-claim-action-btn" style="margin-top:32px;width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;letter-spacing:0.5px;">${t('rewards.claim')}</button>
@@ -7824,11 +7833,8 @@ function showRewardPreview(level, rw) {
     document.body.appendChild(ov);
     try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
 
-    ov.querySelector('#reward-claim-action-btn').addEventListener('click', () => {
-      ov.style.transition = 'opacity 0.3s';
-      ov.style.opacity = '0';
-      setTimeout(() => { ov.remove(); resolve(); }, 300);
-    });
+    ov.querySelector('#reward-claim-action-btn').addEventListener('click', () => closeOv(resolve));
+    ov.querySelector('#reward-close-x').addEventListener('click', () => closeOv(() => reject(new Error('cancelled'))));
   });
 }
 
@@ -15768,6 +15774,7 @@ async function spawnZombieScout() {
     <button id="profile-modal-close">✕</button>
     <span class="pm-name" id="profile-modal-name">—</span>
     <span class="pm-level" id="profile-modal-level">1ур</span>
+    <button id="btn-rewards-open" onclick="switchInvTab('rewards')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎁<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
   </div>
   <div id="profile-modal-body">
 
@@ -15804,7 +15811,6 @@ async function spawnZombieScout() {
   <div class="profile-inv-tabs">
     <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')" data-i18n="profile.tab.equip">⚔️ Снаряжение</button>
     <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')" data-i18n="profile.tab.cores">🔮 Ядра</button>
-    <button class="profile-inv-tab" id="inv-tab-rewards" onclick="switchInvTab('rewards')" data-i18n="profile.tab.rewards">🎁 Награды<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
     <div style="flex:1;"></div>
     <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
       <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
