@@ -6255,7 +6255,8 @@ function _refreshProfileStats() {
 
   // ── Right column: Attack (player combat) ──
   let atkHtml = '';
-  atkHtml += R('⚔️', 'Урон', formatNumber(totalAtk), fx.weapon_damage_bonus ? `+${Math.round(fx.weapon_damage_bonus*100)}%` : '');
+  const effectiveAtk = fx.weapon_damage_bonus ? Math.round(totalAtk * (1 + fx.weapon_damage_bonus)) : totalAtk;
+  atkHtml += R('⚔️', 'Урон', formatNumber(effectiveAtk), fx.weapon_damage_bonus ? `(${formatNumber(totalAtk)}+${Math.round(fx.weapon_damage_bonus*100)}%)` : '');
   if (totalCrit > 0) atkHtml += R('🎯', 'Крит', `${totalCrit.toFixed(1)}%`, fx.crit_chance_bonus ? `+${(fx.crit_chance_bonus*100).toFixed(1)}%` : '');
   if (execChance > 0) atkHtml += R('💀', 'Казнь', `${execChance.toFixed(1)}%`, '');
   if (fx.attack_speed_bonus) atkHtml += R('💨', 'Скорость', `-${Math.round(fx.attack_speed_bonus*100)}%`, 'КД');
