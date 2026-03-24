@@ -56,19 +56,14 @@ async function handleClaimReward(res, player, tgId, body) {
   const reward = LEVEL_REWARDS_MAP.get(level);
   if (!reward) return res.status(400).json({ error: 'No reward for this level' });
 
-  // Check not already claimed (PK constraint also prevents duplicates)
-  const { data: existing } = await supabase
+  // Claim FIRST (PK prevents duplicates), then grant rewards
+  // This prevents race conditions from double-clicks
+  const { error: claimErr } = await supabase
     .from('level_rewards_claimed')
-    .select('level')
-    .eq('player_id', tgId)
-    .eq('level', level)
-    .maybeSingle();
-  if (existing) return res.status(400).json({ error: 'Already claimed' });
+    .insert({ player_id: tgId, level });
+  if (claimErr) return res.status(400).json({ error: 'Already claimed' });
 
   const result = await grantReward(player, tgId, reward);
-
-  // Record claim
-  await supabase.from('level_rewards_claimed').insert({ player_id: tgId, level });
 
   return res.json({
     success: true,
@@ -98,6 +93,11 @@ async function handleClaimAll(res, player, tgId) {
 
   if (!unclaimed.length) return res.json({ success: true, granted: null, message: 'Nothing to claim' });
 
+  // Claim FIRST to prevent race conditions
+  const claimRows = unclaimed.map(lv => ({ player_id: tgId, level: lv }));
+  const { error: claimErr } = await supabase.from('level_rewards_claimed').insert(claimRows);
+  if (claimErr) return res.status(400).json({ error: 'Already claimed (partial)' });
+
   const totals = { diamonds: 0, shards: 0, ether: 0, items: [], cores: [] };
 
   for (const lv of unclaimed) {
@@ -109,10 +109,6 @@ async function handleClaimAll(res, player, tgId) {
     totals.items.push(...result.items);
     totals.cores.push(...result.cores);
   }
-
-  // Batch insert claim records
-  const claimRows = unclaimed.map(lv => ({ player_id: tgId, level: lv }));
-  await supabase.from('level_rewards_claimed').insert(claimRows);
 
   return res.json({
     success: true,

@@ -7650,7 +7650,10 @@ function renderRewardsList(data) {
   list.innerHTML = html;
 }
 
+let _claimingReward = false;
 async function claimReward(level) {
+  if (_claimingReward) return;
+  _claimingReward = true;
   try {
     const data = await apiFetch('/api/rewards', {
       method: 'POST',
@@ -7666,13 +7669,17 @@ async function claimReward(level) {
     updateCoinDisplay();
     showToast(t('rewards.received', { n: level }));
     try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
-    loadLevelRewards();
+    await loadLevelRewards();
   } catch (err) {
     showToast(`❌ ${err.message}`);
+  } finally {
+    _claimingReward = false;
   }
 }
 
 async function claimAllRewards() {
+  if (_claimingReward) return;
+  _claimingReward = true;
   try {
     const data = await apiFetch('/api/rewards', {
       method: 'POST',
@@ -7689,7 +7696,7 @@ async function claimAllRewards() {
     const count = data.claimed_levels ? data.claimed_levels.length : 0;
     showToast(count > 0 ? t('rewards.received_all', { n: count }) : t('rewards.all_claimed'));
     try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
-    loadLevelRewards();
+    await loadLevelRewards();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
