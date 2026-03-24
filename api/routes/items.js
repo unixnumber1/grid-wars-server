@@ -255,7 +255,7 @@ async function handleStarsInvoice(req, res) {
   return res.json({ invoiceLink: data.result });
 }
 
-async function handleStarsWebhook(req, res) {
+export async function handleStarsWebhook(req, res) {
   const update = req.body;
 
   if (update.pre_checkout_query) {

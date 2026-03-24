@@ -132,8 +132,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ── Telegram Bot Webhook (callback_query for ban/unban buttons) ──
+// ── Telegram Bot Webhook (callback_query, payments) ──
 app.post('/api/telegram-webhook', async (req, res) => {
+  // Payment events: forward to items handler (must respond before res.json)
+  if (req.body?.pre_checkout_query || req.body?.message?.successful_payment) {
+    try {
+      const { handleStarsWebhook } = await import('./api/routes/items.js');
+      return handleStarsWebhook(req, res);
+    } catch (e) {
+      console.error('[webhook] payment handler error:', e.message);
+      return res.json({ ok: true });
+    }
+  }
+
   res.json({ ok: true }); // respond immediately
   try {
     const cb = req.body?.callback_query;
