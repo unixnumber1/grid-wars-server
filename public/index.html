@@ -6235,67 +6235,84 @@ function _refreshProfileStats() {
   const barColor = hpPct > 60 ? '#00E676' : hpPct > 30 ? '#ff9800' : '#f44336';
   const statsEl = document.getElementById('profile-stat-rows');
   const fx = state.skill_effects || {};
-
-  // Skill bonus label helper
-  const skB = (val, fmt) => val ? `<span style="color:#4caf50;font-size:10px;margin-left:3px">+${fmt || Math.round(val * 100) + '%'}</span>` : '';
-
-  // HP bar (full width)
-  let html = `
-    <div style="margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;">
-        <span>❤️ HP${skB(fx.player_hp_bonus)}</span><span>${hp} / ${maxHp}</span>
-      </div>
-      <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
-        <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
-      </div>
-    </div>
-  `;
-
-  // Two columns: defense | attack
-  let defRows = `<div class="ps-row"><span class="ps-label">${t('itemstat.regen')}</span><span class="ps-val">10/${t('time.sec')}</span></div>`;
-  if (blockChance > 0) defRows += `<div class="ps-row"><span class="ps-label">${t('itemstat.block')}</span><span class="ps-val">${blockChance.toFixed(1)}%</span></div>`;
-  if (fx.mine_damage_reduction) defRows += `<div class="ps-row"><span class="ps-label">🛡️ Защита шахт</span><span class="ps-val" style="color:#4caf50">-${Math.round(fx.mine_damage_reduction * 100)}%</span></div>`;
-  if (fx.safe_pvp_loss) defRows += `<div class="ps-row"><span class="ps-label">🔐 Сейф</span><span class="ps-val" style="color:#4caf50">5%</span></div>`;
-  if (fx.lifesteal) defRows += `<div class="ps-row"><span class="ps-label">🩸 Вампиризм</span><span class="ps-val" style="color:#4caf50">${(fx.lifesteal * 100).toFixed(1)}%</span></div>`;
-
-  const atkSkLabel = fx.weapon_damage_bonus ? `${totalAtk} <span style="color:#4caf50;font-size:10px">+${Math.round(fx.weapon_damage_bonus * 100)}%</span>` : `${totalAtk}`;
-  let atkRows = `<div class="ps-row"><span class="ps-label">${t('itemstat.attack')}</span><span class="ps-val">${atkSkLabel}</span></div>`;
   const totalCrit = critChance + (fx.crit_chance_bonus || 0) * 100;
-  if (totalCrit > 0) atkRows += `<div class="ps-row"><span class="ps-label">${t('itemstat.crit')}</span><span class="ps-val">${totalCrit.toFixed(1)}%${skB(fx.crit_chance_bonus)}</span></div>`;
-  if (execChance > 0) atkRows += `<div class="ps-row"><span class="ps-label">${t('itemstat.exec')}</span><span class="ps-val">${execChance.toFixed(1)}%</span></div>`;
-  if (fx.attack_speed_bonus) atkRows += `<div class="ps-row"><span class="ps-label">💨 Скорость</span><span class="ps-val" style="color:#4caf50">-${Math.round(fx.attack_speed_bonus * 100)}% КД</span></div>`;
-  if (fx.pve_damage_bonus) atkRows += `<div class="ps-row"><span class="ps-label">🏛️ PvE урон</span><span class="ps-val" style="color:#4caf50">+${Math.round(fx.pve_damage_bonus * 100)}%</span></div>`;
-  if (fx.pvp_loot_bonus) atkRows += `<div class="ps-row"><span class="ps-label">💀 PvP лут</span><span class="ps-val" style="color:#4caf50">+${Math.round(fx.pvp_loot_bonus * 100)}%</span></div>`;
 
-  html += `<div class="ps-columns">
-    <div class="ps-col">
-      <div class="ps-col-title">${t('itemstat.defense_col')}</div>
-      ${defRows}
+  // ── HP bar ──
+  let html = `<div style="margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;">
+      <span>❤️ HP</span><span>${formatNumber(hp)} / ${formatNumber(maxHp)}</span>
     </div>
-    <div class="ps-col">
-      <div class="ps-col-title">${t('itemstat.damage_col')}</div>
-      ${atkRows}
+    <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:${hpPct}%;background:${barColor};border-radius:4px;transition:width 0.3s;"></div>
     </div>
   </div>`;
 
-  // Skill bonuses for mines (if any active)
-  const mineSkills = [];
-  if (fx.mine_income_bonus) mineSkills.push(`💰 Доход +${Math.round(fx.mine_income_bonus * 100)}%`);
-  if (fx.mine_capacity_bonus) mineSkills.push(`📦 Вместимость +${Math.round(fx.mine_capacity_bonus * 100)}%`);
-  if (fx.mine_hp_bonus) mineSkills.push(`❤️ HP шахт +${Math.round(fx.mine_hp_bonus * 100)}%`);
-  if (fx.mine_regen_bonus) mineSkills.push(`♻️ Реген шахт +${Math.round(fx.mine_regen_bonus * 100)}%`);
-  if (fx.ore_bonus) mineSkills.push(`✨ Руда +${Math.round(fx.ore_bonus * 100)}%`);
-  if (fx.radius_bonus) mineSkills.push(`🌍 Радиус +${fx.radius_bonus}м`);
-  if (fx.attack_radius_bonus) mineSkills.push(`🎭 Атака +${fx.attack_radius_bonus}м`);
-  if (fx.instant_collector) mineSkills.push(`⚙️ Мгновенный сбор`);
-  if (fx.landlord_bonus) mineSkills.push(`👑 Землевладелец`);
-  if (fx.sniper_ability) mineSkills.push(`🎯 Снайпер`);
-  if (fx.shadow_ability) mineSkills.push(`🎭 Тень`);
+  // ── 4 compact stat cards ──
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+    <div style="background:#1a1a2e;border-radius:8px;padding:8px 10px;">
+      <div style="font-size:10px;color:#888;">⚔️ Урон</div>
+      <div style="font-size:16px;color:#fff;font-weight:700;">${formatNumber(totalAtk)}${fx.weapon_damage_bonus ? `<span style="color:#4caf50;font-size:11px;font-weight:400;"> +${Math.round(fx.weapon_damage_bonus*100)}%</span>` : ''}</div>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:8px 10px;">
+      <div style="font-size:10px;color:#888;">🎯 Крит</div>
+      <div style="font-size:16px;color:#fff;font-weight:700;">${totalCrit.toFixed(1)}%${fx.crit_chance_bonus ? `<span style="color:#4caf50;font-size:11px;font-weight:400;"> +${(fx.crit_chance_bonus*100).toFixed(1)}%</span>` : ''}</div>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:8px 10px;">
+      <div style="font-size:10px;color:#888;">❤️ Макс HP</div>
+      <div style="font-size:16px;color:#fff;font-weight:700;">${formatNumber(maxHp)}${fx.player_hp_bonus ? `<span style="color:#4caf50;font-size:11px;font-weight:400;"> +${Math.round(fx.player_hp_bonus*100)}%</span>` : ''}</div>
+    </div>
+    <div style="background:#1a1a2e;border-radius:8px;padding:8px 10px;">
+      <div style="font-size:10px;color:#888;">♻️ Реген</div>
+      <div style="font-size:16px;color:#fff;font-weight:700;">10/${t('time.sec')}</div>
+    </div>
+  </div>`;
 
-  if (mineSkills.length > 0) {
-    html += `<div style="margin-top:8px;padding:8px 10px;background:rgba(76,175,80,0.08);border:1px solid rgba(76,175,80,0.2);border-radius:8px;">
-      <div style="font-size:11px;color:#4caf50;font-weight:600;margin-bottom:4px;">🌿 Навыки</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px 10px;">${mineSkills.map(s => `<span style="font-size:11px;color:#aaa;">${s}</span>`).join('')}</div>
+  // ── Expandable details ──
+  const detRows = [];
+
+  // Combat
+  if (execChance > 0) detRows.push(['⚔️ Казнь', `${execChance.toFixed(1)}%`, 'при HP цели <50%']);
+  if (blockChance > 0) detRows.push(['🛡️ Блок', `${blockChance.toFixed(1)}%`, 'шанс заблокировать удар']);
+  if (fx.attack_speed_bonus) detRows.push(['💨 Скорость атаки', `-${Math.round(fx.attack_speed_bonus*100)}%`, 'снижение кулдауна оружия']);
+  if (fx.pve_damage_bonus) detRows.push(['🏛️ PvE урон', `+${Math.round(fx.pve_damage_bonus*100)}%`, 'по ботам, монументам, зомби']);
+  if (fx.lifesteal) detRows.push(['🩸 Вампиризм', `${(fx.lifesteal*100).toFixed(1)}%`, 'урона восстанавливает HP']);
+
+  // PvP
+  if (fx.pvp_loot_bonus) detRows.push(['💀 PvP лут', `+${Math.round(fx.pvp_loot_bonus*100)}%`, 'больше монет с победы']);
+  if (fx.safe_pvp_loss) detRows.push(['🔐 Сейф', `5% вместо 10%`, 'потеря монет при смерти']);
+
+  // Mines
+  if (fx.mine_income_bonus) detRows.push(['💰 Доход шахт', `+${Math.round(fx.mine_income_bonus*100)}%`, 'ко всем шахтам']);
+  if (fx.mine_capacity_bonus) detRows.push(['📦 Вместимость', `+${Math.round(fx.mine_capacity_bonus*100)}%`, 'максимум монет в шахте']);
+  if (fx.mine_hp_bonus) detRows.push(['❤️ HP шахт', `+${Math.round(fx.mine_hp_bonus*100)}%`, 'прочность шахт']);
+  if (fx.mine_regen_bonus) detRows.push(['♻️ Реген шахт', `+${Math.round(fx.mine_regen_bonus*100)}%`, 'скорость восстановления HP']);
+  if (fx.mine_damage_reduction) detRows.push(['🛡️ Защита шахт', `-${Math.round(fx.mine_damage_reduction*100)}%`, 'урон по твоим шахтам']);
+  if (fx.ore_bonus) detRows.push(['✨ Руда', `+${Math.round(fx.ore_bonus*100)}%`, 'осколки и эфир с рудников']);
+
+  // Radius
+  if (fx.radius_bonus) detRows.push(['🌍 Радиус', `+${fx.radius_bonus}м`, `${200 + fx.radius_bonus}м вместо 200м`]);
+  if (fx.attack_radius_bonus) detRows.push(['🎭 Радиус атаки', `+${fx.attack_radius_bonus}м`, `${500 + fx.attack_radius_bonus}м вместо 500м`]);
+
+  // Abilities
+  if (fx.instant_collector) detRows.push(['⚙️ Телепортация', 'активна', 'мгновенная доставка со сборщика']);
+  if (fx.landlord_bonus) detRows.push(['👑 Землевладелец', '+15%', 'к доходу ближних шахт онлайн']);
+  if (fx.sniper_ability) detRows.push(['🎯 Снайпер', 'активна', 'первый удар по цели = крит']);
+  if (fx.shadow_ability) detRows.push(['🎭 Тень', 'доступна', 'невидимость 30 мин']);
+
+  if (detRows.length > 0) {
+    html += `<div style="margin-top:2px;">
+      <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.ps-arrow').textContent=this.nextElementSibling.style.display==='none'?'▸':'▾'" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 0;-webkit-tap-highlight-color:transparent;">
+        <span class="ps-arrow" style="color:#888;font-size:12px;">▸</span>
+        <span style="font-size:12px;color:#888;">Все параметры билда</span>
+        <span style="font-size:10px;color:#555;margin-left:auto;">${detRows.length} шт</span>
+      </div>
+      <div style="display:none;">
+        ${detRows.map(([name, val, desc]) => `<div style="display:flex;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:12px;color:#ccc;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+          <span style="font-size:13px;color:#4caf50;font-weight:600;margin:0 8px;white-space:nowrap;">${val}</span>
+          <span style="font-size:10px;color:#666;max-width:110px;text-align:right;">${desc}</span>
+        </div>`).join('')}
+      </div>
     </div>`;
   }
 
