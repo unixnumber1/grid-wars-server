@@ -7,6 +7,7 @@ import { addXp } from '../../lib/xp.js';
 import { LARGE_RADIUS, calcHpRegen } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 export const botsRouter = Router();
 
@@ -302,7 +303,8 @@ async function handleAttack(player, body) {
   if (!bot) return { status: 404, error: 'Bot not found' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
+  const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
+  if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
   const { data: pFull, error: pErr } = await supabase
     .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, equipped_sword, coins').eq('id', player.id).single();
@@ -319,10 +321,21 @@ async function handleAttack(player, body) {
     const { data: wpn } = await supabase.from('items').select('type, crit_chance').eq('id', pFull.equipped_sword).maybeSingle();
     if (wpn?.type === 'sword') weaponCrit = wpn.crit_chance ?? 0;
   }
-  const critChance = 0.2 + weaponCrit / 100;
+  const critChance = 0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0);
   const isCrit     = Math.random() < critChance;
   let   damage     = Math.floor(playerAtk * (0.8 + Math.random() * 0.4));
+  // Skill bonuses: weapon damage + PvE
+  if (_bRadFx.weapon_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.weapon_damage_bonus));
+  if (_bRadFx.pve_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.pve_damage_bonus));
   if (isCrit) damage = Math.floor(damage * 2);
+  // Lifesteal
+  if (_bRadFx.lifesteal > 0 && damage > 0) {
+    const healed = Math.floor(damage * _bRadFx.lifesteal);
+    if (healed > 0 && player) {
+      const gsP = gameState.getPlayerByTgId(body.telegram_id);
+      if (gsP) { gsP.hp = Math.min(maxHp, (gsP.hp || maxHp) + healed); gameState.markDirty('players', gsP.id); }
+    }
+  }
 
   const botHpAfter = (bot.hp ?? bot.max_hp ?? BOT_TYPES[bot.type]?.hp ?? 50) - damage;
   const result = { damage, isCrit, botDefeated: false, counterDamage: 0, playerDied: false };
@@ -445,7 +458,8 @@ async function handleRepel(player, body) {
   if (bot.category !== 'undead') return { status: 400, error: 'Can only repel undead' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
+  const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
+  if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
   const { error: delErr } = await supabase.from('bots').delete().eq('id', bot_id);
   if (delErr) return { status: 500, error: delErr.message };
@@ -467,7 +481,8 @@ async function handleLure(player, body) {
   if (bot.category !== 'neutral') return { status: 400, error: 'Can only lure neutral bots' };
 
   const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
-  if (dist > LARGE_RADIUS) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
+  const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
+  if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
   const cfg    = BOT_TYPES[bot.type] || { reward_min: bot.reward_min, reward_max: bot.reward_max };
   const reward = getRandomReward(cfg);

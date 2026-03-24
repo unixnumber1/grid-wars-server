@@ -5,6 +5,7 @@ import { gameState } from '../../lib/gameState.js';
 import { CORE_TYPES, MAX_CORE_SLOTS, getCoreMultiplier, getCoreUpgradeCost } from '../../lib/cores.js';
 import { SMALL_RADIUS } from '../../lib/formulas.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 export const coresRouter = Router();
 
@@ -42,7 +43,8 @@ async function handleInstall(req, res) {
   // Distance check
   if (lat != null && lng != null) {
     const dist = haversine(parseFloat(lat), parseFloat(lng), mine.lat, mine.lng);
-    if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
+    const _crFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+    if (dist > SMALL_RADIUS + (_crFx.radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
   }
 
   // Check slot count

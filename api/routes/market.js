@@ -5,6 +5,7 @@ import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { SMALL_RADIUS, getPlayerAttack } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 export const marketRouter = Router();
 
@@ -693,7 +694,8 @@ async function handleAttackCourier(req, res) {
   if (courier.owner_id === player.id) return res.status(400).json({ error: 'Cannot attack your own courier' });
 
   const dist = haversine(pLat, pLng, courier.current_lat, courier.current_lng);
-  if (dist > SMALL_RADIUS) {
+  const _mktFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > SMALL_RADIUS + (_mktFx.radius_bonus || 0)) {
     return res.status(400).json({ error: 'Too far from courier', distance: Math.round(dist) });
   }
 
@@ -812,7 +814,8 @@ async function handlePickupDrop(req, res) {
   }
 
   const dist = haversine(pLat, pLng, drop.lat, drop.lng);
-  if (dist > SMALL_RADIUS) {
+  const _dropFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > SMALL_RADIUS + (_dropFx.radius_bonus || 0)) {
     return res.status(400).json({ error: 'Too far from drop', distance: Math.round(dist) });
   }
 

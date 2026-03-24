@@ -9,6 +9,9 @@ import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.
 import { validatePosition } from '../../lib/antispoof.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getSniperFirstHit } from '../../game/mechanics/skills.js';
+import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 
 export const playerRouter = Router();
 
@@ -156,7 +159,8 @@ async function handlePvpInitiate(req, res) {
   if (dErr || !defender) return res.status(404).json({ error: 'Defender not found' });
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, defender.last_lat, defender.last_lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
+  const _pvpFx1 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > LARGE_RADIUS + (_pvpFx1.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
   if (defender.shield_until && new Date(defender.shield_until) > new Date()) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.player_shielded'), shield_until: defender.shield_until });
   const [{ data: atkItems }, { data: defItems }] = await Promise.all([
     supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', attacker.id).eq('equipped', true),
@@ -170,8 +174,11 @@ async function handlePvpInitiate(req, res) {
   const winnerIsAttacker = battleResult.winner === 'attacker';
   const loser = winnerIsAttacker ? defender : attacker;
   const winner = winnerIsAttacker ? attacker : defender;
-  const coinsLost = Math.round((loser.coins || 0) * 0.1);
-  const coinsWon = Math.round(coinsLost * 0.5);
+  const _loserFx = getPlayerSkillEffects(gameState.getPlayerSkills(loser.telegram_id));
+  const _winnerFx = getPlayerSkillEffects(gameState.getPlayerSkills(winner.telegram_id));
+  const _lossRate = _loserFx.safe_pvp_loss ? 0.05 : 0.10;
+  const coinsLost = Math.round((loser.coins || 0) * _lossRate);
+  const coinsWon = Math.round(coinsLost * Math.min(0.5 + (_winnerFx.pvp_loot_bonus || 0), 0.75));
   const xpGain = 100 + (winner.level || 1) * 10;
   const [loserUpdate, winnerUpdate] = await Promise.all([
     supabase.from('players').update({ coins: Math.max(0, (loser.coins || 0) - coinsLost), shield_until: new Date(Date.now() + 2 * 60 * 1000).toISOString() }).eq('id', loser.id).eq('coins', loser.coins || 0),
@@ -243,7 +250,7 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   }
 }
 
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
+// WEAPON_COOLDOWNS imported from config/constants.js
 
 async function handlePvpAttack(req, res) {
   const { telegram_id, target_telegram_id, lat, lng } = req.body || {};
@@ -262,9 +269,10 @@ async function handlePvpAttack(req, res) {
   const attackerItems = gameState.getPlayerItems(attacker.id);
   const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
 
-  // Rate limit by weapon cooldown
+  // Rate limit by weapon cooldown (with skill speed bonus)
   const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  const _atkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  const cooldownMs = Math.max(100, Math.floor((WEAPON_COOLDOWNS[weaponType] ?? 0) * (1 - (_atkFx.attack_speed_bonus || 0))));
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
@@ -276,7 +284,7 @@ async function handlePvpAttack(req, res) {
   const defLat = defender.last_lat, defLng = defender.last_lng;
   if (!defLat || !defLng) return res.status(400).json({ error: 'Defender position unknown' });
   const dist = haversine(pLat, pLng, defLat, defLng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
+  if (dist > LARGE_RADIUS + (_atkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
 
   // Shield check
   if (defender.shield_until && new Date(defender.shield_until) > new Date())
@@ -299,11 +307,16 @@ async function handlePvpAttack(req, res) {
     const baseDmg = 10 + (weapon?.attack || 0);
     const multiplier = 0.8 + Math.random() * 0.4;
     damage = Math.round(baseDmg * multiplier);
+    // Skill weapon damage bonus
+    if (_atkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _atkFx.weapon_damage_bonus));
+
+    // Sniper ability — first hit on new target = forced crit
+    const _sniperForced = _atkFx.sniper_ability && weapon?.type === 'sword' && getSniperFirstHit(Number(telegram_id), defender.id);
 
     // 3. Sword crit (crit_multiplier computed from upgrade_level + rarity)
     if (weapon?.type === 'sword') {
-      const critChance = weapon.crit_chance || 0;
-      if (Math.random() * 100 < critChance) {
+      const critChance = (weapon.crit_chance || 0) + (_atkFx.crit_chance_bonus || 0) * 100;
+      if (_sniperForced || Math.random() * 100 < critChance) {
         const wLvl = weapon.upgrade_level || 0;
         let critMul = 1.5;
         if (weapon.rarity === 'mythic') critMul = 1.5 + (wLvl / 90) * 0.7;
@@ -328,10 +341,21 @@ async function handlePvpAttack(req, res) {
         }
       }
     }
+
+    // Lifesteal
+    if (_atkFx.lifesteal > 0 && damage > 0 && !isExecution) {
+      const healed = Math.floor(damage * _atkFx.lifesteal);
+      if (healed > 0) {
+        const atkMaxHp = 1000 + (attacker.bonus_hp || 0);
+        attacker.hp = Math.min(atkMaxHp, (attacker.hp || atkMaxHp) + healed);
+        gameState.markDirty('players', attacker.id);
+      }
+    }
   }
 
   // Apply HP regen to defender, then subtract damage
-  const defMaxHp = 1000 + (defender.bonus_hp || 0);
+  const _defSkillFx = getPlayerSkillEffects(gameState.getPlayerSkills(target_telegram_id));
+  const defMaxHp = Math.round((1000 + (defender.bonus_hp || 0)) * (1 + (_defSkillFx.player_hp_bonus || 0)));
   let defHp = defender.hp ?? defMaxHp;
   defHp = calcHpRegen(defHp, defMaxHp, defender.last_hp_regen);
   if (!blocked) defHp = Math.max(0, defHp - damage);
@@ -346,9 +370,10 @@ async function handlePvpAttack(req, res) {
 
   if (defHp <= 0) {
     killed = true;
-    // Transfer coins: loser loses 10%, winner gets 50% of that
-    coinsLost = Math.round((defender.coins || 0) * 0.1);
-    coinsWon = Math.round(coinsLost * 0.5);
+    // Transfer coins (skill: safe = 5%, default = 10%)
+    const _dLossRate = _defSkillFx.safe_pvp_loss ? 0.05 : 0.10;
+    coinsLost = Math.round((defender.coins || 0) * _dLossRate);
+    coinsWon = Math.round(coinsLost * Math.min(0.5 + (_atkFx.pvp_loot_bonus || 0), 0.75));
 
     // Update defender
     defender.coins = Math.max(0, (defender.coins || 0) - coinsLost);

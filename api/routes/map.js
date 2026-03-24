@@ -9,6 +9,7 @@ import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, get
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { gameState } from '../../lib/gameState.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 // ── Bot constants ────────────────────────────────────────────
 const BOTS_PER_ZONE    = 10;
@@ -265,7 +266,8 @@ async function handleTick(req, res) {
 
   // ── 4. HP regen ─────────────────────────────────────────
   const level = player.level ?? 1;
-  const maxHp = 1000 + (player.bonus_hp ?? 0);
+  const _earlySkFx = gameState.loaded ? getPlayerSkillEffects(gameState.getPlayerSkills(player.telegram_id)) : null;
+  const maxHp = Math.round((1000 + (player.bonus_hp ?? 0)) * (1 + (_earlySkFx?.player_hp_bonus || 0)));
   let currentHp = player.hp ?? maxHp;
   if (currentHp < maxHp) {
     if (!player.last_hp_regen) player.last_hp_regen = new Date().toISOString();
@@ -448,6 +450,8 @@ async function handleTick(req, res) {
   let totalIncome = 0;
   let _clanBoost = null;
   let mineCountBoost = 1;
+  const _skillRow = gameState.loaded ? gameState.getPlayerSkills(player.telegram_id) : null;
+  const _skillFx = _skillRow ? getPlayerSkillEffects(_skillRow) : null;
   try {
     if (gameState.loaded) {
       playerMines = gameState.getPlayerMines(currentPlayerId).map(m => {
@@ -457,8 +461,11 @@ async function handleTick(req, res) {
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
         const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
         const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
-        const cMax = Math.round(getMineHp(m.level) * bHp * clanDef);
-        const rph = Math.round(getMineHpRegen(m.level) * bRegen);
+        const sHp = _skillFx ? (1 + _skillFx.mine_hp_bonus) : 1;
+        const sRegen = _skillFx ? (1 + _skillFx.mine_regen_bonus) : 1;
+        const sCap = _skillFx ? (1 + _skillFx.mine_capacity_bonus) : 1;
+        const cMax = Math.round(getMineHp(m.level) * bHp * clanDef * sHp);
+        const rph = Math.round(getMineHpRegen(m.level) * bRegen * sRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
         if (canRegen && rawHp < cMax && !m.last_hp_update) {
@@ -472,7 +479,7 @@ async function handleTick(req, res) {
           hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp,
           hp_regen: rph,
           income: getMineIncome(m.level) * bInc,
-          capacity: Math.round(getMineCapacity(m.level) * bCap),
+          capacity: Math.round(getMineCapacity(m.level) * bCap * sCap),
         };
       });
       inventory = gameState.getPlayerItems(currentPlayerId);
@@ -488,11 +495,14 @@ async function handleTick(req, res) {
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
         const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
         const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
-        const cMax = Math.round(getMineHp(m.level) * bHp * clanDef);
-        const rph = Math.round(getMineHpRegen(m.level) * bRegen);
+        const sHp = _skillFx ? (1 + _skillFx.mine_hp_bonus) : 1;
+        const sRegen = _skillFx ? (1 + _skillFx.mine_regen_bonus) : 1;
+        const sCap = _skillFx ? (1 + _skillFx.mine_capacity_bonus) : 1;
+        const cMax = Math.round(getMineHp(m.level) * bHp * clanDef * sHp);
+        const rph = Math.round(getMineHpRegen(m.level) * bRegen * sRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
-        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level) * bInc, capacity: Math.round(getMineCapacity(m.level) * bCap) };
+        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level) * bInc, capacity: Math.round(getMineCapacity(m.level) * bCap * sCap) };
       });
       inventory = inv || [];
     }
@@ -517,8 +527,13 @@ async function handleTick(req, res) {
         }
       }
 
+      const ONLINE_MS_INC = 3 * 60 * 1000;
+      const _isOnline = player.last_seen ? (Date.now() - new Date(player.last_seen).getTime()) < ONLINE_MS_INC : false;
+
       for (const m of playerMines) {
         let inc = getMineIncome(m.level) * mineCountBoost;
+        // Skill income bonus
+        if (_skillFx && _skillFx.mine_income_bonus) inc *= (1 + _skillFx.mine_income_bonus);
         // Core income boost
         if (gameState.loaded && m.cell_id) {
           const cores = gameState.getCoresForMine(m.cell_id);
@@ -531,6 +546,11 @@ async function handleTick(req, res) {
             inc = inc * (1 + (clanCfg.income || 0) / 100);
             if (boostMul > 1) inc = inc * boostMul;
           }
+        }
+        // Landlord ability: +15% for mines within 200m while online
+        if (_skillFx && _skillFx.landlord_bonus && _isOnline && player.last_lat && player.last_lng) {
+          const dToMine = haversine(player.last_lat, player.last_lng, m.lat, m.lng);
+          if (dToMine <= SMALL_RADIUS) inc *= 1.15;
         }
         m.income = inc;
       }
@@ -552,7 +572,7 @@ async function handleTick(req, res) {
     attack: 10 + (player.bonus_attack ?? 0),
     crystals: player.crystals || 0,
     ether: player.ether || 0,
-    smallRadius: SMALL_RADIUS, largeRadius: LARGE_RADIUS,
+    smallRadius: SMALL_RADIUS + (_skillFx?.radius_bonus || 0), largeRadius: LARGE_RADIUS + (_skillFx?.attack_radius_bonus || 0),
     mine_count_boost: mineCountBoost,
     mine_count: playerMineCount,
   };
@@ -644,6 +664,9 @@ async function handleTick(req, res) {
     loot_boxes,
     spawned: spawnedBots.length,
     ..._clanBoost ? { clan_boost: _clanBoost } : {},
+    player_skills: _skillRow || { farmer: {}, raider: {}, skill_points_used: 0 },
+    skill_effects: _skillFx || {},
+    skill_points_available: Math.max(0, (level || 1) - (_skillRow?.skill_points_used || 0)),
   });
 }
 

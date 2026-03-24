@@ -11,6 +11,7 @@ import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 export const buildingsRouter = Router();
 
@@ -142,7 +143,9 @@ async function handleMineBuild(req, res) {
   if (!hq) return res.status(403).json({ error: 'You must place your headquarters first' });
   // Distance check uses tap coordinates (mineLat/mineLng), NOT cell center
   const distance = haversine(playerActualLat, playerActualLng, mineLat, mineLng);
-  if (distance > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко (${Math.round(distance)}м > ${SMALL_RADIUS}м)`, distance: Math.round(distance) });
+  const _bSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  const _effSmall = SMALL_RADIUS + (_bSkFx.radius_bonus || 0);
+  if (distance > _effSmall) return res.status(400).json({ error: `Слишком далеко (${Math.round(distance)}м > ${_effSmall}м)`, distance: Math.round(distance) });
   const targetCell = getCell(mineLat, mineLng);
   const [cellCenterLat, cellCenterLng] = getCellCenter(targetCell);
   // Check cell is free from ALL building types
@@ -178,11 +181,13 @@ async function handleMineCollect(req, res) {
   if (allMines.length === 0) return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   if (lat == null || lng == null) return res.status(400).json({ error: 'Координаты игрока не переданы' });
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
+  const _colFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  const _colSmall = SMALL_RADIUS + (_colFx.radius_bonus || 0);
   const mines = allMines.filter(m => {
     if (m.status === 'burning' || m.status === 'destroyed') return false;
     const mLat = m.lat != null ? m.lat : getCellCenter(m.cell_id)[0];
     const mLng = m.lng != null ? m.lng : getCellCenter(m.cell_id)[1];
-    return haversine(pLat, pLng, mLat, mLng) <= SMALL_RADIUS;
+    return haversine(pLat, pLng, mLat, mLng) <= _colSmall;
   });
   if (mines.length === 0) return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   const now = new Date().toISOString();
@@ -275,7 +280,9 @@ async function handleAttackStart(req, res) {
   if (mine.status !== 'normal') return res.status(400).json({ error: 'Шахта уже атакована' });
   if (mine.level <= 0) return res.status(400).json({ error: 'Шахта неактивна' });
   const dist = haversine(lat, lng, mine.lat, mine.lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
+  const _hSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  const _effLarge = LARGE_RADIUS + (_hSkFx.attack_radius_bonus || 0);
+  if (dist > _effLarge) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
   const { data: existingAttack } = await supabase.from('mines').select('id').eq('attacker_id', player.id).eq('status', 'under_attack').maybeSingle();
   if (existingAttack) return res.status(400).json({ error: 'Вы уже атакуете другую шахту' });
   const { data: weapon } = await supabase.from('items').select('type,attack,crit_chance,emoji,rarity').eq('owner_id', player.id).eq('equipped', true).in('type', ['sword', 'axe']).maybeSingle();
@@ -480,7 +487,9 @@ async function handleUpgradePost(req, res) {
   const pLat = parseFloat(lat); const pLng = parseFloat(lng);
   if (isNaN(pLat) || isNaN(pLng)) return res.status(400).json({ error: 'Некорректные координаты' });
   const distance = haversine(pLat, pLng, mine.lat, mine.lng);
-  if (distance > SMALL_RADIUS) return res.status(400).json({ error: `Слишком далеко! Подойди ближе (200м)`, distance: Math.round(distance) });
+  const _upgFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  const _upgSmall = SMALL_RADIUS + (_upgFx.radius_bonus || 0);
+  if (distance > _upgSmall) return res.status(400).json({ error: `Слишком далеко! Подойди ближе (${_upgSmall}м)`, distance: Math.round(distance) });
   if (mine.level >= MINE_MAX_LEVEL) return res.status(400).json({ error: 'Mine is already at max level' });
   const targetLevel = Math.min(parseInt(targetLevelParam) || mine.level + 1, MINE_MAX_LEVEL);
   if (targetLevel <= mine.level) return res.status(400).json({ error: 'targetLevel должен быть выше текущего уровня' });
@@ -546,18 +555,20 @@ async function handleMineHit(req, res) {
   // Distance check
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, mine.lat, mine.lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
+  const _hitFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > LARGE_RADIUS + (_hitFx.attack_radius_bonus || 0)) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
 
   // Calculate damage
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * multiplier);
+  if (_hitFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _hitFx.weapon_damage_bonus));
   let isCrit = false;
   let isExecution = false;
 
   // Sword crit with multiplier
   if (weapon?.type === 'sword') {
-    const critChance = weapon.crit_chance || 0;
+    const critChance = (weapon.crit_chance || 0) + (_hitFx.crit_chance_bonus || 0) * 100;
     if (Math.random() * 100 < critChance) {
       const wLvl = weapon.upgrade_level || 0;
       let critMul = 1.5;
@@ -581,9 +592,16 @@ async function handleMineHit(req, res) {
   const coreHpBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'hp') : 1;
   const coreRegenBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'regen') : 1;
 
-  // Apply clan defense bonus to mine HP
+  // Apply clan defense bonus + skill HP bonus to mine HP
   const clanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
-  let computedMaxHp = Math.round(getMineHp(mine.level) * coreHpBoost * clanDef);
+  const _ownerP = gameState.getPlayerById(mine.owner_id);
+  const _ownerFx = _ownerP ? getPlayerSkillEffects(gameState.getPlayerSkills(_ownerP.telegram_id)) : null;
+  const _sHpB = _ownerFx ? (1 + _ownerFx.mine_hp_bonus) : 1;
+  let computedMaxHp = Math.round(getMineHp(mine.level) * coreHpBoost * clanDef * _sHpB);
+  // Mine damage reduction skill
+  if (_ownerFx && _ownerFx.mine_damage_reduction) {
+    damage = Math.round(damage * (1 - _ownerFx.mine_damage_reduction));
+  }
 
   // Apply HP regen first, then subtract damage
   const regenPerHour = Math.round(getMineHpRegen(mine.level) * coreRegenBoost);

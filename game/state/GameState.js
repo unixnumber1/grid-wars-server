@@ -33,6 +33,7 @@ class GameState {
     this.appSettings = new Map();   // key -> value (string)
     this.pvpCooldowns = [];         // array of {attacker_id, defender_id, expires_at}
     this.pvpLog = new Map();        // id -> full row
+    this.playerSkills = new Map();  // telegram_id (number) -> skill row
 
     // Dirty tracking
     this._dirty = {
@@ -85,7 +86,7 @@ class GameState {
     const t0 = Date.now();
 
     // Load all tables in parallel (paginated for large tables)
-    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies] = await Promise.all([
+    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies, pSkills] = await Promise.all([
       this._loadAll('players'),
       this._loadAll('headquarters'),
       this._loadAll('mines'),
@@ -110,6 +111,7 @@ class GameState {
       this._loadAll('cores'),
       this._loadAll('zombie_hordes', q => q.in('status', ['scout', 'active'])),
       this._loadAll('zombies', q => q.eq('alive', true)),
+      this._loadAll('player_skills'),
     ]);
 
     // Index players
@@ -154,6 +156,7 @@ class GameState {
     for (const c of (cores || []))      this.cores.set(c.id, c);
     for (const h of (zHordes || []))   this.zombieHordes.set(h.id, h);
     for (const z of (zZombies || []))  this.zombies.set(z.id, z);
+    for (const s of (pSkills || []))  this.playerSkills.set(Number(s.player_id), s);
 
     this._loaded = true;
     console.log('[gameState] Loaded in', Date.now() - t0, 'ms:', this.stats());
@@ -264,6 +267,8 @@ class GameState {
       if (p.id === currentPlayerId) continue;
       if (!p.last_lat || !p.last_lng || !p.last_seen) continue;
       if (nowMs - new Date(p.last_seen).getTime() > ONLINE_MS) continue;
+      // Shadow ability — hide from other players
+      if (p._shadow_until && nowMs < p._shadow_until) continue;
       if (p.last_lat >= s && p.last_lat <= n && p.last_lng >= w && p.last_lng <= e) {
         online_players.push({
           id: p.id, telegram_id: p.telegram_id, username: p.username, game_username: p.game_username,
@@ -402,6 +407,11 @@ class GameState {
   upsertPlayer(player) {
     this.players.set(player.id, player);
     this.playersByTgId.set(Number(player.telegram_id), player);
+  }
+
+  // -- Player skills --
+  getPlayerSkills(telegramId) {
+    return this.playerSkills.get(Number(telegramId)) || { player_id: Number(telegramId), farmer: {}, raider: {}, skill_points_used: 0 };
   }
 
   // -- Player mines (for income calc) --

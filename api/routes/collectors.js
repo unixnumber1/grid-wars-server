@@ -12,6 +12,7 @@ import {
   COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS, COLLECTOR_EXTINGUISH_COST,
   COLLECTOR_MAX_MINE_LEVEL, getCollectorCapacity, getCollectorMines,
 } from '../../lib/collectors.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 export const collectorsRouter = Router();
 
@@ -52,7 +53,8 @@ async function handleBuild(req, res) {
 
   // Distance check: player position to tap point
   const dist = haversine(player.last_lat, player.last_lng, tapLat, tapLng);
-  if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far', { distance: Math.round(dist), radius: SMALL_RADIUS }) });
+  const _buildFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > SMALL_RADIUS + (_buildFx.radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far', { distance: Math.round(dist), radius: SMALL_RADIUS }) });
 
   // Check max collectors limit based on HQ level (lv/2 rounded down)
   const hq = gameState.getHqByPlayerId(player.id);
@@ -170,6 +172,18 @@ async function handleDeliver(req, res) {
   const commission = 0;
   const net = gross;
 
+  // Instant collector skill — no courier needed
+  const _dFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (_dFx.instant_collector) {
+    collector.stored_coins = 0;
+    gameState.markDirty('collectors', collector.id);
+    player.coins = (player.coins || 0) + net;
+    gameState.markDirty('players', player.id);
+    await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
+    await supabase.from('collectors').update({ stored_coins: 0 }).eq('id', collector.id);
+    return res.json({ success: true, gross, commission: 0, net, instant: true });
+  }
+
   // Clear collector storage
   collector.stored_coins = 0;
   gameState.markDirty('collectors', collector.id);
@@ -271,7 +285,7 @@ async function handleHit(req, res) {
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, collector.lat, collector.lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
+  if (dist > LARGE_RADIUS + (_cSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
   // Weapon cooldown
   const items = gameState.getPlayerItems(player.id);
@@ -284,13 +298,15 @@ async function handleHit(req, res) {
   lastAttackTime.set(String(telegram_id), now);
 
   // Calculate damage
+  const _cSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * mul);
+  if (_cSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _cSkFx.weapon_damage_bonus));
   let isCrit = false;
 
   if (weapon?.type === 'sword') {
-    const cc = weapon.crit_chance || 0;
+    const cc = (weapon.crit_chance || 0) + (_cSkFx.crit_chance_bonus || 0) * 100;
     if (Math.random() * 100 < cc) {
       const wLvl = weapon.upgrade_level || 0;
       let cm = 1.5;

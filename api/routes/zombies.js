@@ -7,6 +7,7 @@ import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 import {
   getZombieXp, getZombieBossXp,
   getZombieLoot, getZombieBossLoot,
@@ -82,7 +83,8 @@ async function handleAttack(req, res) {
   // Distance check
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, zombie.lat, zombie.lng);
-  if (dist > LARGE_RADIUS) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
+  const _zRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > LARGE_RADIUS + (_zRadFx.attack_radius_bonus || 0)) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
 
   // Weapon cooldown
   const items = gameState.getPlayerItems(player.id);
@@ -95,13 +97,16 @@ async function handleAttack(req, res) {
   lastAttackTime.set(String(telegram_id), now);
 
   // Calculate damage
+  const _zSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * mul);
+  if (_zSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.weapon_damage_bonus));
+  if (_zSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.pve_damage_bonus));
   let isCrit = false;
 
   if (weapon?.type === 'sword') {
-    const cc = weapon.crit_chance || 0;
+    const cc = (weapon.crit_chance || 0) + (_zSkFx.crit_chance_bonus || 0) * 100;
     if (Math.random() * 100 < cc) {
       const wLvl = weapon.upgrade_level || 0;
       let cm = 1.5;

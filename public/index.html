@@ -1205,6 +1205,26 @@
       width: 8px; height: 8px; border-radius: 50%;
       background: #ff4444; display: none;
     }
+    /* ── Skill Tree ── */
+    .skills-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .skills-points { font-size:14px; color:#FFD700; font-weight:600; }
+    .skills-reset-btn { font-size:11px; padding:5px 12px; border-radius:8px; background:rgba(244,67,54,0.15); color:#f44336; border:1px solid rgba(244,67,54,0.3); cursor:pointer; }
+    .skills-branch-tabs { display:flex; gap:8px; margin-bottom:12px; }
+    .skills-branch-tab { flex:1; padding:8px; border-radius:10px; background:#1a1a2e; border:1px solid #333; color:#888; font-size:13px; font-weight:600; cursor:pointer; text-align:center; }
+    .skills-branch-tab.active { color:#fff; border-color:#FFD700; background:rgba(255,215,0,0.08); }
+    .skills-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .skill-node { background:#1a1a2e; border-radius:12px; border:2px solid #333; padding:10px 6px 14px; text-align:center; cursor:pointer; position:relative; transition:all 0.2s; min-height:80px; }
+    .skill-node.locked { opacity:0.4; cursor:not-allowed; filter:grayscale(1); }
+    .skill-node.maxed { border-color:#FFD700; box-shadow:0 0 12px rgba(255,215,0,0.4); }
+    .skill-node.available { box-shadow:0 0 8px var(--sk-color-a); }
+    .skill-node-emoji { font-size:22px; margin-bottom:2px; }
+    .skill-node-name { font-size:10px; color:#ccc; font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .skill-node-pts { font-size:10px; color:#888; }
+    .skill-progress { height:3px; background:#111; border-radius:2px; margin-top:4px; overflow:hidden; }
+    .skill-progress-fill { height:100%; border-radius:2px; transition:width 0.3s; }
+    .skill-ability-badge { position:absolute; bottom:-6px; left:50%; transform:translateX(-50%); background:#FFD700; color:#000; font-size:9px; padding:1px 5px; border-radius:6px; font-weight:700; white-space:nowrap; }
+    .skill-shadow-btn { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:10px; border-radius:10px; background:rgba(66,66,66,0.2); border:1px solid #424242; cursor:pointer; color:#ccc; font-size:13px; }
+    .skill-shadow-btn.active { border-color:#FFD700; color:#FFD700; }
     .reward-card {
       background: #252538; border-radius: 10px; padding: 10px 12px;
       margin-bottom: 6px; display: flex; align-items: center; gap: 10px;
@@ -7564,17 +7584,21 @@ async function doSellMine(mineId) {
 function switchInvTab(tab) {
   const eqBtn = document.getElementById('inv-tab-equip');
   const crBtn = document.getElementById('inv-tab-cores');
+  const skBtn = document.getElementById('inv-tab-skills');
   const eqPanel = document.getElementById('inv-panel-equip');
   const crPanel = document.getElementById('inv-panel-cores');
   const rwPanel = document.getElementById('inv-panel-rewards');
+  const skPanel = document.getElementById('inv-panel-skills');
   const eqActions = document.getElementById('inv-equip-actions');
   const rwBtn = document.getElementById('btn-rewards-open');
 
   eqBtn.classList.remove('active');
   crBtn.classList.remove('active');
+  if (skBtn) skBtn.classList.remove('active');
   eqPanel.style.display = 'none';
   crPanel.style.display = 'none';
   rwPanel.style.display = 'none';
+  if (skPanel) skPanel.style.display = 'none';
   if (eqActions) eqActions.style.display = 'none';
   if (rwBtn) rwBtn.style.borderColor = 'rgba(255,215,0,0.25)';
 
@@ -7586,11 +7610,198 @@ function switchInvTab(tab) {
     if (rwBtn) rwBtn.style.borderColor = '#FFD700';
     rwPanel.style.display = '';
     loadLevelRewards();
+  } else if (tab === 'skills') {
+    if (skBtn) skBtn.classList.add('active');
+    if (skPanel) skPanel.style.display = '';
+    renderSkillsTab();
   } else {
     eqBtn.classList.add('active');
     eqPanel.style.display = '';
     if (eqActions) eqActions.style.display = 'flex';
   }
+}
+
+// ── Skill Tree ──────────────────────────────────────────────
+const FARMER_SKILLS = [
+  { id:'income', name:'Доход', emoji:'💰', maxPoints:20, color:'#FFD700', desc:'+1% к доходу шахт за очко' },
+  { id:'capacity', name:'Вместимость', emoji:'📦', maxPoints:20, color:'#FF9800', desc:'+1% к вместимости шахт за очко' },
+  { id:'durability', name:'Прочность', emoji:'❤️', maxPoints:25, color:'#f44336', desc:'+1% к HP шахт за очко' },
+  { id:'regen', name:'Реген', emoji:'♻️', maxPoints:20, color:'#4caf50', desc:'+1% к регену HP шахт за очко' },
+  { id:'gatherer', name:'Добытчик', emoji:'✨', maxPoints:25, color:'#9c27b0', desc:'+1% осколков и эфира за очко', ability:{name:'Сейф',emoji:'🔐',desc:'В PvP теряешь 5% вместо 10%',at:25} },
+  { id:'teleport', name:'Телепорт', emoji:'⚙️', maxPoints:25, color:'#00bcd4', desc:'При макс — мгновенная доставка со сборщика' },
+  { id:'defender', name:'Защитник', emoji:'🛡️', maxPoints:30, color:'#607d8b', desc:'-0.67% урона по шахтам за очко' },
+  { id:'territory', name:'Территория', emoji:'🌍', maxPoints:35, color:'#2196f3', desc:'+0.57м к радиусу за очко', ability:{name:'Землевладелец',emoji:'👑',desc:'+15% дохода ближних шахт онлайн',at:35} },
+];
+const RAIDER_SKILLS = [
+  { id:'damage', name:'Урон', emoji:'⚔️', maxPoints:25, color:'#f44336', desc:'+0.8% к урону за очко' },
+  { id:'crit', name:'Крит', emoji:'🎯', maxPoints:20, color:'#FF9800', desc:'+0.4% к шансу крита за очко' },
+  { id:'vitality', name:'Живучесть', emoji:'❤️', maxPoints:25, color:'#e91e63', desc:'+0.8% к HP игрока за очко' },
+  { id:'speed', name:'Скорость', emoji:'💨', maxPoints:20, color:'#00bcd4', desc:'-0.75% к КД оружия за очко' },
+  { id:'destroyer', name:'Разрушитель', emoji:'🏛️', maxPoints:25, color:'#FF5722', desc:'+0.8% к PvE урону за очко', ability:{name:'Снайпер',emoji:'🎯',desc:'Первый удар по новой цели = крит',at:25} },
+  { id:'marauder', name:'Мародёр', emoji:'💀', maxPoints:25, color:'#795548', desc:'+1% монет с PvP за очко' },
+  { id:'vampire', name:'Вампир', emoji:'🩸', maxPoints:30, color:'#880E4F', desc:'+0.2% вампиризма за очко' },
+  { id:'shadow', name:'Охотник', emoji:'🎭', maxPoints:30, color:'#424242', desc:'+1м к радиусу атаки за очко', ability:{name:'Тень',emoji:'🎭',desc:'Невидимость 30 мин, КД 24ч',at:30} },
+];
+const SKILL_ORDER = {
+  farmer:['income','capacity','durability','regen','gatherer','teleport','defender','territory'],
+  raider:['damage','crit','vitality','speed','destroyer','marauder','vampire','shadow']
+};
+
+let _skillBranch = 'farmer';
+let _skillData = null;
+
+function isSkillUnlockedClient(skills, tree, skillId) {
+  const order = SKILL_ORDER[tree];
+  const idx = order.indexOf(skillId);
+  if (idx === 0) return true;
+  const prev = order[idx - 1];
+  const list = tree === 'farmer' ? FARMER_SKILLS : RAIDER_SKILLS;
+  const prevDef = list.find(s => s.id === prev);
+  const pts = (skills || {})[prev] || 0;
+  return pts >= Math.ceil(prevDef.maxPoints * 0.5);
+}
+
+async function renderSkillsTab() {
+  const el = document.getElementById('skills-content');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">Загрузка...</div>';
+  try {
+    const data = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'get' }) });
+    _skillData = data;
+    renderSkillsUI(el, data);
+  } catch(e) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:#f44336;">${e.message}</div>`;
+  }
+}
+
+function renderSkillsUI(el, data) {
+  const list = _skillBranch === 'farmer' ? FARMER_SKILLS : RAIDER_SKILLS;
+  const branchData = data[_skillBranch] || {};
+  const avail = data.available_points || 0;
+  const resetCost = data.reset_cost || 0;
+
+  let html = `<div class="skills-header">
+    <div class="skills-points">Очков: <span style="color:#fff">${avail}</span></div>
+    ${data.skill_points_used > 0 ? `<button class="skills-reset-btn" onclick="resetSkills()">Сброс (${formatNum(resetCost)}💎)</button>` : ''}
+  </div>`;
+
+  html += `<div class="skills-branch-tabs">
+    <div class="skills-branch-tab ${_skillBranch==='farmer'?'active':''}" onclick="_skillBranch='farmer';renderSkillsTab()">⛏️ Фермер</div>
+    <div class="skills-branch-tab ${_skillBranch==='raider'?'active':''}" onclick="_skillBranch='raider';renderSkillsTab()">⚔️ Рейдер</div>
+  </div>`;
+
+  html += '<div class="skills-grid">';
+  for (const sk of list) {
+    const pts = branchData[sk.id] || 0;
+    const unlocked = isSkillUnlockedClient(branchData, _skillBranch, sk.id);
+    const maxed = pts >= sk.maxPoints;
+    const pct = Math.round(pts / sk.maxPoints * 100);
+    let cls = 'skill-node';
+    if (!unlocked) cls += ' locked';
+    else if (maxed) cls += ' maxed';
+    else cls += ' available';
+    html += `<div class="${cls}" style="--sk-color:${sk.color};--sk-color-a:${sk.color}44;border-color:${unlocked ? (maxed ? '#FFD700' : sk.color) : '#333'}" onclick="${unlocked ? `openSkillPopup('${_skillBranch}','${sk.id}')` : ''}">
+      <div class="skill-node-emoji">${sk.emoji}</div>
+      <div class="skill-node-name">${sk.name}</div>
+      <div class="skill-node-pts">${pts}/${sk.maxPoints}</div>
+      <div class="skill-progress"><div class="skill-progress-fill" style="width:${pct}%;background:${sk.color}"></div></div>
+      ${sk.ability && pts >= sk.ability.at ? `<div class="skill-ability-badge">${sk.ability.emoji} ${sk.ability.name}</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+
+  // Shadow activation button
+  if (_skillBranch === 'raider' && data.effects?.shadow_ability) {
+    const active = data.shadow_active;
+    const cdLeft = data.shadow_cooldown ? Math.max(0, data.shadow_cooldown - Date.now()) : 0;
+    const cdText = cdLeft > 0 ? formatDuration(cdLeft) : '';
+    html += `<div class="skill-shadow-btn ${active ? 'active' : ''}" onclick="${!active && cdLeft <= 0 ? 'activateShadow()' : ''}">
+      🎭 Тень ${active ? '(активна)' : cdLeft > 0 ? `(КД: ${cdText})` : '— активировать'}
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function formatDuration(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `${h}ч ${m}м` : `${m}м`;
+}
+
+function openSkillPopup(tree, skillId) {
+  const list = tree === 'farmer' ? FARMER_SKILLS : RAIDER_SKILLS;
+  const sk = list.find(s => s.id === skillId);
+  if (!sk || !_skillData) return;
+  const branchData = _skillData[tree] || {};
+  const pts = branchData[skillId] || 0;
+  const maxed = pts >= sk.maxPoints;
+  const avail = _skillData.available_points || 0;
+  const canInvest = !maxed && avail > 0;
+
+  const currentEffect = pts > 0 ? `+${pts}` : '0';
+  const nextEffect = !maxed ? `+${pts + 1}` : 'МАКС';
+
+  const stats = [
+    [sk.emoji + ' ' + sk.name, ''],
+    ['', sk.desc],
+    ['Текущий уровень', `${pts}/${sk.maxPoints}`],
+    ['Текущий эффект', currentEffect],
+  ];
+  if (!maxed) stats.push(['Следующий', nextEffect]);
+
+  const actions = [];
+  if (canInvest) {
+    actions.push({ label:`+ Вложить очко (${avail} своб.)`, cls:'primary', action: async () => {
+      try {
+        const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'invest', tree, skill_id:skillId }) });
+        _skillData = res;
+        showToast(`${sk.emoji} ${sk.name} → ${(branchData[skillId]||0)+1}`);
+        renderSkillsUI(document.getElementById('skills-content'), res);
+      } catch(e) { showToast('❌ ' + e.message); }
+    }});
+  }
+
+  if (sk.ability) {
+    const abilityUnlocked = pts >= sk.ability.at;
+    stats.push(['', '']);
+    stats.push([abilityUnlocked ? '✅ АБИЛКА' : '🔒 Абилка', `${sk.ability.emoji} ${sk.ability.name}`]);
+    stats.push(['', sk.ability.desc]);
+    if (!abilityUnlocked) stats.push(['Открывается при', `${sk.ability.at}/${sk.maxPoints}`]);
+  }
+
+  actions.push({ label:'Закрыть', isClose:true });
+  openPopup(sk.emoji + ' ' + sk.name, sk.desc, stats, actions);
+}
+
+async function resetSkills() {
+  if (!_skillData || _skillData.skill_points_used === 0) return;
+  const cost = _skillData.reset_cost;
+  openPopup('Сброс навыков', `Стоимость: ${formatNum(cost)} 💎`, [
+    ['Все очки будут возвращены', ''],
+    ['Навыки обнулятся', ''],
+  ], [
+    { label:`Сбросить за ${formatNum(cost)}💎`, cls:'danger', action: async () => {
+      try {
+        const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'reset' }) });
+        _skillData = res;
+        showToast('Навыки сброшены');
+        renderSkillsUI(document.getElementById('skills-content'), res);
+      } catch(e) { showToast('❌ ' + e.message); }
+    }},
+    { label:'Отмена', isClose:true },
+  ]);
+}
+
+async function activateShadow() {
+  try {
+    const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'activate-shadow' }) });
+    showToast('🎭 Тень активирована на 30 мин!');
+    _skillData.shadow_active = true;
+    _skillData.shadow_until = res.shadow_until;
+    _skillData.shadow_cooldown = res.shadow_cooldown;
+    renderSkillsUI(document.getElementById('skills-content'), _skillData);
+  } catch(e) { showToast('❌ ' + e.message); }
 }
 
 // ── Level Rewards ──────────────────────────────────────────────
@@ -15828,6 +16039,7 @@ async function spawnZombieScout() {
   <div class="profile-inv-tabs">
     <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')" data-i18n="profile.tab.equip">⚔️ Снаряжение</button>
     <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')" data-i18n="profile.tab.cores">🔮 Ядра</button>
+    <button class="profile-inv-tab" id="inv-tab-skills" onclick="switchInvTab('skills')">🌿 Навыки</button>
     <div style="flex:1;"></div>
     <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
       <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
@@ -15848,6 +16060,9 @@ async function spawnZombieScout() {
         <button class="reward-claim-btn" id="btn-claim-all" onclick="claimAllRewards()" style="display:none;font-size:11px;padding:5px 12px;">Забрать всё</button>
       </div>
       <div id="rewards-list"></div>
+    </div>
+    <div id="inv-panel-skills" style="display:none;margin-top:0;">
+      <div id="skills-content"></div>
     </div>
   </div>
   </div><!-- /profile-modal-body -->

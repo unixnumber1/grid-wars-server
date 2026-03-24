@@ -14,10 +14,10 @@ import { MONUMENT_WAVE_TRIGGERS, MONUMENT_HP, MONUMENT_SHIELD_HP } from '../../c
 import { MONUMENT_SHIELD_DPS_THRESHOLD, MONUMENT_DPS_WINDOW_MS } from '../../config/constants.js';
 import { sendTelegramNotification } from '../../lib/supabase.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
+import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 
 export const monumentsRouter = Router();
-
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
@@ -91,7 +91,8 @@ async function handleStartRaid(req, res) {
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS)
+  const _monRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > MONUMENT_ATTACK_RADIUS + (_monRadFx.attack_radius_bonus || 0))
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
 
   if (monument.phase === 'defeated')
@@ -145,7 +146,7 @@ async function handleAttackShield(req, res) {
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
+  if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
 
   // Weapon cooldown
   const attackerItems = gameState.getPlayerItems(player.id);
@@ -159,13 +160,16 @@ async function handleAttackShield(req, res) {
   lastAttackTime.set(String(telegram_id), now);
 
   // Calculate damage
+  const _mSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * multiplier);
+  if (_mSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.weapon_damage_bonus));
+  if (_mSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.pve_damage_bonus));
   let isCrit = false;
 
   if (weapon?.type === 'sword') {
-    const critChance = weapon.crit_chance || 0;
+    const critChance = (weapon.crit_chance || 0) + (_mSkFx.crit_chance_bonus || 0) * 100;
     if (Math.random() * 100 < critChance) {
       const wLvl = weapon.upgrade_level || 0;
       let critMul = 1.5;
@@ -281,7 +285,7 @@ async function handleAttackMonument(req, res) {
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, monument.lat, monument.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: ts(lang2, 'err.too_far_short') });
+  if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang2, 'err.too_far_short') });
 
   // Weapon cooldown
   const attackerItems = gameState.getPlayerItems(player.id);
@@ -295,13 +299,16 @@ async function handleAttackMonument(req, res) {
   lastAttackTime.set(String(telegram_id), now);
 
   // Calculate damage (with crit + execution)
+  const _mSkFx2 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * multiplier);
+  if (_mSkFx2.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.weapon_damage_bonus));
+  if (_mSkFx2.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.pve_damage_bonus));
   let isCrit = false, isExecution = false;
 
   if (weapon?.type === 'sword') {
-    const critChance = weapon.crit_chance || 0;
+    const critChance = (weapon.crit_chance || 0) + (_mSkFx2.crit_chance_bonus || 0) * 100;
     if (Math.random() * 100 < critChance) {
       const wLvl = weapon.upgrade_level || 0;
       let critMul = 1.5;
@@ -414,7 +421,7 @@ async function handleAttackDefender(req, res) {
 
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, defender.lat, defender.lng);
-  if (dist > MONUMENT_ATTACK_RADIUS) return res.status(400).json({ error: ts(lang3, 'err.too_far_short') });
+  if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang3, 'err.too_far_short') });
 
   // Weapon cooldown
   const attackerItems = gameState.getPlayerItems(player.id);
@@ -428,13 +435,16 @@ async function handleAttackDefender(req, res) {
   lastAttackTime.set(String(telegram_id), now);
 
   // Calculate damage
+  const _mSkFx3 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * multiplier);
+  if (_mSkFx3.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx3.weapon_damage_bonus));
+  if (_mSkFx3.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx3.pve_damage_bonus));
   let isCrit = false;
 
   if (weapon?.type === 'sword') {
-    const critChance = weapon.crit_chance || 0;
+    const critChance = (weapon.crit_chance || 0) + (_mSkFx3.crit_chance_bonus || 0) * 100;
     if (Math.random() * 100 < critChance) {
       const wLvl = weapon.upgrade_level || 0;
       let critMul = 1.5;

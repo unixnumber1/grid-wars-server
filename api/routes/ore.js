@@ -7,6 +7,7 @@ import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
 import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 export const oreRouter = Router();
 
@@ -122,9 +123,10 @@ oreRouter.post('/', async (req, res) => {
     const hitLang = getLang(gameState, telegram_id);
     if (!ore.owner_id || ore.owner_id === player.id) return res.status(400).json({ error: ts(hitLang, 'err.ore_cant_attack') });
 
+    const _oSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
     const dist = haversine(pLat, pLng, ore.lat, ore.lng);
-    if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(hitLang, 'err.too_far_short') });
+    if (dist > LARGE_RADIUS + (_oSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(hitLang, 'err.too_far_short') });
 
     // Rate limit by weapon CD
     const items = gameState.getPlayerItems(player.id);
@@ -140,12 +142,14 @@ oreRouter.post('/', async (req, res) => {
     const baseDmg = 10 + (weapon?.attack || 0);
     const multiplier = 0.8 + Math.random() * 0.4;
     let damage = Math.round(baseDmg * multiplier);
+    if (_oSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.weapon_damage_bonus));
+    if (_oSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.pve_damage_bonus));
     let isCrit = false;
     let isExecution = false;
 
     // Sword crit
     if (weapon?.type === 'sword') {
-      const critChance = weapon.crit_chance || 0;
+      const critChance = (weapon.crit_chance || 0) + (_oSkFx.crit_chance_bonus || 0) * 100;
       if (Math.random() * 100 < critChance) {
         const wLvl = weapon.upgrade_level || 0;
         let critMul = 1.5;

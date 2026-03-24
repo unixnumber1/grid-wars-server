@@ -8,6 +8,7 @@ import { getCellsInRange } from '../../lib/grid.js';
 import { dailyMarketCheck } from '../mechanics/market.js';
 import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/constants.js';
 import { ts } from '../../config/i18n.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 import { checkHordeTimeout } from '../mechanics/zombies.js';
 import { ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE } from '../../config/constants.js';
@@ -622,9 +623,14 @@ async function periodicCleanup(nowMs, nowISO) {
         // Passive income for owners (shards or ether based on currency)
         if (!ore.owner_id) continue;
         const hoursElapsed = (oreNow - new Date(ore.last_collected).getTime()) / 3600000;
-        const resourceEarned = Math.floor(ore.level * hoursElapsed);
+        let resourceEarned = Math.floor(ore.level * hoursElapsed);
         if (resourceEarned > 0) {
           const player = gameState.getPlayerById(ore.owner_id);
+          // Apply skill ore bonus
+          if (player) {
+            const sFx = getPlayerSkillEffects(gameState.getPlayerSkills(Number(player.telegram_id)));
+            if (sFx.ore_bonus) resourceEarned = Math.floor(resourceEarned * (1 + sFx.ore_bonus));
+          }
           if (player) {
             if (ore.currency === 'ether') {
               player.ether = (player.ether || 0) + resourceEarned;
