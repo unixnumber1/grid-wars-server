@@ -215,7 +215,7 @@ async function handleDailyDiamonds(req, res) {
 }
 
 const STAR_PACKS = [
-  { diamonds: 100,  stars: 75,   label: 'Стартовый' },
+  { diamonds: 100,  stars: 1,    label: 'Стартовый' },
   { diamonds: 300,  stars: 200,  label: 'Базовый' },
   { diamonds: 700,  stars: 400,  label: '🔥 Популярный', badge: 'ПОПУЛЯРНЫЙ' },
   { diamonds: 1500, stars: 800,  label: 'Продвинутый' },
