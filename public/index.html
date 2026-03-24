@@ -7188,8 +7188,9 @@ function showMinePopup(mine, isOwn, canCapture) {
   const rate        = Math.round(ratePerSec * 3600);
   const mineCores   = mine.cell_id ? getCoresForMine(mine.cell_id) : [];
   const capBoost    = mineCores.length > 0 ? mineCores.filter(c => c.core_type === 'capacity').reduce((s, c) => s + getCoreMultiplier(c.level), 0) || 1 : 1;
-  const capacity    = Math.round(getMineCapacity(mine.level) * capBoost);
-  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost) : 0;
+  const _skCapMul   = 1 + (state.skill_effects?.mine_capacity_bonus || 0);
+  const capacity    = Math.round(getMineCapacity(mine.level) * capBoost * _skCapMul);
+  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost * _skCapMul) : 0;
   const isFull      = mine.level > 0 && accumulated >= capacity;
 
   // Distance check
@@ -7366,7 +7367,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       _accumulatedCoinsTimer = setInterval(() => {
         const el = document.getElementById('accumulated-coins-val');
         if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
-        const acc = calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost);
+        const acc = calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost * _skCapMul);
         const full = acc >= capacity;
         el.textContent = formatCoins(acc);
         el.style.color = full ? '#ff4444' : '';
@@ -8823,6 +8824,8 @@ async function refreshAll() {
     state.totalIncome = data.totalIncome ?? 0;
     state.inventory   = data.inventory   ?? [];
     if (data.player_cores) state._playerCores = data.player_cores;
+    if (data.skill_effects) state.skill_effects = data.skill_effects;
+    if (data.player_skills) state.player_skills = data.player_skills;
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -9227,6 +9230,8 @@ function processTickData(data) {
   if (data.etherIncome != null) state.etherIncome = data.etherIncome;
   if (data.hasClanHq != null) state.hasClanHq = data.hasClanHq;
   if (data.player_cores) state._playerCores = data.player_cores;
+  if (data.skill_effects) state.skill_effects = data.skill_effects;
+  if (data.player_skills) state.player_skills = data.player_skills;
   if (data.baseIncome != null) state.baseIncome = data.baseIncome;
   if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
@@ -10404,6 +10409,8 @@ async function boot() {
     state.totalIncome = data.totalIncome ?? 0;
     state.inventory   = data.inventory   ?? [];
     if (data.player_cores) state._playerCores = data.player_cores;
+    if (data.skill_effects) state.skill_effects = data.skill_effects;
+    if (data.player_skills) state.player_skills = data.player_skills;
     // Sync language: local setting takes priority over server
     const storedLang = _readLang();
     console.log('[i18n] boot sync: storedLang=', storedLang, 'server=', data.player?.language, '_lang=', _lang);
