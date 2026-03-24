@@ -68,6 +68,7 @@ async function handleClaimReward(res, player, tgId, body) {
   return res.json({
     success: true,
     level,
+    reward,
     granted: result,
     diamonds_total: player.diamonds,
     crystals_total: player.crystals,
