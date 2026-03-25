@@ -145,7 +145,38 @@ app.post('/api/telegram-webhook', async (req, res) => {
     }
   }
 
-  res.json({ ok: true }); // respond immediately
+  // Handle /start command
+  const msg = req.body?.message;
+  if (msg?.text === '/start' && msg.chat?.id) {
+    res.json({ ok: true });
+    const BOT = process.env.BOT_TOKEN;
+    if (!BOT) return;
+    try {
+      const chatId = msg.chat.id;
+      const name = msg.from?.first_name || 'Игрок';
+      const welcomeText = `⚔️ *Добро пожаловать в Overthrow, ${name}!*\n\n🌍 Геолокационная стратегия в реальном мире.\n\n🏗️ Строй шахты\n⛏️ Добывай ресурсы\n⚔️ Сражайся с игроками\n🏛️ Рейди монументы\n\nНажми кнопку ниже чтобы начать игру! 👇`;
+      const resp = await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: welcomeText,
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [[{ text: '🎮 Играть', web_app: { url: 'https://overthrow.ru:8443' } }]] },
+        }),
+      });
+      const sentMsg = await resp.json();
+      // Pin the welcome message
+      if (sentMsg.ok && sentMsg.result?.message_id) {
+        await fetch(`https://api.telegram.org/bot${BOT}/pinChatMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, message_id: sentMsg.result.message_id, disable_notification: true }),
+        }).catch(() => {});
+      }
+    } catch (e) { console.error('[webhook] /start error:', e.message); }
+    return;
+  }
+
+  res.json({ ok: true }); // respond immediately for other updates
   try {
     const cb = req.body?.callback_query;
     if (!cb) return;
