@@ -770,6 +770,13 @@
       background: none !important;
       border: none !important;
     }
+    .player-shield-dome {
+      position:absolute; inset:-4px; border-radius:50%;
+      background: radial-gradient(ellipse at 35% 30%, rgba(255,180,60,0.35), rgba(255,140,0,0.12) 60%, rgba(220,160,0,0.06));
+      border: 1.5px solid rgba(255,180,60,0.5);
+      box-shadow: 0 0 14px 4px rgba(255,160,0,0.3), inset 0 0 20px 2px rgba(255,200,60,0.12);
+      pointer-events:none; animation: wave-dome-pulse 2s ease-in-out infinite;
+    }
 
     /* Selected building highlight — handled via L.circle on map */
 
@@ -6904,7 +6911,7 @@ function playerIcon(avatar) {
 function otherPlayerIcon(avatar, shieldUntil) {
   const em = avatar || '🐺';
   const hasShield = shieldUntil && new Date(shieldUntil) > new Date();
-  const badge = hasShield ? '<span style="position:absolute;top:-6px;right:-8px;font-size:11px;background:rgba(255,140,0,0.85);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:1.5px solid #ffa500;box-shadow:0 0 6px rgba(255,165,0,0.6);">🛡️</span>' : '';
+  const dome = hasShield ? '<div class="player-shield-dome"></div>' : '';
   return L.divIcon({
     html: `<div style="
       font-size: 44px;
@@ -6913,7 +6920,8 @@ function otherPlayerIcon(avatar, shieldUntil) {
       pointer-events: auto;
       position: relative;
       cursor: pointer;
-    ">${em}${badge}</div>`,
+      display:flex; align-items:center; justify-content:center;
+    ">${dome}${em}</div>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
     className: 'leaflet-interactive other-player-icon',
@@ -7052,11 +7060,12 @@ function renderBuildings() {
       if (onlineMarkers[p.id]._icon) onlineMarkers[p.id]._icon.style.display = '';
       _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 800);
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
-      onlineMarkers[p.id].off('click').on('click', () => showOtherPlayerPopup(p));
+      // Re-bind click on DOM directly (setIcon replaces _icon element)
+      if (onlineMarkers[p.id]._icon) onlineMarkers[p.id]._icon.onclick = () => showOtherPlayerPopup(p);
     } else {
       const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000, interactive: true })
-        .addTo(map)
-        .on('click', () => showOtherPlayerPopup(p));
+        .addTo(map);
+      if (marker._icon) marker._icon.onclick = () => showOtherPlayerPopup(p);
       onlineMarkers[p.id] = marker;
     }
   }
