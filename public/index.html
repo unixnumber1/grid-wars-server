@@ -6893,15 +6893,19 @@ function mineIcon(level, state) {
   );
 }
 
-function playerIcon(avatar) {
+function playerIcon(avatar, shieldUntil) {
   const em = avatar || '🐺';
+  const hasShield = shieldUntil && new Date(shieldUntil) > new Date();
+  const dome = hasShield ? '<div class="player-shield-dome"></div>' : '';
   return L.divIcon({
     html: `<div style="
       font-size: 44px;
       line-height: 1;
       filter: drop-shadow(0 0 12px rgba(0,0,0,0.9)) drop-shadow(0 4px 8px rgba(0,0,0,0.7));
       pointer-events: none !important;
-    ">${em}</div>`,
+      position: relative;
+      display:flex; align-items:center; justify-content:center;
+    ">${dome}${em}</div>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
     className: 'player-marker-passthrough',
@@ -7056,16 +7060,16 @@ function renderBuildings() {
     delete _killedPlayers[p.id];
     activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
-      // Restore visibility if was hidden after kill
-      if (onlineMarkers[p.id]._icon) onlineMarkers[p.id]._icon.style.display = '';
-      _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 800);
-      onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
-      // Re-bind click on DOM directly (setIcon replaces _icon element)
-      if (onlineMarkers[p.id]._icon) onlineMarkers[p.id]._icon.onclick = () => showOtherPlayerPopup(p);
+      const m = onlineMarkers[p.id];
+      if (m._icon) m._icon.style.display = '';
+      _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
+      m.setIcon(otherPlayerIcon(p.avatar, p.shield_until));
+      m._playerData = p;
     } else {
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000, interactive: true })
-        .addTo(map);
-      if (marker._icon) marker._icon.onclick = () => showOtherPlayerPopup(p);
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000 });
+      marker._playerData = p;
+      marker.on('click', () => showOtherPlayerPopup(marker._playerData));
+      marker.addTo(map);
       onlineMarkers[p.id] = marker;
     }
   }
@@ -9606,7 +9610,7 @@ function onPosition(pos) {
   // Always save real GPS coords
   realPlayerPos = { lat, lng };
 
-  const pIcon = playerIcon(state.player?.avatar);
+  const pIcon = playerIcon(state.player?.avatar, state.player?.shield_until);
   if (!playerMarker) {
     // First GPS fix — create marker at real position even if PIN will override it
     playerMarker = L.marker([lat, lng], { icon: pIcon, zIndexOffset: 10000 }).addTo(map);
@@ -10503,7 +10507,7 @@ async function submitSetupForm() {
     state.player.game_username = res.game_username;
     state.player.username_changes = res.username_changes;
     updatePlayerDisplay();
-    if (playerMarker && state.playerPos) playerMarker.setIcon(playerIcon(_setupAvatar));
+    if (playerMarker && state.playerPos) playerMarker.setIcon(playerIcon(_setupAvatar, state.player?.shield_until));
     // Hide screen and continue boot
     document.getElementById('username-setup-screen').classList.remove('open');
     continueBootAfterSetup();
@@ -10795,7 +10799,7 @@ async function selectAvatar(avatar) {
     buildAvatarGrid();
     updatePlayerDisplay();
     if (playerMarker && state.playerPos) {
-      playerMarker.setIcon(playerIcon(avatar));
+      playerMarker.setIcon(playerIcon(avatar, state.player?.shield_until));
     }
     closeAvatarSheet();
     showToast(t('toast.avatar_changed', {avatar: avatar}));
