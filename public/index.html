@@ -7058,7 +7058,7 @@ function renderBuildings() {
     const isKilled = _killedPlayers[p.id] && nowKill - _killedPlayers[p.id] < 10000;
     if (isKilled) {
       activePlayerIds.add(p.id);
-      if (onlineMarkers[p.id]) { console.log('[player-marker] REMOVE killed marker', p.id); map.removeLayer(onlineMarkers[p.id]); delete onlineMarkers[p.id]; }
+      if (onlineMarkers[p.id]) { map.removeLayer(onlineMarkers[p.id]); delete onlineMarkers[p.id]; }
       continue;
     }
     delete _killedPlayers[p.id];
@@ -7068,11 +7068,13 @@ function renderBuildings() {
       _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
       m.setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       m._playerData = p;
+      // Re-bind click after setIcon (DivIcon replaces DOM, may lose events)
+      m.off('click');
+      m.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(m._playerData); });
     } else {
-      console.log('[player-marker] CREATE new marker for', p.game_username, p.id);
       const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000, bubblingMouseEvents: false });
       marker._playerData = p;
-      marker.on('click', (e) => { console.log('[player-click] fired for', marker._playerData?.game_username); _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
       marker.addTo(map);
       onlineMarkers[p.id] = marker;
     }
