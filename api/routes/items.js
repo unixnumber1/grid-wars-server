@@ -4,7 +4,7 @@ import { getMaxHp } from '../../lib/formulas.js';
 import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
-import { ITEM_TYPES } from '../../config/constants.js';
+import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
 
 export const itemsRouter = Router();
 
@@ -214,14 +214,7 @@ async function handleDailyDiamonds(req, res) {
   return res.json({ success: true, diamonds: newDiamonds, gained: 5 });
 }
 
-const STAR_PACKS = [
-  { diamonds: 100,  stars: 75,   label: 'Стартовый' },
-  { diamonds: 300,  stars: 200,  label: 'Базовый' },
-  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', badge: 'ПОПУЛЯРНЫЙ' },
-  { diamonds: 1500, stars: 800,  label: 'Продвинутый' },
-  { diamonds: 3500, stars: 1800, label: 'Премиум' },
-  { diamonds: 8000, stars: 4000, label: 'Кит', badge: 'ВЫГОДНО 👑' },
-];
+// STAR_PACKS imported from config/constants.js via ITEM_TYPES import line
 
 async function handleStarsInvoice(req, res) {
   const { telegram_id, diamonds, stars } = req.body || {};
