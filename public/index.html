@@ -16602,7 +16602,9 @@ function estimateExtinguishCost(ft) {
   for (const m of allMines) {
     if (m.owner_id !== ft.owner_id || m.status !== 'burning') continue;
     if (haversine(ft.lat, ft.lng, m.lat, m.lng) <= radius) {
-      cost += Math.floor((m._totalCost || 0) * 0.05);
+      let totalMineCost = 0;
+      for (let i = 0; i < m.level; i++) totalMineCost += getMineUpgradeCost(i);
+      cost += Math.floor(totalMineCost * 0.05);
     }
   }
   return cost;
