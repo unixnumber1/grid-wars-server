@@ -8,7 +8,7 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
@@ -528,7 +528,7 @@ async function handleMineHit(req, res) {
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
-  lastAttackTime.set(String(telegram_id), now);
+  recordAttack(telegram_id, now);
 
   // Look up mine in gameState
   const mine = gameState.getMineById(mine_id);

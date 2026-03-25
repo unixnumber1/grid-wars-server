@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
@@ -157,7 +157,7 @@ async function handleAttackShield(req, res) {
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
-  lastAttackTime.set(String(telegram_id), now);
+  recordAttack(telegram_id, now);
 
   // Calculate damage
   const _mSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
@@ -296,7 +296,7 @@ async function handleAttackMonument(req, res) {
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
-  lastAttackTime.set(String(telegram_id), now);
+  recordAttack(telegram_id, now);
 
   // Calculate damage (with crit + execution)
   const _mSkFx2 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
@@ -432,7 +432,7 @@ async function handleAttackDefender(req, res) {
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
-  lastAttackTime.set(String(telegram_id), now);
+  recordAttack(telegram_id, now);
 
   // Calculate damage
   const _mSkFx3 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));

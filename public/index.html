@@ -6845,6 +6845,7 @@ const vaseLayer = L.layerGroup().addTo(map);
 // Building markers registry
 const buildingMarkers = {}; // id → L.marker
 const onlineMarkers  = {}; // player id → L.marker
+const _killedPlayers = {}; // player id → kill timestamp (hide for 10s)
 const _tgIdToPlayerId = {}; // telegram_id → player UUID for socket lookups
 
 // ─────────────────────────────────────────────
@@ -6899,7 +6900,7 @@ function playerIcon(avatar) {
 function otherPlayerIcon(avatar, shieldUntil) {
   const em = avatar || '🐺';
   const hasShield = shieldUntil && new Date(shieldUntil) > new Date();
-  const badge = hasShield ? '<span style="position:absolute;top:-4px;right:-6px;font-size:12px;">🛡️</span>' : '';
+  const badge = hasShield ? '<span style="position:absolute;top:-4px;right:-6px;font-size:14px;">🛡</span>' : '';
   return L.divIcon({
     html: `<div style="
       font-size: 44px;
@@ -7031,11 +7032,15 @@ function renderBuildings() {
   // Re-apply attack status to mine markers
   updateMineAttackStatus();
 
-  // Online players — incremental update
+  // Online players — incremental update (skip recently killed)
   const activePlayerIds = new Set();
+  const nowKill = Date.now();
   for (const p of (state.mapBuildings.online_players || [])) {
-    activePlayerIds.add(p.id);
     if (p.telegram_id) _tgIdToPlayerId[String(p.telegram_id)] = p.id;
+    // Skip recently killed players (hidden for 10s after death)
+    if (_killedPlayers[p.id] && nowKill - _killedPlayers[p.id] < 10000) continue;
+    delete _killedPlayers[p.id];
+    activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
       _animateMarkerTo(onlineMarkers[p.id], p.last_lat, p.last_lng, 800);
       onlineMarkers[p.id].setIcon(otherPlayerIcon(p.avatar, p.shield_until));
@@ -9155,6 +9160,9 @@ function initSocket() {
 
     _socket.on('pvp:kill', (data) => {
       const myId = state.player?.id;
+
+      // Track killed player to hide from map for 10s
+      _killedPlayers[data.loser_id] = Date.now();
 
       // Animate killed player's marker (for all observers)
       const loserMarker = onlineMarkers[data.loser_id];

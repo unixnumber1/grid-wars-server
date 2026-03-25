@@ -5,7 +5,7 @@ import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
 import { ensureMarketNearPlayer } from '../../lib/markets.js';
-import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { validatePosition } from '../../lib/antispoof.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
@@ -278,7 +278,7 @@ async function handlePvpAttack(req, res) {
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
-  lastAttackTime.set(String(telegram_id), now);
+  recordAttack(telegram_id, now);
 
   // Distance check
   const pLat = parseFloat(lat), pLng = parseFloat(lng);

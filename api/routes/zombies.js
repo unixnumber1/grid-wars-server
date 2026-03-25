@@ -5,7 +5,7 @@ import { LARGE_RADIUS } from '../../lib/formulas.js';
 import { ZOMBIE_ATTACK_RANGE } from '../../config/constants.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import {
@@ -94,7 +94,7 @@ async function handleAttack(req, res) {
   const now = Date.now();
   const last = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
-  lastAttackTime.set(String(telegram_id), now);
+  recordAttack(telegram_id, now);
 
   // Calculate damage
   const _zSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));

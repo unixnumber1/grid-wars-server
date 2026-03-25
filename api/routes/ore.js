@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
 import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
@@ -136,7 +136,7 @@ oreRouter.post('/', async (req, res) => {
     const now = Date.now();
     const last = lastAttackTime.get(String(telegram_id)) || 0;
     if (now - last < cdMs) return res.status(429).json({ error: 'Cooldown' });
-    lastAttackTime.set(String(telegram_id), now);
+    recordAttack(telegram_id, now);
 
     // Calculate damage
     const baseDmg = 10 + (weapon?.attack || 0);

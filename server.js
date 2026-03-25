@@ -293,6 +293,21 @@ setInterval(() => {
 // Rate-limit map for projectile attacks (telegram_id -> timestamp)
 export const lastAttackTime = new Map();
 
+// Record attack: update cooldown + break shield if active
+export function recordAttack(telegramId, now) {
+  const tgStr = String(telegramId);
+  lastAttackTime.set(tgStr, now || Date.now());
+  // Break shield on attack
+  if (gameState.loaded) {
+    const p = gameState.getPlayerByTgId(Number(telegramId));
+    if (p?.shield_until && new Date(p.shield_until) > new Date()) {
+      p.shield_until = null;
+      gameState.markDirty('players', p.id);
+      supabase.from('players').update({ shield_until: null }).eq('id', p.id).then(() => {}).catch(() => {});
+    }
+  }
+}
+
 // Socket.io
 io.on('connection', (socket) => {
   console.log('[socket] Connected:', socket.id, 'total:', connectedPlayers.size + 1);
