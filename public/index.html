@@ -3377,6 +3377,7 @@ const I18N = {
     'btn.extinguish': 'Потушить',
     'btn.equip': 'Надеть',
     'btn.unequip': 'Снять',
+    'btn.back': 'Назад',
     'btn.close': 'Закрыть',
     'btn.confirm': 'Подтвердить',
     'btn.cancel': 'Отмена',
@@ -3729,6 +3730,10 @@ const I18N = {
     'profile.best_mine': 'Лучшая шахта',
     'profile.build': 'Билд',
     'profile.badges': 'Бейджи',
+    'badge.new': 'Новый бейдж!',
+    'badge.claim': '🎉 Получить',
+    'badge.set_ok': '✅ Бейдж установлен!',
+    'badge.select': 'Выбрать',
 
     // === Sell ===
     'sell.confirm_q': 'Продать предмет?',
@@ -4439,6 +4444,7 @@ const I18N = {
     'btn.extinguish': 'Extinguish',
     'btn.equip': 'Equip',
     'btn.unequip': 'Unequip',
+    'btn.back': 'Back',
     'btn.close': 'Close',
     'btn.confirm': 'Confirm',
     'btn.cancel': 'Cancel',
@@ -4791,6 +4797,10 @@ const I18N = {
     'profile.best_mine': 'Best mine',
     'profile.build': 'Build',
     'profile.badges': 'Badges',
+    'badge.new': 'New badge!',
+    'badge.claim': '🎉 Claim',
+    'badge.set_ok': '✅ Badge set!',
+    'badge.select': 'Select',
 
     // === Sell ===
     'sell.confirm_q': 'Sell item?',
@@ -9051,12 +9061,12 @@ function initSocket() {
       stats.innerHTML = `
         <div style="text-align:center;padding:24px">
           <div style="font-size:72px;margin-bottom:12px">${emoji}</div>
-          <div style="font-size:13px;color:#FFD700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Новый бейдж!</div>
+          <div style="font-size:13px;color:#FFD700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">${t('badge.new')}</div>
           <div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px">${name}</div>
           <div style="font-size:14px;color:#888;margin-bottom:24px">${description}</div>
         </div>
       `;
-      actions.innerHTML = `<button style="background:#FFD700;color:#000;border:none;padding:12px 32px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;width:100%" onclick="closePopup()">🎉 Получить</button>`;
+      actions.innerHTML = `<button style="background:#FFD700;color:#000;border:none;padding:12px 32px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;width:100%" onclick="closePopup()">${t('badge.claim')}</button>`;
       document.getElementById('popup-overlay').classList.add('open');
     });
 
@@ -13111,7 +13121,7 @@ async function openPlayerProfile(targetTgId) {
             <div class="badge-emoji">${badge.emoji}</div>
             <div class="badge-name">${badgeName(badge)}</div>
             ${isActive ? '<div class="badge-active-label">✓</div>' : ''}
-            ${isOwn && !isActive ? '<div class="badge-set-label">Выбрать</div>' : ''}
+            ${isOwn && !isActive ? `<div class="badge-set-label">${t('badge.select')}</div>` : ''}
           </div>`;
         }).join('')}</div>`
       : '<div class="no-badges">—</div>';
@@ -13155,7 +13165,7 @@ async function openPlayerProfile(targetTgId) {
       </div>
     `;
   } catch (err) {
-    ov.innerHTML = '<div style="padding:40px;text-align:center;color:#e06060;">Ошибка загрузки</div>';
+    ov.innerHTML = `<div style="padding:40px;text-align:center;color:#e06060;">${t('market.load_error')}</div>`;
     setTimeout(closeProfile, 2000);
   }
 }
@@ -13172,7 +13182,7 @@ async function setActiveBadge(badgeId) {
     });
     if (data.error) { showToast(data.error); return; }
     if (state.player) state.player.active_badge = badgeId;
-    showToast('✅ Бейдж установлен!');
+    showToast(t('badge.set_ok'));
     openPlayerProfile(TG_ID);
   } catch (_) { showToast('Ошибка'); }
 }

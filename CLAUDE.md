@@ -32,6 +32,7 @@ ecosystem.config.cjs       — PM2 конфиг
 /config
   constants.js             — ВСЕ константы игры (радиусы, лимиты, КД, цены)
   formulas.js              — доход, стоимость, HP, XP формулы (phase-based XP curve)
+  badges.js                — определения бейджей, checkAndAwardBadges()
 
 /game
   /state
@@ -57,7 +58,7 @@ ecosystem.config.cjs       — PM2 конфиг
     validate.js             — валидация запросов
     ban.js                  — проверка бана
   /routes                   — API эндпоинты (новое расположение)
-    player.js               — init/location/pvp-attack/pvp-flee
+    player.js               — init/location/pvp-attack/pvp-flee/profile/set-active-badge
     map.js                  — GET map / POST tick
     buildings.js            — HQ place/upgrade/sell, mine build/upgrade/hit/sell
     items.js                — equip/unequip/sell/open-box/craft/upgrade-item
@@ -118,7 +119,7 @@ ecosystem.config.cjs       — PM2 конфиг
 
 | Таблица | Назначение |
 |---------|-----------|
-| `players` | telegram_id, coins(BIGINT), diamonds, ether(BIGINT), level, xp, hp, clan_id |
+| `players` | telegram_id, coins(BIGINT), diamonds, ether(BIGINT), level, xp, hp, clan_id, active_badge |
 | `headquarters` | player_id, lat, lng, cell_id, level(1-10) |
 | `mines` | owner_id, lat, lng, cell_id, level(0-200), hp, status, last_collected |
 | `items` | owner_id, type(sword/axe/shield), rarity, attack, crit_chance, equipped |
@@ -141,6 +142,7 @@ ecosystem.config.cjs       — PM2 конфиг
 | `notifications` | player_id, type, message, data(JSONB), read |
 | `pvp_cooldowns` | attacker_id, defender_id, expires_at |
 | `pvp_log` | attacker_id, defender_id, winner_id, rounds(JSONB) |
+| `player_badges` | player_id(→telegram_id), badge_id, earned_at, UNIQUE(player_id,badge_id) |
 
 ---
 
@@ -182,15 +184,15 @@ ecosystem.config.cjs       — PM2 конфиг
 
 ### Экономика
 - **Формула дохода**: `50 * level^2 / 3600` coins/sec (lv1=50/ч, lv100=500K/ч, lv200=2M/ч)
-- **Буст от шахт**: +0.1% за каждую шахту (1000 шахт = x2)
+- **Буст от шахт**: +0.1% за каждую шахту в радиусе 20км (MINE_BOOST_RADIUS), 1000 шахт = x2
 - Монеты BIGINT, optimistic locking
-- Стартовый бонус: 100K монет + 100 алмазов
+- Стартовый бонус: 1M монет + 50 алмазов (при первом входе, не при постройке штаба)
 - H3 resolution: 10 (~65м гексы)
 
 ### XP система (`config/formulas.js`, `game/mechanics/xp.js`)
 - **Формула XP**: `800 * 15^phase * n^2.15`, phase = floor((level-1)/100), n = ((level-1)%100)+1
 - **x5 барьер** каждые 100 уровней (lv100, lv200, ...)
-- **XP за сбор**: 10% шанс, 0.1% от собранных монет
+- **XP за сбор**: 10% шанс, 0.1-1% от собранных монет (рандом)
 - **XP за монументы**: `monumentLevel * 100000`
 - **Награды за уровень**: +5 алмазов; каждые 10 ур: +50 алм + ядро; каждые 25: +200 алм +500 кристаллов; 50/100/150/200: +500 алм + ядро lv5
 - `getLevelFromXp(totalXp)` → `{ level, xpIntoLevel }`, `calculateLevel` — обратная совместимость
@@ -274,6 +276,27 @@ ecosystem.config.cjs       — PM2 конфиг
 - 10 уровней: вместимость 6ч-48ч, HP 3K-90K
 - Доставка курьером, 10% комиссия
 - PvP: уничтожение -> все монеты атакующему
+
+### PIN-режим (телепорт на штаб)
+- Телепорт на координаты штаба, GPS-обновления игнорируются
+- Сессия ровно 1 час (PIN_DURATION_MS), по истечении — автовозврат на реальное GPS
+- На кнопке отображается оставшееся время в минутах
+- HQ должен быть старше 24ч
+- Antispoof: пин валидируется ≤20км, история позиций не записывается
+
+### Бейджи (`config/badges.js`)
+- Таблица `player_badges`: player_id → telegram_id, badge_id, earned_at
+- `active_badge` колонка на players — отображается на маркере, в лидерборде, в профиле
+- Автовыдача при входе через `checkAndAwardBadges()`
+- Socket event `badge:earned` — попап с анимацией
+- Первый бейдж: `pioneer` (Первопроходец) — для игроков с created_at < 2026-04-01
+
+### Профиль игрока
+- `GET /api/player/profile?target_id=X` — статы, шахты, билд, бейджи, рейды
+- `POST set-active-badge` — установка активного бейджа
+- Тап на маркер другого игрока → rich popup (аватар, уровень, HP, бейдж, кнопки Профиль/Атака)
+- Fullscreen экран профиля: карточка с градиентом по уровню, статы, лучшая шахта, экипировка, бейджи
+- Лидерборд: строки кликабельны → открывают профиль, показывают бейдж-эмодзи
 
 ### Маркет
 - Торговля предметами и ядрами за алмазы, 10% комиссия, мин. цена 10💎
