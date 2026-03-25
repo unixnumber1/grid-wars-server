@@ -90,9 +90,13 @@ app.use('/api', checkBan);
 
 // Serve static frontend files (no cache for index.html to ensure updates)
 app.use(express.static(join(__dirname, 'public'), {
+  etag: false,
+  lastModified: false,
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
     }
   }
 }));
