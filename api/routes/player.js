@@ -12,6 +12,7 @@ import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { getSniperFirstHit } from '../../game/mechanics/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { BADGES, checkAndAwardBadges } from '../../config/badges.js';
 
 export const playerRouter = Router();
 
@@ -474,6 +475,7 @@ playerRouter.post('/init', async (req, res) => {
   if (action === 'pvp-initiate') return handlePvpInitiate(req, res);
   if (action === 'pvp-attack') return handlePvpAttack(req, res);
   if (action === 'pvp-flee') return handlePvpFlee(req, res);
+  if (action === 'set-active-badge') return handleSetActiveBadge(req, res);
   if (action === 'pvp-reset') {
     const ADMIN_TG = 560013667;
     let tg; try { tg = parseTgId(req.body.telegram_id); } catch(_) {}
@@ -498,7 +500,7 @@ playerRouter.post('/init', async (req, res) => {
   const withTimeout = (promise) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000))]);
   let player;
   try {
-    const { data, error: playerError } = await withTimeout(supabase.from('players').upsert({ telegram_id: tgId, username: username || null }, { onConflict: 'telegram_id', ignoreDuplicates: false }).select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role,daily_diamonds_claimed_at,last_lat,last_lng,last_seen,is_banned').single());
+    const { data, error: playerError } = await withTimeout(supabase.from('players').upsert({ telegram_id: tgId, username: username || null }, { onConflict: 'telegram_id', ignoreDuplicates: false }).select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role,daily_diamonds_claimed_at,last_lat,last_lng,last_seen,is_banned,active_badge,created_at').single());
     if (playerError) throw new Error(playerError.message);
     player = data;
   } catch (err) { return res.status(503).json({ error: 'DB unavailable', message: 'Сервер временно недоступен, попробуй через минуту' }); }
@@ -568,6 +570,20 @@ playerRouter.post('/init', async (req, res) => {
       }
     }
   }
+  // Check and award badges on login
+  try {
+    const newBadges = await checkAndAwardBadges(player, supabase);
+    if (newBadges.length > 0) {
+      for (const [sid, info] of connectedPlayers) {
+        if (String(info.telegram_id) === String(tgId)) {
+          for (const badge of newBadges) {
+            io.to(sid).emit('badge:earned', { badge_id: badge.id, emoji: badge.emoji, name: badge.name, description: badge.description });
+          }
+          break;
+        }
+      }
+    }
+  } catch (_) {}
   const totalIncome = (mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
   const needUsername = !player.game_username;
   const unreadNotifs = notifications || [];
@@ -587,7 +603,7 @@ playerRouter.post('/init', async (req, res) => {
 
   return res.status(200).json({
     needUsername,
-    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS + (_initSkFx?.radius_bonus || 0), largeRadius: LARGE_RADIUS + (_initSkFx?.attack_radius_bonus || 0), hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'ru' },
+    player: { ...player, level, xp, xpForNextLevel: xpForLevel(level), smallRadius: SMALL_RADIUS + (_initSkFx?.radius_bonus || 0), largeRadius: LARGE_RADIUS + (_initSkFx?.attack_radius_bonus || 0), hp: currentHp, max_hp: maxHp, attack, kills: player.kills ?? 0, deaths: player.deaths ?? 0, diamonds: player.diamonds ?? 0, bonus_attack: player.bonus_attack ?? 0, bonus_hp: player.bonus_hp ?? 0, coins: player.coins ?? 0, crystals: player.crystals ?? 0, language: player.language ?? 'ru', active_badge: player.active_badge || null },
     headquarters: headquarters || null,
     mines: mines || [],
     totalIncome,
@@ -596,5 +612,76 @@ playerRouter.post('/init', async (req, res) => {
     notifications: unreadNotifs,
     skill_effects: _initSkFx || {},
     player_skills: _initSkRow || { farmer: {}, raider: {}, skill_points_used: 0 },
+  });
+});
+
+// ── Set active badge ──────────────────────────────────────────────
+async function handleSetActiveBadge(req, res) {
+  const { telegram_id, badge_id } = req.body;
+  if (!telegram_id || !badge_id) return res.status(400).json({ error: 'telegram_id and badge_id required' });
+  let tgId; try { tgId = parseTgId(telegram_id); } catch (e) { return res.status(400).json({ error: e.message }); }
+  // Verify badge is owned
+  const { data: badge } = await supabase.from('player_badges').select('badge_id').eq('player_id', tgId).eq('badge_id', badge_id).maybeSingle();
+  if (!badge) return res.status(403).json({ error: 'Бейдж не найден' });
+  await supabase.from('players').update({ active_badge: badge_id }).eq('telegram_id', tgId);
+  if (gameState.loaded) {
+    const p = gameState.getPlayerByTgId(tgId);
+    if (p) { p.active_badge = badge_id; gameState.markDirty('players', p.id); }
+  }
+  return res.json({ ok: true, active_badge: badge_id });
+}
+
+// ── Player profile ────────────────────────────────────────────────
+playerRouter.get('/profile', async (req, res) => {
+  const { target_id } = req.query;
+  if (!target_id) return res.status(400).json({ error: 'target_id required' });
+  let tgId; try { tgId = parseTgId(target_id); } catch (e) { return res.status(400).json({ error: e.message }); }
+
+  const target = gameState.loaded ? gameState.getPlayerByTgId(tgId) : null;
+  if (!target) {
+    const { player } = await getPlayerByTelegramId(tgId, 'id,telegram_id,game_username,avatar,level,xp,kills,deaths,clan_id,active_badge');
+    if (!player) return res.status(404).json({ error: 'Игрок не найден' });
+    return res.json({ profile: { telegram_id: tgId, game_username: player.game_username, avatar: player.avatar, level: player.level, xp: player.xp, active_badge: player.active_badge || null, kills: player.kills ?? 0, deaths: player.deaths ?? 0, clan_name: null, total_mines: 0, best_mine: null, equipped_items: [], badges: [], monuments_raided: 0 } });
+  }
+
+  // Mines
+  const playerMines = gameState.getPlayerMines(target.id);
+  const bestMine = playerMines.length ? playerMines.reduce((b, m) => m.level > b.level ? m : b) : null;
+
+  // Equipped items
+  const equippedItems = gameState.getPlayerItems(target.id).filter(i => i.equipped);
+
+  // Badges
+  const { data: badges } = await supabase.from('player_badges').select('badge_id,earned_at').eq('player_id', tgId).order('earned_at', { ascending: true });
+
+  // Clan
+  let clanName = null;
+  if (target.clan_id) {
+    const clan = gameState.getClanById(target.clan_id);
+    if (clan) clanName = clan.name;
+  }
+
+  // Monument raids (count loot boxes)
+  const { count: monumentsRaided } = await supabase.from('monument_loot_boxes').select('id', { count: 'exact', head: true }).eq('player_id', target.id);
+
+  return res.json({
+    profile: {
+      telegram_id: target.telegram_id,
+      game_username: target.game_username,
+      avatar: target.avatar,
+      level: target.level,
+      xp: target.xp,
+      hp: target.hp ?? 1000,
+      max_hp: target.max_hp ?? 1000,
+      active_badge: target.active_badge || null,
+      clan_name: clanName,
+      kills: target.kills ?? 0,
+      deaths: target.deaths ?? 0,
+      total_mines: playerMines.length,
+      best_mine: bestMine ? { level: bestMine.level } : null,
+      equipped_items: equippedItems.map(i => ({ type: i.type, rarity: i.rarity, emoji: i.emoji, upgrade_level: i.upgrade_level || 0 })),
+      badges: badges || [],
+      monuments_raided: monumentsRaided || 0,
+    },
   });
 });

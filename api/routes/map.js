@@ -44,6 +44,7 @@ async function handleLeaderboard(req, res) {
               level: player.level,
               xp: player.xp,
               rank,
+              active_badge: player.active_badge || null,
             };
           }
         }

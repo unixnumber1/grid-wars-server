@@ -274,6 +274,8 @@ class GameState {
           id: p.id, telegram_id: p.telegram_id, username: p.username, game_username: p.game_username,
           avatar: p.avatar, last_lat: p.last_lat, last_lng: p.last_lng, last_seen: p.last_seen,
           level: p.level, shield_until: p.shield_until, bonus_hp: p.bonus_hp, bonus_attack: p.bonus_attack,
+          hp: p.hp, max_hp: p.max_hp || 1000,
+          active_badge: p.active_badge || null, clan_id: p.clan_id || null,
         });
       }
     }
@@ -602,7 +604,7 @@ class GameState {
       .slice(0, limit);
     return sorted.map((p, i) => ({
       telegram_id: p.telegram_id, username: p.username, game_username: p.game_username,
-      avatar: p.avatar, level: p.level, xp: p.xp, rank: i + 1,
+      avatar: p.avatar, level: p.level, xp: p.xp, rank: i + 1, active_badge: p.active_badge || null,
     }));
   }
 }
