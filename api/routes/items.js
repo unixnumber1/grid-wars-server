@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
-import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted } from '../../lib/items.js';
+import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES } from '../../config/constants.js';
@@ -599,7 +599,7 @@ itemsRouter.post('/', async (req, res) => {
 
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
-  const selectFields = (action === 'sell') ? 'id,level,crystals' : (action === 'open-box' || action === 'craft') ? 'id,level,diamonds' : 'id,level';
+  const selectFields = (action === 'sell') ? 'id,level,crystals' : (action === 'craft') ? 'id,level,diamonds,crystals' : (action === 'open-box') ? 'id,level,diamonds' : 'id,level';
   const { player, error } = await getPlayerByTelegramId(telegram_id, selectFields);
   if (error)   return res.status(500).json({ error });
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -694,6 +694,19 @@ itemsRouter.post('/', async (req, res) => {
 
     const newItemData = generateItem(resultType, nextRarity);
 
+    // Refund crystals for upgraded items
+    let crystalsRefunded = 0;
+    for (const it of items) {
+      if (it.upgrade_level > 0) crystalsRefunded += getTotalUpgradeCost(it.upgrade_level);
+    }
+    if (crystalsRefunded > 0) {
+      await supabase.from('players').update({ crystals: (player.crystals || 0) + crystalsRefunded }).eq('id', player.id);
+      if (gameState.loaded) {
+        const gp = gameState.getPlayerById(player.id);
+        if (gp) { gp.crystals = (gp.crystals || 0) + crystalsRefunded; gameState.markDirty('players', gp.id); }
+      }
+    }
+
     // Delete 10 items
     const { error: delErr } = await supabase.from('items').delete().in('id', item_ids);
     if (delErr) return res.status(500).json({ error: 'Failed to delete items' });
@@ -723,7 +736,7 @@ itemsRouter.post('/', async (req, res) => {
       item: { id: createdItem.id, type: resultType, rarity: nextRarity, name: newItemData.name,
         emoji: newItemData.emoji, stat_value: newItemData.stat_value,
         attack: newItemData.attack || 0, crit_chance: newItemData.crit_chance || 0, defense: newItemData.defense || 0 },
-      consumed: 10, resultType, typeChances,
+      consumed: 10, resultType, typeChances, crystals_refunded: crystalsRefunded,
     });
   }
 

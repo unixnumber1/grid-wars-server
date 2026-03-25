@@ -3767,6 +3767,7 @@ const I18N = {
     'craft.selected_r': 'Выбрано: {n}/10 [{rarity}]',
     'craft.result': 'Результат:',
     'craft.type_chance': 'Шансы типа:',
+    'craft.refund': 'Возврат кристаллов',
     'craft.no_items': 'Нет подходящих предметов',
     'craft.same_rarity': '⚠️ Все предметы должны быть одной редкости',
 
@@ -4840,6 +4841,7 @@ const I18N = {
     'craft.selected_r': 'Selected: {n}/10 [{rarity}]',
     'craft.result': 'Result:',
     'craft.type_chance': 'Type chances:',
+    'craft.refund': 'Crystal refund',
     'craft.no_items': 'No matching items',
     'craft.same_rarity': '⚠️ All items must be same rarity',
 
@@ -11634,11 +11636,22 @@ function _updateCraftInfo() {
     `;
   }
 
+  // Calculate crystal refund for upgraded items
+  let totalRefund = 0;
+  for (const it of _craftSelected) {
+    const lvl = it.upgrade_level || 0;
+    if (lvl > 0) for (let i = 1; i <= lvl; i++) totalRefund += getItemUpgradeCost(i);
+  }
+  const refundHtml = totalRefund > 0
+    ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(156,39,176,0.12);border:1px solid rgba(156,39,176,0.3);border-radius:8px;font-size:13px;color:#ce93d8;">✨ ${t('craft.refund') || 'Возврат кристаллов'}: <b>+${formatNumber(totalRefund)}</b></div>`
+    : '';
+
   previewEl.innerHTML = `
     <div style="font-size:14px;color:#ccc;margin-bottom:4px;">${t('craft.result')}</div>
     <div style="font-size:15px;font-weight:700;">✨ ${rarityLabel(nextRar)}</div>
     <div style="font-size:12px;color:#888;margin:4px 0 8px;">${t('craft.type_chance')}</div>
     <div class="craft-chances">${chancesHtml}</div>
+    ${refundHtml}
   `;
   btn.disabled = false;
 }
@@ -11708,6 +11721,11 @@ async function doCraft() {
     state.inventory = (state.inventory || []).filter(i => !consumedSet.has(i.id));
     state.inventory.unshift(data.item);
 
+    // Refund crystals for upgraded items
+    if (data.crystals_refunded > 0 && state.player) {
+      state.player.crystals = (state.player.crystals || 0) + data.crystals_refunded;
+    }
+
     // Run full animation
     await _playCraftAnimation(data.item, sourceItems);
 
@@ -11716,7 +11734,8 @@ async function doCraft() {
     _updateCraftInfo();
     _renderEquipSlots();
     _renderInventoryGrid();
-    showToast(t('toast.item_crafted', {name: data.item.name}));
+    const refundMsg = data.crystals_refunded > 0 ? ` (+${formatNumber(data.crystals_refunded)} ✨)` : '';
+    showToast(t('toast.item_crafted', {name: data.item.name}) + refundMsg);
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {

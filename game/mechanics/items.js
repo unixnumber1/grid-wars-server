@@ -85,6 +85,12 @@ export function getUpgradeCost(upgradeLevel) {
   return 53000;
 }
 
+export function getTotalUpgradeCost(level) {
+  let total = 0;
+  for (let i = 1; i <= level; i++) total += getUpgradeCost(i);
+  return total;
+}
+
 export function getUpgradedStats(item) {
   const lvl = item.upgrade_level || 0;
   const mul = 1 + lvl * 0.09;
