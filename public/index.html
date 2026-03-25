@@ -3745,6 +3745,9 @@ const I18N = {
     'badge.claim': '🎉 Получить',
     'badge.set_ok': '✅ Бейдж установлен!',
     'badge.select': 'Выбрать',
+    'badge.current_title': 'Текущий титул',
+    'badge.no_title': 'Не выбран',
+    'badge.none_yet': 'Бейджей пока нет',
 
     // === Sell ===
     'sell.confirm_q': 'Продать предмет?',
@@ -4812,6 +4815,9 @@ const I18N = {
     'badge.claim': '🎉 Claim',
     'badge.set_ok': '✅ Badge set!',
     'badge.select': 'Select',
+    'badge.current_title': 'Current title',
+    'badge.no_title': 'Not selected',
+    'badge.none_yet': 'No badges yet',
 
     // === Sell ===
     'sell.confirm_q': 'Sell item?',
@@ -5452,8 +5458,9 @@ const H3_DISK_K         = 12;
 
 // Badge definitions (keep in sync with config/badges.js)
 const BADGES = {
-  pioneer: { id: 'pioneer', name: '🧭 Первопроходец', name_en: '🧭 Pioneer', emoji: '🧭', color: '#FFD700' },
+  pioneer: { id: 'pioneer', name: '🧭 Первопроходец', name_en: '🧭 Pioneer', emoji: '🧭', color: '#FFD700', desc: 'Один из первых игроков', desc_en: 'One of the first players' },
 };
+function badgeDesc(b) { return (state.player?.language === 'en' ? b.desc_en : b.desc) || b.desc; }
 function badgeName(b) { return (state.player?.language === 'en' ? b.name_en : b.name) || b.name; }
 
 // Formulas (keep in sync with lib/formulas.js)
@@ -7791,20 +7798,24 @@ function switchInvTab(tab) {
   const eqBtn = document.getElementById('inv-tab-equip');
   const crBtn = document.getElementById('inv-tab-cores');
   const skBtn = document.getElementById('btn-skills-open');
+  const bdBtn = document.getElementById('btn-badge-open');
   const eqPanel = document.getElementById('inv-panel-equip');
   const crPanel = document.getElementById('inv-panel-cores');
   const rwPanel = document.getElementById('inv-panel-rewards');
   const skPanel = document.getElementById('inv-panel-skills');
+  const bdPanel = document.getElementById('inv-panel-badge');
   const eqActions = document.getElementById('inv-equip-actions');
   const rwBtn = document.getElementById('btn-rewards-open');
 
   eqBtn.classList.remove('active');
   crBtn.classList.remove('active');
   if (skBtn) skBtn.style.borderColor = 'rgba(76,175,80,0.25)';
+  if (bdBtn) bdBtn.style.borderColor = 'rgba(155,89,182,0.25)';
   eqPanel.style.display = 'none';
   crPanel.style.display = 'none';
   rwPanel.style.display = 'none';
   if (skPanel) skPanel.style.display = 'none';
+  if (bdPanel) bdPanel.style.display = 'none';
   if (eqActions) eqActions.style.display = 'none';
   if (rwBtn) rwBtn.style.borderColor = 'rgba(255,215,0,0.25)';
 
@@ -7820,6 +7831,10 @@ function switchInvTab(tab) {
     if (skBtn) skBtn.style.borderColor = '#4caf50';
     if (skPanel) skPanel.style.display = '';
     renderSkillsTab();
+  } else if (tab === 'badge') {
+    if (bdBtn) bdBtn.style.borderColor = '#9b59b6';
+    if (bdPanel) bdPanel.style.display = '';
+    loadBadgePanel();
   } else {
     eqBtn.classList.add('active');
     eqPanel.style.display = '';
@@ -13221,8 +13236,55 @@ async function setActiveBadge(badgeId) {
     if (data.error) { showToast(data.error); return; }
     if (state.player) state.player.active_badge = badgeId;
     showToast(t('badge.set_ok'));
-    openPlayerProfile(TG_ID);
+    // Refresh badge panel if open in profile modal
+    if (document.getElementById('inv-panel-badge')?.style.display !== 'none') loadBadgePanel();
   } catch (_) { showToast('Ошибка'); }
+}
+
+async function loadBadgePanel() {
+  const container = document.getElementById('badge-panel-content');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;color:#666;padding:20px">⏳</div>';
+  try {
+    const data = await apiFetch(`/api/player/profile?target_id=${TG_ID}&telegram_id=${TG_ID}`);
+    if (data.error) { container.innerHTML = `<div style="color:#e06060;text-align:center;padding:20px">${data.error}</div>`; return; }
+    const p = data.profile;
+    const activeBadge = p.active_badge ? BADGES[p.active_badge] : null;
+
+    let html = '';
+    // Current title
+    html += `<div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${t('badge.current_title') || 'Текущий титул'}</div>
+      ${activeBadge
+        ? `<div style="font-size:18px;font-weight:700;color:${activeBadge.color}">${badgeName(activeBadge)}</div>
+           <div style="font-size:12px;color:#888;margin-top:4px">${badgeDesc(activeBadge)}</div>`
+        : `<div style="font-size:14px;color:#555">${t('badge.no_title') || 'Не выбран'}</div>`
+      }
+    </div>`;
+
+    // Badges grid
+    if (p.badges && p.badges.length > 0) {
+      html += '<div class="profile-badges-grid">';
+      for (const b of p.badges) {
+        const badge = BADGES[b.badge_id];
+        if (!badge) continue;
+        const isActive = p.active_badge === b.badge_id;
+        html += `<div class="profile-badge-card ${isActive ? 'active' : ''}" onclick="setActiveBadge('${b.badge_id}')" style="--badge-color:${badge.color}">
+          <div class="badge-emoji">${badge.emoji}</div>
+          <div class="badge-name">${badgeName(badge)}</div>
+          <div style="font-size:10px;color:#666;margin-top:2px">${badgeDesc(badge)}</div>
+          ${isActive ? '<div class="badge-active-label">✓</div>' : `<div class="badge-set-label">${t('badge.select')}</div>`}
+        </div>`;
+      }
+      html += '</div>';
+    } else {
+      html += `<div class="no-badges">${t('badge.none_yet') || 'Бейджей пока нет'}</div>`;
+    }
+
+    container.innerHTML = html;
+  } catch (_) {
+    container.innerHTML = '<div style="color:#e06060;text-align:center;padding:20px">Ошибка</div>';
+  }
 }
 
 function showPvpPreview(defender) {
@@ -16372,6 +16434,7 @@ async function spawnZombieScout() {
     <span class="pm-level" id="profile-modal-level">1ур</span>
     <button id="btn-skills-open" onclick="switchInvTab('skills')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🌿</button>
     <button id="btn-rewards-open" onclick="switchInvTab('rewards')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎁<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
+    <button id="btn-badge-open" onclick="switchInvTab('badge')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(155,89,182,0.12);border:1px solid rgba(155,89,182,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🏅</button>
   </div>
   <div id="profile-modal-body">
 
@@ -16431,6 +16494,9 @@ async function spawnZombieScout() {
     </div>
     <div id="inv-panel-skills" style="display:none;margin-top:0;">
       <div id="skills-content"></div>
+    </div>
+    <div id="inv-panel-badge" style="display:none;margin-top:0;">
+      <div id="badge-panel-content"></div>
     </div>
   </div>
   </div><!-- /profile-modal-body -->
