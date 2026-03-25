@@ -3443,6 +3443,7 @@ const I18N = {
     'toast.pin_cooldown': '🏰 Пин доступен через {hours}ч',
     'toast.teleport_hq': '🏰 Телепорт на штаб',
     'toast.return_real_pos': '📌 Возврат на реальную позицию',
+    'toast.pin_expired': '📌 Сессия пина истекла (1ч)',
     'toast.too_far_dist': '⚠️ Слишком далеко ({dist}м)',
     'toast.hq_upgraded': '⚡ Штаб улучшен до уровня {level}!',
     'toast.upgrade_pending': '⏳ Улучшение запущено → Ур.{level} ({seconds} сек)',
@@ -4497,6 +4498,7 @@ const I18N = {
     'toast.pin_cooldown': '🏰 Pin available in {hours}h',
     'toast.teleport_hq': '🏰 Teleport to HQ',
     'toast.return_real_pos': '📌 Return to real position',
+    'toast.pin_expired': '📌 PIN session expired (1h)',
     'toast.too_far_dist': '⚠️ Too far ({dist}m)',
     'toast.hq_upgraded': '⚡ HQ upgraded to level {level}!',
     'toast.upgrade_pending': '⏳ Upgrade started → Lv.{level} ({seconds} sec)',
@@ -6537,16 +6539,22 @@ let playerZoneCircle = null;   // small blue circle (build zone)
 let playerCombatCircle = null; // large red circle (combat zone)
 
 // ── Pin mode ────────────────────────────────────
+const PIN_DURATION_MS = 60 * 60 * 1000; // 1 hour
 let pinMode = false;
 let hqLat = null;
 let hqLng = null;
 let realPlayerPos = null; // true GPS coords while PIN is active
+let pinExpireTimer = null;
+let pinStartTime = null;
+let pinCountdownInterval = null;
 
 function updatePinButton() {
   const btn = document.getElementById('btn-teleport');
   if (!btn) return;
   if (pinMode) {
-    btn.textContent = '📌';
+    const remaining = Math.max(0, PIN_DURATION_MS - (Date.now() - pinStartTime));
+    const mins = Math.ceil(remaining / 60000);
+    btn.textContent = `${mins}m`;
     btn.title = t('joy.back_real');
     btn.style.background = 'rgba(255,215,0,0.15)';
     btn.style.borderColor = 'rgba(255,215,0,0.4)';
@@ -6558,6 +6566,25 @@ function updatePinButton() {
     btn.style.borderColor = 'rgba(255,255,255,0.08)';
     btn.style.boxShadow = 'none';
   }
+}
+
+function deactivatePin(toastKey) {
+  if (pinExpireTimer) { clearTimeout(pinExpireTimer); pinExpireTimer = null; }
+  if (pinCountdownInterval) { clearInterval(pinCountdownInterval); pinCountdownInterval = null; }
+  pinStartTime = null;
+  pinMode = false;
+  const target = realPlayerPos || state.playerPos;
+  if (target) {
+    _applyPlayerPosition(target.lat, target.lng);
+    map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
+    apiFetch('/api/player/init', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng, pin_unpin: true }),
+    }).catch(() => {});
+  }
+  loadVisibleBuildings();
+  updatePinButton();
+  showToast(t(toastKey));
 }
 
 async function doTeleportToHq() {
@@ -6579,6 +6606,7 @@ async function doTeleportToHq() {
     }
     realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
     pinMode = true;
+    pinStartTime = Date.now();
     _applyPlayerPosition(hqLat, hqLng);
     map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
     apiFetch('/api/player/init', {
@@ -6586,23 +6614,14 @@ async function doTeleportToHq() {
       body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng, pin_mode: true }),
     }).catch(() => {});
     loadVisibleBuildings();
+    // Auto-expire after 1 hour
+    pinExpireTimer = setTimeout(() => deactivatePin('toast.pin_expired'), PIN_DURATION_MS);
+    pinCountdownInterval = setInterval(updatePinButton, 60000);
     updatePinButton();
     showToast(t('toast.teleport_hq'));
   } else {
-    // Return to real GPS position — use saved realPlayerPos instantly (no GPS wait)
-    pinMode = false;
-    const target = realPlayerPos || state.playerPos;
-    if (target) {
-      _applyPlayerPosition(target.lat, target.lng);
-      map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
-      apiFetch('/api/player/init', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng, pin_unpin: true }),
-      }).catch(() => {});
-    }
-    loadVisibleBuildings();
-    updatePinButton();
-    showToast(t('toast.return_real_pos'));
+    // Manual unpin
+    deactivatePin('toast.return_real_pos');
   }
 }
 

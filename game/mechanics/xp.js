@@ -14,10 +14,11 @@ export const XP_REWARDS = {
 
 // ─── New XP source functions ─────────────────────────────────────────────────
 
-// 10% chance on collect, 1% of coins
+// 10% chance on collect, 0.1–1% of coins
 export function getCollectXp(coinsCollected) {
   if (Math.random() > 0.10) return 0;
-  return Math.floor(coinsCollected * 0.01);
+  const pct = 0.001 + Math.random() * 0.009; // 0.1% – 1%
+  return Math.floor(coinsCollected * pct);
 }
 
 // XP for building/upgrading mine

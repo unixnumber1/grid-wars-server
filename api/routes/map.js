@@ -5,7 +5,7 @@ import { getCellsInRange } from '../../lib/grid.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../../lib/bots.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
-import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, getMineCountBoost } from '../../lib/formulas.js';
+import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, getMineCountBoost } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { gameState } from '../../lib/gameState.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
@@ -507,8 +507,11 @@ async function handleTick(req, res) {
       inventory = inv || [];
     }
 
-    // Compute mine count boost after playerMines is populated
-    mineCountBoost = getMineCountBoost(playerMines.length);
+    // Compute mine count boost — only mines within 20km of player
+    const boostMineCount = hasPos
+      ? playerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS).length
+      : playerMines.length;
+    mineCountBoost = getMineCountBoost(boostMineCount);
 
     // ── Single-pass per-mine income (base * mineCountBoost * cores * clan zone * boost) ──
     try {

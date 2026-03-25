@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
+import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -57,27 +57,15 @@ async function handleHqPlace(player, body, res) {
   const hqLat = parseFloat(lat);
   const hqLng = parseFloat(lng);
   const cell_id = finalCell;
-  const bonusClaimed = player.starting_bonus_claimed === true;
-  const startingCoins = bonusClaimed ? 0 : 100_000;
-  const startingDiamonds = bonusClaimed ? 0 : 100;
   const { data: hq, error: insertError } = await supabase.from('headquarters').insert({ player_id: player.id, owner_username: player.username, lat: hqLat, lng: hqLng, cell_id }).select('id,player_id,lat,lng,cell_id,level,created_at').single();
   if (insertError) return res.status(500).json({ error: 'Failed to place headquarters' });
-  if (!bonusClaimed) {
-    const { data: bonusOk } = await supabase.from('players').update({ starting_bonus_claimed: true, coins: (player.coins ?? 0) + startingCoins, diamonds: (player.diamonds ?? 0) + startingDiamonds }).eq('id', player.id).eq('starting_bonus_claimed', false).select('id').maybeSingle();
-    if (!bonusOk) return res.status(409).json({ error: 'Бонус уже получен' });
-  }
   // Update gameState
   if (gameState.loaded) {
     gameState.upsertHq(hq);
-    const p = gameState.getPlayerById(player.id);
-    if (p) {
-      if (!bonusClaimed) { p.coins = (player.coins ?? 0) + startingCoins; p.diamonds = (player.diamonds ?? 0) + startingDiamonds; p.starting_bonus_claimed = true; }
-      gameState.markDirty('players', p.id);
-    }
   }
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
-  return res.status(201).json({ headquarters: hq, xp: xpResult, startingBonus: !bonusClaimed, player_coins: (player.coins ?? 0) + startingCoins, player_diamonds: (player.diamonds ?? 0) + startingDiamonds });
+  return res.status(201).json({ headquarters: hq, xp: xpResult, player_coins: player.coins ?? 0, player_diamonds: player.diamonds ?? 0 });
 }
 
 async function handleHqUpgrade(player, res) {
@@ -209,7 +197,8 @@ async function handleMineCollect(req, res) {
   }
   // Calculate accumulated coins per mine (save for XP calc later)
   // Must match tick income formula: base * mineCountBoost * coreBoost * clanBonus * boostMul
-  const mineCountBoost = getMineCountBoost(allMines.length);
+  const boostMineCount = allMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS).length;
+  const mineCountBoost = getMineCountBoost(boostMineCount);
   let totalCoins = 0;
   const mineCoinsMap = new Map();
   for (const mine of mines) {
@@ -354,10 +343,7 @@ async function handleAttackFinish(req, res) {
     await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_burning', message: burnMsg, data: { mine_id: mine.id } });
     const { data: burnOwner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
     if (burnOwner?.telegram_id) sendTelegramNotification(burnOwner.telegram_id, burnMsg);
-    const xpGain = mine.level * 10;
-    let xpResult = null;
-    try { xpResult = await addXp(player.id, xpGain); } catch (_) {}
-    return res.json({ success: true, result: 'burning', xpGain, xp: xpResult });
+    return res.json({ success: true, result: 'burning' });
   } else {
     const hpUpdateTime = new Date().toISOString();
     await supabase.from('mines').update({ status: 'normal', hp: remainingHp, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: hpUpdateTime }).eq('id', mine_id);
@@ -729,7 +715,7 @@ async function handleMineHit(req, res) {
 buildingsRouter.post('/headquarters', async (req, res) => {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, starting_bonus_claimed, coins, diamonds');
+  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, coins, diamonds');
   if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
   if (!player) return res.status(404).json({ error: 'Player not found' });
   if (action === 'upgrade') return handleHqUpgrade(player, res);

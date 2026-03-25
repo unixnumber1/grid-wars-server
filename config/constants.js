@@ -5,6 +5,8 @@
 // ── Radii ──
 export const SMALL_RADIUS = 200;       // meters — build, collect, vases
 export const LARGE_RADIUS = 500;       // meters — attack bots, PvP, attack mines
+export const MINE_BOOST_RADIUS = 20000; // meters — mine count boost radius (20km)
+export const PIN_DURATION_MS = 60 * 60 * 1000; // 1 hour PIN session
 
 // ── Admin ──
 export const ADMIN_TG_ID = 560013667;

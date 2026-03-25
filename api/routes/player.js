@@ -551,6 +551,23 @@ playerRouter.post('/init', async (req, res) => {
       gameState.upsertPlayer({ ...player, hp: currentHp, max_hp: maxHp });
     }
   }
+  // Starting bonus: 1M coins + 50 diamonds on first login
+  if (player.starting_bonus_claimed !== true) {
+    const bonusCoins = 1_000_000;
+    const bonusDiamonds = 50;
+    const { data: bonusOk } = await supabase.from('players')
+      .update({ starting_bonus_claimed: true, coins: (player.coins ?? 0) + bonusCoins, diamonds: (player.diamonds ?? 0) + bonusDiamonds })
+      .eq('id', player.id).eq('starting_bonus_claimed', false).select('id').maybeSingle();
+    if (bonusOk) {
+      player.coins = (player.coins ?? 0) + bonusCoins;
+      player.diamonds = (player.diamonds ?? 0) + bonusDiamonds;
+      player.starting_bonus_claimed = true;
+      if (gameState.loaded) {
+        const p = gameState.getPlayerById(player.id);
+        if (p) { p.coins = player.coins; p.diamonds = player.diamonds; p.starting_bonus_claimed = true; gameState.markDirty('players', p.id); }
+      }
+    }
+  }
   const totalIncome = (mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
   const needUsername = !player.game_username;
   const unreadNotifs = notifications || [];
