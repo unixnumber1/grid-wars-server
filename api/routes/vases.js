@@ -19,7 +19,11 @@ async function handleSpawn(req, res) {
     return res.status(403).json({ error: 'Forbidden' });
 
   // Delete expired/broken vases, spawn fresh wave for all cities
-  await supabase.from('vases').delete().or('broken_by.not.is.null,expires_at.lt.' + new Date().toISOString());
+  const nowISO = new Date().toISOString();
+  await Promise.all([
+    supabase.from('vases').delete().not('broken_by', 'is', null),
+    supabase.from('vases').delete().lt('expires_at', nowISO),
+  ]);
   if (gameState.loaded) {
     for (const [id, v] of gameState.vases) {
       if (v.broken_by || new Date(v.expires_at) <= new Date()) gameState.vases.delete(id);
