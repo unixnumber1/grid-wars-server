@@ -654,7 +654,7 @@ itemsRouter.post('/', async (req, res) => {
 
     // Fetch all 10 items
     const { data: items, error: fetchErr } = await supabase
-      .from('items').select('id,type,rarity,equipped,on_market,owner_id')
+      .from('items').select('id,type,rarity,equipped,on_market,owner_id,upgrade_level')
       .in('id', item_ids).eq('owner_id', player.id);
     if (fetchErr) return res.status(500).json({ error: 'DB error' });
     if (!items || items.length !== 10) {
