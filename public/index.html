@@ -7056,12 +7056,15 @@ function renderBuildings() {
     if (p.telegram_id) _tgIdToPlayerId[String(p.telegram_id)] = p.id;
     // Skip recently killed players (hidden for 10s after death)
     const isKilled = _killedPlayers[p.id] && nowKill - _killedPlayers[p.id] < 10000;
-    if (isKilled) { activePlayerIds.add(p.id); continue; }
+    if (isKilled) {
+      activePlayerIds.add(p.id);
+      if (onlineMarkers[p.id]) { map.removeLayer(onlineMarkers[p.id]); delete onlineMarkers[p.id]; }
+      continue;
+    }
     delete _killedPlayers[p.id];
     activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
       const m = onlineMarkers[p.id];
-      if (m._icon) m._icon.style.display = '';
       _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
       m.setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       m._playerData = p;
@@ -9198,10 +9201,13 @@ function initSocket() {
         document.body.appendChild(skull);
         setTimeout(() => skull.remove(), 600);
 
-        // Shrink + fade, then hide (don't remove — just set opacity)
+        // Shrink + fade, then fully remove marker
         loserMarker._icon.classList.add('marker-killed');
         setTimeout(() => {
-          if (loserMarker._icon) loserMarker._icon.style.display = 'none';
+          if (onlineMarkers[data.loser_id]) {
+            map.removeLayer(onlineMarkers[data.loser_id]);
+            delete onlineMarkers[data.loser_id];
+          }
         }, 700);
       }
 
