@@ -7064,27 +7064,16 @@ function renderBuildings() {
     }
     delete _killedPlayers[p.id];
     activePlayerIds.add(p.id);
+    // Remove old marker and recreate fresh every tick (setIcon breaks click handlers)
     if (onlineMarkers[p.id]) {
-      const m = onlineMarkers[p.id];
-      _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
-      m.setIcon(otherPlayerIcon(p.avatar, p.shield_until, p.id));
-      m._playerData = p;
-      if (m._icon) {
-        m._icon.style.cursor = 'pointer';
-        m._icon.onclick = (e) => { e.stopPropagation(); _suppressMapClick = Date.now(); showOtherPlayerPopup(m._playerData); };
-      }
-    } else {
-      // DEBUG: show toast when fresh marker is created
-      showToast('🔵 NEW marker: ' + (p.game_username || p.id));
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000, interactive: true });
-      marker._playerData = p;
-      marker.addTo(map);
-      if (marker._icon) {
-        marker._icon.style.cursor = 'pointer';
-        marker._icon.onclick = (e) => { e.stopPropagation(); _suppressMapClick = Date.now(); showOtherPlayerPopup(marker._playerData); };
-      }
-      onlineMarkers[p.id] = marker;
+      map.removeLayer(onlineMarkers[p.id]);
+      delete onlineMarkers[p.id];
     }
+    const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000, interactive: true });
+    marker._playerData = p;
+    marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
+    marker.addTo(map);
+    onlineMarkers[p.id] = marker;
   }
   for (const id of Object.keys(onlineMarkers)) {
     if (!activePlayerIds.has(id)) {
@@ -9197,7 +9186,6 @@ function initSocket() {
 
       // Track killed player to hide from map for 10s
       _killedPlayers[data.loser_id] = Date.now();
-      showToast('🔴 KILL: ' + data.loser_name + ' id=' + data.loser_id);
 
       // Animate killed player's marker (for all observers)
       const loserMarker = onlineMarkers[data.loser_id];
