@@ -13072,15 +13072,6 @@ function showOtherPlayerPopup(p) {
   const activeBadge = p.active_badge ? BADGES[p.active_badge] : null;
   const hpPct = Math.max(0, Math.min(100, ((p.hp ?? 1000) / (p.max_hp || 1000)) * 100));
 
-  const card = document.getElementById('popup-card');
-  const title = document.getElementById('popup-title');
-  const subtitle = document.getElementById('popup-subtitle');
-  const stats = document.getElementById('popup-stats');
-  const actions = document.getElementById('popup-actions');
-  title.textContent = '';
-  subtitle.textContent = '';
-
-  // Build rich player card
   let attackBtnHtml = '';
   if (canAttack) {
     const atkIdx = _popupBtnIdx++;
@@ -13095,7 +13086,13 @@ function showOtherPlayerPopup(p) {
   const profIdx = _popupBtnIdx++;
   _popupBtnActions[profIdx] = () => { closePopup(); openPlayerProfile(p.telegram_id); };
 
-  stats.innerHTML = `
+  // Write directly to card.innerHTML (sub-elements may not exist after combat popup)
+  const card = document.getElementById('popup-card');
+  card.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:16px;font-weight:600;color:#fff">${p.avatar || '👤'} ${displayName(p)}</div>
+      <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 0 0 8px">✕</button>
+    </div>
     <div class="player-popup">
       <div class="player-popup-header">
         <div class="player-popup-avatar">${p.avatar || '👤'}</div>
@@ -13116,7 +13113,6 @@ function showOtherPlayerPopup(p) {
       </div>
     </div>
   `;
-  actions.innerHTML = '';
   const ov = document.getElementById('popup-overlay');
   ov.classList.remove('combat-mode');
   ov.classList.add('open');
