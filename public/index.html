@@ -13064,6 +13064,8 @@ function renderLeaderboard(data) {
 //  PvP System
 // ─────────────────────────────────────────────
 function showOtherPlayerPopup(p) {
+  const ov = document.getElementById('popup-overlay');
+  showToast('🔍 popup: cm=' + ov.classList.contains('combat-mode') + ' open=' + ov.classList.contains('open') + ' disp=' + getComputedStyle(ov).display);
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, p.last_lat, p.last_lng) : null;
   const inRange = dist !== null && dist <= LARGE_RADIUS;
