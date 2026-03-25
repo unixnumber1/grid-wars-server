@@ -6928,7 +6928,7 @@ function otherPlayerIcon(avatar, shieldUntil) {
     ">${dome}${em}</div>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
-    className: 'leaflet-interactive other-player-icon',
+    className: 'leaflet-interactive',
   });
 }
 
@@ -7069,9 +7069,9 @@ function renderBuildings() {
       m.setIcon(otherPlayerIcon(p.avatar, p.shield_until));
       m._playerData = p;
     } else {
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000 });
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000, bubblingMouseEvents: false });
       marker._playerData = p;
-      marker.on('click', () => showOtherPlayerPopup(marker._playerData));
+      marker.on('click', (e) => { console.log('[player-click] fired for', marker._playerData?.game_username); _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
       marker.addTo(map);
       onlineMarkers[p.id] = marker;
     }
