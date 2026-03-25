@@ -7072,7 +7072,7 @@ function renderBuildings() {
     } else {
       const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000 });
       marker._playerData = p;
-      marker.on('click', (e) => { showToast('🟡 CLICK: ' + (marker._playerData?.game_username || '?')); _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
       marker.addTo(map);
       onlineMarkers[p.id] = marker;
     }
@@ -13115,7 +13115,9 @@ function showOtherPlayerPopup(p) {
     </div>
   `;
   actions.innerHTML = '';
-  document.getElementById('popup-overlay').classList.add('open');
+  const ov = document.getElementById('popup-overlay');
+  ov.classList.remove('combat-mode');
+  ov.classList.add('open');
 }
 
 // ── Player Profile Screen ────────────────────────────────────────
