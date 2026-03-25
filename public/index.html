@@ -7064,16 +7064,18 @@ function renderBuildings() {
     }
     delete _killedPlayers[p.id];
     activePlayerIds.add(p.id);
-    // Remove old marker and recreate fresh every tick (setIcon breaks click handlers)
     if (onlineMarkers[p.id]) {
-      map.removeLayer(onlineMarkers[p.id]);
-      delete onlineMarkers[p.id];
+      const m = onlineMarkers[p.id];
+      _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
+      m.setIcon(otherPlayerIcon(p.avatar, p.shield_until, p.id));
+      m._playerData = p;
+    } else {
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000 });
+      marker._playerData = p;
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
+      marker.addTo(map);
+      onlineMarkers[p.id] = marker;
     }
-    const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000, interactive: true });
-    marker._playerData = p;
-    marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
-    marker.addTo(map);
-    onlineMarkers[p.id] = marker;
   }
   for (const id of Object.keys(onlineMarkers)) {
     if (!activePlayerIds.has(id)) {
@@ -9214,7 +9216,11 @@ function initSocket() {
         showToast(t('toast.pvp_victory', {amount: formatCoins(data.coins_transferred)}));
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
         stopCombat();
-        closePopupKeepHold();
+        // Full combat state reset (not keepHold — combat is over)
+        stopPopupCombat();
+        document.getElementById('popup-overlay').classList.remove('open');
+        _currentPopupEntityId = null;
+        _selectMarker(null);
       } else if (data.loser_id === myId) {
         // I died — show death screen
         stopPopupCombat();
