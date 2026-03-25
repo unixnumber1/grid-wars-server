@@ -783,7 +783,7 @@ async function start() {
       console.log(`[GEOCITY] Populating city cache for ${players.length} players...`);
       for (const p of players) {
         await updatePlayerCity(p.telegram_id, p.last_lat, p.last_lng);
-        await new Promise(r => setTimeout(r, 1100)); // Nominatim: 1 req/sec
+        await new Promise(r => setTimeout(r, 2000)); // Nominatim rate limit
       }
       console.log('[GEOCITY] City cache populated, starting spawn cycle');
       await citySpawnCycle();
