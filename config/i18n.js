@@ -118,6 +118,18 @@ const TRANSLATIONS = {
     'err.cant_attack_own_collector': 'Нельзя атаковать свой сборщик',
     'err.already_destroyed': 'Уже уничтожен',
 
+    // ── Fire Trucks ──
+    'err.max_fire_trucks': 'Макс {max} пожарных машин. Улучшите штаб.',
+    'err.hq_level_required': 'Требуется штаб Ур.{level}',
+    'err.cant_attack_own': 'Нельзя атаковать своё',
+    'err.truck_not_operational': 'Машина не работает',
+    'err.firetruck_cooldown': 'Перезарядка: {minutes} мин',
+    'err.no_burning_buildings': 'Нет горящих построек в радиусе',
+    'err.not_burning': 'Не горит',
+    'err.too_late': 'Слишком поздно — сгорело',
+    'notif.firetruck_burning': '🔥 Ваша пожарная машина горит! Потушите за 24ч!',
+    'notif.firetruck_burned': '💥 Ваша пожарная машина сгорела!',
+
     // ── Ore ──
     'err.ore_occupied': 'Рудник занят',
     'err.not_your_ore': 'Не ваш рудник',
@@ -358,6 +370,18 @@ const TRANSLATIONS = {
     'err.nothing_to_deliver': 'Nothing to deliver',
     'err.cant_attack_own_collector': 'Cannot attack your own collector',
     'err.already_destroyed': 'Already destroyed',
+
+    // ── Fire Trucks ──
+    'err.max_fire_trucks': 'Max {max} fire trucks. Upgrade HQ.',
+    'err.hq_level_required': 'HQ Level {level} required',
+    'err.cant_attack_own': 'Cannot attack your own building',
+    'err.truck_not_operational': 'Truck is not operational',
+    'err.firetruck_cooldown': 'Cooldown: {minutes} min',
+    'err.no_burning_buildings': 'No burning buildings in range',
+    'err.not_burning': 'Not burning',
+    'err.too_late': 'Too late — burned down',
+    'notif.firetruck_burning': '🔥 Your fire truck is burning! Extinguish within 24h!',
+    'notif.firetruck_burned': '💥 Your fire truck burned down!',
 
     // ── Ore ──
     'err.ore_occupied': 'Ore node occupied',

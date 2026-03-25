@@ -142,7 +142,8 @@ async function handleMineBuild(req, res) {
     [...gameState.headquarters.values()].some(h => h.cell_id === targetCell) ||
     [...gameState.collectors.values()].some(c => c.cell_id === targetCell) ||
     [...gameState.clanHqs.values()].some(c => c.cell_id === targetCell) ||
-    [...gameState.monuments.values()].some(m => m.cell_id === targetCell);
+    [...gameState.monuments.values()].some(m => m.cell_id === targetCell) ||
+    [...gameState.fireTrucks.values()].some(ft => ft.cell_id === targetCell && ft.status !== 'destroyed');
   if (cellOccupied) return res.status(409).json({ error: 'Клетка уже занята' });
   // Building placed at tap coordinates, cell_id computed from tap
   const { data: mine, error: insertError } = await supabase.from('mines').insert({ owner_id: player.id, original_builder_id: player.id, lat: mineLat, lng: mineLng, cell_id: targetCell, level: 0, hp: 0, max_hp: 0, last_collected: new Date().toISOString() }).select('id,owner_id,original_builder_id,lat,lng,cell_id,level,last_collected,upgrade_finish_at,pending_level,hp,max_hp,status').single();

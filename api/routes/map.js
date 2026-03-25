@@ -283,7 +283,7 @@ async function handleTick(req, res) {
   if (currentHp > maxHp) currentHp = maxHp;
 
   // ── 5. Fetch map data ────────────────────────────────────
-  let mapData = { headquarters: [], mines: [], online_players: [], bots: [], vases: [], couriers: [], courier_drops: [], markets: [], clan_hqs: [], ore_nodes: [], collectors: [], monuments: [], monument_defenders: [] };
+  let mapData = { headquarters: [], mines: [], online_players: [], bots: [], vases: [], couriers: [], courier_drops: [], markets: [], clan_hqs: [], ore_nodes: [], collectors: [], monuments: [], monument_defenders: [], fire_trucks: [], firefighters: [] };
   if (hasBbox) {
     if (gameState.loaded) {
       const snapshot = gameState.getMapSnapshot(n, s, e, w, currentPlayerId, nowMs);
@@ -648,6 +648,17 @@ async function handleTick(req, res) {
     if (!viewportCollectorIds.has(c.id)) {
       mapData.collectors = mapData.collectors || [];
       mapData.collectors.push(c);
+    }
+  }
+
+  // Always include ALL own fire trucks (not just viewport)
+  if (gameState.loaded) {
+    const viewportTruckIds = new Set((mapData.fire_trucks || []).map(ft => ft.id));
+    for (const ft of gameState.fireTrucks.values()) {
+      if (ft.owner_id === currentPlayerId && ft.status !== 'destroyed' && !viewportTruckIds.has(ft.id)) {
+        mapData.fire_trucks = mapData.fire_trucks || [];
+        mapData.fire_trucks.push({ ...ft, is_mine: true });
+      }
     }
   }
 

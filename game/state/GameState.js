@@ -23,6 +23,8 @@ class GameState {
     this.clanHqs = new Map();       // id -> full row
     this.oreNodes = new Map();       // id -> full row
     this.collectors = new Map();     // id -> full row
+    this.fireTrucks = new Map();     // id -> full row
+    this.firefighters = new Map();   // id -> runtime only (no DB)
     this.monuments = new Map();      // id -> full row
     this.monumentDefenders = new Map(); // id -> full row
     this.monumentDamage = new Map(); // monument_id -> Map(player_id -> damage)
@@ -53,6 +55,7 @@ class GameState {
       clanHqs: new Set(),
       oreNodes: new Set(),
       collectors: new Set(),
+      fireTrucks: new Set(),
       monuments: new Set(),
       cores: new Set(),
       zombieHordes: new Set(),
@@ -86,7 +89,7 @@ class GameState {
     const t0 = Date.now();
 
     // Load all tables in parallel (paginated for large tables)
-    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies, pSkills] = await Promise.all([
+    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies, pSkills, fireTrucks] = await Promise.all([
       this._loadAll('players'),
       this._loadAll('headquarters'),
       this._loadAll('mines'),
@@ -112,6 +115,7 @@ class GameState {
       this._loadAll('zombie_hordes', q => q.in('status', ['scout', 'active'])),
       this._loadAll('zombies', q => q.eq('alive', true)),
       this._loadAll('player_skills'),
+      this._loadAll('fire_trucks'),
     ]);
 
     // Index players
@@ -157,6 +161,7 @@ class GameState {
     for (const h of (zHordes || []))   this.zombieHordes.set(h.id, h);
     for (const z of (zZombies || []))  this.zombies.set(z.id, z);
     for (const s of (pSkills || []))  this.playerSkills.set(Number(s.player_id), s);
+    for (const ft of (fireTrucks || [])) this.fireTrucks.set(ft.id, ft);
 
     this._loaded = true;
     console.log('[gameState] Loaded in', Date.now() - t0, 'ms:', this.stats());
@@ -178,6 +183,7 @@ class GameState {
       clanHqs: this.clanHqs.size,
       oreNodes: this.oreNodes.size,
       collectors: this.collectors.size,
+      fireTrucks: this.fireTrucks.size,
       monuments: this.monuments.size,
       cores: this.cores.size,
     };
@@ -394,7 +400,29 @@ class GameState {
       }
     }
 
-    return { headquarters, mines, bots, vases, online_players, couriers, courier_drops, markets: marketsArr, clan_hqs, ore_nodes, collectors: collectorsArr, monuments: monumentsArr, monument_defenders: monumentDefendersArr };
+    // Fire trucks in bbox
+    const fireTrucksArr = [];
+    for (const ft of this.fireTrucks.values()) {
+      if (ft.status === 'destroyed') continue;
+      if (ft.lat >= s && ft.lat <= n && ft.lng >= w && ft.lng <= e) {
+        const owner = this.players.get(ft.owner_id);
+        fireTrucksArr.push({
+          ...ft,
+          is_mine: ft.owner_id === currentPlayerId,
+          owner_name: owner?.game_username || owner?.username || null,
+        });
+      }
+    }
+
+    // Firefighters in bbox (runtime only)
+    const firefightersArr = [];
+    for (const ff of this.firefighters.values()) {
+      if (ff.current_lat >= s && ff.current_lat <= n && ff.current_lng >= w && ff.current_lng <= e) {
+        firefightersArr.push(ff);
+      }
+    }
+
+    return { headquarters, mines, bots, vases, online_players, couriers, courier_drops, markets: marketsArr, clan_hqs, ore_nodes, collectors: collectorsArr, monuments: monumentsArr, monument_defenders: monumentDefendersArr, fire_trucks: fireTrucksArr, firefighters: firefightersArr };
   }
 
   // -- Player lookups --

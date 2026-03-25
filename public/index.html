@@ -7004,6 +7004,19 @@ function showBuildMenu(cellLat, cellLng) {
     <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">${t('build.collector_btn')}</button>
   </div>`;
 
+  // Fire Truck option
+  const hqLvl = state.hq?.level || ((state.mapBuildings?.headquarters || []).find(h => h.is_mine)?.level) || 1;
+  const maxFT = hqLvl >= 10 ? 2 : (hqLvl >= 5 ? 1 : 0);
+  const currentFT = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed').length;
+  const canBuildFT = maxFT > 0 && currentFT < maxFT && hasDiamonds;
+  if (maxFT > 0) {
+    html += `<div class="hq-collector-card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🚒 Пожарная машина</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">Тушит горящие постройки в радиусе (${currentFT}/${maxFT})</div>
+      <button class="hq-coll-btn ${canBuildFT ? 'active' : ''}" ${canBuildFT ? '' : 'disabled'} onclick="closePopup();doBuildFireTruck(${cellLat},${cellLng})">🚒 Построить машину</button>
+    </div>`;
+  }
+
   if (!hasClanHq) {
     html += `<div class="hq-collector-card">
       <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.clan_hq')}</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
@@ -7380,6 +7393,7 @@ function showHqPopup(hq, isOwn) {
         <div class="hq-stat-card"><span>${t('hq.mines')}</span><span style="font-weight:600">${mineCount}</span></div>
       </div>
       ${collectorsHtml}
+      ${buildFireTruckHQSection(hqLvl)}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">${t('hq.upgrade', {cost: formatCoins(nextCost)})}</button>` : ''}
         <button class="hq-btn red" onclick="closePopup();confirmSellHq()">${t('hq.demolish')}</button>
@@ -8762,6 +8776,22 @@ async function doBuildCollector(lat, lng) {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
+async function doBuildFireTruck(lat, lng) {
+  const pos = state.playerPos;
+  if (!pos) return showToast(t('toast.no_gps'));
+  try {
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
+    });
+    if (data.success) {
+      showToast('🚒 Пожарная машина построена!');
+      if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+      loadVisibleBuildings();
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
 async function doBuildMine(lat, lng) {
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
@@ -9415,6 +9445,37 @@ function initSocket() {
       }
     });
 
+    // ── Fire truck socket events ──
+    _socket.on('firetruck:hp_update', (data) => {
+      const ft = firetruckData[data.fire_truck_id];
+      if (ft) { ft.hp = data.hp; ft.max_hp = data.max_hp; updateFireTruckMarker(data.fire_truck_id); }
+      if (combatState.currentTarget?.type === 'fire_truck' && combatState.currentTarget.id === data.fire_truck_id)
+        updatePopupHp(data.hp, data.max_hp);
+    });
+    _socket.on('firetruck:burning', (data) => {
+      const ft = firetruckData[data.fire_truck_id];
+      if (ft) { ft.status = 'burning'; ft.burning_started_at = new Date().toISOString(); ft.hp = 0; }
+      if (combatState.currentTarget?.type === 'fire_truck' && combatState.currentTarget.id === data.fire_truck_id) {
+        closePopupKeepHold();
+      }
+    });
+    _socket.on('firefighter:spawned', (data) => {
+      addFirefighterMarker(data);
+    });
+    _socket.on('firefighter:hp_update', (data) => {
+      const ff = firefighterData[data.firefighter_id];
+      if (ff) { ff.hp = data.hp; ff.max_hp = data.max_hp; updateFirefighterMarker(data.firefighter_id); }
+    });
+    _socket.on('firefighter:killed', (data) => {
+      removeFirefighterMarker(data.firefighter_id);
+    });
+    _socket.on('firefighter:arrived', (data) => {
+      // Building extinguished — will update on next tick
+    });
+    _socket.on('firefighter:removed', (data) => {
+      removeFirefighterMarker(data.id);
+    });
+
     // ── Zombie horde socket events ──
     _socket.on('zombie:scout_spawned', (data) => {
       addZombieMarker({ id: data.zombie_id, type: 'scout', emoji: data.emoji, lat: data.lat, lng: data.lng });
@@ -9531,6 +9592,11 @@ function processTickData(data) {
   if (data.collectors) {
     for (const c of data.collectors) { if (c.is_mine) _myCollectorsCache[c.id] = c; }
   }
+  renderFireTrucks(data.fire_trucks || []);
+  if (data.fire_trucks) {
+    for (const ft of data.fire_trucks) { if (ft.is_mine) _myFireTrucksCache[ft.id] = ft; }
+  }
+  renderFirefighters(data.firefighters || []);
   renderLootBoxes(data.loot_boxes || []);
   updateCoinDisplay();
   updatePlayerDisplay();
@@ -13906,6 +13972,8 @@ function getTargetCoords(id, type) {
   if (type === 'ore') { const o = oreData[id]; return o ? { lat: o.lat, lng: o.lng } : null; }
   if (type === 'monument_shield' || type === 'monument_body') { const m = monumentData[id]; return m ? { lat: m.lat, lng: m.lng } : null; }
   if (type === 'collector') { const c = collectorData[id]; return c ? { lat: c.lat, lng: c.lng } : null; }
+  if (type === 'fire_truck') { const ft = firetruckData[id]; return ft ? { lat: ft.lat, lng: ft.lng } : null; }
+  if (type === 'firefighter') { const ff = firefighterData[id]; return ff ? { lat: ff.current_lat, lng: ff.current_lng } : null; }
   if (type === 'zombie') { const z = zombieData[id]; return z ? { lat: z.lat, lng: z.lng } : null; }
   return null;
 }
@@ -13944,6 +14012,8 @@ function bindAttackButton(targetType, target) {
     else if (t.type === 'monument_shield') doMonumentShieldHit(t.data);
     else if (t.type === 'monument_body') doMonumentBodyHit(t.data);
     else if (t.type === 'collector') doCollectorHit(t.data);
+    else if (t.type === 'fire_truck') doFireTruckHit(t.data);
+    else if (t.type === 'firefighter') doFirefighterHit(t.data);
     else if (t.type === 'zombie') doZombieHit(t.data);
   }
 
@@ -16343,6 +16413,496 @@ async function doCollectorExtinguish(collectorId) {
     }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
+
+// ═══════════════════════════════════════════════════
+//  Fire Truck System
+// ═══════════════════════════════════════════════════
+const firetruckMarkers = {};
+const firetruckData = {};
+const firetruckCircles = {};
+const _myFireTrucksCache = {};
+const firefighterMarkers = {};
+const firefighterData = {};
+const firefighterInterp = {};
+
+const FIRETRUCK_LEVELS = {
+  1:{radius:200,hp:2000,cost:0},2:{radius:225,hp:3500,cost:50},3:{radius:250,hp:5500,cost:100},
+  4:{radius:275,hp:8000,cost:200},5:{radius:300,hp:12000,cost:350},6:{radius:350,hp:17000,cost:550},
+  7:{radius:400,hp:24000,cost:800},8:{radius:450,hp:33000,cost:1200},9:{radius:500,hp:45000,cost:1800},
+  10:{radius:600,hp:60000,cost:2800},
+};
+
+function firetruckIcon(ft) {
+  const isMine = ft.is_mine;
+  const isBurning = ft.status === 'burning';
+  const glow = isBurning ? 'filter:drop-shadow(0 0 8px #ff4400)' : (isMine ? 'filter:drop-shadow(0 0 6px #f44336)' : 'filter:drop-shadow(0 0 6px #888)');
+  const hpPct = ft.max_hp > 0 ? Math.max(0, Math.round(ft.hp / ft.max_hp * 100)) : 0;
+  const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+
+  return L.divIcon({
+    html: `<div class="collector-marker" style="${glow}">
+      <span style="font-size:26px">${isBurning ? '🔥' : '🚒'}</span>
+      <div class="collector-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>
+    </div>`,
+    className: 'leaflet-interactive',
+    iconSize: [36, 44],
+    iconAnchor: [18, 22],
+  });
+}
+
+function renderFireTrucks(trucks) {
+  if (!trucks || !trucks.length) return;
+  for (const ft of trucks) {
+    firetruckData[ft.id] = ft;
+    if (firetruckMarkers[ft.id]) {
+      firetruckMarkers[ft.id].setIcon(firetruckIcon(ft));
+    } else {
+      const marker = L.marker([ft.lat, ft.lng], { icon: firetruckIcon(ft), zIndexOffset: 1000 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showFireTruckPopup(ft.id); });
+      marker.addTo(map);
+      firetruckMarkers[ft.id] = marker;
+    }
+    // Owner radius circle
+    const radius = FIRETRUCK_LEVELS[ft.level]?.radius || 200;
+    if (ft.is_mine && ft.status === 'normal') {
+      if (firetruckCircles[ft.id]) {
+        firetruckCircles[ft.id].setRadius(radius);
+      } else {
+        firetruckCircles[ft.id] = L.circle([ft.lat, ft.lng], {
+          radius,
+          color: 'rgba(244,67,54,0.5)',
+          fillColor: 'transparent',
+          weight: 1.5,
+          opacity: 0.7,
+          dashArray: '6 4',
+          interactive: false,
+        }).addTo(map);
+      }
+    } else if (firetruckCircles[ft.id]) {
+      map.removeLayer(firetruckCircles[ft.id]);
+      delete firetruckCircles[ft.id];
+    }
+  }
+}
+
+function updateFireTruckMarker(ftId) {
+  const ft = firetruckData[ftId];
+  if (ft && firetruckMarkers[ftId]) firetruckMarkers[ftId].setIcon(firetruckIcon(ft));
+}
+
+function showFireTruckPopup(ftId) {
+  const ft = firetruckData[ftId];
+  if (!ft) return;
+
+  const isMine = ft.is_mine;
+  const isBurning = ft.status === 'burning';
+  const cfg = FIRETRUCK_LEVELS[ft.level] || FIRETRUCK_LEVELS[1];
+  const hpPct = ft.max_hp > 0 ? Math.round(ft.hp / ft.max_hp * 100) : 0;
+
+  if (isMine) {
+    const stats = [
+      ['HP', `${formatNumber(ft.hp)} / ${formatNumber(ft.max_hp)} (${hpPct}%)`],
+      ['__dual__', [['Ур.', ft.level], ['Радиус', `${cfg.radius}м`]]],
+    ];
+
+    const actions = [];
+
+    if (isBurning) {
+      const burnStart = new Date(ft.burning_started_at).getTime();
+      const remaining = Math.max(0, 86400000 - (Date.now() - burnStart));
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      stats.push(['🔥 Горит', `${hrs}ч ${mins}мин до уничтожения`]);
+
+      // Check if player is within 200m or another truck covers this one
+      const playerDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ft.lat, ft.lng) : 9999;
+      const canManual = playerDist <= 200;
+
+      // Check if another truck covers this one
+      let coveredByOther = false;
+      for (const otherId of Object.keys(_myFireTrucksCache)) {
+        const other = _myFireTrucksCache[otherId];
+        if (other.id === ft.id || other.status !== 'normal') continue;
+        const otherRadius = FIRETRUCK_LEVELS[other.level]?.radius || 200;
+        if (haversine(other.lat, other.lng, ft.lat, ft.lng) <= otherRadius) { coveredByOther = true; break; }
+      }
+
+      if (canManual || coveredByOther) {
+        actions.push({ label: '🧯 Потушить (бесплатно)', cls: 'primary', action: () => doFireTruckExtinguishSelf(ft.id) });
+      } else {
+        actions.push({ label: '🧯 Подойдите ближе (200м)', cls: '', disabled: true });
+      }
+    } else {
+      // Normal state — check for burning buildings to dispatch
+      const burningCount = countBurningInRadius(ft);
+      const cooldownLeft = ft.last_extinguish_at ? Math.max(0, 3600000 - (Date.now() - new Date(ft.last_extinguish_at).getTime())) : 0;
+      const onCooldown = cooldownLeft > 0;
+
+      if (burningCount > 0 && !onCooldown) {
+        const cost = estimateExtinguishCost(ft);
+        actions.push({ label: `🧯 Потушить (${burningCount} 🔥) — ${formatCoins(cost)}`, cls: 'primary', action: () => doFireTruckDispatch(ft.id) });
+      } else if (onCooldown) {
+        const cdMins = Math.ceil(cooldownLeft / 60000);
+        actions.push({ label: `⏳ Перезарядка: ${cdMins} мин`, cls: '', disabled: true });
+      }
+
+      if (ft.level < 10) {
+        const nextCfg = FIRETRUCK_LEVELS[ft.level + 1];
+        actions.push({ label: `⬆️ Улучшить до Ур.${ft.level + 1} — ${nextCfg.cost} 💎`, cls: 'yellow', action: () => doFireTruckUpgrade(ft.id) });
+      }
+    }
+
+    actions.push({ label: `💰 Продать (${Math.floor(getTotalFTGems(ft.level) * 0.5)} 💎)`, cls: 'danger', action: () => doFireTruckSell(ft.id) });
+
+    openPopup(`🚒 Пожарная машина`, `Ур. ${ft.level}`, stats, actions);
+  } else {
+    // Enemy fire truck
+    const ownerName = ft.owner_name || '???';
+    const stats = [
+      ['Владелец', ownerName],
+      ['HP', `${formatNumber(ft.hp)} / ${formatNumber(ft.max_hp)}`],
+      ['Ур.', ft.level],
+    ];
+    const actions = [];
+    if (ft.status !== 'burning') {
+      const pDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ft.lat, ft.lng) : 9999;
+      if (pDist <= 500) {
+        actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartFireTruckCombat(ft.id) });
+      } else {
+        actions.push({ label: `⚔️ Слишком далеко (${Math.round(pDist)}м)`, cls: '', disabled: true });
+      }
+    }
+    openPopup(`🚒 Пожарная машина`, ownerName, stats, actions);
+  }
+}
+
+function countBurningInRadius(ft) {
+  const radius = FIRETRUCK_LEVELS[ft.level]?.radius || 200;
+  let count = 0;
+  const allMines = state.mapBuildings?.mines || [];
+  for (const m of allMines) {
+    if (m.owner_id !== ft.owner_id || m.status !== 'burning') continue;
+    if (haversine(ft.lat, ft.lng, m.lat, m.lng) <= radius) count++;
+  }
+  for (const c of Object.values(collectorData)) {
+    if (c.owner_id !== ft.owner_id || c.status !== 'burning') continue;
+    if (haversine(ft.lat, ft.lng, c.lat, c.lng) <= radius) count++;
+  }
+  for (const otherFt of Object.values(firetruckData)) {
+    if (otherFt.owner_id !== ft.owner_id || otherFt.id === ft.id || otherFt.status !== 'burning') continue;
+    if (haversine(ft.lat, ft.lng, otherFt.lat, otherFt.lng) <= radius) count++;
+  }
+  return count;
+}
+
+function estimateExtinguishCost(ft) {
+  const radius = FIRETRUCK_LEVELS[ft.level]?.radius || 200;
+  let cost = 0;
+  const allMines = state.mapBuildings?.mines || [];
+  for (const m of allMines) {
+    if (m.owner_id !== ft.owner_id || m.status !== 'burning') continue;
+    if (haversine(ft.lat, ft.lng, m.lat, m.lng) <= radius) {
+      cost += Math.floor((m._totalCost || 0) * 0.05);
+    }
+  }
+  return cost;
+}
+
+function getTotalFTGems(level) {
+  let sum = 75; // build cost
+  for (let i = 2; i <= level; i++) sum += (FIRETRUCK_LEVELS[i]?.cost || 0);
+  return sum;
+}
+
+function buildFireTruckHQSection(hqLvl) {
+  const maxTrucks = hqLvl >= 10 ? 2 : (hqLvl >= 5 ? 1 : 0);
+  if (maxTrucks === 0) return '';
+
+  const myTrucks = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed');
+  let cardsHtml = '';
+
+  myTrucks.forEach((ft, i) => {
+    const isBurning = ft.status === 'burning';
+    const hpPct = ft.max_hp > 0 ? Math.round(ft.hp / ft.max_hp * 100) : 0;
+    const cooldownLeft = ft.last_extinguish_at ? Math.max(0, 3600000 - (Date.now() - new Date(ft.last_extinguish_at).getTime())) : 0;
+    const onCooldown = cooldownLeft > 0;
+    const cdMins = Math.ceil(cooldownLeft / 60000);
+    const burningCount = countBurningInRadius(ft);
+    const radius = FIRETRUCK_LEVELS[ft.level]?.radius || 200;
+
+    cardsHtml += `<div class="hq-collector-card" data-ftid="${ft.id}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:600;color:#fff">${isBurning ? '🔥' : '🚒'} #${i+1} <span style="color:#888;font-weight:400">Lv.${ft.level} (${radius}м)</span></span>
+        <span style="font-size:12px;color:#888;cursor:pointer" onclick="closePopup();map.flyTo([${ft.lat},${ft.lng}],17,{duration:1});setTimeout(()=>showFireTruckPopup('${ft.id}'),1200)">📷</span>
+      </div>
+      ${isBurning ? '<div style="color:#ff6600;font-size:12px;margin-top:4px">🔥 Горит!</div>' : `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <span style="font-size:12px;color:#ccc">HP: ${hpPct}%</span>
+        ${onCooldown ? `<span style="font-size:11px;color:#ff8800">⏳ ${cdMins}мин</span>` : (burningCount > 0 ? `<span style="font-size:11px;color:#ff4444">${burningCount} 🔥</span>` : '<span style="font-size:11px;color:#4caf50">✓ Готова</span>')}
+      </div>
+      ${burningCount > 0 && !onCooldown ? `<button class="hq-coll-btn active" onclick="event.stopPropagation();doFireTruckDispatch('${ft.id}')">🧯 Потушить (${burningCount} 🔥)</button>` : ''}`}
+    </div>`;
+  });
+
+  return `<div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
+    <div style="font-size:13px;color:#888;margin-bottom:8px">🚒 Пожарные машины (${myTrucks.length}/${maxTrucks})</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${cardsHtml}</div>
+  </div>`;
+}
+
+async function doFireTruckDispatch(ftId) {
+  try {
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'dispatch', telegram_id: TG_ID, fire_truck_id: ftId }),
+    });
+    if (data.success) {
+      closePopup();
+      showToast(`🚒 Отправлено ${data.firefighters_count} пожарных! (${formatCoins(data.coins_spent)} монет)`);
+      const ft = firetruckData[ftId];
+      if (ft) ft.last_extinguish_at = new Date().toISOString();
+      if (state.player) { state.player.coins = (state.player.coins || 0) - data.coins_spent; updateCoinDisplay(); }
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doFireTruckUpgrade(ftId) {
+  try {
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, fire_truck_id: ftId }),
+    });
+    if (data.success) {
+      const ft = firetruckData[ftId];
+      if (ft) { ft.level = data.level; ft.hp = data.hp; ft.max_hp = data.max_hp; }
+      showToast(`⬆️ Машина улучшена до Ур.${data.level}! Радиус: ${data.radius}м`);
+      if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+      updateFireTruckMarker(ftId);
+      showFireTruckPopup(ftId);
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doFireTruckSell(ftId) {
+  try {
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, fire_truck_id: ftId }),
+    });
+    if (data.success) {
+      closePopup();
+      if (firetruckMarkers[ftId]) { map.removeLayer(firetruckMarkers[ftId]); delete firetruckMarkers[ftId]; }
+      if (firetruckCircles[ftId]) { map.removeLayer(firetruckCircles[ftId]); delete firetruckCircles[ftId]; }
+      delete firetruckData[ftId];
+      delete _myFireTrucksCache[ftId];
+      showToast(`💰 Машина продана (+${data.refund} 💎)`);
+      if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doFireTruckExtinguishSelf(ftId) {
+  try {
+    const pos = state.playerPos || {};
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'extinguish-self', telegram_id: TG_ID, fire_truck_id: ftId, lat: pos.lat, lng: pos.lng }),
+    });
+    if (data.success) {
+      const ft = firetruckData[ftId];
+      if (ft) { ft.status = 'normal'; ft.burning_started_at = null; ft.hp = data.hp; ft.max_hp = data.max_hp; }
+      showToast(`🧯 Машина потушена! HP: ${formatNumber(data.hp)}/${formatNumber(data.max_hp)}`);
+      updateFireTruckMarker(ftId);
+      showFireTruckPopup(ftId);
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+function doStartFireTruckCombat(ftId) {
+  const ft = firetruckData[ftId];
+  if (!ft) return;
+  openCombatPopup(`🚒 Lv.${ft.level}`, ftId, 'fire_truck', { id: ftId, level: ft.level, hp: ft.hp, max_hp: ft.max_hp });
+}
+
+async function doFireTruckHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const ft = firetruckData[target.id];
+    if (ft) { ft.hp = data.hp; ft.max_hp = data.max_hp; ft.status = data.status; updateFireTruckMarker(target.id); }
+    if (data.destroyed) {
+      stopCombat(); closePopupKeepHold();
+      showToast('🔥 Пожарная машина подожжена!');
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
+  }
+}
+
+function doStartFirefighterCombat(ffId) {
+  const ff = firefighterData[ffId];
+  if (!ff) return;
+  openCombatPopup('🧑‍🚒 Пожарный', ffId, 'firefighter', { id: ffId, hp: ff.hp, max_hp: ff.max_hp });
+}
+
+async function doFirefighterHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/fire-trucks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'hit-firefighter', telegram_id: TG_ID, firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const ff = firefighterData[target.id];
+    if (ff) { ff.hp = data.hp; ff.max_hp = data.max_hp; }
+    if (data.killed) {
+      stopCombat(); closePopupKeepHold();
+      removeFirefighterMarker(target.id);
+      showToast('💀 Пожарный убит!');
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
+  }
+}
+
+// ── Firefighter markers + animation ──
+function firefighterIcon(ff) {
+  const hpPct = Math.max(0, Math.round((ff.hp / ff.max_hp) * 100));
+  const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+  const isMine = ff.owner_id === state.player?.id;
+  const labelColor = isMine ? '#FFD700' : '#fff';
+  return L.divIcon({
+    className: 'leaflet-interactive',
+    html: `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
+      <div style="background:rgba(0,0,0,0.75);color:${labelColor};font-size:10px;padding:2px 6px;border-radius:8px;white-space:nowrap;margin-bottom:2px;border:1px solid ${labelColor};pointer-events:none;">👨‍🚒</div>
+      <span style="font-size:28px;line-height:1;pointer-events:auto;">🧑‍🚒</span>
+      <div style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>
+    </div>`,
+    iconSize: [68, 52],
+    iconAnchor: [34, 26],
+  });
+}
+
+function addFirefighterMarker(ff) {
+  firefighterData[ff.id] = ff;
+  if (firefighterMarkers[ff.id]) return;
+  const marker = L.marker([ff.current_lat, ff.current_lng], { icon: firefighterIcon(ff), zIndexOffset: 4000 });
+  marker.on('click', (e) => {
+    _suppressMapClick = Date.now();
+    L.DomEvent.stopPropagation(e);
+    showFirefighterPopup(ff.id);
+  });
+  marker.addTo(map);
+  firefighterMarkers[ff.id] = marker;
+  firefighterInterp[ff.id] = {
+    displayLat: ff.current_lat, displayLng: ff.current_lng,
+    targetLat: ff.target_lat, targetLng: ff.target_lng,
+    speed: ff.speed || 0.0002,
+    hp: ff.hp, max_hp: ff.max_hp,
+  };
+}
+
+function removeFirefighterMarker(ffId) {
+  if (firefighterMarkers[ffId]) { map.removeLayer(firefighterMarkers[ffId]); delete firefighterMarkers[ffId]; }
+  delete firefighterData[ffId];
+  delete firefighterInterp[ffId];
+}
+
+function updateFirefighterMarker(ffId) {
+  const ff = firefighterData[ffId];
+  if (ff && firefighterMarkers[ffId]) firefighterMarkers[ffId].setIcon(firefighterIcon(ff));
+}
+
+function renderFirefighters(fighters) {
+  const activeIds = new Set((fighters || []).map(f => f.id));
+  // Remove stale
+  for (const id of Object.keys(firefighterMarkers)) {
+    if (!activeIds.has(id)) removeFirefighterMarker(id);
+  }
+  for (const ff of (fighters || [])) {
+    firefighterData[ff.id] = ff;
+    if (firefighterMarkers[ff.id]) {
+      // Update interp target
+      const ci = firefighterInterp[ff.id];
+      if (ci) {
+        ci.targetLat = ff.phase === 'returning' ? ff.origin_lat : ff.target_lat;
+        ci.targetLng = ff.phase === 'returning' ? ff.origin_lng : ff.target_lng;
+        ci.speed = ff.speed || 0.0002;
+        ci.hp = ff.hp;
+        ci.max_hp = ff.max_hp;
+      }
+      firefighterMarkers[ff.id].setIcon(firefighterIcon(ff));
+    } else {
+      addFirefighterMarker(ff);
+    }
+  }
+}
+
+function showFirefighterPopup(ffId) {
+  const ff = firefighterData[ffId];
+  if (!ff) return;
+  const isMine = ff.owner_id === state.player?.id;
+  const hpPct = ff.max_hp > 0 ? Math.round(ff.hp / ff.max_hp * 100) : 0;
+  const stats = [
+    ['HP', `${formatNumber(ff.hp)} / ${formatNumber(ff.max_hp)} (${hpPct}%)`],
+    ['Фаза', ff.phase === 'going' ? '➡️ Идёт к цели' : ff.phase === 'extinguishing' ? '🧯 Тушит' : '↩️ Возвращается'],
+  ];
+  const actions = [];
+  if (!isMine && ff.hp > 0) {
+    const pDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ff.current_lat, ff.current_lng) : 9999;
+    if (pDist <= 500) {
+      actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartFirefighterCombat(ff.id) });
+    }
+  }
+  openPopup('🧑‍🚒 Пожарный', isMine ? 'Ваш' : 'Чужой', stats, actions);
+}
+
+// Firefighter animation loop (like couriers)
+let _ffAnimLast = 0;
+function _animateFirefighters(now) {
+  if (!_ffAnimLast) _ffAnimLast = now;
+  const dtSec = Math.min((now - _ffAnimLast) / 1000, 0.5);
+  _ffAnimLast = now;
+
+  for (const id of Object.keys(firefighterInterp)) {
+    const ci = firefighterInterp[id];
+    const marker = firefighterMarkers[id];
+    if (!marker) continue;
+
+    const dlat = ci.targetLat - ci.displayLat;
+    const dlng = ci.targetLng - ci.displayLng;
+    const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+
+    if (dist > 0.0000005) {
+      const speedPerSec = ci.speed / 4;
+      const step = Math.min(dist, speedPerSec * dtSec);
+      ci.displayLat += (dlat / dist) * step;
+      ci.displayLng += (dlng / dist) * step;
+      marker.setLatLng([ci.displayLat, ci.displayLng]);
+    }
+  }
+
+  requestAnimationFrame(_animateFirefighters);
+}
+requestAnimationFrame(_animateFirefighters);
 
 // ═══════════════════════════════════════════════════
 //  Zombie Horde System

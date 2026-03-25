@@ -4,6 +4,8 @@ import { log } from '../../lib/log.js';
 import { BOT_TYPES, getRandomBotType } from '../mechanics/bots.js';
 import { haversine } from '../../lib/haversine.js';
 import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, xpForLevel, SMALL_RADIUS, LARGE_RADIUS } from '../../config/formulas.js';
+import { FIRETRUCK_LEVELS, FIRETRUCK_EXTINGUISH_DURATION, FIREFIGHTER_SPEED } from '../mechanics/fireTrucks.js';
+import { COLLECTOR_LEVELS } from '../mechanics/collectors.js';
 import { getCellsInRange } from '../../lib/grid.js';
 import { dailyMarketCheck } from '../mechanics/market.js';
 import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/constants.js';
@@ -48,6 +50,9 @@ export function startGameLoop(io, connectedPlayers) {
 
       // ── 3. Move couriers ───────────────────────────────────
       await moveCouriers(nowMs, nowISO);
+
+      // ── 3c. Move firefighters ────────────────────────────
+      moveFirefighters(nowMs);
 
       // ── 3b. Move zombies + check timeout ──────────────────
       moveZombies(nowMs, connectedPlayers);
@@ -354,6 +359,93 @@ async function moveCouriers(nowMs, nowISO) {
   }
 }
 
+// ── Move firefighters (going → extinguishing → returning) ──
+function moveFirefighters(nowMs) {
+  for (const [id, ff] of gameState.firefighters) {
+    let targetLat, targetLng;
+
+    if (ff.phase === 'going') {
+      targetLat = ff.target_lat;
+      targetLng = ff.target_lng;
+    } else if (ff.phase === 'returning') {
+      targetLat = ff.origin_lat;
+      targetLng = ff.origin_lng;
+    } else if (ff.phase === 'extinguishing') {
+      if (nowMs - ff.extinguish_started_at >= FIRETRUCK_EXTINGUISH_DURATION) {
+        // Extinguish the building
+        extinguishBuilding(ff);
+        ff.phase = 'returning';
+        if (_io) _io.emit('firefighter:arrived', { id: ff.id, target_type: ff.target_type, target_id: ff.target_id });
+      }
+      continue;
+    } else {
+      continue;
+    }
+
+    const dist = haversine(ff.current_lat, ff.current_lng, targetLat, targetLng);
+    if (dist < 10) {
+      // Arrived
+      if (ff.phase === 'going') {
+        ff.phase = 'extinguishing';
+        ff.extinguish_started_at = nowMs;
+      } else if (ff.phase === 'returning') {
+        gameState.firefighters.delete(id);
+        if (_io) _io.emit('firefighter:removed', { id });
+      }
+      continue;
+    }
+
+    // Move toward target (degrees per tick, 5s interval)
+    const dlat = targetLat - ff.current_lat;
+    const dlng = targetLng - ff.current_lng;
+    const degDist = Math.sqrt(dlat * dlat + dlng * dlng);
+    const speedDeg = (ff.speed || FIREFIGHTER_SPEED) * 5 / 4; // speed is degrees per 4-second cycle
+    const step = Math.min(degDist, speedDeg);
+    ff.current_lat += (dlat / degDist) * step;
+    ff.current_lng += (dlng / degDist) * step;
+  }
+}
+
+function extinguishBuilding(ff) {
+  const nowISO = new Date().toISOString();
+
+  if (ff.target_type === 'mine') {
+    const mine = gameState.mines.get(ff.target_id);
+    if (mine && mine.status === 'burning') {
+      const maxHp = getMineHp(mine.level);
+      const restoredHp = Math.round(maxHp * 0.25);
+      mine.status = 'normal';
+      mine.burning_started_at = null;
+      mine.hp = restoredHp;
+      mine.last_hp_update = nowISO;
+      gameState.markDirty('mines', mine.id);
+      supabase.from('mines').update({ status: 'normal', burning_started_at: null, hp: restoredHp, last_hp_update: nowISO }).eq('id', mine.id).then(() => {}).catch(() => {});
+    }
+  } else if (ff.target_type === 'collector') {
+    const coll = gameState.collectors.get(ff.target_id);
+    if (coll && coll.status === 'burning') {
+      const cfg = COLLECTOR_LEVELS[coll.level] || COLLECTOR_LEVELS[1];
+      const restoredHp = Math.round(cfg.hp * 0.25);
+      coll.status = 'normal';
+      coll.burning_started_at = null;
+      coll.hp = restoredHp;
+      gameState.markDirty('collectors', coll.id);
+      supabase.from('collectors').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', coll.id).then(() => {}).catch(() => {});
+    }
+  } else if (ff.target_type === 'fire_truck') {
+    const truck = gameState.fireTrucks.get(ff.target_id);
+    if (truck && truck.status === 'burning') {
+      const cfg = FIRETRUCK_LEVELS[truck.level] || FIRETRUCK_LEVELS[1];
+      const restoredHp = Math.round(cfg.hp * 0.25);
+      truck.status = 'normal';
+      truck.burning_started_at = null;
+      truck.hp = restoredHp;
+      gameState.markDirty('fireTrucks', truck.id);
+      supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', truck.id).then(() => {}).catch(() => {});
+    }
+  }
+}
+
 // ── Move zombies toward player, scouts wander ──
 function moveZombies(nowMs, connectedPlayers) {
   if (gameState.zombieHordes.size === 0) return;
@@ -565,6 +657,32 @@ async function periodicCleanup(nowMs, nowISO) {
             id: globalThis.crypto.randomUUID(),
             player_id: owner.id, type: 'collector_destroyed',
             message: ts(cLang, 'notif.collector_burned'),
+            read: false, created_at: nowISO,
+          };
+          gameState.addNotification(notif);
+          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+        }
+      }
+    }
+
+    // Destroy burned fire trucks (>24h burning)
+    for (const ft of gameState.fireTrucks.values()) {
+      if (ft.status !== 'burning' || !ft.burning_started_at) continue;
+      const burnedMs = nowMs - new Date(ft.burning_started_at).getTime();
+      if (burnedMs > 86400000) {
+        // Kill active firefighters from this truck
+        for (const [ffId, ff] of gameState.firefighters) {
+          if (ff.truck_id === ft.id) gameState.firefighters.delete(ffId);
+        }
+        gameState.fireTrucks.delete(ft.id);
+        supabase.from('fire_trucks').delete().eq('id', ft.id).then(() => {}).catch(() => {});
+        const owner = gameState.getPlayerById(ft.owner_id);
+        if (owner) {
+          const ftLang = owner.language || 'en';
+          const notif = {
+            id: globalThis.crypto.randomUUID(),
+            player_id: owner.id, type: 'firetruck_destroyed',
+            message: ts(ftLang, 'notif.firetruck_burned'),
             read: false, created_at: nowISO,
           };
           gameState.addNotification(notif);
