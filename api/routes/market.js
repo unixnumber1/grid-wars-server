@@ -61,7 +61,7 @@ async function handleListings(req, res) {
   if (item_type === 'core') query = query.eq('item_type', 'core');
   else if (item_type === 'item') query = query.or(`item_type.is.null,item_type.neq.core`);
 
-  query = query.or(`is_private.eq.false,seller_id.eq.${player.id}`);
+  // Private listings visible to all (code required on buy, hidden from response)
 
   if (sort === 'cheap') query = query.order('price_diamonds', { ascending: true });
   else if (sort === 'expensive') query = query.order('price_diamonds', { ascending: false });
