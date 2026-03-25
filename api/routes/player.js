@@ -662,7 +662,7 @@ playerRouter.get('/profile', async (req, res) => {
   }
 
   // Monument raids (count loot boxes)
-  const { count: monumentsRaided } = await supabase.from('monument_loot_boxes').select('id', { count: 'exact', head: true }).eq('player_id', target.id);
+  const { count: monumentsRaided } = await supabase.from('monument_loot_boxes').select('id', { count: 'exact', head: true }).eq('player_id', tgId);
 
   return res.json({
     profile: {
