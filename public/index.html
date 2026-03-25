@@ -9216,11 +9216,19 @@ function initSocket() {
         showToast(t('toast.pvp_victory', {amount: formatCoins(data.coins_transferred)}));
         _setPlayerCoins((state.player.coins || 0) + data.coins_transferred);
         stopCombat();
-        // Full combat state reset (not keepHold — combat is over)
+        // Full combat state reset
         stopPopupCombat();
-        document.getElementById('popup-overlay').classList.remove('open');
+        const ov = document.getElementById('popup-overlay');
+        ov.classList.remove('open', 'combat-mode');
+        ov.style.display = 'none';
         _currentPopupEntityId = null;
         _selectMarker(null);
+        combatState.isHolding = false;
+        combatState.touchId = null;
+        combatState.currentTarget = null;
+        map.touchZoom?.enable();
+        map.dragging?.enable();
+        showToast('🟢 combat reset: hold=' + combatState.isHolding + ' zoom=' + !!map.touchZoom?._enabled);
       } else if (data.loser_id === myId) {
         // I died — show death screen
         stopPopupCombat();
