@@ -11673,14 +11673,18 @@ function openCraftPick() {
     const cell = document.createElement('div');
     cell.className = `craft-pick-cell ${rarityClass(item.rarity)}`;
 
+    const lvlTag = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl" style="position:absolute;bottom:2px;right:2px;font-size:10px;color:#FFD700;">+${item.upgrade_level}</span>` : '';
     if (item.rarity === 'legendary') {
       cell.classList.add('locked');
-      cell.innerHTML = `<span>${item.emoji}</span>`;
+      cell.style.position = 'relative';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
     } else if (lockedRarity && item.rarity !== lockedRarity) {
       cell.classList.add('disabled');
-      cell.innerHTML = `<span>${item.emoji}</span>`;
+      cell.style.position = 'relative';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
     } else {
-      cell.innerHTML = `<span>${item.emoji}</span>`;
+      cell.style.position = 'relative';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
       cell.onclick = () => {
         _craftSelected.push(item);
         closeCraftPick();
