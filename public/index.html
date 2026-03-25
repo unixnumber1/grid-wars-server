@@ -2815,15 +2815,14 @@
     <button id="btn-close-settings">&#x2715;</button>
     <h3 data-i18n="settings.title">&#x2699;&#xFE0F; Настройки</h3>
   </div>
-  <div id="settings-tabs">
-    <button class="settings-tab active" data-tab="profile" data-i18n="settings.tab.profile">&#x1F464; Профиль</button>
-    <button class="settings-tab" data-tab="map" data-i18n="settings.tab.map">&#x1F5FA;&#xFE0F; Карта</button>
-    <button class="settings-tab" data-tab="monuments" data-i18n="monreq.tab">&#x1F3DB;&#xFE0F; Монументы</button>
-    <!-- lang tab hidden for now -->
+  <div id="settings-tabs" style="display:none">
+    <!-- Tabs hidden — all sections in one scrollable page. Admin tab added dynamically. -->
   </div>
   <div id="settings-body">
-    <!-- Profile tab -->
+    <!-- All settings in one scrollable view -->
     <div id="settings-tab-profile" class="settings-tab-content active">
+
+      <!-- Profile section -->
       <div class="settings-card" style="text-align:center;">
         <div class="settings-section-title" style="text-align:left;" data-i18n="settings.avatar">АВАТАРКА</div>
         <div id="settings-avatar-preview" style="width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,215,0,0.4);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;background:rgba(255,255,255,0.05);"></div>
@@ -2841,55 +2840,56 @@
           <button class="lang-btn" data-lang="en" onclick="setLang('en')" style="flex:1;padding:10px;border-radius:10px;border:2px solid transparent;background:#252538;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:border-color 0.15s;">🇬🇧 English</button>
         </div>
       </div>
-    </div>
-    <!-- Map tab -->
-    <div id="settings-tab-map" class="settings-tab-content">
+
+      <!-- Map section -->
       <div class="settings-card">
         <div class="settings-section-title" data-i18n="settings.map_style">СТИЛЬ КАРТЫ</div>
         <div id="map-style-list"></div>
       </div>
-    </div>
-    <!-- Monuments tab -->
-    <div id="settings-tab-monuments" class="settings-tab-content">
-      <div class="settings-card monument-request-section">
-        <div class="section-title" data-i18n="monreq.title">&#x1F3DB;&#xFE0F; Предложить монумент</div>
-        <div class="section-subtitle" data-i18n-html="monreq.subtitle_html">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
-        <div class="form-group">
-          <label data-i18n="monreq.coords_label">&#x1F4CD; Координаты Google Maps</label>
-          <input type="text" id="req-coords" data-i18n-placeholder="monreq.coords_ph" placeholder="55.7558, 37.6176 или ссылка на Google Maps" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
-          <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.coords_hint">Открой Google Maps &#x2192; долгое нажатие на место &#x2192; скопируй координаты</div>
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label data-i18n="monreq.name_label">&#x270F;&#xFE0F; Название места</label>
-          <input type="text" id="req-name" data-i18n-placeholder="monreq.name_ph" placeholder="Например: Александровский сад" maxlength="50" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label data-i18n="monreq.emoji_label">&#x1F3A8; Иконка монумента</label>
-          <input type="text" id="req-emoji" value="&#x1F3DB;&#xFE0F;" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
-          <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.emoji_hint">Вставь любой эмоджи</div>
-        </div>
-        <div class="form-group" style="margin-top:12px">
-          <label data-i18n="monreq.level_label">&#x26A1; Желаемый уровень (1-10)</label>
-          <div class="level-selector">
-            <div class="level-option selected" onclick="selectMonumentLevel(this,1)" id="level-opt-1">1</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,2)" id="level-opt-2">2</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,3)" id="level-opt-3">3</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,4)" id="level-opt-4">4</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,5)" id="level-opt-5">5</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,6)" id="level-opt-6">6</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,7)" id="level-opt-7">7</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,8)" id="level-opt-8">8</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,9)" id="level-opt-9">9</div>
-            <div class="level-option" onclick="selectMonumentLevel(this,10)" id="level-opt-10">10</div>
+
+      <!-- Monuments section -->
+      <div class="settings-card">
+        <div class="settings-section-title">🏛️ МОНУМЕНТЫ</div>
+        <button id="btn-open-monument-form" onclick="document.getElementById('monument-request-form').style.display = document.getElementById('monument-request-form').style.display === 'none' ? '' : 'none'" class="settings-action-btn s-default" style="justify-content:center;" data-i18n="monreq.suggest_btn">🏛️ Предложить монумент</button>
+        <div id="monument-request-form" style="display:none;margin-top:12px;">
+          <div class="section-subtitle" data-i18n-html="monreq.subtitle_html">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
+          <div class="form-group">
+            <label data-i18n="monreq.coords_label">&#x1F4CD; Координаты Google Maps</label>
+            <input type="text" id="req-coords" data-i18n-placeholder="monreq.coords_ph" placeholder="55.7558, 37.6176 или ссылка на Google Maps" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+            <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.coords_hint">Открой Google Maps &#x2192; долгое нажатие на место &#x2192; скопируй координаты</div>
           </div>
-          <input type="hidden" id="req-level" value="1">
-          <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.level_hint">Уровень влияет на сложность рейда и награды</div>
+          <div class="form-group" style="margin-top:12px">
+            <label data-i18n="monreq.name_label">&#x270F;&#xFE0F; Название места</label>
+            <input type="text" id="req-name" data-i18n-placeholder="monreq.name_ph" placeholder="Например: Александровский сад" maxlength="50" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label data-i18n="monreq.emoji_label">&#x1F3A8; Иконка монумента</label>
+            <input type="text" id="req-emoji" value="&#x1F3DB;&#xFE0F;" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
+            <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.emoji_hint">Вставь любой эмоджи</div>
+          </div>
+          <div class="form-group" style="margin-top:12px">
+            <label data-i18n="monreq.level_label">&#x26A1; Желаемый уровень (1-10)</label>
+            <div class="level-selector">
+              <div class="level-option selected" onclick="selectMonumentLevel(this,1)" id="level-opt-1">1</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,2)" id="level-opt-2">2</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,3)" id="level-opt-3">3</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,4)" id="level-opt-4">4</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,5)" id="level-opt-5">5</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,6)" id="level-opt-6">6</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,7)" id="level-opt-7">7</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,8)" id="level-opt-8">8</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,9)" id="level-opt-9">9</div>
+              <div class="level-option" onclick="selectMonumentLevel(this,10)" id="level-opt-10">10</div>
+            </div>
+            <input type="hidden" id="req-level" value="1">
+            <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.level_hint">Уровень влияет на сложность рейда и награды</div>
+          </div>
+          <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
         </div>
-        <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
       </div>
+
     </div>
-    <!-- Language tab (hidden for now) -->
-    <!-- Admin tab (hidden by default) -->
+    <!-- Admin tab (hidden by default, shown via tab button for admins) -->
     <div id="settings-tab-admin" class="settings-tab-content">
       <div id="admin-stats"></div>
       <div class="settings-card">
@@ -4222,6 +4222,7 @@ const I18N = {
     // === Monument Request ===
     'monreq.tab': '🏛️ Монументы',
     'monreq.title': '🏛️ Предложить монумент',
+    'monreq.suggest_btn': '🏛️ Предложить монумент',
     'monreq.subtitle': 'Знаешь интересное место? Предложи его как монумент!',
     'monreq.subtitle_html': 'Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span>',
     'monreq.limit': '1 заявка в день',
@@ -5294,6 +5295,7 @@ const I18N = {
     // === Monument Request ===
     'monreq.tab': '🏛️ Monuments',
     'monreq.title': '🏛️ Suggest Monument',
+    'monreq.suggest_btn': '🏛️ Suggest monument',
     'monreq.subtitle': 'Know an interesting place? Suggest it as a monument!',
     'monreq.subtitle_html': 'Know an interesting place? Suggest it as a monument!<br><span style="color:#888;font-size:12px">1 request per day</span>',
     'monreq.limit': '1 request per day',
@@ -10877,27 +10879,44 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
 
 function _updateSettingsAdminTab() {
   const isAdmin = parseInt(TG_ID, 10) === ADMIN_TG_ID;
-  // Find the admin tab button if it exists, or create it
   const tabsEl = document.getElementById('settings-tabs');
   let adminTabBtn = tabsEl.querySelector('[data-tab="admin"]');
-  if (isAdmin && !adminTabBtn) {
-    adminTabBtn = document.createElement('button');
-    adminTabBtn.className = 'settings-tab';
-    adminTabBtn.dataset.tab = 'admin';
-    adminTabBtn.textContent = '\u2699\uFE0F \u0410\u0434\u043C\u0438\u043D';
-    adminTabBtn.addEventListener('click', () => {
-      document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
-      adminTabBtn.classList.add('active');
-      document.getElementById('settings-tab-admin').classList.add('active');
-      loadAdminStats();
-      if (_adminStatsInterval) clearInterval(_adminStatsInterval);
-      _adminStatsInterval = setInterval(loadAdminStats, 30000);
-    });
-    tabsEl.appendChild(adminTabBtn);
-  }
-  if (!isAdmin && adminTabBtn) {
-    adminTabBtn.remove();
+  if (isAdmin) {
+    // Show tabs bar with Settings + Admin tabs
+    tabsEl.style.display = '';
+    if (!adminTabBtn) {
+      // Add "Settings" tab to go back
+      const settingsBtn = document.createElement('button');
+      settingsBtn.className = 'settings-tab active';
+      settingsBtn.dataset.tab = 'profile';
+      settingsBtn.textContent = '⚙️';
+      settingsBtn.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+        settingsBtn.classList.add('active');
+        document.getElementById('settings-tab-profile').classList.add('active');
+        if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
+      });
+      tabsEl.appendChild(settingsBtn);
+
+      adminTabBtn = document.createElement('button');
+      adminTabBtn.className = 'settings-tab';
+      adminTabBtn.dataset.tab = 'admin';
+      adminTabBtn.textContent = '🔧 Админ';
+      adminTabBtn.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+        adminTabBtn.classList.add('active');
+        document.getElementById('settings-tab-admin').classList.add('active');
+        loadAdminStats();
+        if (_adminStatsInterval) clearInterval(_adminStatsInterval);
+        _adminStatsInterval = setInterval(loadAdminStats, 30000);
+      });
+      tabsEl.appendChild(adminTabBtn);
+    }
+  } else {
+    tabsEl.style.display = 'none';
+    if (adminTabBtn) adminTabBtn.remove();
   }
 }
 
