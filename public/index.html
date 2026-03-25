@@ -6912,12 +6912,13 @@ function playerIcon(avatar, shieldUntil) {
   });
 }
 
-function otherPlayerIcon(avatar, shieldUntil) {
+let _opClickIdx = 0;
+function otherPlayerIcon(avatar, shieldUntil, clickId) {
   const em = avatar || '🐺';
   const hasShield = shieldUntil && new Date(shieldUntil) > new Date();
   const dome = hasShield ? '<div class="player-shield-dome"></div>' : '';
   return L.divIcon({
-    html: `<div style="
+    html: `<div data-opclick="${clickId || 0}" style="
       font-size: 44px;
       line-height: 1;
       filter: drop-shadow(0 0 12px rgba(0,0,0,0.9)) drop-shadow(0 4px 8px rgba(0,0,0,0.7));
@@ -6926,8 +6927,8 @@ function otherPlayerIcon(avatar, shieldUntil) {
       cursor: pointer;
       display:flex; align-items:center; justify-content:center;
     ">${dome}${em}</div>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
     className: 'leaflet-interactive',
   });
 }
@@ -7066,16 +7067,22 @@ function renderBuildings() {
     if (onlineMarkers[p.id]) {
       const m = onlineMarkers[p.id];
       _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
-      m.setIcon(otherPlayerIcon(p.avatar, p.shield_until));
+      m.setIcon(otherPlayerIcon(p.avatar, p.shield_until, p.id));
       m._playerData = p;
-      // Re-bind click after setIcon (DivIcon replaces DOM, may lose events)
-      m.off('click');
-      m.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(m._playerData); });
+      // Bind click directly on the new _icon DOM element
+      if (m._icon) {
+        m._icon.style.cursor = 'pointer';
+        m._icon.onclick = (e) => { e.stopPropagation(); _suppressMapClick = Date.now(); showOtherPlayerPopup(m._playerData); };
+      }
     } else {
-      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until), zIndexOffset: 5000, bubblingMouseEvents: false });
+      const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000, interactive: true });
       marker._playerData = p;
-      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
       marker.addTo(map);
+      // Bind click directly on DOM element
+      if (marker._icon) {
+        marker._icon.style.cursor = 'pointer';
+        marker._icon.onclick = (e) => { e.stopPropagation(); _suppressMapClick = Date.now(); showOtherPlayerPopup(marker._playerData); };
+      }
       onlineMarkers[p.id] = marker;
     }
   }
