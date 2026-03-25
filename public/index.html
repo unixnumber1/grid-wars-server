@@ -727,10 +727,10 @@
     .player-popup-level { font-size: 12px; color: #888; margin-top: 2px; }
     .player-popup-badge { font-size: 12px; margin-top: 4px; font-weight: 600; }
     .player-popup-hp { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .hp-label { font-size: 11px; color: #888; width: 20px; }
-    .hp-bar { flex: 1; height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
-    .hp-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); border-radius: 3px; transition: width 0.3s; }
-    .hp-text { font-size: 11px; color: #888; }
+    .player-popup-hp .pp-hp-label { font-size: 11px; color: #888; width: 20px; }
+    .player-popup-hp .pp-hp-bar { flex: 1; height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
+    .player-popup-hp .pp-hp-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); border-radius: 3px; transition: width 0.3s; }
+    .player-popup-hp .pp-hp-text { font-size: 11px; color: #888; }
     .player-popup-clan { font-size: 12px; color: #aaa; margin-bottom: 10px; }
     .player-popup-btns { display: flex; flex-direction: column; gap: 8px; }
     .btn-profile { background: #1a1a2e; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; width: 100%; -webkit-tap-highlight-color: transparent; }
@@ -13056,9 +13056,9 @@ function showOtherPlayerPopup(p) {
         </div>
       </div>
       <div class="player-popup-hp">
-        <div class="hp-label">HP</div>
-        <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
-        <div class="hp-text">${p.hp ?? '?'}/${p.max_hp || 1000}</div>
+        <div class="pp-hp-label">HP</div>
+        <div class="pp-hp-bar"><div class="pp-hp-fill" style="width:${hpPct}%"></div></div>
+        <div class="pp-hp-text">${p.hp ?? '?'}/${p.max_hp || 1000}</div>
       </div>
       <div class="player-popup-btns">
         <button class="btn-profile" onclick="_popupBtnActions[${profIdx}]()">👤 ${t('profile.title') || 'Профиль'}</button>
@@ -13134,8 +13134,6 @@ async function openPlayerProfile(targetTgId) {
           </div>
         </div>
         <div class="profile-stats-row">
-          <div class="profile-stat"><div class="stat-value">${formatNumber(p.total_mines || 0)}</div><div class="stat-label">⛏️ ${t('profile.mines') || 'Шахт'}</div></div>
-          <div class="profile-stat"><div class="stat-value">${formatNumber(p.kills || 0)}</div><div class="stat-label">⚔️ ${t('profile.kills') || 'Убийств'}</div></div>
           <div class="profile-stat"><div class="stat-value">${formatNumber(p.monuments_raided || 0)}</div><div class="stat-label">🏛️ ${t('profile.raids') || 'Рейдов'}</div></div>
         </div>
         ${p.best_mine ? `
