@@ -618,17 +618,19 @@ playerRouter.post('/init', async (req, res) => {
 // ── Set active badge ──────────────────────────────────────────────
 async function handleSetActiveBadge(req, res) {
   const { telegram_id, badge_id } = req.body;
-  if (!telegram_id || !badge_id) return res.status(400).json({ error: 'telegram_id and badge_id required' });
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
   let tgId; try { tgId = parseTgId(telegram_id); } catch (e) { return res.status(400).json({ error: e.message }); }
-  // Verify badge is owned
-  const { data: badge } = await supabase.from('player_badges').select('badge_id').eq('player_id', tgId).eq('badge_id', badge_id).maybeSingle();
-  if (!badge) return res.status(403).json({ error: 'Бейдж не найден' });
-  await supabase.from('players').update({ active_badge: badge_id }).eq('telegram_id', tgId);
+  // badge_id=null → clear active badge
+  if (badge_id) {
+    const { data: badge } = await supabase.from('player_badges').select('badge_id').eq('player_id', tgId).eq('badge_id', badge_id).maybeSingle();
+    if (!badge) return res.status(403).json({ error: 'Бейдж не найден' });
+  }
+  await supabase.from('players').update({ active_badge: badge_id || null }).eq('telegram_id', tgId);
   if (gameState.loaded) {
     const p = gameState.getPlayerByTgId(tgId);
-    if (p) { p.active_badge = badge_id; gameState.markDirty('players', p.id); }
+    if (p) { p.active_badge = badge_id || null; gameState.markDirty('players', p.id); }
   }
-  return res.json({ ok: true, active_badge: badge_id });
+  return res.json({ ok: true, active_badge: badge_id || null });
 }
 
 // ── Player profile ────────────────────────────────────────────────
