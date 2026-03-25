@@ -2742,6 +2742,11 @@
     <div id="setup-username-hint" data-i18n="setup.nick_hint">3-16 &#x0441;&#x0438;&#x043C;&#x0432;&#x043E;&#x043B;&#x043E;&#x0432;, &#x0431;&#x0443;&#x043A;&#x0432;&#x044B;/&#x0446;&#x0438;&#x0444;&#x0440;&#x044B;/_</div>
     <div id="setup-username-error"></div>
 
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;">
+      <input type="checkbox" id="setup-policy-checkbox" style="margin-top:2px;accent-color:#FFD700;min-width:18px;min-height:18px;cursor:pointer;">
+      <label for="setup-policy-checkbox" style="font-size:12px;color:#888;line-height:1.4;cursor:pointer;" data-i18n-html="setup.policy_label">&#x042F; &#x043F;&#x0440;&#x0438;&#x043D;&#x0438;&#x043C;&#x0430;&#x044E; <a href="/policy.html" target="_blank" style="color:#FFD700;text-decoration:underline;">&#x041F;&#x043E;&#x043B;&#x0438;&#x0442;&#x0438;&#x043A;&#x0443; &#x043A;&#x043E;&#x043D;&#x0444;&#x0438;&#x0434;&#x0435;&#x043D;&#x0446;&#x0438;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x0441;&#x0442;&#x0438; &#x0438; &#x0443;&#x0441;&#x043B;&#x043E;&#x0432;&#x0438;&#x044F; &#x0438;&#x0441;&#x043F;&#x043E;&#x043B;&#x044C;&#x0437;&#x043E;&#x0432;&#x0430;&#x043D;&#x0438;&#x044F;</a></label>
+    </div>
+
     <button id="btn-setup-start" data-i18n="setup.start" disabled>&#x1F3AE; &#x041D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;</button>
   </div>
 </div>
@@ -2886,6 +2891,12 @@
           </div>
           <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
         </div>
+      </div>
+
+      <!-- Legal -->
+      <div class="settings-card" style="text-align:center;">
+        <div class="settings-section-title" data-i18n="settings.legal">&#x041F;&#x0420;&#x0410;&#x0412;&#x041E;&#x0412;&#x0410;&#x042F; &#x0418;&#x041D;&#x0424;&#x041E;&#x0420;&#x041C;&#x0410;&#x0426;&#x0418;&#x042F;</div>
+        <a href="/policy.html" target="_blank" class="settings-action-btn s-default" style="justify-content:center;text-decoration:none;" data-i18n="settings.legal_link">&#x1F4C4; &#x041F;&#x043E;&#x043B;&#x0438;&#x0442;&#x0438;&#x043A;&#x0430; &#x043A;&#x043E;&#x043D;&#x0444;&#x0438;&#x0434;&#x0435;&#x043D;&#x0446;&#x0438;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x0441;&#x0442;&#x0438; &#x0438; &#x0443;&#x0441;&#x043B;&#x043E;&#x0432;&#x0438;&#x044F;</a>
       </div>
 
     </div>
@@ -4253,6 +4264,11 @@ const I18N = {
     'setup.nick_ph': 'Введи ник...',
     'setup.nick_hint': '3-16 символов, буквы/цифры/_',
     'setup.start': '🎮 Начать игру',
+    'setup.policy_label': 'Я принимаю <a href="/policy.html" target="_blank" style="color:#FFD700;text-decoration:underline;">Политику конфиденциальности и условия использования</a>',
+
+    // === Legal ===
+    'settings.legal': 'ПРАВОВАЯ ИНФОРМАЦИЯ',
+    'settings.legal_link': '📄 Политика конфиденциальности и условия',
 
     // === Item Stats ===
     'itemstat.attack': '⚔️ Атака',
@@ -5327,6 +5343,11 @@ const I18N = {
     'setup.nick_ph': 'Enter nickname...',
     'setup.nick_hint': '3-16 characters, letters/digits/_',
     'setup.start': '🎮 Start Game',
+    'setup.policy_label': 'I accept the <a href="/policy.html" target="_blank" style="color:#FFD700;text-decoration:underline;">Privacy Policy and Terms of Use</a>',
+
+    // === Legal ===
+    'settings.legal': 'LEGAL',
+    'settings.legal_link': '📄 Privacy Policy and Terms',
 
     // === Item Stats ===
     'itemstat.attack': '⚔️ Attack',
@@ -10504,15 +10525,17 @@ function showUsernameSetupScreen() {
   }
 
   document.getElementById('setup-username-input').addEventListener('input', validateSetupForm);
+  document.getElementById('setup-policy-checkbox').addEventListener('change', validateSetupForm);
   document.getElementById('btn-setup-start').addEventListener('click', submitSetupForm);
 }
 
 function validateSetupForm() {
   const input = document.getElementById('setup-username-input');
   const btn   = document.getElementById('btn-setup-start');
+  const cb    = document.getElementById('setup-policy-checkbox');
   const v = input.value.trim();
   const valid = v.length >= 3 && v.length <= 16 && /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(v);
-  btn.disabled = !valid;
+  btn.disabled = !(valid && cb.checked);
 }
 
 async function submitSetupForm() {
@@ -12665,10 +12688,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('market-private-btn')?.addEventListener('click', () => {
     const code = document.getElementById('market-private-input').value.trim().toUpperCase();
     if (code.length !== 6) return showToast(t('toast.code_length'));
+    const listing = _buyTargetListing;
     closeMarketPrivate();
-    if (_buyTargetListing) {
-      _buyTargetListing._privateCode = code;
-      showMarketBuyConfirm(_buyTargetListing);
+    if (listing) {
+      listing._privateCode = code;
+      showMarketBuyConfirm(listing);
     }
   });
 });
@@ -12739,17 +12763,14 @@ function _renderListFlowStep1() {
   });
 
   if (_listFlowTab === 'items') {
-    const inv = (state.inventory || []).slice().sort((a, b) =>
+    const inv = (state.inventory || []).filter(i => !i.equipped && !i.on_market).sort((a, b) =>
       (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
     );
     for (const item of inv) {
       const cell = document.createElement('div');
-      const disabled = item.equipped || item.on_market;
-      cell.className = `market-inv-cell ${rarityClass(item.rarity)}${disabled ? ' disabled' : ''}`;
+      cell.className = `market-inv-cell ${rarityClass(item.rarity)}`;
       cell.innerHTML = `<span>${item.emoji}</span><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.8);color:#FFD700;font-size:9px;padding:1px 4px;border-radius:3px;">lv.${item.upgrade_level || 0}</span>`;
-      if (!disabled) {
-        cell.addEventListener('click', () => _selectListItem(item));
-      }
+      cell.addEventListener('click', () => _selectListItem(item));
       grid.appendChild(cell);
     }
   } else {

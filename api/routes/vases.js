@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
-import { spawnVasesForAllHQs } from '../../lib/vases.js';
+import { spawnVasesForCity } from '../../game/mechanics/vases.js';
 import { rollVaseItem } from '../../lib/items.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { getAllCityKeys, getCityBounds, getCityPlayerCount } from '../../lib/geocity.js';
 
 export const vasesRouter = Router();
 
@@ -17,14 +18,26 @@ async function handleSpawn(req, res) {
   if (parseInt(telegram_id, 10) !== ADMIN_TG_ID)
     return res.status(403).json({ error: 'Forbidden' });
 
-  // Delete all old vases, spawn new wave
-  await supabase.from('vases').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (gameState.loaded) gameState.clearAllVases();
-  const spawned = await spawnVasesForAllHQs(supabase, gameState);
+  // Delete expired/broken vases, spawn fresh wave for all cities
+  await supabase.from('vases').delete().or('broken_by.not.is.null,expires_at.lt.' + new Date().toISOString());
+  if (gameState.loaded) {
+    for (const [id, v] of gameState.vases) {
+      if (v.broken_by || new Date(v.expires_at) <= new Date()) gameState.vases.delete(id);
+    }
+  }
+
+  let totalSpawned = 0;
+  const cityKeys = getAllCityKeys();
+  for (const cityKey of cityKeys) {
+    const pc = Math.max(getCityPlayerCount(cityKey), 1); // at least 1 to ensure spawn
+    const cb = await getCityBounds(cityKey);
+    if (!cb?.boundingbox) continue;
+    totalSpawned += await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+  }
 
   await supabase.from('app_settings')
     .upsert({ key: 'last_vases_spawn', value: Date.now().toString() }, { onConflict: 'key' });
-  return res.json({ spawned });
+  return res.json({ spawned: totalSpawned });
 }
 
 // ── BREAK (player) ──────────────────────────────────────────────────────────

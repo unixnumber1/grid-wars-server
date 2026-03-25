@@ -169,7 +169,11 @@ async function handleListItem(req, res) {
       if (core.on_market) return res.status(400).json({ error: 'Core already on market' });
     }
 
-    await supabase.from('cores').update({ on_market: true }).eq('id', core_id);
+    const { data: coreLocked } = await supabase.from('cores')
+      .update({ on_market: true })
+      .eq('id', core_id).eq('on_market', false)
+      .select('id').maybeSingle();
+    if (!coreLocked) return res.status(409).json({ error: 'Core already on market' });
     if (gameState.loaded) {
       const gc = core || gameState.cores.get(core_id);
       if (gc) { gc.on_market = true; gameState.markDirty('cores', core_id); }
@@ -301,8 +305,12 @@ async function handleListItem(req, res) {
     }
   }
 
-  // Will be updated with held_by_courier or held_by_market after courier/listing creation
-  await supabase.from('items').update({ on_market: true, equipped: false }).eq('id', item_id);
+  // Atomic lock: only proceed if item is not already on market
+  const { data: itemLocked } = await supabase.from('items')
+    .update({ on_market: true, equipped: false })
+    .eq('id', item_id).eq('on_market', false)
+    .select('id').maybeSingle();
+  if (!itemLocked) return res.status(409).json({ error: 'Item already on market' });
   if (gameState.loaded) {
     const gi = gameState.getItemById(item_id);
     if (gi) { gi.on_market = true; gi.equipped = false; gameState.markDirty('items', gi.id); }
@@ -472,10 +480,10 @@ async function handleBuy(req, res) {
       .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
       .eq('id', listing.seller_id);
 
-    // Transfer core ownership
+    // Transfer core ownership — reset mine_cell_id/slot_index so it goes to buyer's inventory
     await supabase.from('cores')
-      .update({ owner_id: Number(telegram_id), on_market: false })
-      .eq('id', listing.core_id);
+      .update({ owner_id: Number(telegram_id), on_market: false, mine_cell_id: null, slot_index: null })
+      .eq('id', listing.core_id).eq('on_market', true);
 
     // Update gameState
     if (gameState.loaded) {
@@ -486,7 +494,7 @@ async function handleBuy(req, res) {
       const sp = gameState.getPlayerById(listing.seller_id);
       if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
       const core = gameState.cores.get(listing.core_id);
-      if (core) { core.owner_id = Number(telegram_id); core.on_market = false; gameState.markDirty('cores', core.id); }
+      if (core) { core.owner_id = Number(telegram_id); core.on_market = false; core.mine_cell_id = null; core.slot_index = null; gameState.markDirty('cores', core.id); }
     }
 
     notify(listing.seller_id, 'core_sold',
@@ -507,7 +515,7 @@ async function handleBuy(req, res) {
       .eq('id', listing.seller_id),
     supabase.from('items')
       .update({ owner_id: buyer.id })
-      .eq('id', listing.item_id),
+      .eq('id', listing.item_id).eq('on_market', true),
   ]);
 
   if (sellerErr || itemErr) {
@@ -628,6 +636,11 @@ async function handleCancel(req, res) {
     supabase.from('market_listings')
       .update({ status: 'cancelled' })
       .eq('id', listing_id),
+    // Always cancel couriers for any listing type (cores can have to_market couriers too)
+    supabase.from('couriers')
+      .update({ status: 'cancelled' })
+      .eq('listing_id', listing_id)
+      .eq('status', 'moving'),
   ];
 
   if (listing.item_type === 'core' && listing.core_id) {
@@ -637,10 +650,6 @@ async function handleCancel(req, res) {
       supabase.from('items')
         .update({ on_market: false, held_by_courier: null, held_by_market: null })
         .eq('id', listing.item_id),
-      supabase.from('couriers')
-        .update({ status: 'cancelled' })
-        .eq('listing_id', listing_id)
-        .eq('status', 'moving'),
     );
   }
 
@@ -650,15 +659,16 @@ async function handleCancel(req, res) {
   if (gameState.loaded) {
     const gl = gameState.getListingById(listing_id);
     if (gl) { gl.status = 'cancelled'; gameState.markDirty('marketListings', gl.id); }
+    // Always cancel couriers in gameState
+    for (const c of gameState.couriers.values()) {
+      if (c.listing_id === listing_id && c.status === 'moving') { c.status = 'cancelled'; gameState.markDirty('couriers', c.id); }
+    }
     if (listing.item_type === 'core' && listing.core_id) {
       const core = gameState.cores.get(listing.core_id);
       if (core) { core.on_market = false; gameState.markDirty('cores', core.id); }
     } else if (listing.item_id) {
       const gi = gameState.getItemById(listing.item_id);
       if (gi) { gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
-      for (const c of gameState.couriers.values()) {
-        if (c.listing_id === listing_id && c.status === 'moving') { c.status = 'cancelled'; gameState.markDirty('couriers', c.id); }
-      }
     }
   }
 
@@ -827,7 +837,10 @@ async function handlePickupDrop(req, res) {
       const { data: listing } = await supabase.from('market_listings').select('buyer_id').eq('id', drop.listing_id).maybeSingle();
       courierOwner = listing?.buyer_id;
     }
-    if (courierOwner && courierOwner !== player.id) {
+    if (!courierOwner) {
+      return res.status(403).json({ error: 'Не удалось определить владельца посылки' });
+    }
+    if (courierOwner !== player.id) {
       return res.status(403).json({ error: 'Это не ваша посылка' });
     }
     await Promise.all([
@@ -904,23 +917,27 @@ async function handlePickupDrop(req, res) {
 
   let message = 'Предмет подобран!';
   if (drop.couriers?.type === 'delivery' && drop.listing_id) {
-    const { data: listing } = await supabase
-      .from('market_listings')
-      .select('id, buyer_id, price_diamonds, seller_id, item_id')
-      .eq('id', drop.listing_id)
-      .maybeSingle();
+    // Atomically mark listing as intercepted (only if still 'sold') to prevent double refund
+    const { data: intercepted } = await supabase.from('market_listings')
+      .update({ status: 'intercepted' })
+      .eq('id', drop.listing_id).eq('status', 'sold')
+      .select('id, buyer_id, price_diamonds').maybeSingle();
 
-    if (listing && listing.buyer_id) {
+    if (intercepted && intercepted.buyer_id) {
       const { data: buyerPlayer } = await supabase
-        .from('players').select('diamonds').eq('id', listing.buyer_id).single();
+        .from('players').select('diamonds').eq('id', intercepted.buyer_id).single();
       if (buyerPlayer) {
         await supabase.from('players')
-          .update({ diamonds: (buyerPlayer.diamonds ?? 0) + listing.price_diamonds })
-          .eq('id', listing.buyer_id);
+          .update({ diamonds: (buyerPlayer.diamonds ?? 0) + intercepted.price_diamonds })
+          .eq('id', intercepted.buyer_id);
       }
-      await supabase.from('market_listings')
-        .update({ status: 'intercepted' })
-        .eq('id', listing.id);
+      // Update gameState
+      if (gameState.loaded) {
+        const gl = gameState.getListingById(drop.listing_id);
+        if (gl) { gl.status = 'intercepted'; gameState.markDirty('marketListings', gl.id); }
+        const bp = gameState.getPlayerById(intercepted.buyer_id);
+        if (bp) { bp.diamonds = (bp.diamonds ?? 0) + intercepted.price_diamonds; gameState.markDirty('players', bp.id); }
+      }
       message = 'Курьер перехвачен! Предмет украден, покупателю возврат.';
     }
   }
