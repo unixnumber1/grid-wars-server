@@ -13151,7 +13151,7 @@ async function openPlayerProfile(targetTgId) {
           <div class="profile-section-title">🏆 ${t('profile.best_mine') || 'Лучшая шахта'}</div>
           <div class="profile-best-mine">
             <div class="best-mine-icon">${getMineEmoji(p.best_mine.level)}</div>
-            <div><div class="best-mine-level">${t('profile.level', {n: p.best_mine.level})}</div><div class="best-mine-income">+${formatNumber(getMineIncome(p.best_mine.level))}/ч 💰</div></div>
+            <div><div class="best-mine-level">${t('profile.level', {n: p.best_mine.level})}</div></div>
           </div>
         </div>` : ''}
         <div class="profile-section">
