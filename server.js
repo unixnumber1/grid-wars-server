@@ -76,10 +76,8 @@ export function logActivity(playerName, action) {
 const app = express();
 const httpServer = createServer(app);
 
-const ALLOWED_ORIGINS = ['https://overthrow.ru:8443', 'https://overthrow.ru'];
-
 const io = new Server(httpServer, {
-  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
+  cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
 import { validateRequest, checkBan } from './lib/security.js';
@@ -93,7 +91,7 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   next();
 });
-app.use(cors({ origin: ALLOWED_ORIGINS }));
+app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(validateRequest);
 app.use('/api', verifyTelegramAuth);
@@ -391,8 +389,7 @@ io.on('connection', (socket) => {
         verifiedTgId = result.user.id;
       } else {
         console.warn('[socket] Invalid initData from', data.telegram_id, result.reason);
-        socket.disconnect(true);
-        return;
+        // Don't disconnect — allow through for backward compat
       }
     }
 

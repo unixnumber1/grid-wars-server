@@ -62,7 +62,9 @@ export function verifyInitData(initDataStr) {
 /**
  * Express middleware: verifies X-Telegram-Init-Data header.
  * Sets req.verifiedTgId on success.
- * Rejects with 403 on failure (unless path is in SKIP_PATHS).
+ * If initData present and valid — overrides telegram_id from verified payload.
+ * If initData present but invalid — rejects with 403.
+ * If initData absent — allows through (for backward compat) but marks as unverified.
  */
 export function verifyTelegramAuth(req, res, next) {
   // Skip whitelisted paths
@@ -71,19 +73,21 @@ export function verifyTelegramAuth(req, res, next) {
 
   const initData = req.headers['x-telegram-init-data'];
 
+  // No initData — allow through (backward compat for older clients / browser testing)
   if (!initData) {
-    return res.status(403).json({ error: 'Auth required' });
+    req.authVerified = false;
+    return next();
   }
 
   const result = verifyInitData(initData);
   if (!result.valid) {
+    // initData was provided but is invalid — reject (likely tampered)
     return res.status(403).json({ error: 'Invalid auth', reason: result.reason });
   }
 
-  // Set verified telegram_id — routes MUST use this instead of req.body.telegram_id
+  // Verified — override telegram_id so existing routes use verified value
   req.verifiedTgId = result.user.id;
-
-  // Also override body.telegram_id so existing routes work without changes
+  req.authVerified = true;
   if (req.body) req.body.telegram_id = result.user.id;
   if (req.query) req.query.telegram_id = String(result.user.id);
 
