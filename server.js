@@ -484,11 +484,11 @@ function startMonumentLoop() {
 
     // ── Auto-respawn dead players ──
     for (const player of gameState.players.values()) {
-      if (!player.is_dead || !player.respawn_at) continue;
-      if (now < new Date(player.respawn_at).getTime()) continue;
+      if (!player.is_dead || !player._respawn_at) continue;
+      if (now < new Date(player._respawn_at).getTime()) continue;
       player.is_dead = false;
       player.hp = 1000 + (player.bonus_hp || 0);
-      player.respawn_at = null;
+      player._respawn_at = null;
       player.last_hp_regen = null;
       gameState.markDirty('players', player.id);
       // Find socket and emit respawn
@@ -749,7 +749,7 @@ function startDefenderLoop() {
           if (hp <= 0) {
             target.hp = 0;
             target.is_dead = true;
-            target.respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();
+            target._respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();
             gameState.markDirty('players', target.id);
             if (target._socketId) {
               io.to(target._socketId).emit('player:died', { respawn_in: 30, killer: defender.emoji + ' Defender' });

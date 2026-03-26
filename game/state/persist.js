@@ -98,6 +98,10 @@ async function batchPersist() {
         delete clean.wave_started_at;
         delete clean.wave_shield_hp;
       }
+      // Strip leaked runtime fields from players (safety net)
+      if (key === 'players') {
+        delete clean.respawn_at;
+      }
       // Items: ensure integer columns are integers (not floats)
       if (key === 'items') {
         for (const f of ['attack', 'crit_chance', 'defense', 'block_chance']) {
