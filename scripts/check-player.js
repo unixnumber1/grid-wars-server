@@ -12,12 +12,26 @@ async function main() {
   const client = await pool.connect();
   try {
     // Find player
-    const { rows: players } = await client.query(
+    // Try exact match first, then fuzzy
+    let { rows: players } = await client.query(
       `SELECT id, telegram_id, game_username, username, level, xp, coins, diamonds, crystals, ether,
               last_lat, last_lng, last_seen, created_at, is_banned, ban_reason, ban_until
-       FROM players WHERE game_username = $1 OR username = $1`, [username]
+       FROM players WHERE game_username = $1 OR username = $1 OR telegram_id::text = $1`, [username]
     );
+    if (!players.length) {
+      const fuzzy = await client.query(
+        `SELECT id, telegram_id, game_username, username, level, xp, coins, diamonds, crystals, ether,
+                last_lat, last_lng, last_seen, created_at, is_banned, ban_reason, ban_until
+         FROM players WHERE game_username ILIKE $1 OR username ILIKE $1`, ['%' + username + '%']
+      );
+      players = fuzzy.rows;
+    }
     if (!players.length) { console.log('Player not found:', username); return; }
+    if (players.length > 1) {
+      console.log('Multiple matches:');
+      for (const p of players) console.log(`  ${p.game_username || p.username} (tg:${p.telegram_id}, lv:${p.level})`);
+      console.log('Using first match...');
+    }
     const p = players[0];
     console.log('=== PLAYER ===');
     console.log(`Name: ${p.game_username || p.username} | TG: ${p.telegram_id} | ID: ${p.id}`);
