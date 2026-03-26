@@ -13,11 +13,9 @@ import {
   COLLECTOR_MAX_MINE_LEVEL, getCollectorCapacity, getCollectorMines,
 } from '../../lib/collectors.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { WEAPON_COOLDOWNS, COURIER_SPEED_PLAYER, COLLECTOR_UPGRADE_PRICES } from '../../config/constants.js';
 
 export const collectorsRouter = Router();
-
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
-const COURIER_SPEED_PLAYER = 0.0002; // 🚶 ~20 km/h (player courier = pedestrian)
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
@@ -95,9 +93,10 @@ async function handleBuild(req, res) {
   const actualDiamonds = freshBuild?.diamonds ?? player.diamonds ?? 0;
   if (actualDiamonds < COLLECTOR_COST_DIAMONDS) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost: COLLECTOR_COST_DIAMONDS }) });
   const newDiamonds = actualDiamonds - COLLECTOR_COST_DIAMONDS;
+  const { data: lockOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', actualDiamonds).select('id').maybeSingle();
+  if (!lockOk) return res.status(409).json({ error: 'Diamonds changed, retry' });
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
 
   const cfg = COLLECTOR_LEVELS[1];
   const collector = {
@@ -133,16 +132,19 @@ async function handleUpgrade(req, res) {
   if (collector.level >= 10) return res.status(400).json({ error: ts(lang, 'err.max_level') });
 
   const nextLevel = collector.level + 1;
-  const diamondCosts = [0,0,30,50,75,100,130,160,200,250,300];
-  const cost = diamondCosts[nextLevel] || 50;
+  const cost = COLLECTOR_UPGRADE_PRICES[nextLevel - 1] || 50;
 
-  if ((player.diamonds || 0) < cost) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost }) });
+  // Read fresh diamonds from DB
+  const { data: freshUpg } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const actualDia = freshUpg?.diamonds ?? player.diamonds ?? 0;
+  if (actualDia < cost) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost }) });
 
-  // Deduct diamonds
-  const newDiamonds = (player.diamonds || 0) - cost;
+  // Deduct diamonds (optimistic lock)
+  const newDiamonds = actualDia - cost;
+  const { data: upgLockOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', actualDia).select('id').maybeSingle();
+  if (!upgLockOk) return res.status(409).json({ error: 'Diamonds changed, retry' });
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
 
   const newCfg = COLLECTOR_LEVELS[nextLevel];
   collector.level = nextLevel;
@@ -170,8 +172,8 @@ async function handleDeliver(req, res) {
   if ((collector.stored_coins || 0) <= 0) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.nothing_to_deliver') });
 
   const gross = collector.stored_coins;
-  const commission = 0;
-  const net = gross;
+  const commission = Math.floor(gross * COLLECTOR_DELIVERY_COMMISSION);
+  const net = gross - commission;
 
   // Instant collector skill — no courier needed
   const _dFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
@@ -284,6 +286,7 @@ async function handleHit(req, res) {
   if (collector.owner_id === player.id) return res.status(400).json({ error: ts(lang, 'err.cant_attack_own_collector') });
   if (collector.hp <= 0 || collector.status === 'burning') return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
 
+  const _cSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
   const dist = haversine(pLat, pLng, collector.lat, collector.lng);
   if (dist > LARGE_RADIUS + (_cSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
@@ -299,7 +302,6 @@ async function handleHit(req, res) {
   recordAttack(telegram_id, now);
 
   // Calculate damage
-  const _cSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = 0.8 + Math.random() * 0.4;
   let damage = Math.round(baseDmg * mul);

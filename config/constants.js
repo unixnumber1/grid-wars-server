@@ -76,7 +76,8 @@ export const ORE_ZONE_RADIUS = 5000;               // 5km zone for clustering
 export const COLLECTOR_COST_DIAMONDS = 50;
 export const COLLECTOR_SELL_DIAMONDS = 37;
 export const COLLECTOR_RADIUS = 200;               // meters
-export const COLLECTOR_DELIVERY_COMMISSION = 0.10;  // 10%
+export const COLLECTOR_DELIVERY_COMMISSION = 0;      // 0% (commission disabled)
+export const COLLECTOR_EXTINGUISH_COST = 5;          // diamonds to extinguish
 
 // ── Monuments ──
 export const MONUMENT_ATTACK_RADIUS = 500;

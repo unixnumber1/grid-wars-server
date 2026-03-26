@@ -41,11 +41,6 @@ export function getLevelUpRewards(level) {
   return rewards;
 }
 
-// Rewards are now granted via the manual claim system (api/routes/rewards.js)
-async function grantLevelUpRewards(_playerId, _level) {
-  return {};
-}
-
 // ─── Main addXp ──────────────────────────────────────────────────────────────
 
 export async function addXp(playerId, amount) {
@@ -93,13 +88,5 @@ export async function addXp(playerId, amount) {
     if (p) { p.xp = newXp; p.level = newLevel; gameState.markDirty('players', p.id); }
   }
 
-  let rewards = null;
-  if (leveledUp) {
-    // Grant rewards for each level gained
-    for (let lv = oldLevel + 1; lv <= newLevel; lv++) {
-      rewards = await grantLevelUpRewards(playerId, lv);
-    }
-  }
-
-  return { xpGained: cappedAmount, newXp, newLevel, leveledUp, xpForNextLevel: getXpForLevel(newLevel), rewards };
+  return { xpGained: cappedAmount, newXp, newLevel, leveledUp, xpForNextLevel: getXpForLevel(newLevel) };
 }

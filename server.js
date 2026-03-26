@@ -10,7 +10,6 @@ import { dirname, join } from 'path';
 
 import { playerRouter } from './routes/player.js';
 import { buildingsRouter } from './routes/buildings.js';
-import { economyRouter } from './routes/economy.js';
 import { botsRouter } from './routes/bots.js';
 import { zombiesRouter } from './routes/zombies.js';
 import { vasesRouter } from './routes/vases.js';
@@ -166,7 +165,10 @@ app.post('/api/telegram-webhook', async (req, res) => {
           chat_id: chatId,
           text: welcomeText,
           parse_mode: 'Markdown',
-          reply_markup: { inline_keyboard: [[{ text: '🎮 Играть', web_app: { url: 'https://overthrow.ru:8443' } }]] },
+          reply_markup: { inline_keyboard: [
+              [{ text: '🎮 Играть', web_app: { url: 'https://overthrow.ru:8443' } }],
+              [{ text: '💬 Чат игры', url: 'https://t.me/overthrowglobal' }],
+            ] },
         }),
       });
       const sentMsg = await resp.json();
@@ -272,7 +274,6 @@ app.post('/api/telegram-webhook', async (req, res) => {
 // API Routes
 app.use('/api/player', playerRouter);
 app.use('/api/buildings', buildingsRouter);
-app.use('/api/economy', economyRouter);
 app.use('/api/map', mapRouter);
 app.use('/api/bots', botsRouter);
 app.use('/api/zombies', zombiesRouter);

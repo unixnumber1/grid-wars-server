@@ -310,41 +310,52 @@ adminRouter.post('/', async (req, res) => {
     return res.json({ success: tgData.ok, description: tgData.description, webhookUrl });
   }
 
-  // ── reward: give coins or diamonds to a player ──
+  // ── reward: give coins, diamonds, shards, or ether to a player ──
   if (action === 'reward') {
-    const { player_id, currency, amount } = req.body;
-    if (!player_id || !currency || !amount) {
-      return res.status(400).json({ error: 'player_id, currency, amount are required' });
+    const { player_id, player_name, currency, amount } = req.body;
+    if ((!player_id && !player_name) || !currency || !amount) {
+      return res.status(400).json({ error: 'player_id (or player_name), currency, amount are required' });
     }
-    if (currency !== 'coins' && currency !== 'diamonds') {
-      return res.status(400).json({ error: 'currency must be coins or diamonds' });
+    const VALID_CURRENCIES = ['coins', 'diamonds', 'shards', 'ether'];
+    if (!VALID_CURRENCIES.includes(currency)) {
+      return res.status(400).json({ error: `currency must be one of: ${VALID_CURRENCIES.join(', ')}` });
     }
     const numAmount = parseInt(amount, 10);
     if (isNaN(numAmount) || numAmount <= 0) {
       return res.status(400).json({ error: 'amount must be a positive number' });
     }
 
-    const { data: player, error: fetchErr } = await supabase
-      .from('players').select('id, telegram_id, coins, diamonds').eq('id', player_id).single();
-    if (fetchErr || !player) return res.status(404).json({ error: 'Player not found' });
+    // Find player by id or by game_username
+    let player;
+    if (player_id) {
+      const { data, error: fetchErr } = await supabase
+        .from('players').select('id, telegram_id, coins, diamonds, shards, ether').eq('id', player_id).single();
+      if (fetchErr || !data) return res.status(404).json({ error: 'Player not found' });
+      player = data;
+    } else {
+      const { data, error: fetchErr } = await supabase
+        .from('players').select('id, telegram_id, coins, diamonds, shards, ether').ilike('game_username', player_name).single();
+      if (fetchErr || !data) return res.status(404).json({ error: `Player "${player_name}" not found` });
+      player = data;
+    }
 
     const newBalance = (player[currency] ?? 0) + numAmount;
     const { error: updateErr } = await supabase
-      .from('players').update({ [currency]: newBalance }).eq('id', player_id);
+      .from('players').update({ [currency]: newBalance }).eq('id', player.id);
     if (updateErr) return res.status(500).json({ error: updateErr.message });
 
     // Update gameState
     if (gameState.loaded) {
-      const gp = gameState.getPlayerById(player_id);
+      const gp = gameState.getPlayerById(player.id);
       if (gp) { gp[currency] = newBalance; gameState.markDirty('players', gp.id); }
     }
 
     // Send Telegram notification
+    const CURRENCY_LABELS = { coins: 'монет', diamonds: 'алмазов', shards: 'осколков', ether: 'эфира' };
     const BOT = process.env.BOT_TOKEN;
     if (BOT && player.telegram_id) {
-      const pLang = getLang(gameState, player.telegram_id);
-      const label = ts(pLang, currency === 'coins' ? 'admin.reward_coins' : 'admin.reward_diamonds');
-      const text = ts(pLang, 'admin.reward_msg', { amount: numAmount.toLocaleString('ru'), label });
+      const label = CURRENCY_LABELS[currency] || currency;
+      const text = `🎁 Вам начислено ${numAmount.toLocaleString('ru')} ${label}!`;
       fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -352,7 +363,7 @@ adminRouter.post('/', async (req, res) => {
       }).catch(() => {});
     }
 
-    return res.status(200).json({ success: true, newBalance });
+    return res.status(200).json({ success: true, player_id: player.id, currency, newBalance });
   }
 
   // ── ban: ban a player ──

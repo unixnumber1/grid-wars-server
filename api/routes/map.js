@@ -10,13 +10,9 @@ import { getCoresTotalBoost } from '../../lib/cores.js';
 import { gameState } from '../../lib/gameState.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS } from '../../config/constants.js';
 
-// ── Bot constants ────────────────────────────────────────────
-const BOTS_PER_ZONE    = 10;
-const BOT_TTL_MS       = 5 * 60 * 1000;
-const GLOBAL_BOT_CAP   = 20;
-const SPEED_METERS     = { slow: 15, medium: 30, fast: 55, very_fast: 90 };
-const DRAIN_LIMITS     = { goblin: 150 };
+const SPEED_METERS = BOT_SPEED_METERS;
 
 async function handleLeaderboard(req, res) {
   const { telegram_id } = req.query;

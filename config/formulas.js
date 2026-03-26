@@ -93,15 +93,15 @@ export function getHQLimit(hqLevel) {
 
 const HQ_LEVELS = [
   { level: 1,  maxMines: 10,  maxMineLevel: 25,  upgradeCost: 0 },
-  { level: 2,  maxMines: 20,  maxMineLevel: 50,  upgradeCost: 5_000 },
-  { level: 3,  maxMines: 30,  maxMineLevel: 75,  upgradeCost: 50_000 },
-  { level: 4,  maxMines: 40,  maxMineLevel: 100, upgradeCost: 500_000 },
-  { level: 5,  maxMines: 50,  maxMineLevel: 125, upgradeCost: 5_000_000 },
-  { level: 6,  maxMines: 60,  maxMineLevel: 150, upgradeCost: 50_000_000 },
-  { level: 7,  maxMines: 70,  maxMineLevel: 175, upgradeCost: 500_000_000 },
-  { level: 8,  maxMines: 80,  maxMineLevel: 200, upgradeCost: 5_000_000_000 },
-  { level: 9,  maxMines: 90,  maxMineLevel: 200, upgradeCost: 50_000_000_000 },
-  { level: 10, maxMines: 100, maxMineLevel: 200, upgradeCost: 500_000_000_000 },
+  { level: 2,  maxMines: 20,  maxMineLevel: 50,  upgradeCost: 1_000 },
+  { level: 3,  maxMines: 30,  maxMineLevel: 75,  upgradeCost: 10_000 },
+  { level: 4,  maxMines: 40,  maxMineLevel: 100, upgradeCost: 100_000 },
+  { level: 5,  maxMines: 50,  maxMineLevel: 125, upgradeCost: 1_000_000 },
+  { level: 6,  maxMines: 60,  maxMineLevel: 150, upgradeCost: 10_000_000 },
+  { level: 7,  maxMines: 70,  maxMineLevel: 175, upgradeCost: 100_000_000 },
+  { level: 8,  maxMines: 80,  maxMineLevel: 200, upgradeCost: 1_000_000_000 },
+  { level: 9,  maxMines: 90,  maxMineLevel: 200, upgradeCost: 10_000_000_000 },
+  { level: 10, maxMines: 100, maxMineLevel: 200, upgradeCost: 100_000_000_000 },
 ];
 
 export function hqConfig(hqLevel) {

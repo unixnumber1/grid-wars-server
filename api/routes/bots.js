@@ -8,20 +8,11 @@ import { LARGE_RADIUS, calcHpRegen } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { BOTS_PER_ZONE, BOT_TTL_MS, BOT_SPEED_METERS, DRAIN_LIMITS } from '../../config/constants.js';
 
 export const botsRouter = Router();
 
-const BOTS_PER_ZONE = 10;          // target bot count within 2km of each player
-const BOT_TTL_MS    = 5 * 60 * 1000; // bots expire after 5 minutes
-
-// Speed in metres per move tick
-const SPEED_METERS = { slow: 15, medium: 30, fast: 55, very_fast: 90 };
-
-// Max coins an undead bot will drain before leaving
-const DRAIN_LIMITS = {
-  spirit: 50, goblin: 150, werewolf: 400,
-  demon: 1000, dragon: 3000, boss: 10000,
-};
+const SPEED_METERS = BOT_SPEED_METERS;
 
 // ── SPAWN ──────────────────────────────────────────────────────────────────
 // Each player has their own 2km zone. Always keep 10 bots in that zone.

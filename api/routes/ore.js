@@ -8,10 +8,9 @@ import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 
 export const oreRouter = Router();
-
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 
 function emitToNearby(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {

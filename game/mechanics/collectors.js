@@ -2,12 +2,13 @@ import { gameState } from '../state/GameState.js';
 import { haversine } from '../../lib/haversine.js';
 import { getMineIncome, getMineUpgradeCost, getMineHp, getMineCapacity } from '../../config/formulas.js';
 import { supabase } from '../../lib/supabase.js';
+import {
+  COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
+  COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST,
+} from '../../config/constants.js';
 
-export const COLLECTOR_COST_DIAMONDS = 50;
-export const COLLECTOR_SELL_DIAMONDS = 37;
-export const COLLECTOR_RADIUS = 200; // meters
-export const COLLECTOR_DELIVERY_COMMISSION = 0; // 0% (was 10%)
-export const COLLECTOR_EXTINGUISH_COST = 5; // diamonds
+// Re-export for backward compat (lib/collectors.js re-exports this file)
+export { COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS, COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST };
 
 // Max mine level that collector can auto-upgrade to, by collector level
 export const COLLECTOR_MAX_MINE_LEVEL = {

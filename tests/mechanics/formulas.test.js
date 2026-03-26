@@ -120,7 +120,7 @@ describe('HQ formulas', () => {
   });
 
   it('hqUpgradeCost returns number for valid levels', () => {
-    assert.strictEqual(hqUpgradeCost(1), 5000);
+    assert.strictEqual(hqUpgradeCost(1), 1000);
   });
 });
 

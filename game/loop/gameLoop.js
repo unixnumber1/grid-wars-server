@@ -8,19 +8,17 @@ import { FIRETRUCK_LEVELS, FIRETRUCK_EXTINGUISH_DURATION, FIREFIGHTER_SPEED } fr
 import { COLLECTOR_LEVELS } from '../mechanics/collectors.js';
 import { getCellsInRange } from '../../lib/grid.js';
 import { dailyMarketCheck } from '../mechanics/market.js';
-import { getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD } from '../../config/constants.js';
+import {
+  getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD,
+  TICK_INTERVAL, BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS,
+  ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE,
+} from '../../config/constants.js';
 import { ts } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
 import { checkHordeTimeout } from '../mechanics/zombies.js';
-import { ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE } from '../../config/constants.js';
 
-const TICK_INTERVAL = 5000;
-const BOTS_PER_ZONE = 10;
-const BOT_TTL_MS = 5 * 60 * 1000;
-const GLOBAL_BOT_CAP = 20;
-const SPEED_METERS = { slow: 15, medium: 30, fast: 55, very_fast: 90 };
-const DRAIN_LIMITS = { goblin: 150 };
+const SPEED_METERS = BOT_SPEED_METERS;
 
 let _tickCount = 0;
 let _lastDailyMarketCheck = 0; // timestamp of last daily market check

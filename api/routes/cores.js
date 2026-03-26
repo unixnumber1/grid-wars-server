@@ -109,10 +109,12 @@ async function handleUpgrade(req, res) {
   if (playerEther < cost)
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_ether'), need: cost, have: playerEther });
 
-  // Deduct ether
-  player.ether = playerEther - cost;
+  // Deduct ether (optimistic lock)
+  const newEther = playerEther - cost;
+  const { data: etherOk } = await supabase.from('players').update({ ether: newEther }).eq('id', player.id).eq('ether', playerEther).select('id').maybeSingle();
+  if (!etherOk) return res.status(409).json({ error: 'Ether changed, retry' });
+  player.ether = newEther;
   gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ ether: player.ether }).eq('id', player.id);
 
   // Level up core
   core.level = (core.level || 0) + 1;

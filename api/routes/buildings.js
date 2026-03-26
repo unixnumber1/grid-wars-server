@@ -12,10 +12,9 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from 
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 
 export const buildingsRouter = Router();
-
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {

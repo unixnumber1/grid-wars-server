@@ -11,13 +11,11 @@ import { getPlayerSkillEffects } from '../../config/skills.js';
 import {
   getZombieXp, getZombieBossXp,
   getZombieLoot, getZombieBossLoot,
-  ADMIN_TG_ID,
+  ADMIN_TG_ID, WEAPON_COOLDOWNS,
 } from '../../config/constants.js';
 import { spawnScout, onScoutKilled, checkWaveComplete } from '../../game/mechanics/zombies.js';
 
 export const zombiesRouter = Router();
-
-const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
