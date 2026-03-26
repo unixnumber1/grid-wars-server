@@ -14399,6 +14399,7 @@ function updatePopupHp(hp, maxHp, color) {
 
 // Show floating hit text on combat popup bar
 function showCombatHitText(damage, crit, execution, blocked) {
+  console.log('[showCombatHitText]', {damage, crit, execution, blocked});
   if (damage == null) return;
   // Try combat popup bar first, then any visible HP bar
   const bar = document.getElementById('popup-target-hp-bar');
@@ -16470,6 +16471,7 @@ async function doMonumentShieldHit(target) {
       method: 'POST',
       body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
+    console.log('[HIT] shield response:', JSON.stringify({damage:data.damage, crit:data.crit, shield_hp:data.shield_hp}));
     showCombatHitText(data.damage, data.crit);
     updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
     const m = monumentData[target.id];
