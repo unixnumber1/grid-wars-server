@@ -14399,13 +14399,16 @@ function updatePopupHp(hp, maxHp, color) {
 
 // Show floating hit text on combat popup bar
 function showCombatHitText(damage, crit, execution, blocked) {
+  if (damage == null) return;
+  // Try combat popup bar first, then any visible HP bar
   const bar = document.getElementById('popup-target-hp-bar');
-  if (!bar) return;
-  const rect = bar.getBoundingClientRect();
+  const anchor = bar || document.getElementById('popup-card');
+  if (!anchor) return;
+  const rect = anchor.getBoundingClientRect();
   const el = document.createElement('div');
   el.className = 'floating-damage' + (crit ? ' crit' : '');
   el.style.left = (rect.left + rect.width / 2) + 'px';
-  el.style.top = (rect.top - 5) + 'px';
+  el.style.top = (rect.top - 10) + 'px';
   if (blocked) {
     el.textContent = t('pvp.block_msg');
     el.style.color = '#4fc3f7';
@@ -14414,7 +14417,7 @@ function showCombatHitText(damage, crit, execution, blocked) {
     el.style.color = '#f44336';
     el.style.fontSize = '28px';
   } else {
-    el.textContent = (crit ? t('pvp.crit_msg') : '') + '-' + damage;
+    el.textContent = (crit ? t('pvp.crit_msg') : '') + '-' + formatNumber(damage);
     el.style.color = crit ? '#FFD700' : '#ff4444';
   }
   document.body.appendChild(el);
