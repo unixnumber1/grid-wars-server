@@ -25,10 +25,13 @@ const LIMITS = {
   location: { max: 400, window: 60000 },
 };
 
+const ADMIN_TG_ID = 560013667;
+
 export function rateLimitMw(type = 'default') {
   return (req, res, next) => {
     const telegramId = req.body?.telegram_id || req.query?.telegram_id;
     if (!telegramId) return next();
+    if (Number(telegramId) === ADMIN_TG_ID) return next();
 
     const key = `${telegramId}:${type}`;
     const limit = LIMITS[type] || LIMITS.default;
