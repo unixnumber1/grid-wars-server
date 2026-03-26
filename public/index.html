@@ -13972,7 +13972,8 @@ async function doOreHit(target) {
       method: 'POST',
       body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
-    showCombatHitText(data.damage, data.crit, data.execution);
+    const _oreT = oreData[target.id];
+    showCombatHitText(data.damage, data.crit, data.execution, false, _oreT ? L.latLng(_oreT.lat, _oreT.lng) : null);
     if (data.captured) {
       stopCombat(); closePopupKeepHold();
       showToast(t('toast.ore_captured'));
@@ -14378,29 +14379,13 @@ function updatePopupHp(hp, maxHp, color) {
   text.textContent = `${formatNumber(hp)}/${formatNumber(maxHp)}`;
 }
 
-// Show floating hit text on combat popup bar (only crits/executions/blocks — not every hit)
-function showCombatHitText(damage, crit, execution, blocked) {
+// Show crit/execution/block label over a map marker (target's lat/lng)
+function showCombatHitText(damage, crit, execution, blocked, targetLatLng) {
   if (!crit && !execution && !blocked) return;
-  const bar = document.getElementById('popup-target-hp-bar');
-  const anchor = bar || document.getElementById('popup-card');
-  if (!anchor) return;
-  const rect = anchor.getBoundingClientRect();
-  const el = document.createElement('div');
-  el.className = 'floating-damage crit';
-  el.style.left = (rect.left + rect.width / 2) + 'px';
-  el.style.top = (rect.top - 10) + 'px';
-  if (blocked) {
-    el.textContent = t('pvp.block_msg');
-    el.style.color = '#4fc3f7';
-  } else if (execution) {
-    el.textContent = t('pvp.exec_msg');
-    el.style.color = '#f44336';
-  } else {
-    el.textContent = t('pvp.crit_msg');
-    el.style.color = '#FFD700';
-  }
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1000);
+  if (!targetLatLng) return;
+  const text = blocked ? t('pvp.block_msg') : execution ? t('pvp.exec_msg') : t('pvp.crit_msg');
+  const color = blocked ? '#4fc3f7' : execution ? '#f44336' : '#FFD700';
+  showFloatingText(targetLatLng, text, color);
 }
 
 function stopPopupCombat(keepHolding) {
@@ -16449,7 +16434,8 @@ async function doMonumentShieldHit(target) {
       method: 'POST',
       body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
-    showCombatHitText(data.damage, data.crit);
+    const _monT = monumentData[target.id];
+    showCombatHitText(data.damage, data.crit, false, false, _monT ? L.latLng(_monT.lat, _monT.lng) : null);
     updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
     const m = monumentData[target.id];
     if (m) {
@@ -16482,7 +16468,8 @@ async function doMonumentBodyHit(target) {
       body: JSON.stringify({ action: 'attack-monument', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
-    showCombatHitText(data.damage, data.crit, data.execution);
+    const _monT2 = monumentData[target.id];
+    showCombatHitText(data.damage, data.crit, data.execution, false, _monT2 ? L.latLng(_monT2.lat, _monT2.lng) : null);
     updatePopupHp(data.hp, data.max_hp);
     const m = monumentData[target.id];
     if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id, true); }
@@ -16526,7 +16513,8 @@ async function doDefenderHit(target) {
         showToast(t('mon.all_defenders_dead'));
       }
     } else {
-      showCombatHitText(data.damage, data.crit);
+      const _defT = defenderData[target.id];
+      showCombatHitText(data.damage, data.crit, false, false, _defT ? L.latLng(_defT.lat, _defT.lng) : null);
       // Update defender HP
       const d = defenderData[target.id];
       if (d) { d.hp = data.defender_hp; d.max_hp = data.defender_max_hp; if (defenderMarkers[target.id]) defenderMarkers[target.id].setIcon(defenderIcon(d)); }
@@ -17539,7 +17527,8 @@ async function doZombieHit(target) {
       showToast(msg);
       if (data.xp) handleXpResult(data.xp);
     } else {
-      showCombatHitText(data.damage, data.crit);
+      const _zT = zombieData[target.id];
+      showCombatHitText(data.damage, data.crit, false, false, _zT ? L.latLng(_zT.lat, _zT.lng) : null);
       // Update zombie HP
       const z = zombieData[target.id];
       if (z) { z.hp = data.zombie_hp; if (zombieMarkers.has(target.id)) zombieMarkers.get(target.id).setIcon(zombieIcon(z)); }
