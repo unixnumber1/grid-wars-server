@@ -11053,7 +11053,7 @@ async function boot() {
     const initRes = await fetch('/api/player/init', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_id: effectiveTgId, username: effectiveName }),
+      body: JSON.stringify({ telegram_id: TG_ID, username: TG_NAME }),
       signal: AbortSignal.timeout(8000),
     });
     const data = await initRes.json();
