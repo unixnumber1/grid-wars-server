@@ -14190,11 +14190,11 @@ function animateCombatProjectile(data) {
 
   const startTime = performance.now();
   function anim(now) {
-    const t = Math.min((now - startTime) / dur, 1);
-    const ease = t * t; // easeIn
+    const p = Math.min((now - startTime) / dur, 1);
+    const ease = p * p; // easeIn
     el.style.left = (from.x + dx * ease) + 'px';
     el.style.top = (from.y + dy * ease) + 'px';
-    if (t < 1) requestAnimationFrame(anim);
+    if (p < 1) requestAnimationFrame(anim);
     else {
       el.remove();
       // Hit flash
