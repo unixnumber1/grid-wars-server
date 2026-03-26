@@ -52,6 +52,9 @@ export function startGameLoop(io, connectedPlayers) {
       // ── 3c. Move firefighters ────────────────────────────
       moveFirefighters(nowMs);
 
+      // ── 3d. Move monument defenders toward aggroed players ─
+      moveDefenders();
+
       // ── 3b. Move zombies + check timeout ──────────────────
       moveZombies(nowMs, connectedPlayers);
       if (_tickCount % 12 === 0) { // every ~1 min
@@ -89,14 +92,10 @@ function processMonumentShieldRegen() {
   for (const [id, monument] of gameState.monuments) {
     if (monument.phase !== 'shield') continue;
     if (monument.shield_hp >= monument.max_shield_hp) continue;
-    const totalDps = calcRaidDps(monument);
-    const threshold = MONUMENT_SHIELD_DPS_THRESHOLD[monument.level] || 0;
-    if (totalDps < threshold) {
-      const regenPerSec = getShieldRegen(monument.level);
-      const regenAmount = Math.floor(regenPerSec * 5); // 5s tick
-      monument.shield_hp = Math.min(monument.max_shield_hp, monument.shield_hp + regenAmount);
-      gameState.markDirty('monuments', id);
-    }
+    // Regen: 2% of max shield HP per tick (5s) = ~24% per minute
+    const regenAmount = Math.floor(monument.max_shield_hp * 0.02);
+    monument.shield_hp = Math.min(monument.max_shield_hp, monument.shield_hp + regenAmount);
+    gameState.markDirty('monuments', id);
   }
 }
 
@@ -151,7 +150,7 @@ async function moveBots(nowMs, nowISO) {
           const dLat = target.lat - bot.lat, dLng = target.lng - bot.lng;
           const distM = haversine(bot.lat, bot.lng, target.lat, target.lng);
           newDir = Math.atan2(dLng, dLat);
-          if (distM < 100) { // drain only within 100m
+          if (distM < 50) { // drain only within 50m
             const drainAmt = (bot.drain_per_sec || cfg.drain_per_sec || 0) * 3;
             newDrained += drainAmt;
             if (drainAmt > 0) minesToDrain.set(newTarget, (minesToDrain.get(newTarget) || 0) + drainAmt);
@@ -441,6 +440,27 @@ function extinguishBuilding(ff) {
       gameState.markDirty('fireTrucks', truck.id);
       supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', truck.id).then(() => {}).catch(() => {});
     }
+  }
+}
+
+// ── Move monument defenders toward aggroed players ──
+function moveDefenders() {
+  for (const [id, d] of gameState.monumentDefenders) {
+    if (!d.alive || d._target_lat == null || d._target_lng == null) continue;
+    const dist = haversine(d.lat, d.lng, d._target_lat, d._target_lng);
+    if (dist < 15) continue; // close enough, stop
+    // Move ~30m per tick (5s), speed comparable to player walk
+    const stepM = 30;
+    const cosLat = Math.cos(d.lat * Math.PI / 180) || 0.001;
+    const dLat = d._target_lat - d.lat;
+    const dLng = d._target_lng - d.lng;
+    const degDist = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (degDist < 0.0000001) continue;
+    const stepDeg = stepM / 111320;
+    const ratio = Math.min(1, stepDeg / degDist);
+    d.lat += dLat * ratio;
+    d.lng += dLng * ratio;
+    gameState.markDirty('monumentDefenders', id);
   }
 }
 

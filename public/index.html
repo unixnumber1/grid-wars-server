@@ -2969,6 +2969,11 @@
         <div class="settings-section-title">ИГРОКИ</div>
         <button class="settings-action-btn s-blue" onclick="openAdminPlayerModal()">&#x1F50D; Найти игрока</button>
       </div>
+      <div class="settings-card">
+        <div class="settings-section-title">&#x1F517; РЕФЕРАЛЫ</div>
+        <button class="settings-action-btn s-purple" onclick="openReferralStats()">&#x1F4CA; Лидерборд рефереров</button>
+        <div id="admin-referral-summary" style="margin-top:8px;font-size:12px;color:#888"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -5711,22 +5716,28 @@ function _addOrUpdateMineMarker(mine) {
     ? mine.pending_level : mine.level;
   const key      = `mine_${mine.id}`;
   const existing = buildingMarkers[key];
+  const hpInfo = (mine.hp != null && mine.max_hp) ? { hp: mine.hp, max_hp: mine.max_hp } : null;
   if (existing) {
-    // Only recreate icon if level or ownership changed (expensive DOM op)
-    if (existing._gw_level !== displayLevel || existing._gw_iconSt !== iconSt) {
-      existing.setIcon(mineIcon(displayLevel, iconSt));
+    const hpChanged = existing._gw_hp !== mine.hp || existing._gw_maxHp !== mine.max_hp;
+    // Only recreate icon if level, ownership, or HP changed (expensive DOM op)
+    if (existing._gw_level !== displayLevel || existing._gw_iconSt !== iconSt || hpChanged) {
+      existing.setIcon(mineIcon(displayLevel, iconSt, hpInfo));
       existing._gw_level  = displayLevel;
       existing._gw_iconSt = iconSt;
+      existing._gw_hp     = mine.hp;
+      existing._gw_maxHp  = mine.max_hp;
     }
     // Rebind click so popup shows fresh data
     existing.off('click');
     existing.on('click', () => showMinePopup(mine, isOwn, false));
   } else {
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt), zIndexOffset: 1000 })
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt, hpInfo), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => showMinePopup(mine, isOwn, false));
     marker._gw_level   = displayLevel;
     marker._gw_iconSt  = iconSt;
+    marker._gw_hp      = mine.hp;
+    marker._gw_maxHp   = mine.max_hp;
     marker._gw_created = Date.now();
     buildingMarkers[key] = marker;
   }
@@ -5834,6 +5845,8 @@ function getBuildingInCell(cellId) {
   if (clanHq) return { ...clanHq, type: 'clan_hq' };
   const collector = Object.values(collectorData).find(c => c.cell_id === cellId);
   if (collector) return { ...collector, type: 'collector' };
+  const firetruck = Object.values(firetruckData).find(ft => ft.cell_id === cellId && ft.status !== 'destroyed');
+  if (firetruck) return { ...firetruck, type: 'fire_truck' };
   return null;
 }
 
@@ -6965,14 +6978,20 @@ function hqIcon(isOwn, bestMineLevel, hqLevel) {
   );
 }
 
-function mineIcon(level, state) {
+function mineIcon(level, state, hpInfo) {
   // state: 'own' | 'capturable' | 'other'
   const emoji = getMineAppearance(level).emoji;
   const size  = 28 + Math.min(Math.floor(level / 30), 4) * 2; // subtle size growth
   const ring  = state === 'capturable' ? 'marker-capturable' : '';
   const opacity = state === 'other' ? 'opacity:0.5;' : '';
+  let hpBar = '';
+  if (hpInfo && hpInfo.hp < hpInfo.max_hp) {
+    const pct = Math.max(0, Math.min(100, Math.round(hpInfo.hp / hpInfo.max_hp * 100)));
+    const color = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+    hpBar = `<div class="mine-hp-bar" style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;"><div class="mine-hp-bar-inner" style="width:${pct}%;height:100%;background:${color};border-radius:2px;transition:width 1s;"></div></div>`;
+  }
   return makeMarkerIcon(
-    `<div class="marker-wrap ${ring}"><span style="font-size:${size}px;${opacity}">${emoji}</span></div>`, 40
+    `<div class="marker-wrap ${ring}"><span style="font-size:${size}px;${opacity}">${emoji}</span>${hpBar}</div>`, 40
   );
 }
 
@@ -7099,6 +7118,8 @@ function handleHexClick(cellId, tapLat, tapLng) {
   } else if (building.type === 'hq') {
     const isOwn = building.is_mine ?? (building.player_id === state.player?.id);
     showHqPopup(building, isOwn);
+  } else if (building.type === 'fire_truck') {
+    showFireTruckPopup(building.id);
   }
 }
 
@@ -9436,10 +9457,11 @@ function initSocket() {
         m.max_shield_hp = data.max_shield_hp;
         if (data.current_dps != null) m._current_dps = data.current_dps;
         if (data.required_dps != null) m.dps_threshold = data.required_dps;
-        updateMonumentMarkerIcon(data.monument_id);
+        updateMonumentMarkerIcon(data.monument_id, true);
       }
       if (combatState.currentTarget?.type === 'monument_shield' && combatState.currentTarget.id === data.monument_id)
         updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
+      _updateMonumentPopupBars(data.monument_id);
     });
 
     _socket.on('monument:hp_update', (data) => {
@@ -9447,10 +9469,11 @@ function initSocket() {
       if (m) {
         m.hp = data.hp; m.max_hp = data.max_hp;
         if (data.wave_shield_hp != null) m.wave_shield_hp = data.wave_shield_hp;
-        updateMonumentMarkerIcon(data.monument_id);
+        updateMonumentMarkerIcon(data.monument_id, true);
       }
       if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id)
         updatePopupHp(data.hp, data.max_hp);
+      _updateMonumentPopupBars(data.monument_id);
     });
 
     _socket.on('monument:defender_killed', (data) => {
@@ -9518,7 +9541,20 @@ function initSocket() {
       removeFirefighterMarker(data.firefighter_id);
     });
     _socket.on('firefighter:arrived', (data) => {
-      // Building extinguished — will update on next tick
+      // Play extinguish animation at target building
+      let targetLat, targetLng;
+      if (data.target_type === 'mine') {
+        const mine = (state.mapBuildings?.mines || []).find(m => m.id === data.target_id);
+        if (mine) { targetLat = mine.lat; targetLng = mine.lng; }
+      } else if (data.target_type === 'collector') {
+        const c = collectorData[data.target_id];
+        if (c) { targetLat = c.lat; targetLng = c.lng; }
+      } else if (data.target_type === 'fire_truck') {
+        const ft = firetruckData[data.target_id];
+        if (ft) { targetLat = ft.lat; targetLng = ft.lng; }
+      }
+      if (targetLat != null) _playExtinguishAnimation(targetLat, targetLng);
+      showToast('🧯 Здание потушено!');
     });
     _socket.on('firefighter:removed', (data) => {
       removeFirefighterMarker(data.id);
@@ -10467,6 +10503,82 @@ const CURRENCY_META = [
   { key:'crystals', icon:'✨', label:'Осколки' },
   { key:'ether', icon:'🌀', label:'Эфир' },
 ];
+
+// ── Referral Stats Modal ──
+async function openReferralStats() {
+  try {
+    const data = await apiFetch(`/api/admin/referral-stats?telegram_id=${TG_ID}`);
+    const { leaderboard, total_referrals, total_gems } = data;
+
+    // Update summary
+    const summary = document.getElementById('admin-referral-summary');
+    if (summary) summary.textContent = `Всего: ${total_referrals} рефералов, ${total_gems} 💎 выдано`;
+
+    // Build modal content
+    let html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9500;display:flex;align-items:flex-end;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:16px;font-weight:600;color:#fff">🔗 Лидерборд рефереров</div>
+          <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:14px">
+          <div style="flex:1;background:#252538;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#fff">${total_referrals}</div>
+            <div style="font-size:11px;color:#888">Рефералов</div>
+          </div>
+          <div style="flex:1;background:#252538;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#64B5F6">${total_gems} 💎</div>
+            <div style="font-size:11px;color:#888">Выдано</div>
+          </div>
+          <div style="flex:1;background:#252538;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#fff">${leaderboard.length}</div>
+            <div style="font-size:11px;color:#888">Рефереров</div>
+          </div>
+        </div>`;
+
+    if (leaderboard.length === 0) {
+      html += `<div style="text-align:center;color:#666;padding:20px">Пока нет рефералов</div>`;
+    } else {
+      for (let i = 0; i < leaderboard.length; i++) {
+        const e = leaderboard[i];
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+        html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:16px">${medal}</span>
+              <span style="font-size:18px">${e.avatar || '🐺'}</span>
+              <div>
+                <div style="font-weight:600;color:#fff;font-size:13px">${e.username}</div>
+                <div style="font-size:11px;color:#888">Lv.${e.level} • ID: ${e.telegram_id}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:#64B5F6;font-size:14px">${e.gems} 💎</div>
+              <div style="font-size:11px;color:#888">${e.total} реф. (${e.lv50} lv50+)</div>
+            </div>
+          </div>`;
+        // Expandable referral list
+        if (e.referrals && e.referrals.length > 0) {
+          html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #333">`;
+          for (const r of e.referrals) {
+            const lv50Icon = r.lv50_rewarded ? '✅' : (r.level >= 50 ? '⏳' : '');
+            html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;padding:2px 0">
+              <span>${r.username} (Lv.${r.level})</span>
+              <span>${lv50Icon} ${new Date(r.created_at).toLocaleDateString('ru')}</span>
+            </div>`;
+          }
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
+    }
+    html += `</div></div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
 
 function openAdminPlayerModal() {
   document.getElementById('admin-player-modal').classList.add('open');
@@ -15994,10 +16106,68 @@ function updateMonumentPhase(monumentId, phase) {
   updateMonumentMarkerIcon(monumentId);
 }
 
-function updateMonumentMarkerIcon(monumentId) {
+function updateMonumentMarkerIcon(monumentId, hpOnly) {
   const m = monumentData[monumentId];
-  if (m && monumentMarkers[monumentId]) {
-    monumentMarkers[monumentId].setIcon(monumentIcon(m));
+  if (!m || !monumentMarkers[monumentId]) return;
+  const marker = monumentMarkers[monumentId];
+
+  // Fast path: update bar widths via DOM without rebuilding icon
+  if (hpOnly && marker._icon) {
+    const fills = marker._icon.querySelectorAll('.monument-bar-fill');
+    if (fills.length > 0) {
+      // Determine expected bar values based on phase
+      if (m.phase === 'shield' && fills.length >= 1) {
+        const pct = m.max_shield_hp > 0 ? Math.max(0, m.shield_hp / m.max_shield_hp * 100) : 0;
+        fills[0].style.width = pct + '%';
+      } else if (m.phase === 'open' || m.phase === 'wave') {
+        let idx = 0;
+        if (m.wave_shield_hp > 0 && fills.length >= 2) {
+          const wsPct = m.max_shield_hp > 0 ? Math.min(100, m.wave_shield_hp / m.max_shield_hp * 100) : 0;
+          fills[idx++].style.width = wsPct + '%';
+        }
+        if (fills[idx]) {
+          const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
+          fills[idx].style.width = hpPct + '%';
+        }
+      }
+      return;
+    }
+  }
+
+  // Full rebuild (phase change, etc.)
+  marker.setIcon(monumentIcon(m));
+}
+
+// Live-update monument HP/shield bars in info popup (not combat popup)
+function _updateMonumentPopupBars(monumentId) {
+  const m = monumentData[monumentId];
+  if (!m) return;
+
+  // Shield bar (shield phase)
+  const shBar = document.getElementById('mon-popup-shield-bar');
+  const shText = document.getElementById('mon-popup-shield-text');
+  if (shBar && shText) {
+    const pct = m.max_shield_hp > 0 ? Math.max(0, Math.round(m.shield_hp / m.max_shield_hp * 100)) : 0;
+    shBar.style.width = pct + '%';
+    shText.textContent = `${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}`;
+  }
+
+  // Wave shield bar (open/wave phase)
+  const wsBar = document.getElementById('mon-popup-waveshield-bar');
+  const wsText = document.getElementById('mon-popup-waveshield-text');
+  if (wsBar && wsText) {
+    const pct = m.max_shield_hp > 0 ? Math.min(100, Math.round(m.wave_shield_hp / m.max_shield_hp * 100)) : 0;
+    wsBar.style.width = pct + '%';
+    wsText.textContent = `${formatNumber(m.wave_shield_hp)}/${formatNumber(m.max_shield_hp)}`;
+  }
+
+  // HP bar (open/wave phase)
+  const hpBar = document.getElementById('mon-popup-hp-bar');
+  const hpText = document.getElementById('mon-popup-hp-text');
+  if (hpBar && hpText) {
+    const pct = m.max_hp > 0 ? Math.max(0, Math.round(m.hp / m.max_hp * 100)) : 0;
+    hpBar.style.width = pct + '%';
+    hpText.textContent = `${formatNumber(m.hp)}/${formatNumber(m.max_hp)}`;
   }
 }
 
@@ -16058,17 +16228,15 @@ function showMonumentPopup(monumentId) {
 
   if (m.phase === 'shield') {
     const pct = m.max_shield_hp > 0 ? Math.round(m.shield_hp / m.max_shield_hp * 100) : 0;
-    stats.push([t('mon.shield_hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px"></div></div>${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
-    const dpsThresh = m.dps_threshold || MONUMENT_SHIELD_DPS_THRESHOLD[m.level] || 0;
-    if (dpsThresh > 0) stats.push([t('mon.dps_threshold'), `⚡ ${formatNumber(dpsThresh)}`]);
+    stats.push([t('mon.shield_hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div id="mon-popup-shield-bar" style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px;transition:width .3s"></div></div><span id="mon-popup-shield-text">${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</span></div>`]);
   } else if (m.phase === 'open' || m.phase === 'wave') {
     // Wave shield (orange-gold) while defenders alive
     if (hasDefenders && m.wave_shield_hp > 0) {
       const wsPct = m.max_shield_hp > 0 ? Math.min(100, Math.round(m.wave_shield_hp / m.max_shield_hp * 100)) : 100;
-      stats.push(['🛡️ Щит волны', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${wsPct}%;background:linear-gradient(90deg,#ff8c00,#ffd700);border-radius:4px"></div></div>${formatNumber(m.wave_shield_hp)}/${formatNumber(m.max_shield_hp)}</div>`]);
+      stats.push(['🛡️ Щит волны', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div id="mon-popup-waveshield-bar" style="height:100%;width:${wsPct}%;background:linear-gradient(90deg,#ff8c00,#ffd700);border-radius:4px;transition:width .3s"></div></div><span id="mon-popup-waveshield-text">${formatNumber(m.wave_shield_hp)}/${formatNumber(m.max_shield_hp)}</span></div>`]);
     }
     const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
-    stats.push([t('mon.hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px"></div></div>${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</div>`]);
+    stats.push([t('mon.hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div id="mon-popup-hp-bar" style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px;transition:width .3s"></div></div><span id="mon-popup-hp-text">${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</span></div>`]);
     if (hasDefenders) {
       stats.push([t('mon.defenders'), t('mon.defenders_alive', {n: defenders.length})]);
     }
@@ -16140,10 +16308,8 @@ function doStartMonumentCombat(monumentId, mode) {
   const hp = mode === 'shield' ? m.shield_hp : m.hp;
   const maxHp = mode === 'shield' ? m.max_shield_hp : m.max_hp;
   const barColor = mode === 'shield' ? '#4488ff' : '#ff4444';
-  const extraHtml = mode === 'shield' && m.dps_threshold
-    ? `<div style="font-size:11px;color:#888;margin-bottom:6px">DPS порог: ${formatNumber(m.dps_threshold)}</div>` : '';
   const target = { id: monumentId, level: m.level, name: m.name, _monumentMode: mode };
-  openCombatPopup(`🏛️ ${m.name || 'Монумент'} Lv.${m.level}`, monumentId, targetType, target, { hp, maxHp, barColor, extraHtml });
+  openCombatPopup(`🏛️ ${m.name || 'Монумент'} Lv.${m.level}`, monumentId, targetType, target, { hp, maxHp, barColor });
 }
 
 function doStartDefenderCombat(monumentId) {
@@ -16193,12 +16359,7 @@ async function doMonumentShieldHit(target) {
     if (m) {
       m.shield_hp = data.shield_hp;
       m.max_shield_hp = data.max_shield_hp;
-      if (data.current_dps != null) m._current_dps = data.current_dps;
-      if (data.required_dps != null) m.dps_threshold = data.required_dps;
       updateMonumentMarkerIcon(target.id);
-    }
-    if (data.dps_check === false) {
-      showToast(t('mon.low_dps', {current: formatNumber(data.current_dps), required: formatNumber(data.required_dps)}));
     }
     if (data.shield_broken) { stopCombat(); closePopupKeepHold(); showToast(t('mon.shield_broken')); }
   } catch (err) {
@@ -16332,7 +16493,8 @@ const _myCollectorsCache = {}; // all own collectors (not viewport-limited)
 
 function collectorIcon(c) {
   const isMine = c.is_mine;
-  const glow = isMine ? 'filter:drop-shadow(0 0 6px #4caf50)' : 'filter:drop-shadow(0 0 6px #f44336)';
+  const isBurning = c.status === 'burning';
+  const glow = isBurning ? 'filter:drop-shadow(0 0 8px #ff4400)' : (isMine ? 'filter:drop-shadow(0 0 6px #4caf50)' : 'filter:drop-shadow(0 0 6px #f44336)');
   const capacity = c._capacity || 1;
   const fillPct = capacity > 0 ? Math.min(100, Math.round((c.stored_coins || 0) / capacity * 100)) : 0;
   const isFull = fillPct >= 90;
@@ -16341,15 +16503,23 @@ function collectorIcon(c) {
   let label = '';
   if (isFull) label = '<div class="collector-full">' + t('misc.full') + '</div>';
 
+  // HP bar below — only when damaged
+  let hpBar = '';
+  if (c.hp != null && c.max_hp && c.hp < c.max_hp) {
+    const hpPct = Math.max(0, Math.min(100, Math.round(c.hp / c.max_hp * 100)));
+    const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+    hpBar = `<div class="mine-hp-bar" style="width:80%;height:3px;background:#333;border-radius:2px;margin-top:1px;overflow:hidden;"><div class="mine-hp-bar-inner" style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;transition:width 1s;"></div></div>`;
+  }
+
   return L.divIcon({
     html: `<div class="collector-marker" style="${glow}">
-      <span style="font-size:26px">🧲</span>
+      <span style="font-size:26px">${isBurning ? '🔥' : '🧲'}</span>
       <div class="collector-bar"><div style="width:${fillPct}%;background:${barColor}"></div></div>
-      ${label}
+      ${label}${hpBar}
     </div>`,
     className: 'leaflet-interactive',
-    iconSize: [36, 44],
-    iconAnchor: [18, 22],
+    iconSize: [36, 48],
+    iconAnchor: [18, 24],
   });
 }
 
@@ -16641,11 +16811,12 @@ function firetruckIcon(ft) {
   const glow = isBurning ? 'filter:drop-shadow(0 0 8px #ff4400)' : (isMine ? 'filter:drop-shadow(0 0 6px #f44336)' : 'filter:drop-shadow(0 0 6px #888)');
   const hpPct = ft.max_hp > 0 ? Math.max(0, Math.round(ft.hp / ft.max_hp * 100)) : 0;
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+  const showHpBar = hpPct < 100;
 
   return L.divIcon({
     html: `<div class="collector-marker" style="${glow}">
       <span style="font-size:26px">${isBurning ? '🔥' : '🚒'}</span>
-      <div class="collector-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>
+      ${showHpBar ? `<div class="collector-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
     </div>`,
     className: 'leaflet-interactive',
     iconSize: [36, 44],
@@ -16703,8 +16874,10 @@ function showFireTruckPopup(ftId) {
   const hpPct = ft.max_hp > 0 ? Math.round(ft.hp / ft.max_hp * 100) : 0;
 
   if (isMine) {
+    const hpBarColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+    const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${hpPct}%;background:${hpBarColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(ft.hp)}/${formatNumber(ft.max_hp)}</span></div>`;
     const stats = [
-      ['HP', `${formatNumber(ft.hp)} / ${formatNumber(ft.max_hp)} (${hpPct}%)`],
+      ['❤️ HP', hpHtml],
       ['__dual__', [['Ур.', ft.level], ['Радиус', `${cfg.radius}м`]]],
     ];
 
@@ -16761,9 +16934,12 @@ function showFireTruckPopup(ftId) {
   } else {
     // Enemy fire truck
     const ownerName = ft.owner_name || '???';
+    const eHpPct = ft.max_hp > 0 ? Math.round(ft.hp / ft.max_hp * 100) : 0;
+    const eHpBarColor = eHpPct > 60 ? '#4caf50' : eHpPct > 30 ? '#ff9800' : '#f44336';
+    const eHpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${eHpPct}%;background:${eHpBarColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(ft.hp)}/${formatNumber(ft.max_hp)}</span></div>`;
     const stats = [
       ['Владелец', ownerName],
-      ['HP', `${formatNumber(ft.hp)} / ${formatNumber(ft.max_hp)}`],
+      ['❤️ HP', eHpHtml],
       ['Ур.', ft.level],
     ];
     const actions = [];
@@ -16992,17 +17168,15 @@ async function doFirefighterHit(target) {
 function firefighterIcon(ff) {
   const hpPct = Math.max(0, Math.round((ff.hp / ff.max_hp) * 100));
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
-  const isMine = ff.owner_id === state.player?.id;
-  const labelColor = isMine ? '#FFD700' : '#fff';
+  const showHpBar = hpPct < 100;
   return L.divIcon({
     className: 'leaflet-interactive',
     html: `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
-      <div style="background:rgba(0,0,0,0.75);color:${labelColor};font-size:10px;padding:2px 6px;border-radius:8px;white-space:nowrap;margin-bottom:2px;border:1px solid ${labelColor};pointer-events:none;">👨‍🚒</div>
       <span style="font-size:28px;line-height:1;pointer-events:auto;">🧑‍🚒</span>
-      <div style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>
+      ${showHpBar ? `<div style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>` : ''}
     </div>`,
-    iconSize: [68, 52],
-    iconAnchor: [34, 26],
+    iconSize: [40, 38],
+    iconAnchor: [20, 19],
   });
 }
 
@@ -17022,6 +17196,7 @@ function addFirefighterMarker(ff) {
     targetLat: ff.target_lat, targetLng: ff.target_lng,
     speed: ff.speed || 0.0002,
     hp: ff.hp, max_hp: ff.max_hp,
+    _prevHp: ff.hp, _prevMaxHp: ff.max_hp,
   };
 }
 
@@ -17053,8 +17228,13 @@ function renderFirefighters(fighters) {
         ci.speed = ff.speed || 0.0002;
         ci.hp = ff.hp;
         ci.max_hp = ff.max_hp;
+        // Only rebuild icon if visual state changed (avoid DOM flicker)
+        if (ci._prevHp !== ff.hp || ci._prevMaxHp !== ff.max_hp) {
+          ci._prevHp = ff.hp;
+          ci._prevMaxHp = ff.max_hp;
+          firefighterMarkers[ff.id].setIcon(firefighterIcon(ff));
+        }
       }
-      firefighterMarkers[ff.id].setIcon(firefighterIcon(ff));
     } else {
       addFirefighterMarker(ff);
     }
@@ -17108,6 +17288,74 @@ function _animateFirefighters(now) {
   requestAnimationFrame(_animateFirefighters);
 }
 requestAnimationFrame(_animateFirefighters);
+
+// ── Real-time HP regen bars on mine markers ──
+let _mineHpAnimLast = 0;
+function _animateMineHpBars(now) {
+  if (!_mineHpAnimLast) _mineHpAnimLast = now;
+  const dtMs = now - _mineHpAnimLast;
+  if (dtMs < 2000) { requestAnimationFrame(_animateMineHpBars); return; }
+  _mineHpAnimLast = now;
+
+  for (const mine of (state.mapBuildings?.mines || [])) {
+    if (!mine.hp_regen || !mine.last_hp_update || mine.status === 'burning') continue;
+    if (mine.hp >= mine.max_hp) continue;
+
+    const elapsed = (Date.now() - new Date(mine.last_hp_update).getTime()) / 3600000;
+    const regenedHp = Math.min(mine.max_hp, Math.round(mine.hp + mine.hp_regen * elapsed));
+    const key = `mine_${mine.id}`;
+    const marker = buildingMarkers[key];
+    if (!marker?._icon) continue;
+    const barInner = marker._icon.querySelector('.mine-hp-bar-inner');
+    if (barInner) {
+      const pct = Math.round(regenedHp / mine.max_hp * 100);
+      const color = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+      barInner.style.width = pct + '%';
+      barInner.style.background = color;
+      if (regenedHp >= mine.max_hp) {
+        const hpBar = marker._icon.querySelector('.mine-hp-bar');
+        if (hpBar) hpBar.style.display = 'none';
+      }
+    }
+  }
+  requestAnimationFrame(_animateMineHpBars);
+}
+requestAnimationFrame(_animateMineHpBars);
+
+// ── Extinguish animation (water effect) ──
+function _playExtinguishAnimation(lat, lng) {
+  const latlng = L.latLng(lat, lng);
+
+  // Pulsing water ring
+  const ring = L.circle(latlng, {
+    radius: 8, color: '#4fc3f7', fillColor: '#4fc3f7',
+    fillOpacity: 0.35, weight: 2, interactive: false,
+  }).addTo(map);
+
+  let start = null;
+  const duration = 2000;
+  function animateRing(now) {
+    if (!start) start = now;
+    const p = Math.min(1, (now - start) / duration);
+    ring.setRadius(8 + p * 30);
+    ring.setStyle({ fillOpacity: 0.35 * (1 - p), opacity: 1 - p * 0.7 });
+    if (p < 1) requestAnimationFrame(animateRing);
+    else map.removeLayer(ring);
+  }
+  requestAnimationFrame(animateRing);
+
+  // Floating water droplet particles
+  const pos = map.latLngToContainerPoint(latlng);
+  for (let i = 0; i < 6; i++) {
+    const drop = document.createElement('div');
+    drop.textContent = '💧';
+    const angle = (Math.PI * 2 * i) / 6;
+    const px = Math.round(Math.cos(angle) * 30);
+    drop.style.cssText = `position:fixed;left:${pos.x}px;top:${pos.y}px;font-size:14px;pointer-events:none;z-index:4999;opacity:0;--px:${px}px;animation:particleFloat 1.2s ease forwards;animation-delay:${i * 0.1}s;`;
+    document.body.appendChild(drop);
+    setTimeout(() => drop.remove(), 2000);
+  }
+}
 
 // ═══════════════════════════════════════════════════
 //  Zombie Horde System

@@ -290,6 +290,54 @@ adminRouter.get('/player-details', (req, res) => {
   });
 });
 
+// ── Referral leaderboard ──────────────────────────────────────
+adminRouter.get('/referral-stats', async (req, res) => {
+  const tgId = req.query.admin_id || req.query.telegram_id;
+  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+
+  try {
+    const { data: rows } = await supabase.from('referrals').select('referrer_id, referred_id, level50_rewarded, created_at');
+    if (!rows || rows.length === 0) return res.json({ leaderboard: [], total_referrals: 0, total_gems: 0 });
+
+    // Aggregate by referrer
+    const map = new Map();
+    for (const r of rows) {
+      const entry = map.get(r.referrer_id) || { telegram_id: r.referrer_id, total: 0, lv50: 0, gems: 0, referrals: [] };
+      entry.total++;
+      entry.gems += 50; // registration reward
+      if (r.level50_rewarded) { entry.lv50++; entry.gems += 100; }
+      // Get referred player info
+      const refPlayer = gameState.loaded ? gameState.getPlayerByTgId(r.referred_id) : null;
+      entry.referrals.push({
+        telegram_id: r.referred_id,
+        username: refPlayer?.game_username || refPlayer?.username || String(r.referred_id),
+        level: refPlayer?.level || 1,
+        lv50_rewarded: r.level50_rewarded,
+        created_at: r.created_at,
+      });
+      map.set(r.referrer_id, entry);
+    }
+
+    const leaderboard = [...map.values()]
+      .sort((a, b) => b.total - a.total)
+      .map(entry => {
+        const p = gameState.loaded ? gameState.getPlayerByTgId(entry.telegram_id) : null;
+        return {
+          ...entry,
+          username: p?.game_username || p?.username || String(entry.telegram_id),
+          avatar: p?.avatar || null,
+          level: p?.level || 0,
+        };
+      });
+
+    const totalGems = leaderboard.reduce((s, e) => s + e.gems, 0);
+    return res.json({ leaderboard, total_referrals: rows.length, total_gems: totalGems });
+  } catch (err) {
+    console.error('[admin/referral-stats]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST ─────────────────────────────────────────────────────
 adminRouter.post('/', async (req, res) => {
   const { telegram_id, admin_id, enabled, action } = req.body;

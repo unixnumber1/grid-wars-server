@@ -374,15 +374,18 @@ async function handleTick(req, res) {
         is_online: hq.players?.last_seen ? (nowMs - new Date(hq.players.last_seen).getTime()) < ONLINE_MS : false,
         best_mine_level: bestMineLvl[hq.player_id] || 0,
       }));
-      mapData.clan_hqs = (allClanHqs || []).map(ch => ({
-        ...ch,
-        is_mine: ch.player_id === currentPlayerId,
-        is_active: !!ch.clan_id,
-        clan_name: ch.clans?.name || null,
-        symbol: ch.clans?.symbol || null,
-        color: ch.clans?.color || null,
-        clan_level: ch.clans?.level || 1,
-      }));
+      mapData.clan_hqs = (allClanHqs || []).map(ch => {
+        const isPlaceholder = ch.clans?.name?.startsWith('_placeholder_');
+        return {
+          ...ch,
+          is_mine: ch.player_id === currentPlayerId,
+          is_active: !!ch.clan_id && !isPlaceholder,
+          clan_name: isPlaceholder ? null : (ch.clans?.name || null),
+          symbol: isPlaceholder ? null : (ch.clans?.symbol || null),
+          color: isPlaceholder ? null : (ch.clans?.color || null),
+          clan_level: isPlaceholder ? 1 : (ch.clans?.level || 1),
+        };
+      });
       mapData.mines = (allMines || []).map(m => {
         if (m.status === 'destroyed') return null;
         const cores = gameState.loaded && m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
@@ -927,15 +930,18 @@ mapRouter.get('/', async (req, res) => {
     drop_type: d.drop_type || ((d.expires_at && new Date(d.expires_at).getTime() - Date.now() > SEVEN_DAYS_MS) ? 'delivery' : 'loot'),
   }));
   const markets      = allMarkets  || [];
-  const clan_hqs = (allClanHqs || []).map(ch => ({
-    ...ch,
-    is_mine: currentPlayerId ? ch.player_id === currentPlayerId : false,
-    is_active: !!ch.clan_id,
-    clan_name: ch.clans?.name || null,
-    symbol: ch.clans?.symbol || null,
-    color: ch.clans?.color || null,
-    clan_level: ch.clans?.level || 1,
-  }));
+  const clan_hqs = (allClanHqs || []).map(ch => {
+    const isPlaceholder = ch.clans?.name?.startsWith('_placeholder_');
+    return {
+      ...ch,
+      is_mine: currentPlayerId ? ch.player_id === currentPlayerId : false,
+      is_active: !!ch.clan_id && !isPlaceholder,
+      clan_name: isPlaceholder ? null : (ch.clans?.name || null),
+      symbol: isPlaceholder ? null : (ch.clans?.symbol || null),
+      color: isPlaceholder ? null : (ch.clans?.color || null),
+      clan_level: isPlaceholder ? 1 : (ch.clans?.level || 1),
+    };
+  });
 
   const responseData = { headquarters, mines, online_players, bots, vases, couriers, courier_drops, markets, clan_hqs };
   return res.status(200).json(responseData);

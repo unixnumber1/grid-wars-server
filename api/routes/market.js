@@ -108,6 +108,7 @@ async function handleMyListings(req, res) {
       items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance)
     `)
     .eq('seller_id', player.id)
+    .in('status', ['active', 'pending'])
     .order('created_at', { ascending: false });
 
   if (error) {

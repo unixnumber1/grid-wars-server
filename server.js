@@ -83,7 +83,7 @@ const io = new Server(httpServer, {
 import { validateRequest, checkBan } from './lib/security.js';
 import { rateLimitMw } from './lib/rateLimit.js';
 import { verifyTelegramAuth, verifyInitData } from './security/telegramAuth.js';
-import { validatePosition } from './security/antispoof.js';
+import { validatePosition, seedPositionFromDB } from './security/antispoof.js';
 
 // Security headers
 app.use((req, res, next) => {
@@ -182,13 +182,25 @@ app.post('/api/telegram-webhook', async (req, res) => {
 
   // Handle /start command
   const msg = req.body?.message;
-  if (msg?.text === '/start' && msg.chat?.id) {
+  if (msg?.text?.startsWith('/start') && msg.chat?.id) {
     res.json({ ok: true });
     const BOT = process.env.BOT_TOKEN;
     if (!BOT) return;
     try {
       const chatId = msg.chat.id;
+      const fromId = msg.from?.id;
       const name = msg.from?.first_name || 'Игрок';
+
+      // Parse referral deep link: /start ref_123456
+      const startParam = msg.text.split(' ')[1];
+      if (startParam && startParam.startsWith('ref_') && fromId) {
+        const referrerId = parseInt(startParam.replace('ref_', ''), 10);
+        if (referrerId && referrerId !== fromId) {
+          pendingReferrals.set(fromId, referrerId);
+          console.log(`[referral] Pending: ${fromId} referred by ${referrerId}`);
+        }
+      }
+
       const welcomeText = `⚔️ *Добро пожаловать в Overthrow, ${name}!*\n\n🌍 Геолокационная стратегия в реальном мире.\n\n🏗️ Строй шахты\n⛏️ Добывай ресурсы\n⚔️ Сражайся с игроками\n🏛️ Рейди монументы\n\nНажми кнопку ниже чтобы начать игру! 👇`;
       const resp = await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -199,6 +211,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
           reply_markup: { inline_keyboard: [
               [{ text: '🎮 Играть', web_app: { url: 'https://overthrow.ru:8443' } }],
               [{ text: '💬 Чат игры', url: 'https://t.me/overthrowglobal' }],
+              [{ text: '🔗 Реферальная ссылка', callback_data: 'get_referral_link' }],
             ] },
         }),
       });
@@ -236,7 +249,25 @@ app.post('/api/telegram-webhook', async (req, res) => {
         body: JSON.stringify({ chat_id: chatId, message_id: msgId, text }),
       }).catch(() => {});
 
-    if (data.startsWith('confirm_ban_')) {
+    if (data === 'get_referral_link') {
+      const tgId = cb.from?.id;
+      if (!tgId) return;
+      const link = `https://t.me/GridWarsGame_bot?start=ref_${tgId}`;
+      await answerCallback('Ссылка отправлена!');
+      await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `🔗 *Твоя реферальная ссылка:*\n\n\`${link}\`\n\n📋 Отправь другу — вы оба получите *50 💎*\n🏆 Когда друг достигнет 50 уровня — ты получишь ещё *100 💎*`,
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [
+            [{ text: '📤 Поделиться', url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Играй в Overthrow — геолокационную стратегию! Присоединяйся по моей ссылке и получи 50 💎')}` }],
+          ] },
+        }),
+      });
+      return;
+
+    } else if (data.startsWith('confirm_ban_')) {
       const tgId = parseInt(data.replace('confirm_ban_', ''), 10);
       await answerCallback('Бан подтверждён');
       await editMessage(`✅ Бан игрока ${tgId} подтверждён администратором.`);
@@ -351,6 +382,9 @@ app.get('*', (req, res) => {
 // Connected players map
 export const connectedPlayers = new Map();
 
+// Pending referrals: telegram_id of new player -> telegram_id of referrer
+export const pendingReferrals = new Map();
+
 // Online history (5min snapshots, keep 288 = 24h)
 setInterval(() => {
   const now = new Date();
@@ -397,7 +431,11 @@ io.on('connection', (socket) => {
     let playerDbId = null;
     if (verifiedTgId && gameState.loaded) {
       const p = gameState.getPlayerByTgId(verifiedTgId);
-      if (p) playerDbId = p.id;
+      if (p) {
+        playerDbId = p.id;
+        // Seed antispoof history from last known DB position for cross-session teleport detection
+        seedPositionFromDB(verifiedTgId, p.last_lat, p.last_lng, p.last_seen);
+      }
     }
     connectedPlayers.set(socket.id, {
       telegram_id: verifiedTgId,

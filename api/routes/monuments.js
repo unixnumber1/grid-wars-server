@@ -187,38 +187,15 @@ async function handleAttackShield(req, res) {
   const dmg = gameState.monumentDamage.get(monument.id);
   if (!dmg.has(Number(telegram_id))) dmg.set(Number(telegram_id), 0);
 
-  // DPS tracking (use 0.1s minimum to avoid division by zero)
-  const playerDps = damage / (Math.max(cooldownMs, 100) / 1000);
-  const attackers = getMonumentAttackers(monument);
-  const prev = attackers.get(String(telegram_id));
-  attackers.set(String(telegram_id), {
-    lastAttackAt: now,
-    dps: playerDps,
-    totalDamage: (prev?.totalDamage || 0) + damage,
-  });
+  // Apply damage directly to shield (no DPS threshold)
+  monument.shield_hp = Math.max(0, monument.shield_hp - damage);
+  gameState.markDirty('monuments', monument.id);
 
-  const totalDps = calcRaidDps(monument);
-  const threshold = MONUMENT_SHIELD_DPS_THRESHOLD[monument.level] || 0;
-
-  // DPS check — must exceed threshold to deal damage
-  let effectiveDamage = 0;
-  let dpsCheckPassed = false;
-  if (totalDps >= threshold) {
-    dpsCheckPassed = true;
-    effectiveDamage = Math.floor(damage * (totalDps - threshold) / totalDps);
-  }
-
-  // Apply effective damage to shield
-  if (effectiveDamage > 0) {
-    monument.shield_hp = Math.max(0, monument.shield_hp - effectiveDamage);
-    gameState.markDirty('monuments', monument.id);
-  }
-
-  // Emit projectile (always, even with 0 damage for visual feedback)
+  // Emit projectile
   emitToNearbyPlayers(monument.lat, monument.lng, 1000, 'projectile', {
     from_lat: pLat, from_lng: pLng,
     to_lat: monument.lat, to_lng: monument.lng,
-    damage: effectiveDamage, crit: isCrit,
+    damage, crit: isCrit,
     target_type: 'monument_shield', target_id: monument.id,
     weapon_type: weaponType,
     attacker_id: player.id,
@@ -249,17 +226,12 @@ async function handleAttackShield(req, res) {
     monument_id: monument.id,
     shield_hp: monument.shield_hp,
     max_shield_hp: monument.max_shield_hp,
-    current_dps: Math.round(totalDps),
-    required_dps: threshold,
   });
 
   return res.json({
-    damage: effectiveDamage, crit: isCrit,
+    damage, crit: isCrit,
     shield_hp: monument.shield_hp, max_shield_hp: monument.max_shield_hp,
     shield_broken: shieldBroken,
-    dps_check: dpsCheckPassed,
-    current_dps: Math.round(totalDps),
-    required_dps: threshold,
   });
 }
 
@@ -331,7 +303,13 @@ async function handleAttackMonument(req, res) {
   }
 
   // Defenders alive → 0 damage to monument (but projectile still shows)
+  // Aggro all defenders toward attacker regardless of distance
   if (defendersAlive) {
+    for (const d of aliveDefenders) {
+      d._target_lat = pLat;
+      d._target_lng = pLng;
+      d._target_player_id = telegram_id;
+    }
     damage = 0;
     isCrit = false;
     isExecution = false;

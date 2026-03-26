@@ -18,6 +18,12 @@ const POSITION_HISTORY_SIZE = 20;       // increased for pattern analysis
 const VIOLATION_THRESHOLD = 15;         // raised — GPS jamming causes many false positives
 const BAN_DAYS = 30;
 
+// ── Cross-session teleport detection ──
+// If player reconnects from a distant location, check if travel time is realistic
+// Uses conservative 250 km/h to allow for planes, trains, etc.
+const SESSION_MAX_SPEED_KMH = 250;
+const SESSION_GAP_MIN_MS = 60000;      // only check gaps > 1 minute
+
 // ── Jamming detection ──
 // GPS jammers cause massive random jumps. Real spoofing is smooth.
 // If accuracy is terrible (>500m) or jump is huge but random — it's likely jamming, not cheating.
@@ -33,9 +39,9 @@ const JAMMING_COOLDOWN_MS = 30000;      // suppress violations for 30s after jam
 // 4. Movement at exact same speed for long periods
 const JITTER_THRESHOLD = 2;            // meters — real GPS always jitters at least this much
 const CONST_SPEED_WINDOW = 8;          // check last N positions for constant speed
-const CONST_SPEED_TOLERANCE = 0.05;    // 5% speed variation = suspicious (real GPS varies 15%+)
-const SUSPICIOUS_ACCURACY = 5;         // meters — real GPS rarely reports <5m accuracy consistently
-const JOYSTICK_SCORE_THRESHOLD = 60;   // accumulated joystick score to flag
+const CONST_SPEED_TOLERANCE = 0.03;    // 3% speed variation = suspicious (was 5%, too many false positives from real GPS)
+const SUSPICIOUS_ACCURACY = 3;         // meters — real GPS rarely reports <3m accuracy consistently (was 5m, too aggressive)
+const JOYSTICK_SCORE_THRESHOLD = 80;   // accumulated joystick score to flag (was 60, raised to reduce false positives)
 
 // Per-player joystick suspicion tracking
 const joystickScores = new Map(); // telegram_id -> { score, lastDecay, jammingUntil }
@@ -115,7 +121,32 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, accura
     }
 
     // ── Speed Check ──
+    const timeDiffMs = now - last.timestamp;
     if (speedKmh > MAX_SPEED_KMH && distanceKm > 0.1) {
+      // If gap > 1 min, this is a cross-session reconnect — use more lenient check
+      if (timeDiffMs > SESSION_GAP_MIN_MS) {
+        const sessionSpeedKmh = (distanceKm / (timeDiffMs / 1000)) * 3600;
+        if (sessionSpeedKmh > SESSION_MAX_SPEED_KMH && distanceKm > 5) {
+          // Impossible travel between sessions (e.g. Moscow → SPb in 5 min)
+          recordSpoofViolation(telegramId, {
+            timestamp: now, speed: sessionSpeedKmh, distance: distanceKm,
+            from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
+            type: 'session_teleport', gapMinutes: Math.round(timeDiffMs / 60000),
+          });
+          // Reset history to new location (don't block — player may have legitimately moved)
+          // but still record the violation for tracking
+          history.length = 0;
+          history.push({ lat, lng, timestamp: now, accuracy });
+          positionHistory.set(telegramId, history);
+          return { valid: true }; // allow through but record violation
+        }
+        // Long gap + fast but plausible (car, train) — reset history, allow
+        history.length = 0;
+        history.push({ lat, lng, timestamp: now, accuracy });
+        positionHistory.set(telegramId, history);
+        return { valid: true };
+      }
+      // Short gap + impossible speed — real-time spoof
       recordSpoofViolation(telegramId, {
         timestamp: now, speed: speedKmh, distance: distanceKm,
         from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
@@ -140,9 +171,9 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, accura
           const bearing2 = getBearing(last, { lat, lng });
           const bearingDiff = Math.abs(bearing1 - bearing2);
           const normalizedDiff = bearingDiff > 180 ? 360 - bearingDiff : bearingDiff;
-          // Perfectly straight movement (bearing change < 1 degree) over multiple segments
-          if (normalizedDiff < 1 && distance > 20) {
-            scoreIncrease += 3; // very suspicious
+          // Perfectly straight movement (bearing change < 0.5 degree) over multiple long segments
+          if (normalizedDiff < 0.5 && distance > 50) {
+            scoreIncrease += 2; // suspicious but not conclusive (was 3)
           }
         }
       }
@@ -171,11 +202,11 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, accura
       }
 
       // Check 3: Suspiciously perfect accuracy
+      // Only flag if ALL recent positions have impossibly precise accuracy
       if (accuracy !== null && accuracy < SUSPICIOUS_ACCURACY) {
-        // Count how many recent positions had perfect accuracy
-        const recentPerfect = history.slice(-5).filter(h => h.accuracy !== null && h.accuracy < SUSPICIOUS_ACCURACY).length;
-        if (recentPerfect >= 4) {
-          scoreIncrease += 2;
+        const recentPerfect = history.slice(-8).filter(h => h.accuracy !== null && h.accuracy < SUSPICIOUS_ACCURACY).length;
+        if (recentPerfect >= 7) {
+          scoreIncrease += 1; // was 2 — accuracy alone is weak signal
         }
       }
 
@@ -332,4 +363,14 @@ export function resetSpoofRecord(telegramId) {
 
 export function resetPositionHistory(telegramId) {
   positionHistory.delete(telegramId);
+}
+
+// Seed position history from DB on player connect (for cross-session teleport detection)
+export function seedPositionFromDB(telegramId, lastLat, lastLng, lastSeen) {
+  if (!lastLat || !lastLng || !lastSeen) return;
+  const existing = positionHistory.get(telegramId);
+  if (existing && existing.length > 0) return; // already has in-memory history
+  const ts = new Date(lastSeen).getTime();
+  if (isNaN(ts)) return;
+  positionHistory.set(telegramId, [{ lat: lastLat, lng: lastLng, timestamp: ts, accuracy: null }]);
 }
