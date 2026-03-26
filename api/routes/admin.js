@@ -65,8 +65,6 @@ function getSuspiciousPlayers() {
     .slice(0, 10);
 }
 
-const ADMIN_TG_ID = 560013667;
-
 async function _notifyAllPlayers(text) {
   const { data: players } = await supabase
     .from('players')
