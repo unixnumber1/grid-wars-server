@@ -13972,6 +13972,7 @@ async function doOreHit(target) {
       method: 'POST',
       body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
+    showCombatHitText(data.damage, data.crit, data.execution);
     if (data.captured) {
       stopCombat(); closePopupKeepHold();
       showToast(t('toast.ore_captured'));
@@ -14394,6 +14395,30 @@ function updatePopupHp(hp, maxHp, color) {
   fill.style.width = pct + '%';
   fill.style.background = color || (pct > 60 ? '#e06060' : pct > 30 ? '#ff9800' : '#f44336');
   text.textContent = `${formatNumber(hp)}/${formatNumber(maxHp)}`;
+}
+
+// Show floating hit text on combat popup bar
+function showCombatHitText(damage, crit, execution, blocked) {
+  const bar = document.getElementById('popup-target-hp-bar');
+  if (!bar) return;
+  const rect = bar.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'floating-damage' + (crit ? ' crit' : '');
+  el.style.left = (rect.left + rect.width / 2) + 'px';
+  el.style.top = (rect.top - 5) + 'px';
+  if (blocked) {
+    el.textContent = t('pvp.block_msg');
+    el.style.color = '#4fc3f7';
+  } else if (execution) {
+    el.textContent = t('pvp.exec_msg');
+    el.style.color = '#f44336';
+    el.style.fontSize = '28px';
+  } else {
+    el.textContent = (crit ? t('pvp.crit_msg') : '') + '-' + damage;
+    el.style.color = crit ? '#FFD700' : '#ff4444';
+  }
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
 }
 
 function stopPopupCombat(keepHolding) {
@@ -16442,12 +16467,15 @@ async function doMonumentShieldHit(target) {
       method: 'POST',
       body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
+    showCombatHitText(data.damage, data.crit);
+    updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
     const m = monumentData[target.id];
     if (m) {
       m.shield_hp = data.shield_hp;
       m.max_shield_hp = data.max_shield_hp;
-      updateMonumentMarkerIcon(target.id);
+      updateMonumentMarkerIcon(target.id, true);
     }
+    _updateMonumentPopupBars(target.id);
     if (data.shield_broken) { stopCombat(); closePopupKeepHold(); showToast(t('mon.shield_broken')); }
   } catch (err) {
     const msg = err.message || '';
@@ -16472,8 +16500,11 @@ async function doMonumentBodyHit(target) {
       body: JSON.stringify({ action: 'attack-monument', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
+    showCombatHitText(data.damage, data.crit, data.execution);
+    updatePopupHp(data.hp, data.max_hp);
     const m = monumentData[target.id];
-    if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id); }
+    if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id, true); }
+    _updateMonumentPopupBars(target.id);
     if (data.defeated) { stopCombat(); closePopupKeepHold(); showToast(t('mon.defeated')); }
   } catch (err) {
     const msg = err.message || '';
@@ -16513,6 +16544,7 @@ async function doDefenderHit(target) {
         showToast(t('mon.all_defenders_dead'));
       }
     } else {
+      showCombatHitText(data.damage, data.crit);
       // Update defender HP
       const d = defenderData[target.id];
       if (d) { d.hp = data.defender_hp; d.max_hp = data.defender_max_hp; if (defenderMarkers[target.id]) defenderMarkers[target.id].setIcon(defenderIcon(d)); }
@@ -17525,6 +17557,7 @@ async function doZombieHit(target) {
       showToast(msg);
       if (data.xp) handleXpResult(data.xp);
     } else {
+      showCombatHitText(data.damage, data.crit);
       // Update zombie HP
       const z = zombieData[target.id];
       if (z) { z.hp = data.zombie_hp; if (zombieMarkers.has(target.id)) zombieMarkers.get(target.id).setIcon(zombieIcon(z)); }
