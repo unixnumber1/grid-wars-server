@@ -330,15 +330,16 @@ class GameState {
     for (const ch of this.clanHqs.values()) {
       if (ch.lat >= s && ch.lat <= n && ch.lng >= w && ch.lng <= e) {
         const clan = this.clans.get(ch.clan_id);
+        const isPlaceholder = clan?.name?.startsWith('_placeholder_');
         clan_hqs.push({
           ...ch,
           is_mine: ch.player_id === currentPlayerId,
-          is_active: !!ch.clan_id,
-          clan_name: clan?.name || null,
-          symbol: clan?.symbol || null,
-          color: clan?.color || null,
-          clan_level: clan?.level || 1,
-          clans: clan ? { name: clan.name, symbol: clan.symbol, color: clan.color, level: clan.level } : null,
+          is_active: !!ch.clan_id && !isPlaceholder,
+          clan_name: isPlaceholder ? null : (clan?.name || null),
+          symbol: isPlaceholder ? null : (clan?.symbol || null),
+          color: isPlaceholder ? null : (clan?.color || null),
+          clan_level: isPlaceholder ? 1 : (clan?.level || 1),
+          clans: clan && !isPlaceholder ? { name: clan.name, symbol: clan.symbol, color: clan.color, level: clan.level } : null,
         });
       }
     }
