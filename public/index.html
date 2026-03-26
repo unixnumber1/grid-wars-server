@@ -6673,12 +6673,12 @@ function setLoadingText(t) {
   document.getElementById('loading-text').textContent = t;
 }
 
+const _tgInitData = tg?.initData || '';
 async function apiFetch(path, opts = {}) {
   if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-  });
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (_tgInitData) headers['X-Telegram-Init-Data'] = _tgInitData;
+  const res = await fetch(path, { ...opts, headers });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || (typeof data.error === 'string' ? data.error : (data.error?.message || 'API error')));
   return data;
@@ -9183,6 +9183,7 @@ function initSocket() {
       if (TG_ID) {
         _socket.emit('player:init', {
           telegram_id: TG_ID,
+          initData: _tgInitData,
           lat: state.playerPos?.lat,
           lng: state.playerPos?.lng,
         });

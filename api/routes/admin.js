@@ -349,7 +349,7 @@ adminRouter.post('/', async (req, res) => {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message', 'callback_query', 'pre_checkout_query'] }),
+        body: JSON.stringify({ url: webhookUrl, allowed_updates: ['message', 'callback_query', 'pre_checkout_query'], secret_token: process.env.WEBHOOK_SECRET || '' }),
       }
     );
     const tgData = await tgRes.json();

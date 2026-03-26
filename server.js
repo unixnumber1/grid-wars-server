@@ -76,17 +76,42 @@ export function logActivity(playerName, action) {
 const app = express();
 const httpServer = createServer(app);
 
+const ALLOWED_ORIGINS = ['https://overthrow.ru:8443', 'https://overthrow.ru'];
+
 const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
 });
 
 import { validateRequest, checkBan } from './lib/security.js';
 import { rateLimitMw } from './lib/rateLimit.js';
+import { verifyTelegramAuth, verifyInitData } from './security/telegramAuth.js';
 
-app.use(cors({ origin: '*' }));
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json({ limit: '100kb' }));
 app.use(validateRequest);
+app.use('/api', verifyTelegramAuth);
 app.use('/api', checkBan);
+
+// Rate limiting per route type
+app.use('/api/map', rateLimitMw('tick'));
+app.use('/api/player', rateLimitMw('location'));
+app.use('/api/buildings', rateLimitMw('build'));
+app.use('/api/bots', rateLimitMw('attack'));
+app.use('/api/zombies', rateLimitMw('attack'));
+app.use('/api/market', rateLimitMw('market'));
+app.use('/api/collectors', rateLimitMw('build'));
+app.use('/api/ore', rateLimitMw('default'));
+app.use('/api/monuments', rateLimitMw('attack'));
+app.use('/api/cores', rateLimitMw('default'));
+app.use('/api/items', rateLimitMw('default'));
+app.use('/api/clan', rateLimitMw('default'));
 
 // Serve static frontend files (no cache for index.html to ensure updates)
 app.use(express.static(join(__dirname, 'public'), {
@@ -137,7 +162,14 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── Telegram Bot Webhook (callback_query, payments) ──
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 app.post('/api/telegram-webhook', async (req, res) => {
+  // Verify Telegram webhook signature
+  if (WEBHOOK_SECRET) {
+    const token = req.headers['x-telegram-bot-api-secret-token'];
+    if (token !== WEBHOOK_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  }
+
   // Payment events: forward to items handler (must respond before res.json)
   if (req.body?.pre_checkout_query || req.body?.message?.successful_payment) {
     try {
@@ -351,19 +383,32 @@ io.on('connection', (socket) => {
   console.log('[socket] Connected:', socket.id, 'total:', connectedPlayers.size + 1);
 
   socket.on('player:init', (data) => {
+    // Verify initData for socket connections
+    let verifiedTgId = data.telegram_id;
+    if (data.initData) {
+      const result = verifyInitData(data.initData);
+      if (result.valid) {
+        verifiedTgId = result.user.id;
+      } else {
+        console.warn('[socket] Invalid initData from', data.telegram_id, result.reason);
+        socket.disconnect(true);
+        return;
+      }
+    }
+
     let playerDbId = null;
-    if (data.telegram_id && gameState.loaded) {
-      const p = gameState.getPlayerByTgId(data.telegram_id);
+    if (verifiedTgId && gameState.loaded) {
+      const p = gameState.getPlayerByTgId(verifiedTgId);
       if (p) playerDbId = p.id;
     }
     connectedPlayers.set(socket.id, {
-      telegram_id: data.telegram_id,
+      telegram_id: verifiedTgId,
       player_db_id: playerDbId,
       lat: data.lat,
       lng: data.lng,
       lastState: null
     });
-    console.log('[socket] Player init:', data.telegram_id, 'db_id:', playerDbId, 'total:', connectedPlayers.size);
+    console.log('[socket] Player init:', verifiedTgId, 'db_id:', playerDbId, 'total:', connectedPlayers.size);
 
     // Update player city cache for city-based spawning
     if (data.telegram_id && data.lat && data.lng) {
