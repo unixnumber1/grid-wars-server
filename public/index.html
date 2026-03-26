@@ -2902,6 +2902,26 @@
         <div id="map-style-list"></div>
       </div>
 
+      <!-- Legal -->
+      <div class="settings-card" style="text-align:center;">
+        <div class="settings-section-title" data-i18n="settings.legal">&#x041F;&#x0420;&#x0410;&#x0412;&#x041E;&#x0412;&#x0410;&#x042F; &#x0418;&#x041D;&#x0424;&#x041E;&#x0420;&#x041C;&#x0410;&#x0426;&#x0418;&#x042F;</div>
+        <a href="/policy.html" target="_blank" class="settings-action-btn s-default" style="justify-content:center;text-decoration:none;" data-i18n="settings.legal_link">&#x1F4C4; &#x041F;&#x043E;&#x043B;&#x0438;&#x0442;&#x0438;&#x043A;&#x0430; &#x043A;&#x043E;&#x043D;&#x0444;&#x0438;&#x0434;&#x0435;&#x043D;&#x0446;&#x0438;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x0441;&#x0442;&#x0438; &#x0438; &#x0443;&#x0441;&#x043B;&#x043E;&#x0432;&#x0438;&#x044F;</a>
+      </div>
+
+    </div>
+    <!-- Tools tab -->
+    <div id="settings-tab-tools" class="settings-tab-content">
+
+      <!-- View coordinates -->
+      <div class="settings-card">
+        <div class="settings-section-title">📍 ПРОСМОТР КООРДИНАТ</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="tools-coords-input" placeholder="55.7558, 37.6176" style="flex:1;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
+          <button onclick="goToCoords()" class="settings-action-btn s-blue" style="width:auto;white-space:nowrap;padding:10px 16px;">🔍 Посмотреть</button>
+        </div>
+        <div style="font-size:11px;color:#666;margin-top:4px">Координаты или ссылка Google Maps</div>
+      </div>
+
       <!-- Monuments section -->
       <div class="settings-card">
         <div class="settings-section-title">🏛️ МОНУМЕНТЫ</div>
@@ -2909,21 +2929,21 @@
         <div id="monument-request-form" style="display:none;margin-top:12px;">
           <div class="section-subtitle" data-i18n-html="monreq.subtitle_html">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
           <div class="form-group">
-            <label data-i18n="monreq.coords_label">&#x1F4CD; Координаты Google Maps</label>
+            <label data-i18n="monreq.coords_label">📍 Координаты Google Maps</label>
             <input type="text" id="req-coords" data-i18n-placeholder="monreq.coords_ph" placeholder="55.7558, 37.6176 или ссылка на Google Maps" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
-            <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.coords_hint">Открой Google Maps &#x2192; долгое нажатие на место &#x2192; скопируй координаты</div>
+            <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.coords_hint">Открой Google Maps → долгое нажатие на место → скопируй координаты</div>
           </div>
           <div class="form-group" style="margin-top:12px">
-            <label data-i18n="monreq.name_label">&#x270F;&#xFE0F; Название места</label>
+            <label data-i18n="monreq.name_label">✏️ Название места</label>
             <input type="text" id="req-name" data-i18n-placeholder="monreq.name_ph" placeholder="Например: Александровский сад" maxlength="50" style="width:100%;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:10px;font-size:14px;box-sizing:border-box">
           </div>
           <div class="form-group" style="margin-top:12px">
-            <label data-i18n="monreq.emoji_label">&#x1F3A8; Иконка монумента</label>
-            <input type="text" id="req-emoji" value="&#x1F3DB;&#xFE0F;" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
+            <label data-i18n="monreq.emoji_label">🎨 Иконка монумента</label>
+            <input type="text" id="req-emoji" value="🏛️" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
             <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.emoji_hint">Вставь любой эмоджи</div>
           </div>
           <div class="form-group" style="margin-top:12px">
-            <label data-i18n="monreq.level_label">&#x26A1; Желаемый уровень (1-10)</label>
+            <label data-i18n="monreq.level_label">⚡ Желаемый уровень (1-10)</label>
             <div class="level-selector">
               <div class="level-option selected" onclick="selectMonumentLevel(this,1)" id="level-opt-1">1</div>
               <div class="level-option" onclick="selectMonumentLevel(this,2)" id="level-opt-2">2</div>
@@ -2939,14 +2959,8 @@
             <input type="hidden" id="req-level" value="1">
             <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.level_hint">Уровень влияет на сложность рейда и награды</div>
           </div>
-          <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">&#x1F4E8; Отправить заявку</button>
+          <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">📨 Отправить заявку</button>
         </div>
-      </div>
-
-      <!-- Legal -->
-      <div class="settings-card" style="text-align:center;">
-        <div class="settings-section-title" data-i18n="settings.legal">&#x041F;&#x0420;&#x0410;&#x0412;&#x041E;&#x0412;&#x0410;&#x042F; &#x0418;&#x041D;&#x0424;&#x041E;&#x0420;&#x041C;&#x0410;&#x0426;&#x0418;&#x042F;</div>
-        <a href="/policy.html" target="_blank" class="settings-action-btn s-default" style="justify-content:center;text-decoration:none;" data-i18n="settings.legal_link">&#x1F4C4; &#x041F;&#x043E;&#x043B;&#x0438;&#x0442;&#x0438;&#x043A;&#x0430; &#x043A;&#x043E;&#x043D;&#x0444;&#x0438;&#x0434;&#x0435;&#x043D;&#x0446;&#x0438;&#x0430;&#x043B;&#x044C;&#x043D;&#x043E;&#x0441;&#x0442;&#x0438; &#x0438; &#x0443;&#x0441;&#x043B;&#x043E;&#x0432;&#x0438;&#x044F;</a>
       </div>
 
     </div>
@@ -11273,6 +11287,14 @@ function parseCoords(input) {
   if (query) return { lat: parseFloat(query[1]), lng: parseFloat(query[2]) };
   return null;
 }
+function goToCoords() {
+  const input = document.getElementById('tools-coords-input').value.trim();
+  if (!input) return showToast('❌ Введите координаты');
+  const coords = parseCoords(input);
+  if (!coords) return showToast('❌ Неверный формат координат');
+  document.getElementById('settings-drawer').classList.remove('open');
+  map.flyTo([coords.lat, coords.lng], 17);
+}
 async function submitMonumentRequest() {
   const coordsInput = document.getElementById('req-coords').value.trim();
   const name = document.getElementById('req-name').value.trim();
@@ -11354,6 +11376,8 @@ document.getElementById('btn-settings').addEventListener('click', () => {
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.style.border = btn.dataset.lang === _lang ? '2px solid #FFD700' : '2px solid transparent';
   });
+  // Reset to profile tab on open
+  _switchSettingsTab('profile');
   document.getElementById('settings-drawer').classList.add('open');
 });
 
@@ -11362,58 +11386,56 @@ document.getElementById('btn-close-settings').addEventListener('click', () => {
   if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
 });
 
-// Settings tabs
-document.querySelectorAll('.settings-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const tabId = tab.dataset.tab;
-    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('settings-tab-' + tabId).classList.add('active');
-    if (tabId !== 'admin' && _adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
-  });
-});
+function _switchSettingsTab(tabId) {
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+  const btn = document.querySelector(`.settings-tab[data-tab="${tabId}"]`);
+  if (btn) btn.classList.add('active');
+  const content = document.getElementById('settings-tab-' + tabId);
+  if (content) content.classList.add('active');
+  if (tabId === 'admin') {
+    loadAdminStats();
+    if (_adminStatsInterval) clearInterval(_adminStatsInterval);
+    _adminStatsInterval = setInterval(loadAdminStats, 30000);
+  } else {
+    if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
+  }
+}
 
 function _updateSettingsAdminTab() {
   const isAdmin = parseInt(TG_ID, 10) === ADMIN_TG_ID;
   const tabsEl = document.getElementById('settings-tabs');
-  let adminTabBtn = tabsEl.querySelector('[data-tab="admin"]');
-  if (isAdmin) {
-    // Show tabs bar with Settings + Admin tabs
-    tabsEl.style.display = '';
-    if (!adminTabBtn) {
-      // Add "Settings" tab to go back
-      const settingsBtn = document.createElement('button');
-      settingsBtn.className = 'settings-tab active';
-      settingsBtn.dataset.tab = 'profile';
-      settingsBtn.textContent = '⚙️';
-      settingsBtn.addEventListener('click', () => {
-        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
-        settingsBtn.classList.add('active');
-        document.getElementById('settings-tab-profile').classList.add('active');
-        if (_adminStatsInterval) { clearInterval(_adminStatsInterval); _adminStatsInterval = null; }
-      });
-      tabsEl.appendChild(settingsBtn);
 
-      adminTabBtn = document.createElement('button');
-      adminTabBtn.className = 'settings-tab';
-      adminTabBtn.dataset.tab = 'admin';
-      adminTabBtn.textContent = '🔧 Админ';
-      adminTabBtn.addEventListener('click', () => {
-        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
-        adminTabBtn.classList.add('active');
-        document.getElementById('settings-tab-admin').classList.add('active');
-        loadAdminStats();
-        if (_adminStatsInterval) clearInterval(_adminStatsInterval);
-        _adminStatsInterval = setInterval(loadAdminStats, 30000);
-      });
-      tabsEl.appendChild(adminTabBtn);
-    }
-  } else {
-    tabsEl.style.display = 'none';
-    if (adminTabBtn) adminTabBtn.remove();
+  // Always show tabs (Settings + Tools for everyone)
+  if (tabsEl.children.length === 0) {
+    tabsEl.style.display = '';
+
+    const profileBtn = document.createElement('button');
+    profileBtn.className = 'settings-tab active';
+    profileBtn.dataset.tab = 'profile';
+    profileBtn.textContent = '⚙️ Настройки';
+    profileBtn.addEventListener('click', () => _switchSettingsTab('profile'));
+    tabsEl.appendChild(profileBtn);
+
+    const toolsBtn = document.createElement('button');
+    toolsBtn.className = 'settings-tab';
+    toolsBtn.dataset.tab = 'tools';
+    toolsBtn.textContent = '🛠 Инструменты';
+    toolsBtn.addEventListener('click', () => _switchSettingsTab('tools'));
+    tabsEl.appendChild(toolsBtn);
+  }
+
+  // Admin tab — add or remove dynamically
+  let adminTabBtn = tabsEl.querySelector('[data-tab="admin"]');
+  if (isAdmin && !adminTabBtn) {
+    adminTabBtn = document.createElement('button');
+    adminTabBtn.className = 'settings-tab';
+    adminTabBtn.dataset.tab = 'admin';
+    adminTabBtn.textContent = '🔧 Админ';
+    adminTabBtn.addEventListener('click', () => _switchSettingsTab('admin'));
+    tabsEl.appendChild(adminTabBtn);
+  } else if (!isAdmin && adminTabBtn) {
+    adminTabBtn.remove();
   }
 }
 
