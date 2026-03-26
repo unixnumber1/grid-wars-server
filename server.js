@@ -83,6 +83,7 @@ const io = new Server(httpServer, {
 import { validateRequest, checkBan } from './lib/security.js';
 import { rateLimitMw } from './lib/rateLimit.js';
 import { verifyTelegramAuth, verifyInitData } from './security/telegramAuth.js';
+import { validatePosition } from './security/antispoof.js';
 
 // Security headers
 app.use((req, res, next) => {
@@ -419,6 +420,12 @@ io.on('connection', (socket) => {
     if (!data?.lat || !data?.lng) return;
     const player = connectedPlayers.get(socket.id);
     if (player) {
+      // Validate position through antispoof
+      const validation = validatePosition(player.telegram_id, data.lat, data.lng, false, data.accuracy || null);
+      if (!validation.valid) {
+        // Silently ignore invalid positions (don't update player coords)
+        return;
+      }
       player.lat = data.lat;
       player.lng = data.lng;
       // Update city cache (rate-limited internally to 1h)

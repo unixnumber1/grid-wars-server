@@ -6868,11 +6868,12 @@ function _animatePlayerMarker(toLat, toLng, duration = 1000) {
   _playerAnimFrame = requestAnimationFrame(animate);
 }
 
+let _lastGpsAccuracy = null;
 function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
   // Send location to Socket.io server
   if (_socket?.connected) {
-    _socket.emit('player:location', { telegram_id: TG_ID, lat, lng });
+    _socket.emit('player:location', { telegram_id: TG_ID, lat, lng, accuracy: _lastGpsAccuracy });
   }
   if (playerMarker) {
     _animatePlayerMarker(lat, lng, 1000);
@@ -9764,7 +9765,8 @@ let _lastLocationReport = 0;
 const GPS_MIN_DISTANCE = 5; // metres — ignore GPS jitter below this threshold
 
 function onPosition(pos) {
-  const { latitude: lat, longitude: lng } = pos.coords;
+  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  _lastGpsAccuracy = accuracy || null;
   const isFirstFix = state.playerPos === null;
 
   // Ignore GPS jitter below threshold (except first fix)
