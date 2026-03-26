@@ -65,8 +65,9 @@ export function verifyInitData(initDataStr) {
  * Rejects with 403 on failure (unless path is in SKIP_PATHS).
  */
 export function verifyTelegramAuth(req, res, next) {
-  // Skip non-API and whitelisted paths
-  if (SKIP_PATHS.some(p => req.path === p || req.path.startsWith(p + '/'))) return next();
+  // Skip whitelisted paths
+  const fullPath = (req.originalUrl || req.url || '').split('?')[0];
+  if (SKIP_PATHS.some(p => fullPath === p || fullPath.startsWith(p + '/'))) return next();
 
   const initData = req.headers['x-telegram-init-data'];
 
