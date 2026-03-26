@@ -14126,6 +14126,18 @@ function animateCombatProjectile(data) {
       flash.style.top = to.y + 'px';
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 300);
+
+      // Floating label over marker (crit/exec/block only, no numbers)
+      if (data.crit || data.execution || data.blocked) {
+        const label = document.createElement('div');
+        label.className = 'floating-damage crit';
+        label.style.left = to.x + 'px';
+        label.style.top = (to.y - 10) + 'px';
+        label.style.color = data.blocked ? '#4fc3f7' : data.execution ? '#f44336' : '#FFD700';
+        label.textContent = data.blocked ? t('pvp.block_msg') : data.execution ? t('pvp.exec_msg') : t('pvp.crit_msg');
+        document.body.appendChild(label);
+        setTimeout(() => label.remove(), 1000);
+      }
     }
   }
   requestAnimationFrame(anim);
@@ -14379,14 +14391,8 @@ function updatePopupHp(hp, maxHp, color) {
   text.textContent = `${formatNumber(hp)}/${formatNumber(maxHp)}`;
 }
 
-// Show crit/execution/block label over a map marker (target's lat/lng)
-function showCombatHitText(damage, crit, execution, blocked, targetLatLng) {
-  if (!crit && !execution && !blocked) return;
-  if (!targetLatLng) return;
-  const text = blocked ? t('pvp.block_msg') : execution ? t('pvp.exec_msg') : t('pvp.crit_msg');
-  const color = blocked ? '#4fc3f7' : execution ? '#f44336' : '#FFD700';
-  showFloatingText(targetLatLng, text, color);
-}
+// Kept for compatibility — crit/exec/block labels now shown via socket projectile animation
+function showCombatHitText() {}
 
 function stopPopupCombat(keepHolding) {
   if (!keepHolding) {
