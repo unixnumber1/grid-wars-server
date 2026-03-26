@@ -333,8 +333,14 @@ adminRouter.post('/', async (req, res) => {
       if (fetchErr || !data) return res.status(404).json({ error: 'Player not found' });
       player = data;
     } else {
-      const { data, error: fetchErr } = await supabase
-        .from('players').select('id, telegram_id, coins, diamonds, shards, ether').ilike('game_username', player_name).single();
+      // Try game_username first, then username
+      let data, fetchErr;
+      ({ data, error: fetchErr } = await supabase
+        .from('players').select('id, telegram_id, game_username, username, coins, diamonds, shards, ether').ilike('game_username', player_name).maybeSingle());
+      if (!data) {
+        ({ data, error: fetchErr } = await supabase
+          .from('players').select('id, telegram_id, game_username, username, coins, diamonds, shards, ether').ilike('username', player_name).maybeSingle());
+      }
       if (fetchErr || !data) return res.status(404).json({ error: `Player "${player_name}" not found` });
       player = data;
     }
