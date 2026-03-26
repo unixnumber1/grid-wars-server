@@ -12578,7 +12578,7 @@ function _showCourierPopup(courierId) {
   const cLat = ci ? ci.displayLat : c.current_lat;
   const cLng = ci ? ci.displayLng : c.current_lng;
   const dist = pos ? haversine(pos.lat, pos.lng, cLat, cLng) : Infinity;
-  const near = dist <= SMALL_RADIUS;
+  const near = dist <= LARGE_RADIUS;
   const emoji = c.type === 'delivery' ? '🚚' : '🚶';
   const hpPct = Math.round(Math.max(0, c.hp / c.max_hp) * 100);
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';

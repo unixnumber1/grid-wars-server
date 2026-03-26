@@ -3,7 +3,7 @@ import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../..
 import { log } from '../../lib/log.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
-import { SMALL_RADIUS, getPlayerAttack } from '../../lib/formulas.js';
+import { SMALL_RADIUS, LARGE_RADIUS, getPlayerAttack } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 
@@ -706,7 +706,7 @@ async function handleAttackCourier(req, res) {
 
   const dist = haversine(pLat, pLng, courier.current_lat, courier.current_lng);
   const _mktFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
-  if (dist > SMALL_RADIUS + (_mktFx.radius_bonus || 0)) {
+  if (dist > LARGE_RADIUS + (_mktFx.radius_bonus || 0)) {
     return res.status(400).json({ error: 'Too far from courier', distance: Math.round(dist) });
   }
 
