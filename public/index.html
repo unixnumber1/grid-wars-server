@@ -270,6 +270,7 @@
     .btn.danger:active { background: #3a1010; }
     .btn.yellow { background: #3a3000; border-color: #806a00; color: #f5c518; }
     .btn.yellow:active { background: #2a2200; }
+    .btn.selected { background: #2a4a2a; border-color: #4caf50; color: #4caf50; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* Popup */
@@ -15172,6 +15173,16 @@ function showClanHqPopup(ch) {
 let _clanScreenData = null;
 let _clanScreenTab = 'hq';
 let _clanScreenId = null;
+let _clanJoinPolicy = 'open';      // for create tab
+let _clanEditJoinPolicy = 'open';  // for edit tab
+
+window._selectPolicy = function(btn, mode) {
+  const container = btn.parentElement;
+  container.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  if (mode === 'edit') _clanEditJoinPolicy = btn.dataset.policy;
+  else _clanJoinPolicy = btn.dataset.policy;
+};
 
 document.getElementById('clan-close').addEventListener('click', closeClanScreen);
 
@@ -15535,7 +15546,7 @@ function _renderEditTab(body) {
   let selectedSymbol = clan.symbol || CLAN_SYMBOLS[0];
   let selectedColor = clan.color || ALLOWED_CLAN_COLORS[0];
   let minLevel = clan.min_level || 1;
-  let editJoinPolicy = clan.join_policy || 'open';
+  _clanEditJoinPolicy = clan.join_policy || 'open';
   let newName = clan.name || '';
   let newDesc = clan.description || '';
   const origSymbol = selectedSymbol;
@@ -15569,9 +15580,9 @@ function _renderEditTab(body) {
     <div style="${cardStyle}">
       <div style="${sectionLabelStyle}">Тип вступления</div>
       <div id="cs-edit-policy-btns" style="display:flex;gap:6px;">
-        <button class="btn${editJoinPolicy === 'open' ? ' selected' : ''}" data-policy="open" style="flex:1;padding:8px;font-size:12px;">🔓 Открытый</button>
-        <button class="btn${editJoinPolicy === 'request' ? ' selected' : ''}" data-policy="request" style="flex:1;padding:8px;font-size:12px;">📝 По заявке</button>
-        <button class="btn${editJoinPolicy === 'closed' ? ' selected' : ''}" data-policy="closed" style="flex:1;padding:8px;font-size:12px;">🔒 Закрытый</button>
+        <button class="btn${_clanEditJoinPolicy === 'open' ? ' selected' : ''}" data-policy="open" style="flex:1;padding:10px 8px;font-size:12px;" onclick="_selectPolicy(this,'edit')">🔓 Открытый</button>
+        <button class="btn${_clanEditJoinPolicy === 'request' ? ' selected' : ''}" data-policy="request" style="flex:1;padding:10px 8px;font-size:12px;" onclick="_selectPolicy(this,'edit')">📝 По заявке</button>
+        <button class="btn${_clanEditJoinPolicy === 'closed' ? ' selected' : ''}" data-policy="closed" style="flex:1;padding:10px 8px;font-size:12px;" onclick="_selectPolicy(this,'edit')">🔒 Закрытый</button>
       </div>
     </div>
     <div style="${cardStyle}">
@@ -15615,15 +15626,6 @@ function _renderEditTab(body) {
   document.getElementById('cs-edit-lvl-dec').addEventListener('click', () => { if (minLevel > 1) { minLevel--; document.getElementById('cs-edit-lvl-val').textContent = minLevel; } });
   document.getElementById('cs-edit-lvl-inc').addEventListener('click', () => { if (minLevel < 100) { minLevel++; document.getElementById('cs-edit-lvl-val').textContent = minLevel; } });
 
-  // Policy buttons
-  document.getElementById('cs-edit-policy-btns').querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('cs-edit-policy-btns').querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      editJoinPolicy = btn.dataset.policy;
-    });
-  });
-
   // Name change tracking
   document.getElementById('cs-edit-name').addEventListener('input', (e) => { newName = e.target.value.trim(); _updateEditCost(); });
 
@@ -15651,12 +15653,12 @@ function _renderEditTab(body) {
       ], [
         { label: `✅ ${t('misc.confirm')} (${diamondCost} 💎)`, cls: 'yellow', action: async () => {
           closePopup();
-          await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal, editJoinPolicy);
+          await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal, _clanEditJoinPolicy);
         }},
         { label: t('btn.cancel'), isClose: true },
       ]);
     } else {
-      await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal, editJoinPolicy);
+      await _saveEdit(nameVal, selectedSymbol, selectedColor, minLevel, descVal, _clanEditJoinPolicy);
     }
   });
 }
@@ -15682,7 +15684,7 @@ function _renderCreateTab(body) {
   let selectedSymbol = CLAN_SYMBOLS[0];
   let selectedColor = ALLOWED_CLAN_COLORS[0];
   let minLevel = 1;
-  let joinPolicy = 'open';
+  _clanJoinPolicy = 'open';
 
   body.innerHTML = `
     <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:16px;">${t('clan.create')}</div>
@@ -15709,9 +15711,9 @@ function _renderCreateTab(body) {
     <div class="cs-form-field">
       <label>Тип вступления</label>
       <div id="cs-policy-btns" style="display:flex;gap:6px;">
-        <button class="btn selected" data-policy="open" style="flex:1;padding:8px;font-size:12px;">🔓 Открытый</button>
-        <button class="btn" data-policy="request" style="flex:1;padding:8px;font-size:12px;">📝 По заявке</button>
-        <button class="btn" data-policy="closed" style="flex:1;padding:8px;font-size:12px;">🔒 Закрытый</button>
+        <button class="btn selected" data-policy="open" style="flex:1;padding:10px 8px;font-size:12px;" onclick="_selectPolicy(this,'create')">🔓 Открытый</button>
+        <button class="btn" data-policy="request" style="flex:1;padding:10px 8px;font-size:12px;" onclick="_selectPolicy(this,'create')">📝 По заявке</button>
+        <button class="btn" data-policy="closed" style="flex:1;padding:10px 8px;font-size:12px;" onclick="_selectPolicy(this,'create')">🔒 Закрытый</button>
       </div>
     </div>
     <div class="cs-form-field">
@@ -15757,15 +15759,6 @@ function _renderCreateTab(body) {
     if (minLevel < 100) { minLevel++; document.getElementById('cs-lvl-val').textContent = minLevel; }
   });
 
-  // Policy buttons
-  document.getElementById('cs-policy-btns').querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('cs-policy-btns').querySelectorAll('button').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      joinPolicy = btn.dataset.policy;
-    });
-  });
-
   // Create button
   document.getElementById('cs-create-btn').addEventListener('click', async () => {
     const name = document.getElementById('cs-clan-name-input').value.trim();
@@ -15774,7 +15767,7 @@ function _renderCreateTab(body) {
     try {
       await apiFetch('/api/clan', {
         method: 'POST',
-        body: JSON.stringify({ telegram_id: TG_ID, action: 'create', name, symbol: selectedSymbol, color: selectedColor, description: desc, min_level: minLevel, join_policy: joinPolicy }),
+        body: JSON.stringify({ telegram_id: TG_ID, action: 'create', name, symbol: selectedSymbol, color: selectedColor, description: desc, min_level: minLevel, join_policy: _clanJoinPolicy }),
       });
       showToast('⚔️ Клан создан!');
       closeClanScreen();
