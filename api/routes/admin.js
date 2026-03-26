@@ -9,6 +9,7 @@ import { haversine } from '../../lib/haversine.js';
 import { dailyMarketCheck } from '../../lib/markets.js';
 import { resetSpoofRecord } from '../../lib/antispoof.js';
 import { getPlayerLogs, logPlayer } from '../../lib/logger.js';
+import { playerCityCache } from '../../lib/geocity.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
@@ -213,10 +214,12 @@ adminRouter.get('/player-search', (req, res) => {
       for (const [, info] of connectedPlayers) {
         if (String(info.telegram_id) === String(p.telegram_id)) { isOnline = true; break; }
       }
+      const ci = playerCityCache.get(String(p.telegram_id));
       results.push({
         id: p.id,
         telegram_id: p.telegram_id,
         username: p.game_username || p.username,
+        tg_username: p.username || null,
         avatar: p.avatar,
         level: p.level,
         coins: p.coins,
@@ -227,6 +230,7 @@ adminRouter.get('/player-search', (req, res) => {
         ban_reason: p.ban_reason,
         mines_count: minesCount,
         online: isOnline,
+        city: ci?.city || null,
       });
     }
   }
@@ -277,13 +281,20 @@ adminRouter.get('/player-details', (req, res) => {
     }
   }
 
+  // City from geocity cache
+  const cityInfo = playerCityCache.get(String(player.telegram_id));
+
   return res.json({
     player: {
       id: player.id, telegram_id: player.telegram_id,
-      username: player.game_username || player.username, avatar: player.avatar,
+      username: player.game_username || player.username,
+      tg_username: player.username || null,
+      avatar: player.avatar,
       level: player.level, coins: player.coins, diamonds: player.diamonds,
       crystals: player.crystals, ether: player.ether,
       is_banned: player.is_banned, ban_reason: player.ban_reason, ban_until: player.ban_until,
+      city: cityInfo?.city || null,
+      country: cityInfo?.country || null,
     },
     items,
     cores,

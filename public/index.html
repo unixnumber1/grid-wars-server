@@ -10611,11 +10611,13 @@ document.getElementById('apm-search-input').addEventListener('input', (e) => {
       data.players.forEach(p => {
         const card = document.createElement('div');
         card.className = 'apm-player-card' + (p.is_banned ? ' banned' : '');
+        const tgU = p.tg_username ? `<span style="color:#64B5F6;">@${p.tg_username}</span> ` : '';
+        const cityU = p.city ? `📍${p.city}` : '';
         card.innerHTML = `
           <span class="apm-avatar">${p.avatar || '🐺'}</span>
           <div class="apm-info">
             <div class="apm-name">${p.is_banned ? '🚫 ' : ''}${p.username || '???'}</div>
-            <div class="apm-meta">Ур.${p.level || 1} ${p.online ? '🟢' : '⚫'} ${p.mines_count || 0} шахт</div>
+            <div class="apm-meta">${tgU}Ур.${p.level || 1} ${p.online ? '🟢' : '⚫'} ${p.mines_count || 0} шахт ${cityU}</div>
           </div>
           <span style="font-size:11px;color:#aaa;">💰${formatNumber(p.coins||0)}</span>
         `;
@@ -10641,8 +10643,12 @@ function apmShowPlayer() {
   document.getElementById('apm-back-btn').style.display = '';
   document.getElementById('apm-title').textContent = `${p.avatar || '🐺'} ${p.username} — Ур.${p.level}`;
 
-  // Balances header
+  // Info + Balances header
+  const tgTag = p.tg_username ? `@${p.tg_username}` : '';
+  const cityTag = p.city ? `📍 ${p.city}${p.country ? ', ' + p.country : ''}` : '';
+  const infoLine = [tgTag, `ID: ${p.telegram_id}`, cityTag].filter(Boolean).join(' · ');
   document.getElementById('apm-player-header').innerHTML = `
+    <div style="font-size:11px;color:#888;margin-bottom:6px;word-break:break-all;">${infoLine}</div>
     <div class="apm-balances">
       ${CURRENCY_META.map(c => `<div class="apm-bal">${c.icon} <span>${formatNumber(p[c.key]||0)}</span></div>`).join('')}
     </div>
