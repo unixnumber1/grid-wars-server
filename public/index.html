@@ -14127,17 +14127,24 @@ function animateCombatProjectile(data) {
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 300);
 
-      // Floating label over marker (crit/exec/block only, no numbers)
-      if (data.crit || data.execution || data.blocked) {
-        const label = document.createElement('div');
-        label.className = 'floating-damage crit';
-        label.style.left = to.x + 'px';
-        label.style.top = (to.y - 10) + 'px';
-        label.style.color = data.blocked ? '#4fc3f7' : data.execution ? '#f44336' : '#FFD700';
-        label.textContent = data.blocked ? t('pvp.block_msg') : data.execution ? t('pvp.exec_msg') : t('pvp.crit_msg');
-        document.body.appendChild(label);
-        setTimeout(() => label.remove(), 1000);
+      // Floating damage over target marker
+      const dmgEl = document.createElement('div');
+      dmgEl.className = 'floating-damage' + (data.crit ? ' crit' : '');
+      dmgEl.style.left = to.x + 'px';
+      dmgEl.style.top = (to.y - 10) + 'px';
+      if (data.blocked) {
+        dmgEl.textContent = t('pvp.block_msg');
+        dmgEl.style.color = '#4fc3f7';
+      } else if (data.execution) {
+        dmgEl.textContent = t('pvp.exec_msg') + ' -' + data.damage;
+        dmgEl.style.color = '#f44336';
+        dmgEl.style.fontSize = '28px';
+      } else {
+        dmgEl.textContent = (data.crit ? t('pvp.crit_msg') : '') + '-' + data.damage;
+        dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
       }
+      document.body.appendChild(dmgEl);
+      setTimeout(() => dmgEl.remove(), 1000);
     }
   }
   requestAnimationFrame(anim);
