@@ -101,7 +101,7 @@ async function handleBuildHq(req, res) {
 
 // ── CREATE CLAN ─────────────────────────────────────────────
 async function handleCreate(req, res) {
-  const { telegram_id, name, symbol, color, description, min_level } = req.body;
+  const { telegram_id, name, symbol, color, description, min_level, join_policy } = req.body;
   if (!telegram_id || !name || !symbol || !color) {
     return res.status(400).json({ error: 'telegram_id, name, symbol, color required' });
   }
@@ -140,21 +140,25 @@ async function handleCreate(req, res) {
   let clan;
   if (placeholderClanId) {
     // Update placeholder with real clan data
+    const validPolicy = ['open','closed','request'].includes(join_policy) ? join_policy : 'open';
     const { data: updated, error: updateErr } = await supabase.from('clans').update({
       name: trimName, symbol, color,
       description: (description || '').slice(0, 100),
       min_level: Math.max(1, parseInt(min_level) || 1),
       leader_id: player.id,
+      join_policy: validPolicy,
     }).eq('id', placeholderClanId).select().single();
     if (updateErr) return res.status(500).json({ error: updateErr.message });
     clan = updated;
   } else {
     // No placeholder — create new clan + link HQ
+    const validPolicy2 = ['open','closed','request'].includes(join_policy) ? join_policy : 'open';
     const { data: newClan, error: clanErr } = await supabase.from('clans').insert({
       name: trimName, symbol, color,
       description: (description || '').slice(0, 100),
       min_level: Math.max(1, parseInt(min_level) || 1),
       leader_id: player.id,
+      join_policy: validPolicy2,
     }).select().single();
     if (clanErr) return res.status(500).json({ error: clanErr.message });
     clan = newClan;
@@ -199,7 +203,7 @@ async function handleList(req, res) {
   }
 
   const { data: rawClansAll, error: qErr } = await supabase
-    .from('clans').select('id, name, symbol, color, description, min_level, level, treasury, leader_id')
+    .from('clans').select('id, name, symbol, color, description, min_level, level, treasury, leader_id, join_policy')
     .order('level', { ascending: false }).limit(100);
   // Filter out placeholder clans
   const rawClans = (rawClansAll || []).filter(c => !c.name.startsWith('_placeholder_'));
@@ -226,10 +230,14 @@ async function handleList(req, res) {
   const clans = (rawClans || []).map(c => {
     const config = getClanLevel(c.level);
     const mc = countMap[c.id] || 0;
+    const policy = c.join_policy || 'open';
+    const meetsReqs = !playerClanId && playerLevel >= (c.min_level || 1) && mc < config.maxMembers && playerHasClanHq;
     return {
       ...c, member_count: mc, leader_name: leaderMap[c.leader_id] || '???',
       max_members: config.maxMembers, income_bonus: config.income, defense_bonus: config.defense, radius: config.radius,
-      can_join: !playerClanId && playerLevel >= (c.min_level || 1) && mc < config.maxMembers && playerHasClanHq,
+      join_policy: policy,
+      can_join: meetsReqs && policy === 'open',
+      can_apply: meetsReqs && policy === 'request',
     };
   });
 
@@ -252,9 +260,12 @@ async function handleJoin(req, res) {
   const { data: clanHq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
   if (!clanHq) return res.status(400).json({ error: ts(lang, 'err.build_clan_hq_first') });
 
-  const { data: clan } = await supabase.from('clans').select('id, name, level, min_level, leader_id').eq('id', clan_id).single();
+  const { data: clan } = await supabase.from('clans').select('id, name, level, min_level, leader_id, join_policy').eq('id', clan_id).single();
   if (!clan) return res.status(404).json({ error: ts(lang, 'err.clan_not_found') });
   if ((player.level ?? 1) < (clan.min_level || 1)) return res.status(400).json({ error: ts(lang, 'err.clan_min_level', { level: clan.min_level }) });
+  const policy = clan.join_policy || 'open';
+  if (policy === 'closed') return res.status(400).json({ error: 'Клан закрыт для вступления' });
+  if (policy === 'request') return res.status(400).json({ error: 'Используйте заявку для вступления' });
 
   const config = getClanLevel(clan.level);
   const { count } = await supabase.from('clan_members').select('*', { count: 'exact', head: true }).eq('clan_id', clan_id).is('left_at', null);
@@ -567,10 +578,19 @@ async function handleInfo(req, res) {
   const { data: hqs } = await supabase.from('clan_headquarters').select('id, player_id, lat, lng').eq('clan_id', clan_id);
   const { data: leader } = await supabase.from('players').select('game_username, username').eq('id', clan.leader_id).maybeSingle();
 
+  // Pending requests (for leaders/officers)
+  let pendingRequests = [];
+  const { data: reqs } = await supabase.from('clan_requests')
+    .select('id, player_id, created_at, players(telegram_id, game_username, username, avatar, level)')
+    .eq('clan_id', clan_id).eq('status', 'pending')
+    .order('created_at', { ascending: true });
+  if (reqs) pendingRequests = reqs;
+
   return res.json({
     clan: { ...clan, ...config, member_count: (members || []).length, leader_name: leader?.game_username || leader?.username || '???' },
     members: (members || []).map(m => ({ ...m, mine_count: mineCountMap[m.player_id] || 0 })),
     headquarters: hqs || [],
+    pending_requests: pendingRequests,
   });
 }
 
@@ -731,7 +751,7 @@ async function handleDisband(req, res) {
 
 // ── EDIT ───────────────────────────────────────────────────
 async function handleEdit(req, res) {
-  const { telegram_id, name, symbol, color, description, min_level } = req.body;
+  const { telegram_id, name, symbol, color, description, min_level, join_policy } = req.body;
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role, diamonds');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -745,10 +765,11 @@ async function handleEdit(req, res) {
   const update = {};
   let diamondCost = 0;
 
-  // Free changes: color, description, min_level
+  // Free changes: color, description, min_level, join_policy
   if (color && ALLOWED_CLAN_COLORS.includes(color)) update.color = color;
   if (description != null) update.description = (description || '').slice(0, 100);
   if (min_level != null) update.min_level = Math.max(1, parseInt(min_level) || 1);
+  if (join_policy && ['open','closed','request'].includes(join_policy)) update.join_policy = join_policy;
 
   // Paid changes: name (100💎), symbol (100💎)
   if (name && name.trim() !== clan.name) {
@@ -794,6 +815,121 @@ async function handleEdit(req, res) {
   return res.json({ success: true, clan: { ...clan, ...update }, player_diamonds: newDiamonds });
 }
 
+// ── APPLY TO CLAN (request policy) ──────────────────────────
+async function handleApply(req, res) {
+  const { telegram_id, clan_id } = req.body;
+  if (!telegram_id || !clan_id) return res.status(400).json({ error: 'telegram_id, clan_id required' });
+
+  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, level, clan_id, game_username, username');
+  if (pErr) return res.status(500).json({ error: pErr });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const lang = getLang(gameState, telegram_id);
+  if (player.clan_id) return res.status(400).json({ error: ts(lang, 'err.already_in_clan') });
+
+  const { data: clanHq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
+  if (!clanHq) return res.status(400).json({ error: ts(lang, 'err.build_clan_hq_first') });
+
+  const { data: clan } = await supabase.from('clans').select('id, name, level, min_level, leader_id, join_policy').eq('id', clan_id).single();
+  if (!clan) return res.status(404).json({ error: ts(lang, 'err.clan_not_found') });
+  if ((clan.join_policy || 'open') !== 'request') return res.status(400).json({ error: 'Клан не принимает заявки' });
+  if ((player.level ?? 1) < (clan.min_level || 1)) return res.status(400).json({ error: ts(lang, 'err.clan_min_level', { level: clan.min_level }) });
+
+  const config = getClanLevel(clan.level);
+  const { count } = await supabase.from('clan_members').select('*', { count: 'exact', head: true }).eq('clan_id', clan_id).is('left_at', null);
+  if ((count || 0) >= config.maxMembers) return res.status(400).json({ error: ts(lang, 'err.clan_full') });
+
+  // Check for existing pending request
+  const { data: existing } = await supabase.from('clan_requests').select('id').eq('clan_id', clan_id).eq('player_id', player.id).eq('status', 'pending').maybeSingle();
+  if (existing) return res.status(400).json({ error: 'Заявка уже отправлена' });
+
+  await supabase.from('clan_requests').insert({ clan_id, player_id: player.id, status: 'pending' });
+
+  // Notify leader
+  const { data: leader } = await supabase.from('players').select('telegram_id').eq('id', clan.leader_id).single();
+  if (leader?.telegram_id) {
+    const pName = player.game_username || player.username || 'Игрок';
+    sendTelegramNotification(leader.telegram_id, `📩 ${pName} (Lv.${player.level}) подал заявку в клан ${clan.name}`);
+  }
+
+  return res.json({ success: true });
+}
+
+// ── ACCEPT/REJECT REQUEST ───────────────────────────────────
+async function handleAcceptRequest(req, res) {
+  const { telegram_id, request_id } = req.body;
+  if (!telegram_id || !request_id) return res.status(400).json({ error: 'telegram_id, request_id required' });
+
+  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
+  if (pErr) return res.status(500).json({ error: pErr });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (!player.clan_id) return res.status(400).json({ error: 'Not in a clan' });
+  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: 'Leader or officer only' });
+
+  const { data: request } = await supabase.from('clan_requests').select('*').eq('id', request_id).eq('status', 'pending').single();
+  if (!request) return res.status(404).json({ error: 'Request not found' });
+  if (request.clan_id !== player.clan_id) return res.status(403).json({ error: 'Not your clan' });
+
+  // Check clan not full
+  const { data: clan } = await supabase.from('clans').select('id, name, level').eq('id', player.clan_id).single();
+  const config = getClanLevel(clan?.level || 1);
+  const { count } = await supabase.from('clan_members').select('*', { count: 'exact', head: true }).eq('clan_id', player.clan_id).is('left_at', null);
+  if ((count || 0) >= config.maxMembers) return res.status(400).json({ error: 'Клан заполнен' });
+
+  // Check applicant is not already in a clan
+  const { data: applicant } = await supabase.from('players').select('id, clan_id, game_username, username, telegram_id').eq('id', request.player_id).single();
+  if (!applicant) return res.status(404).json({ error: 'Player not found' });
+  if (applicant.clan_id) {
+    await supabase.from('clan_requests').update({ status: 'rejected' }).eq('id', request_id);
+    return res.status(400).json({ error: 'Игрок уже в другом клане' });
+  }
+
+  // Accept: join player to clan
+  await supabase.from('clan_requests').update({ status: 'accepted' }).eq('id', request_id);
+  const [{ data: memberRow }] = await Promise.all([
+    supabase.from('clan_members').insert({ clan_id: player.clan_id, player_id: applicant.id, role: 'member' }).select().single(),
+    supabase.from('players').update({ clan_id: player.clan_id, clan_role: 'member' }).eq('id', applicant.id),
+    supabase.from('clan_headquarters').update({ clan_id: player.clan_id }).eq('player_id', applicant.id),
+  ]);
+
+  if (gameState.loaded) {
+    if (memberRow) gameState.upsertClanMember(memberRow);
+    const p = gameState.getPlayerById(applicant.id);
+    if (p) { p.clan_id = player.clan_id; p.clan_role = 'member'; gameState.markDirty('players', p.id); }
+    const ch = gameState.getClanHqByPlayerId(applicant.id);
+    if (ch) { ch.clan_id = player.clan_id; gameState.markDirty('clanHqs', ch.id); }
+  }
+
+  const aName = applicant.game_username || applicant.username || 'Игрок';
+  sendTelegramNotification(applicant.telegram_id, `✅ Твоя заявка в клан ${clan.name} одобрена!`);
+
+  return res.json({ success: true });
+}
+
+async function handleRejectRequest(req, res) {
+  const { telegram_id, request_id } = req.body;
+  if (!telegram_id || !request_id) return res.status(400).json({ error: 'telegram_id, request_id required' });
+
+  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id, clan_id, clan_role');
+  if (pErr) return res.status(500).json({ error: pErr });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (!player.clan_id) return res.status(400).json({ error: 'Not in a clan' });
+  if (player.clan_role !== 'leader' && player.clan_role !== 'officer') return res.status(403).json({ error: 'Leader or officer only' });
+
+  const { data: request } = await supabase.from('clan_requests').select('*').eq('id', request_id).eq('status', 'pending').single();
+  if (!request) return res.status(404).json({ error: 'Request not found' });
+  if (request.clan_id !== player.clan_id) return res.status(403).json({ error: 'Not your clan' });
+
+  await supabase.from('clan_requests').update({ status: 'rejected' }).eq('id', request_id);
+
+  const { data: applicant } = await supabase.from('players').select('telegram_id, game_username').eq('id', request.player_id).maybeSingle();
+  if (applicant?.telegram_id) {
+    const { data: clan } = await supabase.from('clans').select('name').eq('id', player.clan_id).maybeSingle();
+    sendTelegramNotification(applicant.telegram_id, `❌ Твоя заявка в клан ${clan?.name || ''} отклонена`);
+  }
+
+  return res.json({ success: true });
+}
+
 // ── ROUTES ──────────────────────────────────────────────────
 clanRouter.get('/', async (req, res) => {
   const { view } = req.query;
@@ -819,7 +955,10 @@ clanRouter.post('/', async (req, res) => {
     case 'boost':     return handleBoost(req, res);
     case 'sell-hq':   return handleSellHq(req, res);
     case 'disband':   return handleDisband(req, res);
-    case 'edit':      return handleEdit(req, res);
-    default:          return res.status(400).json({ error: 'Unknown action' });
+    case 'edit':            return handleEdit(req, res);
+    case 'apply':           return handleApply(req, res);
+    case 'accept-request':  return handleAcceptRequest(req, res);
+    case 'reject-request':  return handleRejectRequest(req, res);
+    default:                return res.status(400).json({ error: 'Unknown action' });
   }
 });

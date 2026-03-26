@@ -252,7 +252,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
     if (data === 'get_referral_link') {
       const tgId = cb.from?.id;
       if (!tgId) return;
-      const link = `https://t.me/GridWarsGame_bot?start=ref_${tgId}`;
+      const link = `https://t.me/OverthrowGamebot?start=ref_${tgId}`;
       await answerCallback('Ссылка отправлена!');
       await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
