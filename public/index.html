@@ -1635,7 +1635,7 @@
 
     /* ── Shop modal (fullscreen) ── */
     /* ── Admin Player Modal ── */
-    #admin-player-modal { display:none; position:fixed; inset:0; z-index:5200; background:#0d0d0d; flex-direction:column; overflow:hidden; }
+    #admin-player-modal { display:none; position:fixed; inset:0; z-index:10000; background:#0d0d0d; flex-direction:column; overflow:hidden; }
     #admin-player-modal.open { display:flex; }
     .apm-header { padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top,0px)); background:#111; border-bottom:1px solid #222; flex-shrink:0; display:flex; align-items:center; gap:10px; }
     .apm-header h2 { font-size:16px; font-weight:800; margin:0; flex:1; }
@@ -10461,7 +10461,7 @@ const RARITY_COLORS = { common:'#aaa', uncommon:'#4caf50', rare:'#2196f3', epic:
 const CURRENCY_META = [
   { key:'coins', icon:'💰', label:'Монеты' },
   { key:'diamonds', icon:'💎', label:'Алмазы' },
-  { key:'crystals', icon:'🔮', label:'Осколки' },
+  { key:'crystals', icon:'✨', label:'Осколки' },
   { key:'ether', icon:'🌀', label:'Эфир' },
 ];
 
@@ -10609,11 +10609,14 @@ async function apmGiveItem() {
   const level = parseInt(document.getElementById('apm-give-level').value) || 0;
   if (!type || !rarity) return showToast('Выберите тип и редкость');
   try {
-    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+    const res = await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
       telegram_id: TG_ID, action:'give-item', player_id: _apmPlayer.player.id, type, rarity, upgrade_level: level
     })});
     showToast(`✅ Выдан ${rarity} ${type} Ур.${level}`);
-    apmLoadPlayer(_apmPlayer.player.id);
+    if (res.item) {
+      _apmPlayer.items.push({ id:res.item.id, type, rarity, attack:res.item.attack||0, defense:res.item.defense||0, crit_chance:res.item.crit_chance||0, block_chance:res.item.block_chance||0, upgrade_level:level, equipped:false });
+      apmRenderInventory(document.getElementById('apm-tab-body'));
+    }
   } catch (err) { showToast('❌ ' + err.message); }
 }
 
@@ -10623,7 +10626,8 @@ async function apmRemoveItem(itemId) {
       telegram_id: TG_ID, action:'remove-item', item_id: itemId
     })});
     showToast('✅ Предмет забран');
-    apmLoadPlayer(_apmPlayer.player.id);
+    _apmPlayer.items = _apmPlayer.items.filter(i => i.id !== itemId);
+    apmRenderInventory(document.getElementById('apm-tab-body'));
   } catch (err) { showToast('❌ ' + err.message); }
 }
 
@@ -10634,27 +10638,37 @@ function apmRenderResources(body) {
   CURRENCY_META.forEach(c => {
     html += `<div class="apm-resource-row">
       <span style="font-size:18px;width:28px;text-align:center;">${c.icon}</span>
-      <span style="flex:1;font-size:13px;color:#ccc;">${c.label}: <b style="color:#fff">${formatNumber(p[c.key]||0)}</b></span>
+      <span style="flex:1;font-size:13px;color:#ccc;" id="apm-bal-${c.key}">${c.label}: <b style="color:#fff">${formatNumber(p[c.key]||0)}</b></span>
       <input type="number" class="apm-input-sm" id="apm-res-${c.key}" placeholder="Сумма">
-      <button class="apm-btn apm-btn-green" onclick="apmGiveResource('${c.key}')">Выдать</button>
+      <button class="apm-btn apm-btn-green" onclick="apmChangeResource('${c.key}',1)">+</button>
+      <button class="apm-btn apm-btn-danger" onclick="apmChangeResource('${c.key}',-1)">−</button>
     </div>`;
   });
   html += '</div>';
   body.innerHTML = html;
 }
 
-async function apmGiveResource(currency) {
+async function apmChangeResource(currency, sign) {
   const input = document.getElementById('apm-res-' + currency);
-  const amount = parseInt(input.value);
-  if (!amount || amount <= 0) return showToast('Введите сумму');
+  const raw = parseInt(input.value);
+  if (!raw || raw <= 0) return showToast('Введите сумму');
+  const amount = raw * sign;
+  const action = sign > 0 ? 'reward' : 'deduct';
   try {
-    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'reward', player_id: _apmPlayer.player.id, currency, amount
+    const res = await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action, player_id: _apmPlayer.player.id, currency, amount: Math.abs(amount)
     })});
     const label = {coins:'монет',diamonds:'алмазов',crystals:'осколков',ether:'эфира'}[currency];
-    showToast(`✅ Выдано ${formatNumber(amount)} ${label}`);
+    const verb = sign > 0 ? 'Выдано' : 'Списано';
+    showToast(`${sign>0?'✅':'🔻'} ${verb} ${formatNumber(Math.abs(amount))} ${label}`);
     input.value = '';
-    apmLoadPlayer(_apmPlayer.player.id);
+    _apmPlayer.player[currency] = res.newBalance ?? (_apmPlayer.player[currency] + amount);
+    const meta = CURRENCY_META.find(m => m.key === currency);
+    const balEl = document.getElementById('apm-bal-' + currency);
+    if (balEl && meta) balEl.innerHTML = `${meta.label}: <b style="color:#fff">${formatNumber(_apmPlayer.player[currency]||0)}</b>`;
+    // Update header balances too
+    document.getElementById('apm-player-header').querySelector('.apm-balances').innerHTML =
+      CURRENCY_META.map(c => `<div class="apm-bal">${c.icon} <span>${formatNumber(_apmPlayer.player[c.key]||0)}</span></div>`).join('');
   } catch (err) { showToast('❌ ' + err.message); }
 }
 

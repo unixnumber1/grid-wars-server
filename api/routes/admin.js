@@ -400,6 +400,28 @@ adminRouter.post('/', async (req, res) => {
     return res.json({ success: true, deleted: item_id });
   }
 
+  // ── deduct: remove currency from player ──
+  if (action === 'deduct') {
+    const { player_id, currency, amount } = req.body;
+    if (!player_id || !currency || !amount) return res.status(400).json({ error: 'player_id, currency, amount required' });
+    const VALID = ['coins', 'diamonds', 'crystals', 'ether'];
+    if (!VALID.includes(currency)) return res.status(400).json({ error: `currency must be one of: ${VALID.join(', ')}` });
+    const num = parseInt(amount, 10);
+    if (isNaN(num) || num <= 0) return res.status(400).json({ error: 'amount must be positive' });
+
+    const player = gameState.getPlayerById(player_id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const current = player[currency] ?? 0;
+    const newBalance = Math.max(0, current - num);
+    const { error: updateErr } = await supabase.from('players').update({ [currency]: newBalance }).eq('id', player_id);
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+    player[currency] = newBalance;
+    gameState.markDirty('players', player.id);
+    return res.json({ success: true, currency, newBalance });
+  }
+
   // ── reward: give coins, diamonds, crystals, or ether to a player ──
   if (action === 'reward') {
     const { player_id, player_name, currency, amount } = req.body;
