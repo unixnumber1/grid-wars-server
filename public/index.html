@@ -1634,6 +1634,55 @@
     .vase-drop-diamonds { font-size: 14px; color: #00cfff; margin-top: 10px; }
 
     /* ── Shop modal (fullscreen) ── */
+    /* ── Admin Player Modal ── */
+    #admin-player-modal { display:none; position:fixed; inset:0; z-index:5200; background:#0d0d0d; flex-direction:column; overflow:hidden; }
+    #admin-player-modal.open { display:flex; }
+    .apm-header { padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top,0px)); background:#111; border-bottom:1px solid #222; flex-shrink:0; display:flex; align-items:center; gap:10px; }
+    .apm-header h2 { font-size:16px; font-weight:800; margin:0; flex:1; }
+    .apm-close { background:none; border:none; color:#888; font-size:22px; cursor:pointer; padding:4px; }
+    .apm-back { background:none; border:none; color:#4fc3f7; font-size:14px; cursor:pointer; padding:4px 8px; }
+    .apm-body { flex:1; overflow-y:auto; padding:12px 16px; -webkit-overflow-scrolling:touch; }
+    .apm-search { width:100%; padding:12px 14px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:#fff; font-size:15px; box-sizing:border-box; }
+    .apm-player-card { display:flex; align-items:center; gap:10px; padding:10px 12px; margin:6px 0; background:rgba(255,255,255,0.04); border-radius:10px; cursor:pointer; border:1px solid rgba(255,255,255,0.06); }
+    .apm-player-card.banned { border-color:rgba(213,0,0,0.5); }
+    .apm-player-card:active { background:rgba(255,255,255,0.08); }
+    .apm-avatar { font-size:24px; }
+    .apm-info { flex:1; overflow:hidden; }
+    .apm-name { font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .apm-meta { font-size:11px; color:#888; margin-top:2px; }
+    .apm-balances { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:12px 0; }
+    .apm-bal { background:rgba(255,255,255,0.04); border-radius:8px; padding:8px 10px; font-size:13px; color:#ccc; }
+    .apm-bal span { color:#fff; font-weight:600; }
+    .apm-tabs { display:flex; background:#111; border-bottom:1px solid #222; flex-shrink:0; }
+    .apm-tab { flex:1; padding:10px 0; text-align:center; font-size:13px; color:#888; cursor:pointer; border-bottom:2px solid transparent; }
+    .apm-tab.active { color:#fff; border-bottom-color:#4fc3f7; }
+    .apm-tab-content { display:none; }
+    .apm-tab-content.active { display:block; }
+    .apm-section { background:rgba(255,255,255,0.03); border-radius:10px; padding:12px; margin-bottom:10px; }
+    .apm-item-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .apm-item-row:last-child { border-bottom:none; }
+    .apm-item-icon { font-size:20px; width:28px; text-align:center; }
+    .apm-item-info { flex:1; }
+    .apm-item-name { font-size:13px; }
+    .apm-item-stats { font-size:11px; color:#888; }
+    .apm-btn { padding:6px 12px; border-radius:8px; border:none; font-size:12px; cursor:pointer; }
+    .apm-btn-danger { background:rgba(213,0,0,0.3); color:#ff5252; }
+    .apm-btn-primary { background:rgba(33,150,243,0.3); color:#4fc3f7; }
+    .apm-btn-green { background:rgba(0,200,83,0.3); color:#69f0ae; }
+    .apm-btn-warn { background:rgba(255,152,0,0.3); color:#ffab40; }
+    .apm-btn-lg { width:100%; padding:12px; font-size:14px; font-weight:600; border-radius:10px; }
+    .apm-resource-row { display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+    .apm-resource-row:last-child { border-bottom:none; }
+    .apm-input-sm { width:100px; padding:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff; font-size:13px; }
+    .apm-log-entry { padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:12px; }
+    .apm-log-time { color:#666; margin-right:6px; }
+    .apm-log-level { padding:1px 5px; border-radius:4px; font-size:10px; margin-right:6px; }
+    .apm-give-form { margin-top:10px; padding:12px; background:rgba(255,255,255,0.03); border-radius:10px; }
+    .apm-chip { display:inline-block; padding:6px 12px; margin:3px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#999; font-size:12px; cursor:pointer; }
+    .apm-chip.active { background:rgba(255,255,255,0.12); color:#fff; border-color:rgba(255,255,255,0.3); }
+    .apm-ban-dur { display:inline-block; padding:8px 14px; margin:3px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#999; font-size:13px; cursor:pointer; }
+    .apm-ban-dur.active { background:rgba(213,0,0,0.3); color:#ff5252; border-color:rgba(213,0,0,0.5); }
+
     #shop-modal {
       display: none;
       position: fixed;
@@ -2917,35 +2966,30 @@
         <button id="btn-joystick-toggle" class="settings-action-btn s-blue" onclick="toggleJoystick()" data-i18n="joy.off">&#x1F579;&#xFE0F; Джойстик: ВЫКЛ</button>
       </div>
       <div class="settings-card">
-        <div class="settings-section-title">ВЫДАТЬ РЕСУРСЫ</div>
-        <div style="position:relative;">
-          <input id="admin-reward-search" type="text" placeholder="&#x1F50D; Поиск по нику..." style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;">
-          <div id="admin-reward-results" style="margin-top:4px;"></div>
-        </div>
-        <div id="admin-reward-form" style="display:none;margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;">
-          <div id="admin-reward-selected" style="font-size:14px;margin-bottom:10px;"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
-            <button class="admin-currency-btn active" data-currency="coins" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:13px;cursor:pointer;">&#x1F4B0; Монеты</button>
-            <button class="admin-currency-btn" data-currency="diamonds" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#999;font-size:13px;cursor:pointer;">&#x1F48E; Алмазы</button>
-            <button class="admin-currency-btn" data-currency="crystals" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#999;font-size:13px;cursor:pointer;">&#x1F52E; Осколки</button>
-            <button class="admin-currency-btn" data-currency="ether" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#999;font-size:13px;cursor:pointer;">&#x1F300; Эфир</button>
-          </div>
-          <input id="admin-reward-amount" type="number" placeholder="Сумма" style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
-          <button id="btn-admin-reward" class="btn primary" style="width:100%;padding:12px;font-size:14px;">&#x2705; Выдать</button>
-        </div>
-      </div>
-      <div class="settings-card">
-        <div class="settings-section-title">БЛОКИРОВКА</div>
-        <div style="position:relative;">
-          <input id="admin-ban-search" type="text" placeholder="&#x1F50D; Поиск по нику..." style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;">
-          <div id="admin-ban-results" style="margin-top:4px;"></div>
-        </div>
-        <div id="admin-ban-form" style="display:none;margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:10px;">
-          <div id="admin-ban-selected" style="font-size:14px;margin-bottom:10px;"></div>
-          <div id="admin-ban-actions"></div>
-        </div>
+        <div class="settings-section-title">ИГРОКИ</div>
+        <button class="settings-action-btn s-blue" onclick="openAdminPlayerModal()">&#x1F50D; Найти игрока</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Admin Player Modal -->
+<div id="admin-player-modal">
+  <div class="apm-header">
+    <button class="apm-back" id="apm-back-btn" style="display:none" onclick="apmShowSearch()">&#x2190; Назад</button>
+    <h2 id="apm-title">Поиск игрока</h2>
+    <button class="apm-close" onclick="closeAdminPlayerModal()">&#x2715;</button>
+  </div>
+  <div id="apm-search-section">
+    <div style="padding:12px 16px;">
+      <input class="apm-search" id="apm-search-input" type="text" placeholder="&#x1F50D; Ник или Telegram ID...">
+    </div>
+    <div id="apm-search-results" class="apm-body"></div>
+  </div>
+  <div id="apm-player-section" style="display:none;flex:1;overflow:hidden;display:none;flex-direction:column;">
+    <div id="apm-player-header" style="padding:0 16px;"></div>
+    <div class="apm-tabs" id="apm-tabs"></div>
+    <div class="apm-body" id="apm-tab-body"></div>
   </div>
 </div>
 
@@ -10406,164 +10450,304 @@ function showBanScreen(data) {
 }
 
 // ─────────────────────────────────────────────
-//  Admin: player management
+//  Admin: fullscreen player manager
 // ─────────────────────────────────────────────
-let _rewardSelectedPlayer = null;
-let _rewardCurrency = 'coins';
-let _banSelectedPlayer = null;
-let _banDuration = 1;
+let _apmPlayer = null; // currently viewed player details
+let _apmSearchTimer = null;
+let _apmActiveTab = 'inventory';
 
-function adminPlayerCard(p, onSelect) {
-  const card = document.createElement('div');
-  const banned = p.is_banned;
-  card.style.cssText = `display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;background:rgba(255,255,255,0.04);border-radius:8px;cursor:pointer;border:1px solid ${banned ? 'rgba(213,0,0,0.5)' : 'rgba(255,255,255,0.06)'};`;
-  card.innerHTML = `
-    <span style="font-size:20px">${p.avatar || '🐺'}</span>
-    <span style="flex:1;font-size:13px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${banned ? '🚫 ' : ''}${displayName(p)}</span>
-    <span style="font-size:11px;color:#888;">Ур.${p.level || 1}</span>
-    <span style="font-size:11px;color:#aaa;">💰${formatNumber(p.coins || 0)}</span>
-  `;
-  card.addEventListener('click', () => onSelect(p));
-  return card;
+const ITEM_EMOJI = { sword: '🗡️', axe: '🪓', shield: '🛡️' };
+const RARITY_COLORS = { common:'#aaa', uncommon:'#4caf50', rare:'#2196f3', epic:'#9c27b0', mythic:'#ff9800', legendary:'#ffd700' };
+const CURRENCY_META = [
+  { key:'coins', icon:'💰', label:'Монеты' },
+  { key:'diamonds', icon:'💎', label:'Алмазы' },
+  { key:'crystals', icon:'🔮', label:'Осколки' },
+  { key:'ether', icon:'🌀', label:'Эфир' },
+];
+
+function openAdminPlayerModal() {
+  document.getElementById('admin-player-modal').classList.add('open');
+  apmShowSearch();
+  document.getElementById('apm-search-input').value = '';
+  document.getElementById('apm-search-results').innerHTML = '';
+  setTimeout(() => document.getElementById('apm-search-input').focus(), 100);
+}
+function closeAdminPlayerModal() {
+  document.getElementById('admin-player-modal').classList.remove('open');
+}
+function apmShowSearch() {
+  document.getElementById('apm-search-section').style.display = '';
+  document.getElementById('apm-player-section').style.display = 'none';
+  document.getElementById('apm-back-btn').style.display = 'none';
+  document.getElementById('apm-title').textContent = 'Поиск игрока';
 }
 
-let _rewardSearchTimer = null;
-document.getElementById('admin-reward-search').addEventListener('input', (e) => {
-  clearTimeout(_rewardSearchTimer);
+document.getElementById('apm-search-input').addEventListener('input', (e) => {
+  clearTimeout(_apmSearchTimer);
   const q = e.target.value.trim();
-  if (!q) { document.getElementById('admin-reward-results').innerHTML = ''; return; }
-  _rewardSearchTimer = setTimeout(async () => {
+  if (!q) { document.getElementById('apm-search-results').innerHTML = ''; return; }
+  _apmSearchTimer = setTimeout(async () => {
     try {
-      const data = await apiFetch(`/api/admin?action=players-list&admin_id=${TG_ID}&search=${encodeURIComponent(q)}`);
-      const container = document.getElementById('admin-reward-results');
-      container.innerHTML = '';
-      (data.players || []).forEach(p => {
-        container.appendChild(adminPlayerCard(p, (sel) => {
-          _rewardSelectedPlayer = sel;
-          document.getElementById('admin-reward-selected').textContent = `Выбран: ${sel.avatar || '🐺'} ${displayName(sel)}`;
-          document.getElementById('admin-reward-form').style.display = 'block';
-          container.innerHTML = '';
-        }));
+      const data = await apiFetch(`/api/admin/player-search?admin_id=${TG_ID}&q=${encodeURIComponent(q)}`);
+      const c = document.getElementById('apm-search-results');
+      c.innerHTML = '';
+      if (!data.players?.length) { c.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">Не найдено</div>'; return; }
+      data.players.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'apm-player-card' + (p.is_banned ? ' banned' : '');
+        card.innerHTML = `
+          <span class="apm-avatar">${p.avatar || '🐺'}</span>
+          <div class="apm-info">
+            <div class="apm-name">${p.is_banned ? '🚫 ' : ''}${p.username || '???'}</div>
+            <div class="apm-meta">Ур.${p.level || 1} ${p.online ? '🟢' : '⚫'} ${p.mines_count || 0} шахт</div>
+          </div>
+          <span style="font-size:11px;color:#aaa;">💰${formatNumber(p.coins||0)}</span>
+        `;
+        card.addEventListener('click', () => apmLoadPlayer(p.id));
+        c.appendChild(card);
       });
     } catch (err) { showToast('❌ ' + err.message); }
-  }, 500);
+  }, 400);
 });
 
-document.querySelectorAll('.admin-currency-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.admin-currency-btn').forEach(b => {
-      b.style.background = 'rgba(255,255,255,0.05)'; b.style.color = '#999';
-      b.classList.remove('active');
-    });
-    btn.style.background = 'rgba(255,255,255,0.1)'; btn.style.color = '#fff';
-    btn.classList.add('active');
-    _rewardCurrency = btn.dataset.currency;
-  });
-});
-
-document.getElementById('btn-admin-reward').addEventListener('click', async () => {
-  if (!_rewardSelectedPlayer) return;
-  const amount = parseInt(document.getElementById('admin-reward-amount').value, 10);
-  if (!amount || amount <= 0) return showToast(t('toast.enter_amount'));
-  const btn = document.getElementById('btn-admin-reward');
-  btn.disabled = true;
+async function apmLoadPlayer(playerId) {
   try {
-    await apiFetch('/api/admin', {
-      method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'reward', player_id: _rewardSelectedPlayer.id, currency: _rewardCurrency, amount }),
-    });
-    const label = {coins:'монет',diamonds:'алмазов',crystals:'осколков',ether:'эфира'}[_rewardCurrency] || _rewardCurrency;
-    showToast(t('toast.admin_rewarded', {amount: formatNumber(amount), label: label, player: displayName(_rewardSelectedPlayer)}));
-    document.getElementById('admin-reward-amount').value = '';
+    const data = await apiFetch(`/api/admin/player-details?admin_id=${TG_ID}&player_id=${playerId}`);
+    _apmPlayer = data;
+    apmShowPlayer();
   } catch (err) { showToast('❌ ' + err.message); }
-  finally { btn.disabled = false; }
-});
+}
 
-let _banSearchTimer = null;
-document.getElementById('admin-ban-search').addEventListener('input', (e) => {
-  clearTimeout(_banSearchTimer);
-  const q = e.target.value.trim();
-  if (!q) { document.getElementById('admin-ban-results').innerHTML = ''; return; }
-  _banSearchTimer = setTimeout(async () => {
-    try {
-      const data = await apiFetch(`/api/admin?action=players-list&admin_id=${TG_ID}&search=${encodeURIComponent(q)}`);
-      const container = document.getElementById('admin-ban-results');
-      container.innerHTML = '';
-      (data.players || []).forEach(p => {
-        container.appendChild(adminPlayerCard(p, (sel) => {
-          _banSelectedPlayer = sel;
-          renderBanForm(sel);
-          container.innerHTML = '';
-        }));
-      });
-    } catch (err) { showToast('❌ ' + err.message); }
-  }, 500);
-});
+function apmShowPlayer() {
+  const p = _apmPlayer.player;
+  document.getElementById('apm-search-section').style.display = 'none';
+  document.getElementById('apm-player-section').style.display = 'flex';
+  document.getElementById('apm-back-btn').style.display = '';
+  document.getElementById('apm-title').textContent = `${p.avatar || '🐺'} ${p.username} — Ур.${p.level}`;
 
-function renderBanForm(player) {
-  const form = document.getElementById('admin-ban-form');
-  form.style.display = 'block';
-  document.getElementById('admin-ban-selected').innerHTML = `${player.is_banned ? '🚫 ' : ''}${player.avatar || '🐺'} <b>${displayName(player)}</b>`;
+  // Balances header
+  document.getElementById('apm-player-header').innerHTML = `
+    <div class="apm-balances">
+      ${CURRENCY_META.map(c => `<div class="apm-bal">${c.icon} <span>${formatNumber(p[c.key]||0)}</span></div>`).join('')}
+    </div>
+  `;
 
-  const actionsDiv = document.getElementById('admin-ban-actions');
-  if (player.is_banned) {
-    const untilText = player.ban_until ? new Date(player.ban_until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'навсегда';
-    actionsDiv.innerHTML = `
-      <div style="color:#ff6666;font-size:13px;margin-bottom:6px;">Причина: "${player.ban_reason || '—'}"</div>
-      <div style="color:#ff6666;font-size:13px;margin-bottom:12px;">До: ${untilText}</div>
-      <button id="btn-admin-unban" class="btn primary" style="width:100%;padding:12px;font-size:14px;">✅ Разблокировать</button>
-    `;
-    document.getElementById('btn-admin-unban').addEventListener('click', async () => {
-      try {
-        await apiFetch('/api/admin', {
-          method: 'POST',
-          body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: player.id }),
-        });
-        showToast(t('toast.admin_unbanned', {player: displayName(player)}));
-        player.is_banned = false;
-        renderBanForm(player);
-      } catch (err) { showToast('❌ ' + err.message); }
-    });
-  } else {
-    _banDuration = 1;
-    actionsDiv.innerHTML = `
-      <input id="admin-ban-reason" type="text" placeholder="Причина бана..." style="width:100%;padding:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
-      <div style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap;">
-        <button class="ban-dur-btn active" data-days="1" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(213,0,0,0.5);color:#fff;font-size:12px;cursor:pointer;">1д</button>
-        <button class="ban-dur-btn" data-days="3" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">3д</button>
-        <button class="ban-dur-btn" data-days="7" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">7д</button>
-        <button class="ban-dur-btn" data-days="30" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">30д</button>
-        <button class="ban-dur-btn" data-days="0" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;cursor:pointer;">∞</button>
+  // Tabs
+  const tabs = ['inventory','resources','ban','logs'];
+  const tabLabels = { inventory:'Инвентарь', resources:'Ресурсы', ban:'Бан', logs:'Логи' };
+  document.getElementById('apm-tabs').innerHTML = tabs.map(t =>
+    `<div class="apm-tab${t===_apmActiveTab?' active':''}" data-tab="${t}">${tabLabels[t]}</div>`
+  ).join('');
+  document.getElementById('apm-tabs').querySelectorAll('.apm-tab').forEach(el => {
+    el.addEventListener('click', () => { _apmActiveTab = el.dataset.tab; apmShowPlayer(); });
+  });
+
+  // Tab body
+  const body = document.getElementById('apm-tab-body');
+  if (_apmActiveTab === 'inventory') apmRenderInventory(body);
+  else if (_apmActiveTab === 'resources') apmRenderResources(body);
+  else if (_apmActiveTab === 'ban') apmRenderBan(body);
+  else if (_apmActiveTab === 'logs') apmRenderLogs(body);
+}
+
+// ── Inventory tab ──
+function apmRenderInventory(body) {
+  const items = _apmPlayer.items || [];
+  let html = '<div class="apm-section">';
+  if (!items.length) html += '<div style="color:#666;text-align:center;padding:10px;">Пусто</div>';
+  else items.forEach(it => {
+    const color = RARITY_COLORS[it.rarity] || '#aaa';
+    const stat = it.type === 'shield' ? `🛡${it.defense}` : `⚔️${it.attack}`;
+    const crit = it.crit_chance ? ` ⚡${it.crit_chance}%` : '';
+    html += `<div class="apm-item-row">
+      <div class="apm-item-icon">${ITEM_EMOJI[it.type]||'?'}</div>
+      <div class="apm-item-info">
+        <div class="apm-item-name" style="color:${color}">${it.rarity} ${it.type} ${it.equipped?'[E]':''}</div>
+        <div class="apm-item-stats">${stat}${crit} Ур.${it.upgrade_level||0}</div>
       </div>
-      <button id="btn-admin-ban" class="btn danger" style="width:100%;padding:12px;font-size:14px;">🚫 Заблокировать</button>
+      <button class="apm-btn apm-btn-danger" onclick="apmRemoveItem('${it.id}')">Забрать</button>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Give item form
+  html += `<div class="apm-section">
+    <div style="font-size:13px;color:#ccc;margin-bottom:8px;font-weight:600;">Выдать предмет</div>
+    <div style="margin-bottom:6px;font-size:12px;color:#888;">Тип:</div>
+    <div id="apm-give-type">
+      ${['sword','axe','shield'].map(t => `<span class="apm-chip${t==='sword'?' active':''}" data-val="${t}">${ITEM_EMOJI[t]} ${t}</span>`).join('')}
+    </div>
+    <div style="margin:6px 0;font-size:12px;color:#888;">Редкость:</div>
+    <div id="apm-give-rarity">
+      ${['common','uncommon','rare','epic','mythic','legendary'].map(r =>
+        `<span class="apm-chip${r==='legendary'?' active':''}" data-val="${r}" style="color:${RARITY_COLORS[r]}">${r}</span>`
+      ).join('')}
+    </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#888;">Ур.апгрейда:</span>
+      <input type="number" id="apm-give-level" value="0" min="0" max="100" class="apm-input-sm" style="width:70px;">
+    </div>
+    <button class="apm-btn apm-btn-green apm-btn-lg" style="margin-top:10px;" onclick="apmGiveItem()">Создать и выдать</button>
+  </div>`;
+
+  body.innerHTML = html;
+
+  // Chip toggle logic
+  body.querySelectorAll('#apm-give-type .apm-chip').forEach(c => c.addEventListener('click', () => {
+    body.querySelectorAll('#apm-give-type .apm-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
+  body.querySelectorAll('#apm-give-rarity .apm-chip').forEach(c => c.addEventListener('click', () => {
+    body.querySelectorAll('#apm-give-rarity .apm-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
+}
+
+async function apmGiveItem() {
+  const type = document.querySelector('#apm-give-type .apm-chip.active')?.dataset.val;
+  const rarity = document.querySelector('#apm-give-rarity .apm-chip.active')?.dataset.val;
+  const level = parseInt(document.getElementById('apm-give-level').value) || 0;
+  if (!type || !rarity) return showToast('Выберите тип и редкость');
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'give-item', player_id: _apmPlayer.player.id, type, rarity, upgrade_level: level
+    })});
+    showToast(`✅ Выдан ${rarity} ${type} Ур.${level}`);
+    apmLoadPlayer(_apmPlayer.player.id);
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+async function apmRemoveItem(itemId) {
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'remove-item', item_id: itemId
+    })});
+    showToast('✅ Предмет забран');
+    apmLoadPlayer(_apmPlayer.player.id);
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+// ── Resources tab ──
+function apmRenderResources(body) {
+  const p = _apmPlayer.player;
+  let html = '<div class="apm-section">';
+  CURRENCY_META.forEach(c => {
+    html += `<div class="apm-resource-row">
+      <span style="font-size:18px;width:28px;text-align:center;">${c.icon}</span>
+      <span style="flex:1;font-size:13px;color:#ccc;">${c.label}: <b style="color:#fff">${formatNumber(p[c.key]||0)}</b></span>
+      <input type="number" class="apm-input-sm" id="apm-res-${c.key}" placeholder="Сумма">
+      <button class="apm-btn apm-btn-green" onclick="apmGiveResource('${c.key}')">Выдать</button>
+    </div>`;
+  });
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+async function apmGiveResource(currency) {
+  const input = document.getElementById('apm-res-' + currency);
+  const amount = parseInt(input.value);
+  if (!amount || amount <= 0) return showToast('Введите сумму');
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'reward', player_id: _apmPlayer.player.id, currency, amount
+    })});
+    const label = {coins:'монет',diamonds:'алмазов',crystals:'осколков',ether:'эфира'}[currency];
+    showToast(`✅ Выдано ${formatNumber(amount)} ${label}`);
+    input.value = '';
+    apmLoadPlayer(_apmPlayer.player.id);
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+// ── Ban tab ──
+function apmRenderBan(body) {
+  const p = _apmPlayer.player;
+  let html = '<div class="apm-section">';
+  if (p.is_banned) {
+    const untilText = p.ban_until ? new Date(p.ban_until).toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'}) : 'навсегда';
+    html += `
+      <div style="text-align:center;margin:10px 0;">
+        <div style="font-size:32px;">🚫</div>
+        <div style="color:#ff5252;font-size:15px;font-weight:600;margin:8px 0;">Игрок заблокирован</div>
+        <div style="color:#999;font-size:13px;">Причина: ${p.ban_reason || '—'}</div>
+        <div style="color:#999;font-size:13px;margin-top:4px;">До: ${untilText}</div>
+      </div>
+      <button class="apm-btn apm-btn-green apm-btn-lg" onclick="apmUnban()">Разблокировать</button>
     `;
-    actionsDiv.querySelectorAll('.ban-dur-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        actionsDiv.querySelectorAll('.ban-dur-btn').forEach(b => {
-          b.style.background = 'rgba(255,255,255,0.1)';
-          b.classList.remove('active');
-        });
-        btn.style.background = 'rgba(213,0,0,0.5)';
-        btn.classList.add('active');
-        _banDuration = parseInt(btn.dataset.days, 10);
-      });
-    });
-    document.getElementById('btn-admin-ban').addEventListener('click', async () => {
-      const reason = document.getElementById('admin-ban-reason').value.trim();
-      if (!reason) return showToast(t('toast.enter_reason'));
-      try {
-        await apiFetch('/api/admin', {
-          method: 'POST',
-          body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: player.id, reason, duration_days: _banDuration }),
-        });
-        const durText = _banDuration === 0 ? 'навсегда' : `на ${_banDuration}д`;
-        showToast(t('toast.admin_banned', {player: displayName(player), duration: durText}));
-        player.is_banned = true;
-        player.ban_reason = reason;
-        renderBanForm(player);
-      } catch (err) { showToast('❌ ' + err.message); }
-    });
+  } else {
+    html += `
+      <input type="text" id="apm-ban-reason" placeholder="Причина бана..." class="apm-search" style="margin-bottom:10px;">
+      <div style="font-size:12px;color:#888;margin-bottom:6px;">Длительность:</div>
+      <div id="apm-ban-durations">
+        ${[1,7,14,30,0].map(d => `<span class="apm-ban-dur${d===1?' active':''}" data-days="${d}">${d===0?'∞':d+'д'}</span>`).join('')}
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:#888;">Или:</span>
+        <input type="number" id="apm-ban-custom-days" placeholder="дней" class="apm-input-sm" style="width:80px;">
+      </div>
+      <button class="apm-btn apm-btn-danger apm-btn-lg" style="margin-top:12px;" onclick="apmBan()">🚫 Заблокировать</button>
+    `;
   }
+  html += '</div>';
+  body.innerHTML = html;
+
+  body.querySelectorAll('.apm-ban-dur').forEach(el => {
+    el.addEventListener('click', () => {
+      body.querySelectorAll('.apm-ban-dur').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      const customInput = document.getElementById('apm-ban-custom-days');
+      if (customInput) customInput.value = '';
+    });
+  });
+}
+
+async function apmBan() {
+  const reason = document.getElementById('apm-ban-reason')?.value.trim();
+  if (!reason) return showToast('Введите причину бана');
+  const customDays = parseInt(document.getElementById('apm-ban-custom-days')?.value);
+  const selectedDur = document.querySelector('.apm-ban-dur.active');
+  const days = customDays > 0 ? customDays : (selectedDur ? parseInt(selectedDur.dataset.days) : 1);
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'ban', player_id: _apmPlayer.player.id, reason, duration_days: days
+    })});
+    const durText = days === 0 ? 'навсегда' : `на ${days}д`;
+    showToast(`🚫 ${_apmPlayer.player.username} забанен ${durText}`);
+    apmLoadPlayer(_apmPlayer.player.id);
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+async function apmUnban() {
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'unban', player_id: _apmPlayer.player.id
+    })});
+    showToast(`✅ ${_apmPlayer.player.username} разблокирован`);
+    apmLoadPlayer(_apmPlayer.player.id);
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+// ── Logs tab ──
+async function apmRenderLogs(body) {
+  body.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Загрузка...</div>';
+  try {
+    const data = await apiFetch(`/api/admin/player-logs?admin_id=${TG_ID}&player_telegram_id=${_apmPlayer.player.telegram_id}`);
+    const logs = data.logs || [];
+    if (!logs.length) { body.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Нет логов</div>'; return; }
+
+    const levelColors = { action:'#4caf50', error:'#f44336', ban:'#ff5252', spoof:'#ff9800', fraud:'#e91e63', login:'#2196f3', warn:'#ffab40' };
+    let html = '<div class="apm-section" style="max-height:none;">';
+    logs.slice(0, 100).forEach(l => {
+      const color = levelColors[l.level] || '#888';
+      const time = l.time ? new Date(l.time).toLocaleString('ru-RU', {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}) : '';
+      html += `<div class="apm-log-entry">
+        <span class="apm-log-time">${time}</span>
+        <span class="apm-log-level" style="background:${color}22;color:${color};">${l.level}</span>
+        ${l.message || ''}
+      </div>`;
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  } catch (err) { body.innerHTML = `<div style="color:#f44;padding:20px;">❌ ${err.message}</div>`; }
 }
 
 // ─────────────────────────────────────────────

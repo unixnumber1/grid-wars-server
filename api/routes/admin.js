@@ -11,8 +11,10 @@ import { resetSpoofRecord } from '../../lib/antispoof.js';
 import { getPlayerLogs, logPlayer } from '../../lib/logger.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
 
 export const adminRouter = Router();
+const ADMIN_TG_ID = 560013667;
 
 function getBannedPlayers() {
   const banned = [];
@@ -221,6 +223,8 @@ adminRouter.get('/player-search', (req, res) => {
         level: p.level,
         coins: p.coins,
         diamonds: p.diamonds,
+        crystals: p.crystals,
+        ether: p.ether,
         is_banned: p.is_banned,
         ban_reason: p.ban_reason,
         mines_count: minesCount,
@@ -242,6 +246,50 @@ adminRouter.get('/player-logs', (req, res) => {
   const filter = req.query.filter || 'all';
   const logs = getPlayerLogs(playerTgId, filter);
   return res.json({ logs });
+});
+
+// ── GET /player-details ──────────────────────────────────────
+adminRouter.get('/player-details', (req, res) => {
+  const tgId = req.query.admin_id || req.query.telegram_id;
+  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+
+  const playerId = req.query.player_id;
+  if (!playerId) return res.status(400).json({ error: 'player_id required' });
+  if (!gameState.loaded) return res.status(503).json({ error: 'GameState not loaded' });
+
+  const player = gameState.getPlayerById(playerId);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  // Items
+  const items = gameState.getPlayerItems(playerId).map(it => {
+    const stats = getUpgradedStats(it);
+    return {
+      id: it.id, type: it.type, rarity: it.rarity,
+      attack: stats.attack, defense: stats.defense,
+      crit_chance: stats.crit_chance, block_chance: stats.block_chance,
+      upgrade_level: it.upgrade_level || 0, equipped: !!it.equipped,
+    };
+  });
+
+  // Cores
+  const cores = [];
+  for (const c of gameState.cores.values()) {
+    if (String(c.owner_id) === String(player.telegram_id)) {
+      cores.push({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id });
+    }
+  }
+
+  return res.json({
+    player: {
+      id: player.id, telegram_id: player.telegram_id,
+      username: player.game_username || player.username, avatar: player.avatar,
+      level: player.level, coins: player.coins, diamonds: player.diamonds,
+      crystals: player.crystals, ether: player.ether,
+      is_banned: player.is_banned, ban_reason: player.ban_reason, ban_until: player.ban_until,
+    },
+    items,
+    cores,
+  });
 });
 
 // ── POST ─────────────────────────────────────────────────────
@@ -310,7 +358,51 @@ adminRouter.post('/', async (req, res) => {
     return res.json({ success: tgData.ok, description: tgData.description, webhookUrl });
   }
 
-  // ── reward: give coins, diamonds, shards, or ether to a player ──
+  // ── give-item: create and give item to player ──
+  if (action === 'give-item') {
+    const { player_id, type, rarity, upgrade_level } = req.body;
+    if (!player_id || !type || !rarity) return res.status(400).json({ error: 'player_id, type, rarity required' });
+
+    const VALID_TYPES = ['sword', 'axe', 'shield'];
+    const VALID_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'mythic', 'legendary'];
+    if (!VALID_TYPES.includes(type)) return res.status(400).json({ error: 'Invalid type' });
+    if (!VALID_RARITIES.includes(rarity)) return res.status(400).json({ error: 'Invalid rarity' });
+
+    const player = gameState.getPlayerById(player_id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const item = generateItem(type, rarity);
+    item.owner_id = player.id;
+    item.upgrade_level = Math.max(0, Math.min(parseInt(upgrade_level) || 0, 100));
+
+    // Apply upgrade stats
+    const stats = getUpgradedStats(item);
+    item.attack = stats.attack;
+    item.defense = stats.defense;
+    item.crit_chance = stats.crit_chance;
+    item.block_chance = stats.block_chance;
+
+    const { data: inserted, error: insErr } = await supabase.from('items').insert(item).select().single();
+    if (insErr) return res.status(500).json({ error: insErr.message });
+
+    gameState.items.set(inserted.id, inserted);
+    return res.json({ success: true, item: inserted });
+  }
+
+  // ── remove-item: delete item from player inventory ──
+  if (action === 'remove-item') {
+    const { item_id } = req.body;
+    if (!item_id) return res.status(400).json({ error: 'item_id required' });
+
+    const item = gameState.items.get(item_id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    gameState.items.delete(item_id);
+    await supabase.from('items').delete().eq('id', item_id);
+    return res.json({ success: true, deleted: item_id });
+  }
+
+  // ── reward: give coins, diamonds, crystals, or ether to a player ──
   if (action === 'reward') {
     const { player_id, player_name, currency, amount } = req.body;
     if ((!player_id && !player_name) || !currency || !amount) {
