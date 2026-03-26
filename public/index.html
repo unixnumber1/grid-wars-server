@@ -14125,25 +14125,6 @@ function animateCombatProjectile(data) {
       flash.style.top = to.y + 'px';
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 300);
-
-      // Floating damage
-      const dmgEl = document.createElement('div');
-      dmgEl.className = 'floating-damage' + (data.crit ? ' crit' : '');
-      dmgEl.style.left = to.x + 'px';
-      dmgEl.style.top = (to.y - 10) + 'px';
-      if (data.blocked) {
-        dmgEl.textContent = t('pvp.block_msg');
-        dmgEl.style.color = '#4fc3f7';
-      } else if (data.execution) {
-        dmgEl.textContent = t('pvp.exec_msg');
-        dmgEl.style.color = '#f44336';
-        dmgEl.style.fontSize = '28px';
-      } else {
-        dmgEl.textContent = (data.crit ? t('pvp.crit_msg') : '') + '-' + data.damage;
-        dmgEl.style.color = data.crit ? '#FFD700' : '#ff4444';
-      }
-      document.body.appendChild(dmgEl);
-      setTimeout(() => dmgEl.remove(), 1000);
     }
   }
   requestAnimationFrame(anim);
@@ -14397,16 +14378,15 @@ function updatePopupHp(hp, maxHp, color) {
   text.textContent = `${formatNumber(hp)}/${formatNumber(maxHp)}`;
 }
 
-// Show floating hit text on combat popup bar
+// Show floating hit text on combat popup bar (only crits/executions/blocks — not every hit)
 function showCombatHitText(damage, crit, execution, blocked) {
-  if (damage == null) return;
-  // Try combat popup bar first, then any visible HP bar
+  if (!crit && !execution && !blocked) return;
   const bar = document.getElementById('popup-target-hp-bar');
   const anchor = bar || document.getElementById('popup-card');
   if (!anchor) return;
   const rect = anchor.getBoundingClientRect();
   const el = document.createElement('div');
-  el.className = 'floating-damage' + (crit ? ' crit' : '');
+  el.className = 'floating-damage crit';
   el.style.left = (rect.left + rect.width / 2) + 'px';
   el.style.top = (rect.top - 10) + 'px';
   if (blocked) {
@@ -14415,10 +14395,9 @@ function showCombatHitText(damage, crit, execution, blocked) {
   } else if (execution) {
     el.textContent = t('pvp.exec_msg');
     el.style.color = '#f44336';
-    el.style.fontSize = '28px';
   } else {
-    el.textContent = (crit ? t('pvp.crit_msg') : '') + '-' + formatNumber(damage);
-    el.style.color = crit ? '#FFD700' : '#ff4444';
+    el.textContent = t('pvp.crit_msg');
+    el.style.color = '#FFD700';
   }
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1000);
