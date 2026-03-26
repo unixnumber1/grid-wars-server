@@ -605,15 +605,26 @@ async function periodicCleanup(nowMs, nowISO) {
       }
     }
 
-    // Reset stale under_attack mines back to normal (if attack_ends_at has passed)
+    // Reset stale under_attack mines back to normal
     for (const m of gameState.mines.values()) {
       if (m.status !== 'under_attack') continue;
+      // If attack_ends_at is set and expired — reset
       if (m.attack_ends_at && new Date(m.attack_ends_at).getTime() < nowMs) {
         m.status = 'normal';
         m.attacker_id = null;
         m.attack_started_at = null;
         m.attack_ends_at = null;
         gameState.markDirty('mines', m.id);
+      }
+      // If no attack_ends_at and no HP update for 5 min — reset (stale hit)
+      else if (!m.attack_ends_at && m.last_hp_update) {
+        const staleSince = nowMs - new Date(m.last_hp_update).getTime();
+        if (staleSince > 5 * 60 * 1000) {
+          m.status = 'normal';
+          m.attacker_id = null;
+          m.attack_started_at = null;
+          gameState.markDirty('mines', m.id);
+        }
       }
     }
 
