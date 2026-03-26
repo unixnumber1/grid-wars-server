@@ -4,7 +4,7 @@ import { supabase, sendTelegramNotification } from '../../lib/supabase.js';
 import { gameState } from '../../lib/gameState.js';
 import { connectedPlayers } from '../../server.js';
 import { log } from '../../lib/log.js';
-import { getCellCenter } from '../../lib/grid.js';
+import { getCellCenter, getCellId } from '../../lib/grid.js';
 import { haversine } from '../../lib/haversine.js';
 import { dailyMarketCheck } from '../../lib/markets.js';
 import { resetSpoofRecord } from '../../lib/antispoof.js';
@@ -13,6 +13,8 @@ import { playerCityCache } from '../../lib/geocity.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
+import { addXp, XP_REWARDS } from '../../lib/xp.js';
+import { gridDisk } from 'h3-js';
 
 export const adminRouter = Router();
 const ADMIN_TG_ID = 560013667;
@@ -295,6 +297,7 @@ adminRouter.get('/player-details', (req, res) => {
       is_banned: player.is_banned, ban_reason: player.ban_reason, ban_until: player.ban_until,
       city: cityInfo?.city || null,
       country: cityInfo?.country || null,
+      has_hq: [...gameState.headquarters.values()].some(h => String(h.player_id) === String(player.id)),
     },
     items,
     cores,
@@ -444,6 +447,61 @@ adminRouter.post('/', async (req, res) => {
 
     gameState.items.set(inserted.id, inserted);
     return res.json({ success: true, item: inserted });
+  }
+
+  // ── place-hq: place headquarters for another player ──
+  if (action === 'place-hq') {
+    const { player_id, lat, lng } = req.body;
+    if (!player_id || lat == null || lng == null) return res.status(400).json({ error: 'player_id, lat, lng required' });
+
+    const player = gameState.getPlayerById(player_id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    // Check if player already has HQ
+    const existingHq = [...gameState.headquarters.values()].find(h => String(h.player_id) === String(player.id));
+    if (existingHq) return res.status(409).json({ error: 'У игрока уже есть штаб' });
+
+    const hqLat = parseFloat(lat);
+    const hqLng = parseFloat(lng);
+    const targetCell = getCellId(hqLat, hqLng);
+
+    // Check cell availability
+    const isCellFree = (cell) => {
+      return ![...gameState.mines.values()].some(m => m.cell_id === cell && m.status !== 'destroyed') &&
+             ![...gameState.headquarters.values()].some(h => h.cell_id === cell) &&
+             ![...gameState.collectors.values()].some(c => c.cell_id === cell) &&
+             ![...gameState.clanHqs.values()].some(c => c.cell_id === cell) &&
+             ![...gameState.monuments.values()].some(m => m.cell_id === cell);
+    };
+
+    let finalCell = null;
+    if (isCellFree(targetCell)) {
+      finalCell = targetCell;
+    } else {
+      for (let ring = 1; ring <= 5; ring++) {
+        const candidates = gridDisk(targetCell, ring).filter(c => c !== targetCell);
+        for (const candidate of candidates) {
+          if (isCellFree(candidate)) { finalCell = candidate; break; }
+        }
+        if (finalCell) break;
+      }
+    }
+    if (!finalCell) return res.status(400).json({ error: 'Нет свободных клеток рядом' });
+
+    const { data: hq, error: insertError } = await supabase.from('headquarters').insert({
+      player_id: player.id,
+      owner_username: player.game_username || player.username,
+      lat: hqLat,
+      lng: hqLng,
+      cell_id: finalCell,
+    }).select('id,player_id,lat,lng,cell_id,level,created_at').single();
+    if (insertError) return res.status(500).json({ error: 'Failed to place headquarters: ' + insertError.message });
+
+    if (gameState.loaded) gameState.upsertHq(hq);
+    try { await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
+
+    logPlayer(player.telegram_id, 'action', `Admin placed HQ at ${hqLat},${hqLng}`);
+    return res.json({ success: true, hq });
   }
 
   // ── remove-item: delete item from player inventory ──

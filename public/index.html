@@ -2994,6 +2994,7 @@
   </div>
   <div id="apm-player-section" style="display:none;flex:1;overflow:hidden;display:none;flex-direction:column;">
     <div id="apm-player-header" style="padding:0 16px;"></div>
+    <div id="apm-hq-block"></div>
     <div class="apm-tabs" id="apm-tabs"></div>
     <div class="apm-body" id="apm-tab-body"></div>
   </div>
@@ -7730,10 +7731,24 @@ function showMinePopup(mine, isOwn, canCapture) {
 //  Map click → outside-zone feedback or hex routing
 // ─────────────────────────────────────────────
 let _suppressMapClick = 0; // timestamp — suppress map click briefly after marker click
+let _adminPlaceHqFor = null; // { playerId, playerName } — admin HQ placement mode
 map.on('click', e => {
   if (Date.now() - _suppressMapClick < 300) return;
-  if (!state.player || !state.playerPos) return;
   const { lat, lng } = e.latlng;
+
+  // Admin: place HQ for another player
+  if (_adminPlaceHqFor) {
+    const info = _adminPlaceHqFor;
+    openPopup('Поставить штаб', `Для ${info.playerName}`, [
+      { label: 'Координаты', value: `${lat.toFixed(6)}, ${lng.toFixed(6)}` },
+    ], [
+      { text: 'Подтвердить', cls: 'popup-btn-primary', action: () => adminPlaceHqConfirm(info.playerId, lat, lng) },
+      { text: 'Отмена', cls: 'popup-btn-secondary', action: () => { _adminPlaceHqFor = null; _hideAdminHqBanner(); closePopup(); } },
+    ]);
+    return;
+  }
+
+  if (!state.player || !state.playerPos) return;
   const pos = state.playerPos;
   const dist = haversine(pos.lat, pos.lng, lat, lng);
   if (dist <= SMALL_RADIUS) {
@@ -10654,6 +10669,23 @@ function apmShowPlayer() {
     </div>
   `;
 
+  // HQ placement block (if player has no HQ)
+  const hqBlock = document.getElementById('apm-hq-block');
+  if (!p.has_hq) {
+    hqBlock.innerHTML = `
+      <div style="background:#2a1a1a;border:1px solid #e74c3c;border-radius:10px;padding:10px 14px;margin:8px 12px;">
+        <div style="color:#e74c3c;font-size:13px;font-weight:600;margin-bottom:8px;">⚠️ Штаб не установлен</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+          <input type="number" id="apm-hq-lat" placeholder="Lat" step="0.000001" class="apm-input-sm" style="flex:1;">
+          <input type="number" id="apm-hq-lng" placeholder="Lng" step="0.000001" class="apm-input-sm" style="flex:1;">
+          <button class="apm-btn" style="background:#4fc3f7;color:#000;white-space:nowrap;" onclick="adminPlaceHqManual('${p.id}')">Поставить</button>
+        </div>
+        <button class="apm-btn" style="background:#2ecc71;color:#000;width:100%;padding:8px;" onclick="adminStartMapHqPick('${p.id}','${(p.username||'').replace(/'/g,"\\'")}')">📍 Выбрать на карте</button>
+      </div>`;
+  } else {
+    hqBlock.innerHTML = '';
+  }
+
   // Tabs
   const tabs = ['inventory','resources','ban','logs'];
   const tabLabels = { inventory:'Инвентарь', resources:'Ресурсы', ban:'Бан', logs:'Логи' };
@@ -10751,6 +10783,58 @@ async function apmRemoveItem(itemId) {
     _apmPlayer.items = _apmPlayer.items.filter(i => i.id !== itemId);
     apmRenderInventory(document.getElementById('apm-tab-body'));
   } catch (err) { showToast('❌ ' + err.message); }
+}
+
+// ── Admin: Place HQ for player ──
+async function adminPlaceHqConfirm(playerId, lat, lng) {
+  closePopup();
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'place-hq', player_id: playerId, lat, lng
+    })});
+    showToast('✅ Штаб установлен');
+    _adminPlaceHqFor = null;
+    _hideAdminHqBanner();
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+async function adminPlaceHqManual(playerId) {
+  const latInput = document.getElementById('apm-hq-lat');
+  const lngInput = document.getElementById('apm-hq-lng');
+  const lat = parseFloat(latInput?.value);
+  const lng = parseFloat(lngInput?.value);
+  if (isNaN(lat) || isNaN(lng)) return showToast('❌ Введите координаты');
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      telegram_id: TG_ID, action:'place-hq', player_id: playerId, lat, lng
+    })});
+    showToast('✅ Штаб установлен');
+    _apmPlayer.player.has_hq = true;
+    apmShowPlayer();
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+function adminStartMapHqPick(playerId, playerName) {
+  _adminPlaceHqFor = { playerId, playerName };
+  document.getElementById('admin-player-modal').classList.remove('open');
+  _showAdminHqBanner(playerName);
+}
+
+function _showAdminHqBanner(name) {
+  let banner = document.getElementById('admin-hq-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'admin-hq-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10001;background:#1a1a2e;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;font-size:13px;border-bottom:2px solid #4fc3f7;';
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML = `<span>📍 Тапните по карте для штаба <b>${name}</b></span><button onclick="_adminPlaceHqFor=null;_hideAdminHqBanner();" style="background:#e74c3c;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;">Отмена</button>`;
+  banner.style.display = 'flex';
+}
+
+function _hideAdminHqBanner() {
+  const b = document.getElementById('admin-hq-banner');
+  if (b) b.style.display = 'none';
 }
 
 // ── Resources tab ──
