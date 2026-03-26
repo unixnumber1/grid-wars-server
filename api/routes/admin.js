@@ -316,7 +316,7 @@ adminRouter.post('/', async (req, res) => {
     if ((!player_id && !player_name) || !currency || !amount) {
       return res.status(400).json({ error: 'player_id (or player_name), currency, amount are required' });
     }
-    const VALID_CURRENCIES = ['coins', 'diamonds', 'shards', 'ether'];
+    const VALID_CURRENCIES = ['coins', 'diamonds', 'crystals', 'ether'];
     if (!VALID_CURRENCIES.includes(currency)) {
       return res.status(400).json({ error: `currency must be one of: ${VALID_CURRENCIES.join(', ')}` });
     }
@@ -329,17 +329,17 @@ adminRouter.post('/', async (req, res) => {
     let player;
     if (player_id) {
       const { data, error: fetchErr } = await supabase
-        .from('players').select('id, telegram_id, coins, diamonds, shards, ether').eq('id', player_id).single();
+        .from('players').select('id, telegram_id, coins, diamonds, crystals, ether').eq('id', player_id).single();
       if (fetchErr || !data) return res.status(404).json({ error: 'Player not found' });
       player = data;
     } else {
       // Try game_username first, then username
       let data, fetchErr;
       ({ data, error: fetchErr } = await supabase
-        .from('players').select('id, telegram_id, game_username, username, coins, diamonds, shards, ether').ilike('game_username', player_name).maybeSingle());
+        .from('players').select('id, telegram_id, game_username, username, coins, diamonds, crystals, ether').ilike('game_username', player_name).maybeSingle());
       if (!data) {
         ({ data, error: fetchErr } = await supabase
-          .from('players').select('id, telegram_id, game_username, username, coins, diamonds, shards, ether').ilike('username', player_name).maybeSingle());
+          .from('players').select('id, telegram_id, game_username, username, coins, diamonds, crystals, ether').ilike('username', player_name).maybeSingle());
       }
       if (fetchErr || !data) return res.status(404).json({ error: `Player "${player_name}" not found` });
       player = data;
@@ -357,7 +357,7 @@ adminRouter.post('/', async (req, res) => {
     }
 
     // Send Telegram notification
-    const CURRENCY_LABELS = { coins: 'монет', diamonds: 'алмазов', shards: 'осколков', ether: 'эфира' };
+    const CURRENCY_LABELS = { coins: 'монет', diamonds: 'алмазов', crystals: 'осколков', ether: 'эфира' };
     const BOT = process.env.BOT_TOKEN;
     if (BOT && player.telegram_id) {
       const label = CURRENCY_LABELS[currency] || currency;
