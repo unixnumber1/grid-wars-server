@@ -11036,17 +11036,17 @@ async function boot() {
   setLoadingText('Checking identity...');
 
   if (!TG_ID) {
-    // Dev mode fallback — use a fixed test ID
-    console.warn('No Telegram context. Using dev mode.');
-    window._devMode = true;
+    // No Telegram context — only allow admin dev access
+    if (new URLSearchParams(window.location.search).get('dev') === '1') {
+      console.warn('Dev mode enabled via ?dev=1');
+      TG_ID = 999999999;
+      TG_NAME = 'dev_user';
+      window._devMode = true;
+    } else {
+      showError('Откройте игру через Telegram бота @OverthrowGamebot');
+      return;
+    }
   }
-
-  const effectiveTgId = TG_ID || 999999999;
-  const effectiveName = TG_NAME || 'dev_user';
-
-  // Make effectiveTgId available to all action functions via the module-scoped lets
-  TG_ID   = effectiveTgId;
-  TG_NAME = effectiveName;
 
   setLoadingText('Loading player data...');
   try {
