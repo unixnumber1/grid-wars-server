@@ -5645,6 +5645,15 @@ function formatNumber(n) {
   return Math.floor(n).toString();
 }
 function formatCoins(n) { return formatNumber(n); }
+function formatBurnTimer(burningStartedAt) {
+  const burnEnd = new Date(burningStartedAt).getTime() + 86400000;
+  const leftMs = Math.max(0, burnEnd - Date.now());
+  const h = Math.floor(leftMs / 3600000);
+  const m = Math.floor((leftMs % 3600000) / 60000);
+  if (h > 0) return `${h}${t('time.h')} ${m}${t('time.min')}`;
+  if (m > 0) return `${m}${t('time.min')}`;
+  return `${Math.floor(leftMs / 1000)}${t('time.sec')}`;
+}
 function getNextRoundLevel(currentLevel) {
   return Math.ceil((currentLevel + 1) / 10) * 10;
 }
@@ -7441,7 +7450,7 @@ function showHqPopup(hq, isOwn) {
             <span style="font-weight:600;color:#fff">${isBurning ? '🔥' : '🧲'} #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
             <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">${t('hq.camera')}</span>
           </div>
-          ${isBurning ? '<div style="color:#ff6600;font-size:12px;margin-top:4px">' + t('misc.burning_label') + '</div>' : `
+          ${isBurning ? `<div style="color:#ff6600;font-size:12px;margin-top:4px">🔥 ${t('mine.burn_timer', {time: ''})} ${c.burning_started_at ? formatBurnTimer(c.burning_started_at) : t('misc.burning')}</div>` : `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
             <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
             <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
@@ -7590,12 +7599,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     // Burning timer subtitle
     let burningSubtitle = t('mine.burning_warn');
     if (mine.status === 'burning' && mine.burning_started_at) {
-      const burnEnd = new Date(mine.burning_started_at).getTime() + 86400000;
-      const leftMs = Math.max(0, burnEnd - Date.now());
-      const h = Math.floor(leftMs / 3600000);
-      const m2 = Math.floor((leftMs % 3600000) / 60000);
-      const burnLabel = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${Math.floor(leftMs / 1000)}${t('time.sec')}`;
-      burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnLabel}</span>`;
+      burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${formatBurnTimer(mine.burning_started_at)}</span>`;
     }
 
     openPopup(
@@ -7690,10 +7694,7 @@ function showMinePopup(mine, isOwn, canCapture) {
         const el = document.getElementById('burn-timer');
         if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
         const leftMs = Math.max(0, burnEnd - Date.now());
-        const h = Math.floor(leftMs / 3600000);
-        const m2 = Math.floor((leftMs % 3600000) / 60000);
-        const s = Math.floor((leftMs % 60000) / 1000);
-        el.textContent = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${s}${t('time.sec')}`;
+        el.textContent = formatBurnTimer(mine.burning_started_at);
         if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
       }, 1000);
     }
@@ -7728,7 +7729,13 @@ function showMinePopup(mine, isOwn, canCapture) {
         action: () => doAttackMine(mine.id),
       });
     }
-    const statusLabel = isBurning ? (' 🔥 ' + t('misc.burning')) : (isUnderAttack ? (' ⚔️ ' + t('misc.under_attack')) : '');
+    let statusLabel = '';
+    if (isBurning) {
+      const burnTime = mine.burning_started_at ? formatBurnTimer(mine.burning_started_at) : '';
+      statusLabel = burnTime ? ` 🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnTime}</span>` : ` 🔥 ${t('misc.burning')}`;
+    } else if (isUnderAttack) {
+      statusLabel = ' ⚔️ ' + t('misc.under_attack');
+    }
 
     openPopup(
       `${emoji} ${name} (${t('misc.level_short', {n: mine.level})})`,
@@ -7736,6 +7743,19 @@ function showMinePopup(mine, isOwn, canCapture) {
       [],
       attackActions
     );
+
+    // Live burn countdown for enemy mines
+    if (isBurning && mine.burning_started_at) {
+      const burnEnd = new Date(mine.burning_started_at).getTime() + 86400000;
+      if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      _accumulatedCoinsTimer = setInterval(() => {
+        const el = document.getElementById('burn-timer');
+        if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
+        const leftMs = Math.max(0, burnEnd - Date.now());
+        el.textContent = formatBurnTimer(mine.burning_started_at);
+        if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      }, 1000);
+    }
   }
 }
 
@@ -16863,32 +16883,49 @@ function showCollectorPopup(collectorId) {
         const el = document.getElementById('coll-burn-timer');
         if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
         const leftMs = Math.max(0, burnEnd - Date.now());
-        const h = Math.floor(leftMs / 3600000);
-        const m2 = Math.floor((leftMs % 3600000) / 60000);
-        const s = Math.floor((leftMs % 60000) / 1000);
-        el.textContent = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${s}${t('time.sec')}`;
+        el.textContent = formatBurnTimer(c.burning_started_at);
         if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
       }, 1000);
     }
   } else {
     const approxCoins = Math.round(coins / 1000) * 1000;
+    const eBurning = c.status === 'burning';
+    let eBurnHtml = '';
+    if (eBurning && c.burning_started_at) {
+      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 ${t('mine.burn_timer', {time: ''})} <span id="coll-burn-timer">${formatBurnTimer(c.burning_started_at)}</span></div>`;
+    } else if (eBurning) {
+      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 ${t('misc.burning')}</div>`;
+    }
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:16px;font-weight:600;color:#fff">${t('coll.enemy_title', {level: c.level})}</div>
         <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;color:#888">${c.owner_avatar || ''} ${c.owner_name || '?'}</div>
+      ${eBurnHtml}
       <div style="display:flex;flex-direction:column;gap:6px">
         <div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">~${formatCoins(approxCoins)}</span></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        ${inAttackRange
+        ${inAttackRange && !eBurning
           ? `<button class="hq-btn red" onclick="closePopup();doStartCollectorCombat('${collectorId}')">${t('coll.enemy_attack')}</button>
              <div style="font-size:11px;color:#888;text-align:center">${t('coll.enemy_hint')}</div>`
-          : `<button class="hq-btn" disabled style="background:#333;color:#666">${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}</button>`
+          : eBurning ? '' : `<button class="hq-btn" disabled style="background:#333;color:#666">${dist ? t('misc.distance', {n: Math.round(dist)}) : t('misc.gps')}</button>`
         }
       </div>
     `;
+    // Live burn countdown for enemy collector
+    if (eBurning && c.burning_started_at) {
+      const burnEnd = new Date(c.burning_started_at).getTime() + 86400000;
+      if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      _accumulatedCoinsTimer = setInterval(() => {
+        const el = document.getElementById('coll-burn-timer');
+        if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
+        const leftMs = Math.max(0, burnEnd - Date.now());
+        el.textContent = formatBurnTimer(c.burning_started_at);
+        if (leftMs <= 0) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
+      }, 1000);
+    }
   }
   document.getElementById('popup-overlay').classList.add('open');
 }
@@ -17094,11 +17131,7 @@ function showFireTruckPopup(ftId) {
     const actions = [];
 
     if (isBurning) {
-      const burnStart = new Date(ft.burning_started_at).getTime();
-      const remaining = Math.max(0, 86400000 - (Date.now() - burnStart));
-      const hrs = Math.floor(remaining / 3600000);
-      const mins = Math.floor((remaining % 3600000) / 60000);
-      stats.push(['🔥 Горит', `${hrs}ч ${mins}мин до уничтожения`]);
+      stats.push(['🔥 Сгорит через', `<span id="ft-burn-timer">${formatBurnTimer(ft.burning_started_at)}</span>`]);
 
       // Check if player is within 200m or another truck covers this one
       const playerDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ft.lat, ft.lng) : 9999;
@@ -17141,19 +17174,34 @@ function showFireTruckPopup(ftId) {
     actions.push({ label: `💰 Продать (${Math.floor(getTotalFTGems(ft.level) * 0.5)} 💎)`, cls: 'danger', action: () => doFireTruckSell(ft.id) });
 
     openPopup(`🚒 Пожарная машина`, `Ур. ${ft.level}`, stats, actions);
+    // Live burn countdown for own fire truck
+    if (isBurning && ft.burning_started_at) {
+      const burnEnd = new Date(ft.burning_started_at).getTime() + 86400000;
+      const _ftBurnInt = setInterval(() => {
+        const el = document.getElementById('ft-burn-timer');
+        if (!el) { clearInterval(_ftBurnInt); return; }
+        const leftMs = Math.max(0, burnEnd - Date.now());
+        el.textContent = formatBurnTimer(ft.burning_started_at);
+        if (leftMs <= 0) clearInterval(_ftBurnInt);
+      }, 1000);
+    }
   } else {
     // Enemy fire truck
     const ownerName = ft.owner_name || '???';
     const eHpPct = ft.max_hp > 0 ? Math.round(ft.hp / ft.max_hp * 100) : 0;
     const eHpBarColor = eHpPct > 60 ? '#4caf50' : eHpPct > 30 ? '#ff9800' : '#f44336';
     const eHpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${eHpPct}%;background:${eHpBarColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(ft.hp)}/${formatNumber(ft.max_hp)}</span></div>`;
+    const eFtBurning = ft.status === 'burning';
     const stats = [
       ['Владелец', ownerName],
       ['❤️ HP', eHpHtml],
       ['Ур.', ft.level],
     ];
+    if (eFtBurning && ft.burning_started_at) {
+      stats.push(['🔥 Сгорит через', `<span id="ft-burn-timer">${formatBurnTimer(ft.burning_started_at)}</span>`]);
+    }
     const actions = [];
-    if (ft.status !== 'burning') {
+    if (!eFtBurning) {
       const pDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ft.lat, ft.lng) : 9999;
       if (pDist <= 500) {
         actions.push({ label: '⚔️ Атаковать', cls: 'danger', action: () => doStartFireTruckCombat(ft.id) });
@@ -17162,6 +17210,17 @@ function showFireTruckPopup(ftId) {
       }
     }
     openPopup(`🚒 Пожарная машина`, ownerName, stats, actions);
+    // Live burn countdown for enemy fire truck
+    if (eFtBurning && ft.burning_started_at) {
+      const burnEnd = new Date(ft.burning_started_at).getTime() + 86400000;
+      const _eftBurnInt = setInterval(() => {
+        const el = document.getElementById('ft-burn-timer');
+        if (!el) { clearInterval(_eftBurnInt); return; }
+        const leftMs = Math.max(0, burnEnd - Date.now());
+        el.textContent = formatBurnTimer(ft.burning_started_at);
+        if (leftMs <= 0) clearInterval(_eftBurnInt);
+      }, 1000);
+    }
   }
 }
 
