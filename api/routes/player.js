@@ -94,10 +94,13 @@ async function handleLocation(req, res) {
   const playerLat = parseFloat(lat), playerLng = parseFloat(lng);
   if (isNaN(playerLat) || isNaN(playerLng)) return res.status(400).json({ error: 'lat and lng must be numbers' });
 
-  // Pin unpin — player returning from pin to GPS, reset position history to avoid false speed violation
-  if (pin_unpin === true) {
-    const { resetPositionHistory } = await import('../../lib/antispoof.js');
-    if (resetPositionHistory) resetPositionHistory(telegram_id);
+  // PIN mode server-side tracking (solves socket race condition)
+  if (pin_mode === true) {
+    const { setPinMode } = await import('../../lib/antispoof.js');
+    setPinMode(telegram_id, true);
+  } else if (pin_unpin === true) {
+    const { setPinMode } = await import('../../lib/antispoof.js');
+    setPinMode(telegram_id, false);
   }
 
   // GPS antispoof validation

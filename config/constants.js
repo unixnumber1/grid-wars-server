@@ -303,3 +303,40 @@ export function getZombieBossLoot() {
 }
 
 export const ZOMBIE_HORDE_TIMEOUT = 300000; // 5 minutes
+
+// ═══════════════════════════════════════════════════════
+//  Antispoof
+// ═══════════════════════════════════════════════════════
+export const ANTISPOOF = {
+  MAX_SPEED_KMH: 200,
+  PIN_MAX_DISTANCE_KM: 20,
+  PIN_GRACE_MS: 5000,                // grace window for PIN socket race condition
+  MIN_UPDATE_INTERVAL_MS: 1000,
+  POSITION_HISTORY_SIZE: 20,
+  VIOLATION_THRESHOLD: 30,
+  BAN_DAYS: 30,
+
+  // Cross-session teleport
+  SESSION_MAX_SPEED_KMH: 250,
+  SESSION_GAP_MIN_MS: 60000,
+
+  // Jamming detection
+  JAMMING_ACCURACY_THRESHOLD: 300,   // meters
+  JAMMING_JUMP_KM: 0.5,             // was 2km — lowered for Russian GPS jamming
+  JAMMING_COOLDOWN_MS: 60000,        // base cooldown 60s
+  JAMMING_MAX_COOLDOWN_MS: 300000,   // adaptive cap 5 min
+  SNAP_BACK_RADIUS_M: 300,           // GPS recovery detection radius
+  OSCILLATION_RADIUS_M: 500,         // bounce-back detection radius
+
+  // GPS instability score (0-100)
+  INSTABILITY_DECAY_PER_UPDATE: 2,
+  INSTABILITY_MODERATE: 30,          // double speed threshold
+  INSTABILITY_SEVERE: 60,            // suppress speed violations entirely
+
+  // Joystick detection
+  JITTER_THRESHOLD: 2,
+  CONST_SPEED_WINDOW: 8,
+  CONST_SPEED_TOLERANCE: 0.03,
+  SUSPICIOUS_ACCURACY: 3,
+  JOYSTICK_SCORE_THRESHOLD: 80,
+};
