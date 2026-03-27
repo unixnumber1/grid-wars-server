@@ -8115,16 +8115,6 @@ function renderSkillsScreen(el) {
 
   html += `<div id="skill-tree-wrap">${renderSkillTreeHTML()}</div>`;
 
-  // Shadow button
-  if (_skillBranch === 'raider' && _skillData.effects?.shadow_ability) {
-    const active = _skillData.shadow_active;
-    const cdLeft = _skillData.shadow_cooldown ? Math.max(0, _skillData.shadow_cooldown - Date.now()) : 0;
-    const cdText = cdLeft > 0 ? formatDuration(cdLeft) : '';
-    html += `<div class="skill-shadow-btn ${active?'active':''}" onclick="${!active && cdLeft<=0 ? 'activateShadow()' : ''}">
-      🎭 Тень ${active ? '(активна)' : cdLeft > 0 ? '(КД: '+cdText+')' : '— активировать'}
-    </div>`;
-  }
-
   el.innerHTML = html;
 }
 
@@ -8335,11 +8325,53 @@ async function activateShadow() {
   try {
     const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'activate-shadow' }) });
     showToast('🎭 Тень активирована на 30 мин!');
-    _skillData.shadow_active = true;
-    _skillData.shadow_until = res.shadow_until;
-    _skillData.shadow_cooldown = res.shadow_cooldown;
-    renderSkillsScreen(document.getElementById('skills-content'));
+    state.shadow_active = true;
+    state.shadow_until = res.shadow_until;
+    state.shadow_cooldown = res.shadow_cooldown;
+    if (_skillData) {
+      _skillData.shadow_active = true;
+      _skillData.shadow_until = res.shadow_until;
+      _skillData.shadow_cooldown = res.shadow_cooldown;
+    }
+    updateShadowButton();
   } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function toggleShadowAbility() {
+  const active = state.shadow_active;
+  const cdLeft = state.shadow_cooldown ? Math.max(0, state.shadow_cooldown - Date.now()) : 0;
+  if (active) {
+    showToast('🎭 Тень уже активна');
+    return;
+  }
+  if (cdLeft > 0) {
+    showToast('🎭 Перезарядка: ' + formatDuration(cdLeft));
+    return;
+  }
+  activateShadow();
+}
+
+function updateShadowButton() {
+  const btn = document.getElementById('btn-shadow-inv');
+  if (!btn) return;
+  const hasAbility = state.skill_effects?.shadow_ability;
+  if (!hasAbility) { btn.style.display = 'none'; return; }
+  btn.style.display = 'flex';
+  const active = state.shadow_active;
+  const cdLeft = state.shadow_cooldown ? Math.max(0, state.shadow_cooldown - Date.now()) : 0;
+  if (active) {
+    btn.style.borderColor = '#FFD700';
+    btn.style.background = 'rgba(255,215,0,0.15)';
+    btn.title = 'Тень активна';
+  } else if (cdLeft > 0) {
+    btn.style.borderColor = '#666';
+    btn.style.background = 'rgba(66,66,66,0.12)';
+    btn.title = 'КД: ' + formatDuration(cdLeft);
+  } else {
+    btn.style.borderColor = '#4caf50';
+    btn.style.background = 'rgba(76,175,80,0.12)';
+    btn.title = 'Активировать Тень';
+  }
 }
 
 // ── Level Rewards ──────────────────────────────────────────────
@@ -9382,6 +9414,9 @@ async function refreshAll() {
     if (data.player_cores) state._playerCores = data.player_cores;
     if (data.skill_effects) state.skill_effects = data.skill_effects;
     if (data.player_skills) state.player_skills = data.player_skills;
+    if (data.shadow_active !== undefined) state.shadow_active = data.shadow_active;
+    if (data.shadow_until) state.shadow_until = data.shadow_until;
+    if (data.shadow_cooldown) state.shadow_cooldown = data.shadow_cooldown;
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -9392,6 +9427,7 @@ async function refreshAll() {
     }
     updateCoinDisplay();
     updatePlayerDisplay();
+    updateShadowButton();
     await loadVisibleBuildings();
   } catch (err) {
     console.error('Refresh error:', err);
@@ -9867,6 +9903,9 @@ function processTickData(data) {
   if (data.player_cores) state._playerCores = data.player_cores;
   if (data.skill_effects) state.skill_effects = data.skill_effects;
   if (data.player_skills) state.player_skills = data.player_skills;
+  if (data.shadow_active !== undefined) state.shadow_active = data.shadow_active;
+  if (data.shadow_until) state.shadow_until = data.shadow_until;
+  if (data.shadow_cooldown) state.shadow_cooldown = data.shadow_cooldown;
   if (data.baseIncome != null) state.baseIncome = data.baseIncome;
   if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
@@ -9902,6 +9941,7 @@ function processTickData(data) {
   renderLootBoxes(data.loot_boxes || []);
   updateCoinDisplay();
   updatePlayerDisplay();
+  updateShadowButton();
   updateShieldDisplay();
 
   // Handle completed upgrades — group into a single toast to avoid spam
@@ -17986,6 +18026,7 @@ async function spawnZombieScout() {
     <span class="pm-name" id="profile-modal-name">—</span>
     <span class="pm-level" id="profile-modal-level">1ур</span>
     <button id="btn-skills-open" onclick="switchInvTab('skills')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🌿</button>
+    <button id="btn-shadow-inv" onclick="toggleShadowAbility()" style="display:none;position:relative;width:34px;height:34px;border-radius:10px;background:rgba(66,66,66,0.12);border:1px solid rgba(66,66,66,0.25);font-size:18px;cursor:pointer;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎭</button>
     <button id="btn-rewards-open" onclick="switchInvTab('rewards')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎁<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
     <button id="btn-badge-open" onclick="closeProfileModal();openPlayerProfile(TG_ID)" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(155,89,182,0.12);border:1px solid rgba(155,89,182,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🏅</button>
   </div>

@@ -169,6 +169,17 @@ class GameState {
       }
       this.playerSkills.set(Number(s.player_id), s);
     }
+    // Restore shadow ability state from persisted skill rows
+    const nowMs = Date.now();
+    for (const [tgId, skillRow] of this.playerSkills) {
+      if (skillRow.shadow_until && skillRow.shadow_until > nowMs) {
+        const player = this.getPlayerByTgId(tgId);
+        if (player) {
+          player._shadow_until = skillRow.shadow_until;
+          player._shadow_cooldown = skillRow.shadow_cooldown || 0;
+        }
+      }
+    }
     for (const ft of (fireTrucks || [])) this.fireTrucks.set(ft.id, ft);
 
     this._loaded = true;

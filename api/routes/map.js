@@ -693,6 +693,9 @@ async function handleTick(req, res) {
     player_skills: _skillRow || { farmer: {}, raider: {}, skill_points_used: 0 },
     skill_effects: _skillFx || {},
     skill_points_available: Math.max(0, (level || 1) - (_skillRow?.skill_points_used || 0)),
+    shadow_active: player._shadow_until ? Date.now() < player._shadow_until : false,
+    shadow_until: player._shadow_until || null,
+    shadow_cooldown: player._shadow_cooldown || null,
   });
 }
 
