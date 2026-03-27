@@ -581,14 +581,20 @@ async function periodicCleanup(nowMs, nowISO) {
     ]);
 
     // Expire old listings
-    const { data: expired } = await supabase.from('market_listings').select('id,item_id,seller_id')
+    const { data: expired } = await supabase.from('market_listings').select('id,item_id,seller_id,item_type,core_id')
       .in('status', ['active', 'pending']).lt('expires_at', nowISO).limit(50);
     if (expired?.length) {
       for (const listing of expired) {
-        await Promise.all([
-          supabase.from('market_listings').update({ status: 'expired' }).eq('id', listing.id),
-          supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id),
-        ]);
+        await supabase.from('market_listings').update({ status: 'expired' }).eq('id', listing.id);
+        if (listing.item_type === 'core' && listing.core_id) {
+          await supabase.from('cores').update({ on_market: false }).eq('id', listing.core_id);
+          if (gameState.loaded) {
+            const core = gameState.cores.get(listing.core_id);
+            if (core) { core.on_market = false; gameState.markDirty('cores', core.id); }
+          }
+        } else if (listing.item_id) {
+          await supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
+        }
         supabase.from('couriers').update({ status: 'cancelled' }).eq('listing_id', listing.id).eq('status', 'moving').then(() => {}).catch(() => {});
       }
     }
