@@ -7539,6 +7539,7 @@ function showHqPopup(hq, isOwn) {
       ${collectorsHtml}
       ${buildFireTruckHQSection(hqLvl)}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        <button class="hq-btn" style="background:#1a1a2e;border:1px solid #333;color:#aaa" onclick="showHqRoadmap(${hqLvl})">ℹ️ Дорожная карта</button>
         ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">${t('hq.upgrade', {cost: formatCoins(nextCost)})}</button>` : ''}
         <button class="hq-btn red" onclick="closePopup();confirmSellHq()">${t('hq.demolish')}</button>
       </div>
@@ -7567,6 +7568,52 @@ function showHqPopup(hq, isOwn) {
       []
     );
   }
+}
+
+function showHqRoadmap(currentLvl) {
+  const levels = [
+    { lv: 1, mines: 10, mineLvl: 25, cost: 0, unlocks: [] },
+    { lv: 2, mines: 20, mineLvl: 50, cost: 1000, unlocks: ['🧲 Сборщик ×1'] },
+    { lv: 3, mines: 30, mineLvl: 75, cost: 10000, unlocks: [] },
+    { lv: 4, mines: 40, mineLvl: 100, cost: 100000, unlocks: ['🧲 Сборщик ×2'] },
+    { lv: 5, mines: 50, mineLvl: 125, cost: 1000000, unlocks: ['🚒 Пожарная ×1', '🧲 Сборщик ×2'] },
+    { lv: 6, mines: 60, mineLvl: 150, cost: 10000000, unlocks: ['🧲 Сборщик ×3'] },
+    { lv: 7, mines: 70, mineLvl: 175, cost: 100000000, unlocks: ['🧲 Сборщик ×3'] },
+    { lv: 8, mines: 80, mineLvl: 200, cost: 1000000000, unlocks: ['🧲 Сборщик ×4'] },
+    { lv: 9, mines: 90, mineLvl: 200, cost: 10000000000, unlocks: ['🧲 Сборщик ×4'] },
+    { lv: 10, mines: 100, mineLvl: 200, cost: 100000000000, unlocks: ['🚒 Пожарная ×2', '🧲 Сборщик ×5'] },
+  ];
+
+  let html = '<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+  for (const l of levels) {
+    const isCurrent = l.lv === currentLvl;
+    const isPast = l.lv < currentLvl;
+    const border = isCurrent ? 'border:1px solid #4488ff' : isPast ? 'border:1px solid #333' : 'border:1px solid #222';
+    const bg = isCurrent ? 'background:#111830' : 'background:#111';
+    const opacity = isPast ? 'opacity:0.5' : '';
+
+    html += `<div style="${bg};${border};border-radius:10px;padding:10px 12px;margin-bottom:6px;${opacity}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-weight:700;color:${isCurrent ? '#4488ff' : '#fff'};font-size:14px">${isPast ? '✅' : isCurrent ? '📍' : '🔒'} Уровень ${l.lv}</span>
+        ${l.cost > 0 ? `<span style="font-size:11px;color:#888">${formatCoins(l.cost)} 💰</span>` : ''}
+      </div>
+      <div style="font-size:12px;color:#aaa;display:flex;gap:12px;flex-wrap:wrap">
+        <span>⛏️ Шахт: ${l.mines}</span>
+        <span>📈 Макс.ур: ${l.mineLvl}</span>
+      </div>
+      ${l.unlocks.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${l.unlocks.map(u => `<span style="font-size:11px;background:#1a2a1a;color:#4caf50;padding:2px 8px;border-radius:6px">${u}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+
+  openPopup('🏠 Дорожная карта штаба', 'Что открывается на каждом уровне', [], [{ label: 'Закрыть', isClose: true }]);
+  // Insert roadmap content into popup
+  setTimeout(() => {
+    const card = document.getElementById('popup-card');
+    if (!card) return;
+    const statsEl = card.querySelector('.popup-stats');
+    if (statsEl) statsEl.innerHTML = html;
+  }, 10);
 }
 
 // ─────────────────────────────────────────────
