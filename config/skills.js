@@ -500,7 +500,7 @@ export const FARMER_TREE = [
   {
     id: 'teleport_5', name: 'Телепорт V', emoji: '⚙️', maxLevel: 5, cost: 1,
     type: 'stat', tree: 'farmer',
-    effect: { instant_collector: true },
+    effect: { collector_radius_bonus: 0.02 },
     requires: 'teleport_4', unlocks: ['teleport_ability'],
     position: { col: 10, row: 16 }
   },
