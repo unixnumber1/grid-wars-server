@@ -15591,7 +15591,8 @@ function attackOreOwnerPvp(ore) {
     closePopup();
     startPvpCombat(ownerPlayer);
   } else {
-    showToast('❌ Владелец не найден на карте');
+    // Owner not visible on map — attack the ore node directly
+    attackOreNode(ore);
   }
 }
 
