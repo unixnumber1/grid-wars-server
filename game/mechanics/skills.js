@@ -170,7 +170,6 @@ export async function handleActivateShadow(body, player) {
   player._shadow_cooldown = now + SHADOW_COOLDOWN_MS;
 
   // Persist to player_skills row so it survives restart
-  const skillRow = gameState.getPlayerSkills(Number(player.telegram_id));
   skillRow.shadow_until = player._shadow_until;
   skillRow.shadow_cooldown = player._shadow_cooldown;
   await persistSkills(skillRow);
