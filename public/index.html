@@ -7240,7 +7240,12 @@ function renderBuildings() {
     if (onlineMarkers[p.id]) {
       const m = onlineMarkers[p.id];
       _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
-      m.setIcon(otherPlayerIcon(p.avatar, p.shield_until, p.id));
+      const hasShieldNow = p.shield_until && new Date(p.shield_until) > new Date();
+      if (m._gw_avatar !== p.avatar || m._gw_shield !== hasShieldNow) {
+        m._gw_avatar = p.avatar;
+        m._gw_shield = hasShieldNow;
+        m.setIcon(otherPlayerIcon(p.avatar, p.shield_until, p.id));
+      }
       m._playerData = p;
     } else {
       const marker = L.marker([p.last_lat, p.last_lng], { icon: otherPlayerIcon(p.avatar, p.shield_until, p.id), zIndexOffset: 5000 });
@@ -9927,7 +9932,12 @@ function onPosition(pos) {
       map.setView([lat, lng], 16);
     }
   } else {
-    playerMarker.setIcon(pIcon);
+    const hasShieldNow = state.player?.shield_until && new Date(state.player.shield_until) > new Date();
+    if (playerMarker._gw_avatar !== state.player?.avatar || playerMarker._gw_shield !== hasShieldNow) {
+      playerMarker._gw_avatar = state.player?.avatar;
+      playerMarker._gw_shield = hasShieldNow;
+      playerMarker.setIcon(pIcon);
+    }
   }
 
   if (!pinMode && !_joystickEnabled) {
@@ -10262,12 +10272,18 @@ function renderBots(bots) {
         ref.serverLat = bot.lat; ref.serverLng = bot.lng;
         ref.corrStart = performance.now();
       }
-      ref.marker.setIcon(botIcon(bot));
+      const newSt = bot.state || bot.status || 'roaming';
+      if (ref._gw_st !== newSt) {
+        ref._gw_st = newSt;
+        ref.marker.setIcon(botIcon(bot));
+      }
     } else {
       const marker = L.marker([bot.lat, bot.lng], { icon: botIcon(bot), zIndexOffset: 4000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showBotPopup(bot.id); });
       marker.addTo(botLayer);
-      botMarkers[bot.id] = { marker };
+      const ref = { marker };
+      ref._gw_st = bot.state || bot.status || 'roaming';
+      botMarkers[bot.id] = ref;
     }
     // Drain animation for aggro goblins
     if ((bot.state === 'aggro' || bot.status === 'attacking') && bot.target_mine_id) {
@@ -12679,7 +12695,13 @@ function renderCouriers(couriers) {
       // Sync server position (will be smoothly approached)
       courierInterp[c.id].serverLat = c.current_lat;
       courierInterp[c.id].serverLng = c.current_lng;
-      courierMarkers[c.id].setIcon(_courierIcon(c));
+      // Only rebuild icon if HP changed (avoid DOM flicker)
+      const ci = courierInterp[c.id];
+      if (ci._prevHp !== c.hp || ci._prevMaxHp !== c.max_hp) {
+        ci._prevHp = c.hp;
+        ci._prevMaxHp = c.max_hp;
+        courierMarkers[c.id].setIcon(_courierIcon(c));
+      }
     } else {
       const marker = L.marker([c.current_lat, c.current_lng], { icon: _courierIcon(c), zIndexOffset: 4000 });
       marker.on('click', (e) => {
@@ -12695,6 +12717,7 @@ function renderCouriers(couriers) {
         serverLat: c.current_lat, serverLng: c.current_lng,
         speed: c.speed || 0.0002,
         hp: c.hp, max_hp: c.max_hp,
+        _prevHp: c.hp, _prevMaxHp: c.max_hp,
       };
     }
   }
@@ -15093,8 +15116,13 @@ function renderClanHqs(clanHqs) {
 
     // Marker
     if (clanHqMarkers[ch.id]) {
-      clanHqMarkers[ch.id].setIcon(clanHqIcon(ch));
-      clanHqMarkers[ch.id].off('click').on('click', () => showClanHqPopup(ch));
+      const mk = clanHqMarkers[ch.id];
+      const key = `${ch.is_active}_${ch.color}`;
+      if (mk._gw_key !== key) {
+        mk._gw_key = key;
+        mk.setIcon(clanHqIcon(ch));
+      }
+      mk.off('click').on('click', () => showClanHqPopup(ch));
     } else {
       const marker = L.marker([ch.lat, ch.lng], { icon: clanHqIcon(ch), zIndexOffset: 1000 })
         .addTo(map)
@@ -16278,7 +16306,12 @@ function renderMonuments(monuments) {
   for (const m of monuments) {
     monumentData[m.id] = m;
     if (monumentMarkers[m.id]) {
-      monumentMarkers[m.id].setIcon(monumentIcon(m));
+      const mk = monumentMarkers[m.id];
+      const key = `${m.phase}_${m.hp}_${m.shield_hp}_${m.wave_shield_hp}`;
+      if (mk._gw_key !== key) {
+        mk._gw_key = key;
+        mk.setIcon(monumentIcon(m));
+      }
     } else {
       const marker = L.marker([m.lat, m.lng], { icon: monumentIcon(m), zIndexOffset: 3000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showMonumentPopup(m.id); });
@@ -16307,8 +16340,16 @@ function renderMonumentDefenders(defenders) {
       } else if (dist > 0.000005) {
         _animateMarkerTo(marker, d.lat, d.lng, 4500);
       }
-      // Update icon if HP changed
-      if (!prev || prev.hp !== d.hp) marker.setIcon(defenderIcon(d));
+      // Update HP bar in-place (no setIcon to avoid flicker during combat)
+      if ((!prev || prev.hp !== d.hp) && marker._icon) {
+        const bar = marker._icon.querySelector('.defender-hp-bar div');
+        if (bar) {
+          const hpPct = d.max_hp > 0 ? Math.max(0, d.hp / d.max_hp * 100) : 0;
+          bar.style.width = hpPct + '%';
+        } else {
+          marker.setIcon(defenderIcon(d));
+        }
+      }
     } else {
       const marker = L.marker([d.lat, d.lng], { icon: defenderIcon(d), zIndexOffset: 4000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showDefenderPopup(d.id); });
@@ -16797,7 +16838,12 @@ function renderCollectors(collectors) {
 
     collectorData[c.id] = c;
     if (collectorMarkers[c.id]) {
-      collectorMarkers[c.id].setIcon(collectorIcon(c));
+      const mk = collectorMarkers[c.id];
+      const key = `${c.status}_${c.hp}_${c.stored_coins}_${c.level}`;
+      if (mk._gw_key !== key) {
+        mk._gw_key = key;
+        mk.setIcon(collectorIcon(c));
+      }
     } else {
       const marker = L.marker([c.lat, c.lng], { icon: collectorIcon(c), zIndexOffset: 2000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showCollectorPopup(c.id); });
@@ -17109,7 +17155,12 @@ function renderFireTrucks(trucks) {
   for (const ft of trucks) {
     firetruckData[ft.id] = ft;
     if (firetruckMarkers[ft.id]) {
-      firetruckMarkers[ft.id].setIcon(firetruckIcon(ft));
+      const mk = firetruckMarkers[ft.id];
+      const key = `${ft.status}_${ft.hp}_${ft.level}`;
+      if (mk._gw_key !== key) {
+        mk._gw_key = key;
+        mk.setIcon(firetruckIcon(ft));
+      }
     } else {
       const marker = L.marker([ft.lat, ft.lng], { icon: firetruckIcon(ft), zIndexOffset: 1000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showFireTruckPopup(ft.id); });
