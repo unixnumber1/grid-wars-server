@@ -5742,13 +5742,46 @@ function _addOrUpdateMineMarker(mine) {
   const hpInfo = (mine.hp != null && mine.max_hp) ? { hp: mine.hp, max_hp: mine.max_hp } : null;
   if (existing) {
     const hpChanged = existing._gw_hp !== mine.hp || existing._gw_maxHp !== mine.max_hp;
-    // Only recreate icon if level, ownership, or HP changed (expensive DOM op)
-    if (existing._gw_level !== displayLevel || existing._gw_iconSt !== iconSt || hpChanged) {
+    // Recreate icon only if level or ownership changed (expensive DOM op)
+    if (existing._gw_level !== displayLevel || existing._gw_iconSt !== iconSt) {
       existing.setIcon(mineIcon(displayLevel, iconSt, hpInfo));
       existing._gw_level  = displayLevel;
       existing._gw_iconSt = iconSt;
       existing._gw_hp     = mine.hp;
       existing._gw_maxHp  = mine.max_hp;
+    } else if (hpChanged && existing._icon) {
+      // Update HP bar in-place without recreating the icon (prevents flicker)
+      existing._gw_hp  = mine.hp;
+      existing._gw_maxHp = mine.max_hp;
+      if (hpInfo && hpInfo.hp < hpInfo.max_hp) {
+        let bar = existing._icon.querySelector('.mine-hp-bar');
+        let barInner = bar ? bar.querySelector('.mine-hp-bar-inner') : null;
+        if (!bar) {
+          // Create HP bar if it doesn't exist yet
+          const wrap = existing._icon.querySelector('.marker-wrap');
+          if (wrap) {
+            bar = document.createElement('div');
+            bar.className = 'mine-hp-bar';
+            bar.style.cssText = 'width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;';
+            barInner = document.createElement('div');
+            barInner.className = 'mine-hp-bar-inner';
+            barInner.style.cssText = 'height:100%;border-radius:2px;transition:width 1s;';
+            bar.appendChild(barInner);
+            wrap.appendChild(bar);
+          }
+        }
+        if (barInner) {
+          const pct = Math.max(0, Math.min(100, Math.round(hpInfo.hp / hpInfo.max_hp * 100)));
+          const color = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+          barInner.style.width = pct + '%';
+          barInner.style.background = color;
+        }
+        if (bar) bar.style.display = '';
+      } else {
+        // Full HP — hide bar
+        const bar = existing._icon.querySelector('.mine-hp-bar');
+        if (bar) bar.style.display = 'none';
+      }
     }
     // Rebind click so popup shows fresh data
     existing.off('click');
@@ -17440,9 +17473,9 @@ function firefighterIcon(ff) {
   const showHpBar = hpPct < 100;
   return L.divIcon({
     className: 'leaflet-interactive',
-    html: `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
+    html: `<div class="ff-marker-wrap" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
       <span style="font-size:28px;line-height:1;pointer-events:auto;">🧑‍🚒</span>
-      ${showHpBar ? `<div style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>` : ''}
+      <div class="ff-hp-bar" style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;${showHpBar ? '' : 'display:none;'}"><div class="ff-hp-bar-inner" style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;transition:width 0.3s;"></div></div>
     </div>`,
     iconSize: [40, 38],
     iconAnchor: [20, 19],
@@ -17477,7 +17510,22 @@ function removeFirefighterMarker(ffId) {
 
 function updateFirefighterMarker(ffId) {
   const ff = firefighterData[ffId];
-  if (ff && firefighterMarkers[ffId]) firefighterMarkers[ffId].setIcon(firefighterIcon(ff));
+  if (!ff || !firefighterMarkers[ffId]) return;
+  const mIcon = firefighterMarkers[ffId]._icon;
+  if (mIcon) {
+    const hpPct = Math.max(0, Math.round((ff.hp / ff.max_hp) * 100));
+    const bar = mIcon.querySelector('.ff-hp-bar');
+    const barInner = mIcon.querySelector('.ff-hp-bar-inner');
+    if (bar && barInner) {
+      if (hpPct < 100) {
+        bar.style.display = '';
+        barInner.style.width = hpPct + '%';
+        barInner.style.background = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+  }
 }
 
 function renderFirefighters(fighters) {
@@ -17497,11 +17545,25 @@ function renderFirefighters(fighters) {
         ci.speed = ff.speed || 0.0002;
         ci.hp = ff.hp;
         ci.max_hp = ff.max_hp;
-        // Only rebuild icon if visual state changed (avoid DOM flicker)
+        // Update HP bar in-place (no setIcon to avoid DOM flicker)
         if (ci._prevHp !== ff.hp || ci._prevMaxHp !== ff.max_hp) {
           ci._prevHp = ff.hp;
           ci._prevMaxHp = ff.max_hp;
-          firefighterMarkers[ff.id].setIcon(firefighterIcon(ff));
+          const mIcon = firefighterMarkers[ff.id]._icon;
+          if (mIcon) {
+            const hpPct = Math.max(0, Math.round((ff.hp / ff.max_hp) * 100));
+            const bar = mIcon.querySelector('.ff-hp-bar');
+            const barInner = mIcon.querySelector('.ff-hp-bar-inner');
+            if (bar && barInner) {
+              if (hpPct < 100) {
+                bar.style.display = '';
+                barInner.style.width = hpPct + '%';
+                barInner.style.background = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
+              } else {
+                bar.style.display = 'none';
+              }
+            }
+          }
         }
       }
     } else {
