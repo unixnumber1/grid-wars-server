@@ -7715,7 +7715,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     const inCombatZone = dist !== null && dist <= LARGE_RADIUS;
     const isBurning = mine.status === 'burning';
     const isUnderAttack = mine.status === 'under_attack';
-    const canAttack = inCombatZone && mine.level > 0 && (mine.status === 'normal' || mine.status === 'under_attack');
+    const canAttack = inCombatZone && mine.level >= 0 && (mine.status === 'normal' || mine.status === 'under_attack');
     // Multitouch: if holding attack, switch to mine immediately
     if (combatState.isHolding && canAttack) {
       return openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine, { hideTargetHp: true });
