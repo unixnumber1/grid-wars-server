@@ -7606,14 +7606,7 @@ function showHqRoadmap(currentLvl) {
   }
   html += '</div>';
 
-  openPopup('🏠 Дорожная карта штаба', 'Что открывается на каждом уровне', [], [{ label: 'Закрыть', isClose: true }]);
-  // Insert roadmap content into popup
-  setTimeout(() => {
-    const card = document.getElementById('popup-card');
-    if (!card) return;
-    const statsEl = card.querySelector('.popup-stats');
-    if (statsEl) statsEl.innerHTML = html;
-  }, 10);
+  openPopup('🏠 Дорожная карта штаба', 'Что открывается на каждом уровне', [['__fullwidth__', html]], [{ label: 'Закрыть', isClose: true }]);
 }
 
 // ─────────────────────────────────────────────
