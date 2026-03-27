@@ -6,6 +6,7 @@ import {
   COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
   COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST,
 } from '../../config/constants.js';
+import { getPlayerSkillEffects } from '../../config/skills.js';
 
 // Re-export for backward compat (lib/collectors.js re-exports this file)
 export { COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS, COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST };
@@ -42,10 +43,13 @@ export function getCollectorCapacity(collector) {
  */
 export function getCollectorMines(collector) {
   const mines = [];
+  const skillRow = gameState.getPlayerSkills(Number(gameState.players.get(collector.owner_id)?.telegram_id));
+  const fx = skillRow ? getPlayerSkillEffects(skillRow) : {};
+  const radius = COLLECTOR_RADIUS * (1 + (fx.collector_radius_bonus || 0));
   for (const m of gameState.mines.values()) {
     if (m.owner_id !== collector.owner_id) continue;
     if (m.status === 'destroyed') continue;
-    if (haversine(collector.lat, collector.lng, m.lat, m.lng) <= COLLECTOR_RADIUS) {
+    if (haversine(collector.lat, collector.lng, m.lat, m.lng) <= radius) {
       mines.push(m);
     }
   }

@@ -472,28 +472,28 @@ export const FARMER_TREE = [
   {
     id: 'teleport_1', name: 'Телепорт I', emoji: '⚙️', maxLevel: 5, cost: 1,
     type: 'stat', tree: 'farmer',
-    effect: { collector_speed_bonus: 0.01 },
+    effect: { collector_radius_bonus: 0.01 },
     requires: 'regen_3', unlocks: ['teleport_2'],
     position: { col: 10, row: 12 }
   },
   {
     id: 'teleport_2', name: 'Телепорт II', emoji: '⚙️', maxLevel: 5, cost: 1,
     type: 'stat', tree: 'farmer',
-    effect: { collector_speed_bonus: 0.01 },
+    effect: { collector_radius_bonus: 0.01 },
     requires: 'teleport_1', unlocks: ['teleport_3'],
     position: { col: 10, row: 13 }
   },
   {
     id: 'teleport_3', name: 'Телепорт III', emoji: '⚙️', maxLevel: 5, cost: 1,
     type: 'stat', tree: 'farmer',
-    effect: { collector_speed_bonus: 0.01 },
+    effect: { collector_radius_bonus: 0.01 },
     requires: 'teleport_2', unlocks: ['teleport_4'],
     position: { col: 10, row: 14 }
   },
   {
     id: 'teleport_4', name: 'Телепорт IV', emoji: '⚙️', maxLevel: 5, cost: 1,
     type: 'stat', tree: 'farmer',
-    effect: { collector_speed_bonus: 0.01 },
+    effect: { collector_radius_bonus: 0.01 },
     requires: 'teleport_3', unlocks: ['teleport_5'],
     position: { col: 10, row: 15 }
   },
@@ -653,7 +653,7 @@ export function getPlayerSkillEffects(playerSkillsRow) {
     attack_radius_bonus: 0,
     sniper_ability: false,
     shadow_ability: false,
-    collector_speed_bonus: 0,
+    collector_radius_bonus: 0,
   };
 
   const computed = getAllSkillEffects(playerSkillsRow);
