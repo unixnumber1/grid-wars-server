@@ -8,7 +8,7 @@ import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
-import { WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { WEAPON_COOLDOWNS, ORE_TYPES } from '../../config/constants.js';
 
 export const oreRouter = Router();
 
@@ -23,7 +23,8 @@ oreRouter.post('/', async (req, res) => {
   const { action, telegram_id } = req.body || {};
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
-  if (action === 'capture') {
+  // ── Claim: capture a broken ore node (hp <= 0, no owner) ──
+  if (action === 'claim') {
     const { ore_node_id, lat, lng, currency } = req.body;
     if (!ore_node_id) return res.status(400).json({ error: 'ore_node_id required' });
 
@@ -33,38 +34,31 @@ oreRouter.post('/', async (req, res) => {
     const ore = gameState.oreNodes.get(ore_node_id);
     if (!ore) return res.status(404).json({ error: 'Ore node not found' });
 
+    const lang = getLang(gameState, telegram_id);
+    if (ore.owner_id) return res.status(400).json({ error: ts(lang, 'err.ore_occupied') });
+    if ((ore.hp || ore.max_hp) > 0) return res.status(400).json({ error: ts(lang, 'err.ore_not_broken') });
+
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
     const dist = haversine(pLat, pLng, ore.lat, ore.lng);
-    const lang = getLang(gameState, telegram_id);
     if (dist > ORE_CAPTURE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_closer', { radius: ORE_CAPTURE_RADIUS }) });
 
-    if (ore.owner_id && ore.owner_id !== player.id) {
-      const ONLINE_MS = 3 * 60 * 1000;
-      const ownerPlayer = gameState.getPlayerById(ore.owner_id);
-      const ownerOnline = ownerPlayer?.last_seen ? (Date.now() - new Date(ownerPlayer.last_seen).getTime()) < ONLINE_MS : false;
-      return res.status(400).json({
-        error: ts(lang, 'err.ore_occupied'),
-        owner_id: ownerPlayer?.id,
-        owner_tg: ownerPlayer?.telegram_id,
-        owner_name: ownerPlayer?.game_username || ownerPlayer?.username,
-        owner_online: ownerOnline,
-      });
-    }
+    // Dual currency types always produce both — currency choice only for single-currency types
+    const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+    const selectedCurrency = oreTypeCfg.dualCurrency ? 'both' : ((currency === 'ether') ? 'ether' : 'shards');
 
-    // Capture with currency choice (shards or ether)
-    const selectedCurrency = (currency === 'ether') ? 'ether' : 'shards';
     ore.owner_id = player.id;
+    ore.hp = ore.max_hp;
     ore.last_collected = new Date().toISOString();
     ore.currency = selectedCurrency;
+    ore._claimed_at = new Date().toISOString(); // runtime-only: for eruption tracking
     gameState.markDirty('oreNodes', ore.id);
 
     await supabase.from('ore_nodes').update({
-      owner_id: player.id,
-      last_collected: ore.last_collected,
-      currency: selectedCurrency,
+      owner_id: player.id, hp: ore.max_hp,
+      last_collected: ore.last_collected, currency: selectedCurrency,
     }).eq('id', ore.id);
 
-    logActivity(player.game_username, `захватил рудник (${selectedCurrency})`);
+    logActivity(player.game_username, `захватил рудник ${oreTypeCfg.emoji} Ур.${ore.level}`);
 
     emitToNearby(ore.lat, ore.lng, 1000, 'ore:captured', {
       ore_node_id: ore.id, new_owner: player.id,
@@ -85,6 +79,10 @@ oreRouter.post('/', async (req, res) => {
     if (!ore) return res.status(404).json({ error: 'Ore node not found' });
     if (ore.owner_id !== player.id) return res.status(403).json({ error: ts(getLang(gameState, telegram_id), 'err.not_your_ore') });
 
+    // Dual currency types cannot switch — they always produce both
+    const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+    if (oreTypeCfg.dualCurrency) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.ore_dual_currency') });
+
     const selectedCurrency = (currency === 'ether') ? 'ether' : 'shards';
     ore.currency = selectedCurrency;
     gameState.markDirty('oreNodes', ore.id);
@@ -103,6 +101,7 @@ oreRouter.post('/', async (req, res) => {
     if (ore.owner_id !== player.id) return res.status(403).json({ error: ts(getLang(gameState, telegram_id), 'err.not_your_ore') });
 
     ore.owner_id = null;
+    delete ore._claimed_at;
     gameState.markDirty('oreNodes', ore.id);
     await supabase.from('ore_nodes').update({ owner_id: null }).eq('id', ore.id);
 
@@ -110,7 +109,7 @@ oreRouter.post('/', async (req, res) => {
   }
 
   if (action === 'hit') {
-    // Attack ore node (when owner is offline)
+    // Attack any ore node (owned by others OR unowned)
     const { ore_node_id, lat, lng } = req.body;
     if (!ore_node_id) return res.status(400).json({ error: 'ore_node_id required' });
 
@@ -120,7 +119,11 @@ oreRouter.post('/', async (req, res) => {
     const ore = gameState.oreNodes.get(ore_node_id);
     if (!ore) return res.status(404).json({ error: 'Ore node not found' });
     const hitLang = getLang(gameState, telegram_id);
-    if (!ore.owner_id || ore.owner_id === player.id) return res.status(400).json({ error: ts(hitLang, 'err.ore_cant_attack') });
+
+    // Cannot attack own ore
+    if (ore.owner_id === player.id) return res.status(400).json({ error: ts(hitLang, 'err.ore_cant_attack') });
+    // Cannot attack already broken ore
+    if ((ore.hp || 0) <= 0) return res.status(400).json({ error: ts(hitLang, 'err.ore_already_broken') });
 
     const _oSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
@@ -173,28 +176,29 @@ oreRouter.post('/', async (req, res) => {
     }
 
     ore.hp = Math.max(0, (ore.hp || ore.max_hp) - damage);
-    let captured = false;
+    let broken = false;
 
     if (ore.hp <= 0) {
-      // Ore captured by attacker
-      captured = true;
+      // Ore is broken — reset owner, DO NOT auto-capture
+      broken = true;
       const oldOwnerId = ore.owner_id;
-      ore.owner_id = player.id;
-      ore.hp = ore.max_hp;
-      ore.last_collected = new Date().toISOString();
+      ore.owner_id = null;
+      ore.hp = 0;
+      delete ore._claimed_at;
       gameState.markDirty('oreNodes', ore.id);
-      await supabase.from('ore_nodes').update({ owner_id: player.id, hp: ore.max_hp, last_collected: ore.last_collected }).eq('id', ore.id);
+      await supabase.from('ore_nodes').update({ owner_id: null, hp: 0 }).eq('id', ore.id);
 
       // Notify old owner
       if (oldOwnerId) {
         const oldOwner = gameState.getPlayerById(oldOwnerId);
         if (oldOwner) {
           const oldOwnerLang = oldOwner.language || 'en';
+          const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
           const notif = {
             id: globalThis.crypto.randomUUID(),
             player_id: oldOwnerId,
             type: 'ore_captured',
-            message: ts(oldOwnerLang, 'notif.ore_captured', { level: ore.level, name: player.game_username || 'player' }),
+            message: ts(oldOwnerLang, 'notif.ore_broken', { level: ore.level, emoji: oreTypeCfg.emoji, name: player.game_username || 'player' }),
             read: false, created_at: new Date().toISOString(),
           };
           gameState.addNotification(notif);
@@ -202,9 +206,10 @@ oreRouter.post('/', async (req, res) => {
         }
       }
 
-      emitToNearby(ore.lat, ore.lng, 1000, 'ore:captured', {
-        ore_node_id: ore.id, new_owner: player.id,
-        new_owner_name: player.game_username || player.username,
+      emitToNearby(ore.lat, ore.lng, 1000, 'ore:broken', {
+        ore_node_id: ore.id,
+        broken_by: player.id,
+        broken_by_name: player.game_username || player.username,
       });
     } else {
       gameState.markDirty('oreNodes', ore.id);
@@ -225,7 +230,7 @@ oreRouter.post('/', async (req, res) => {
       ore_node_id: ore.id, hp: ore.hp, max_hp: ore.max_hp,
     });
 
-    return res.json({ success: true, damage, crit: isCrit, hp: ore.hp, max_hp: ore.max_hp, captured });
+    return res.json({ success: true, damage, crit: isCrit, hp: ore.hp, max_hp: ore.max_hp, broken });
   }
 
   return res.status(400).json({ error: 'Unknown action' });

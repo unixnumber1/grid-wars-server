@@ -69,8 +69,21 @@ export const COURIER_SPEED_PLAYER = 0.0002;        // ~20 km/h
 // ── Ore nodes ──
 export const ORE_CAPTURE_RADIUS = 200;
 export const ORE_TTL_DAYS = 30;
-export const ORE_MIN_DISTANCE = 200;
-export const ORE_ZONE_RADIUS = 5000;               // 5km zone for clustering
+export const ORE_MIN_DISTANCE = 500;                // min distance between ore nodes (was 200)
+export const ORE_ZONE_RADIUS = 5000;                // 5km zone for clustering
+
+// Ore types (4 tiers)
+export const ORE_TYPES = {
+  hill:     { emoji: '⛰',  spawnWeight: 50, levels: [1, 4],  incomeMultiplier: 1,   hpBase: 1000, hpPerLevel: 500,  dualCurrency: false, canErupt: false },
+  mountain: { emoji: '🏔', spawnWeight: 30, levels: [3, 7],  incomeMultiplier: 1.5, hpBase: 2000, hpPerLevel: 800,  dualCurrency: false, canErupt: false },
+  peak:     { emoji: '🗻', spawnWeight: 15, levels: [5, 9],  incomeMultiplier: 2.5, hpBase: 3000, hpPerLevel: 1200, dualCurrency: true,  canErupt: false },
+  volcano:  { emoji: '🌋', spawnWeight: 5,  levels: [8, 10], incomeMultiplier: 4,   hpBase: 5000, hpPerLevel: 2000, dualCurrency: true,  canErupt: true  },
+};
+export const VOLCANO_ERUPTION_MAX_CHANCE = 90;       // % per day at cap
+export const VOLCANO_ERUPTION_RAMP_DAYS = 20;        // days from 0% to max chance
+export const MIN_ORE_PER_CITY = 10;
+export const ORE_PER_PLAYER = 8;
+export const MAX_ORE_PER_CITY = 150;
 
 // ── Collectors ──
 export const COLLECTOR_COST_DIAMONDS = 50;

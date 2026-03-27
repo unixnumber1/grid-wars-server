@@ -371,6 +371,7 @@ class GameState {
         const owner = o.owner_id ? this.getPlayerById(o.owner_id) || this.getPlayerByTgId(o.owner_id) : null;
         ore_nodes.push({
           ...o,
+          ore_type: o.ore_type || 'hill',
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
           owner_online: owner?.last_seen ? (nowMs - new Date(owner.last_seen).getTime()) < ONLINE_MS : false,

@@ -134,6 +134,9 @@ const TRANSLATIONS = {
     'err.ore_occupied': 'Рудник занят',
     'err.not_your_ore': 'Не ваш рудник',
     'err.ore_cant_attack': 'Нельзя атаковать',
+    'err.ore_not_broken': 'Рудник ещё цел — сначала сломай!',
+    'err.ore_already_broken': 'Рудник уже сломан',
+    'err.ore_dual_currency': 'Этот рудник даёт оба ресурса',
 
     // ── Monuments ──
     'err.monument_defeated': 'Монумент повержен',
@@ -174,6 +177,8 @@ const TRANSLATIONS = {
     'notif.collector_burning': '🔥 Твой сборщик горит! Украдено {coins} монет. Потуши за 24ч!',
     'notif.collector_burned': '💥 Твой сборщик сгорел!',
     'notif.ore_captured': '⛏️ Ваш рудник Ур.{level} захвачен {name}!',
+    'notif.ore_broken': '{emoji} Ваш рудник Ур.{level} разрушен {name}!',
+    'notif.ore_eruption': '🌋 Вулкан Ур.{level} извергся! Рудник потерян.',
     'notif.clan_join': '⚔️ {name} вступил в клан!',
     'notif.clan_join_leader': '⚔️ {name} вступил в клан {clan}!',
     'notif.clan_donate': '💎 {name} пополнил казну на {amount} алмазов',
@@ -387,6 +392,9 @@ const TRANSLATIONS = {
     'err.ore_occupied': 'Ore node occupied',
     'err.not_your_ore': 'Not your ore node',
     'err.ore_cant_attack': 'Cannot attack',
+    'err.ore_not_broken': 'Ore node still intact — break it first!',
+    'err.ore_already_broken': 'Ore node already broken',
+    'err.ore_dual_currency': 'This node produces both resources',
 
     // ── Monuments ──
     'err.monument_defeated': 'Monument is defeated',
@@ -427,6 +435,8 @@ const TRANSLATIONS = {
     'notif.collector_burning': '🔥 Your collector is burning! {coins} coins stolen. Extinguish within 24h!',
     'notif.collector_burned': '💥 Your collector burned down!',
     'notif.ore_captured': '⛏️ Your ore node Lv.{level} captured by {name}!',
+    'notif.ore_broken': '{emoji} Your ore node Lv.{level} broken by {name}!',
+    'notif.ore_eruption': '🌋 Volcano Lv.{level} erupted! Node lost.',
     'notif.clan_join': '⚔️ {name} joined the clan!',
     'notif.clan_join_leader': '⚔️ {name} joined clan {clan}!',
     'notif.clan_donate': '💎 {name} donated {amount} diamonds to treasury',

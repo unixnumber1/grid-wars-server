@@ -12,7 +12,9 @@ import {
   getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD,
   TICK_INTERVAL, BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS,
   ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE,
+  ORE_TYPES, VOLCANO_ERUPTION_MAX_CHANCE, VOLCANO_ERUPTION_RAMP_DAYS,
 } from '../../config/constants.js';
+import { getOreIncome, getEruptionTickChance } from '../mechanics/oreNodes.js';
 import { ts } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
@@ -755,7 +757,7 @@ async function periodicCleanup(nowMs, nowISO) {
       dailyMarketCheck().catch(e => console.error('[gameLoop] daily market check error:', e.message));
     }
 
-    // ── Ore node passive income + cleanup ──
+    // ── Ore node passive income + cleanup + eruptions ──
     try {
       const oreNow = Date.now();
       for (const [id, ore] of gameState.oreNodes) {
@@ -773,19 +775,63 @@ async function periodicCleanup(nowMs, nowISO) {
           gameState.markDirty('oreNodes', id);
         }
 
-        // Passive income for owners (shards or ether based on currency)
         if (!ore.owner_id) continue;
+
+        const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+
+        // ── Volcano eruption check ──
+        if (oreTypeCfg.canErupt && ore._claimed_at) {
+          const daysOwned = (oreNow - new Date(ore._claimed_at).getTime()) / 86400000;
+          const tickChance = getEruptionTickChance(daysOwned);
+          if (tickChance > 0 && Math.random() < tickChance) {
+            // Eruption! Reset owner
+            const eruptedOwnerId = ore.owner_id;
+            const eruptedOwner = gameState.getPlayerById(eruptedOwnerId);
+            ore.owner_id = null;
+            ore.hp = ore.max_hp;
+            delete ore._claimed_at;
+            gameState.markDirty('oreNodes', id);
+            supabase.from('ore_nodes').update({ owner_id: null, hp: ore.max_hp }).eq('id', id).then(() => {}).catch(() => {});
+
+            // Notify owner
+            if (eruptedOwner) {
+              const eLang = eruptedOwner.language || 'en';
+              const notif = {
+                id: globalThis.crypto.randomUUID(),
+                player_id: eruptedOwnerId,
+                type: 'ore_eruption',
+                message: ts(eLang, 'notif.ore_eruption', { level: ore.level }),
+                read: false, created_at: new Date().toISOString(),
+              };
+              gameState.addNotification(notif);
+              supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+            }
+
+            // Emit eruption event for animation
+            for (const [sid, info] of connectedPlayers) {
+              if (info.lat && info.lng && haversine(ore.lat, ore.lng, info.lat, info.lng) <= 2000) {
+                io.to(sid).emit('ore:eruption', { ore_node_id: id, lat: ore.lat, lng: ore.lng, level: ore.level });
+              }
+            }
+            console.log(`[ORE] 🌋 Eruption! Lv.${ore.level} volcano at ${ore.lat.toFixed(4)},${ore.lng.toFixed(4)} — owner ${eruptedOwner?.game_username || eruptedOwnerId} lost`);
+            continue; // Skip income for this tick
+          }
+        }
+
+        // ── Passive income ──
         const hoursElapsed = (oreNow - new Date(ore.last_collected).getTime()) / 3600000;
-        let resourceEarned = Math.floor(ore.level * hoursElapsed);
+        let resourceEarned = Math.floor(getOreIncome(ore.level, ore.ore_type) * hoursElapsed);
         if (resourceEarned > 0) {
           const player = gameState.getPlayerById(ore.owner_id);
-          // Apply skill ore bonus
           if (player) {
             const sFx = getPlayerSkillEffects(gameState.getPlayerSkills(Number(player.telegram_id)));
             if (sFx.ore_bonus) resourceEarned = Math.floor(resourceEarned * (1 + sFx.ore_bonus));
-          }
-          if (player) {
-            if (ore.currency === 'ether') {
+
+            if (oreTypeCfg.dualCurrency) {
+              // Dual currency: both shards and ether
+              player.crystals = (player.crystals || 0) + resourceEarned;
+              player.ether = (player.ether || 0) + resourceEarned;
+            } else if (ore.currency === 'ether') {
               player.ether = (player.ether || 0) + resourceEarned;
             } else {
               player.crystals = (player.crystals || 0) + resourceEarned;

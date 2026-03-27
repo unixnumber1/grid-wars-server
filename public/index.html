@@ -2358,9 +2358,18 @@
       filter: drop-shadow(0 0 10px rgba(0,255,136,0.6));
       animation: orePulseFree 1.2s infinite;
     }
+    .ore-marker.broken {
+      background: radial-gradient(circle, rgba(255,60,60,0.3), transparent 70%);
+      filter: drop-shadow(0 0 10px rgba(255,60,60,0.7));
+      animation: orePulseBroken 1s infinite;
+    }
     .ore-marker.mine-owned {
       filter: drop-shadow(0 0 8px rgba(0,150,255,0.6));
     }
+    .ore-marker.type-mountain { filter: drop-shadow(0 0 8px rgba(100,180,255,0.7)); }
+    .ore-marker.type-peak { filter: drop-shadow(0 0 10px rgba(180,100,255,0.7)); }
+    .ore-marker.type-volcano { filter: drop-shadow(0 0 12px rgba(255,80,20,0.8)); animation: oreVolcanoPulse 1.5s infinite; }
+    .ore-marker.type-volcano.free { animation: oreVolcanoPulseFree 1.2s infinite; }
     .ore-level { font-size: 10px; color: #FFD700; font-weight: bold; text-shadow: 0 0 4px black; margin-top: -2px; }
     .ore-owner { font-size: 9px; color: #aaa; white-space: nowrap; text-shadow: 0 0 4px black; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
     .ore-hp-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 30px; height: 3px; background: #333; border-radius: 2px; overflow: hidden; }
@@ -2372,6 +2381,18 @@
     @keyframes orePulseFree {
       0%,100% { filter: drop-shadow(0 0 10px rgba(0,255,136,0.6)); }
       50% { filter: drop-shadow(0 0 20px rgba(0,255,136,0.9)); }
+    }
+    @keyframes orePulseBroken {
+      0%,100% { filter: drop-shadow(0 0 8px rgba(255,60,60,0.5)); }
+      50% { filter: drop-shadow(0 0 16px rgba(255,60,60,0.9)); }
+    }
+    @keyframes oreVolcanoPulse {
+      0%,100% { filter: drop-shadow(0 0 10px rgba(255,80,20,0.6)); }
+      50% { filter: drop-shadow(0 0 18px rgba(255,40,0,0.9)); }
+    }
+    @keyframes oreVolcanoPulseFree {
+      0%,100% { filter: drop-shadow(0 0 12px rgba(255,80,20,0.7)); }
+      50% { filter: drop-shadow(0 0 24px rgba(255,40,0,1)); }
     }
     /* Player HP bar on map */
     .player-hp-overlay {
@@ -3707,6 +3728,9 @@ const I18N = {
     'toast.payment_cancelled': 'Оплата отменена',
     'toast.items_sold_crystals': 'Продано {count} предметов за {crystals} ✨',
     'toast.ore_captured_emoji': '⛏️ Рудник захвачен! {emoji}',
+    'toast.ore_claimed': '⛏️ Рудник захвачен!',
+    'toast.ore_broken': '💥 Рудник разрушен! Захвати его!',
+    'toast.ore_released': '🚫 Рудник отпущен',
     'toast.ore_occupied': '⚔️ Рудник занят — атакуй владельца!',
     'toast.ore_switched': 'Переключено на {emoji}',
     'toast.ore_owner_not_found': '❌ Владелец не найден на карте',
@@ -4038,21 +4062,29 @@ const I18N = {
 
     // === Ore ===
     'ore.title': '⛏️ Рудник Ур.{level}',
+    'ore.level_short': 'Ур.{level}',
+    'ore.type': 'Тип',
     'ore.income': 'Доход',
     'ore.owner': 'Владелец',
     'ore.free': '<span style="color:#00ff88">Свободен</span>',
     'ore.expires': 'Истекает',
     'ore.switch': 'Переключить на {emoji}',
+    'ore.claim_shards': '✨ Захватить (Осколки)',
+    'ore.claim_ether': '🌀 Захватить (Эфир)',
+    'ore.claim_dual': '✨🌀 Захватить',
     'ore.capture_shards': '✨ Захватить (Осколки)',
     'ore.capture_ether': '🌀 Захватить (Эфир)',
     'ore.attack_owner': '⚔️ Атаковать владельца',
-    'ore.attack': '⚔️ Атаковать рудник',
+    'ore.attack': '⚔️ Атаковать',
+    'ore.release': '🚫 Отпустить',
     'ore.come_closer': '🔒 Подойди ближе',
     'ore.come_closer_200': '🔒 Подойди ближе (200м)',
     'ore.switched': 'Переключено на {emoji}',
     'ore.owner_not_found': '❌ Владелец не найден на карте',
     'ore.ether': 'Эфир',
     'ore.shards': 'Осколки',
+    'ore.broken_status': '💥 Разрушен — можно захватить!',
+    'ore.eruption_toast': 'Вулкан Ур.{level} извергся!',
 
     // === Monument ===
     'mon.phase_shield': '🛡️ Щит',
@@ -4851,6 +4883,9 @@ const I18N = {
     'toast.payment_cancelled': 'Payment cancelled',
     'toast.items_sold_crystals': 'Sold {count} items for {crystals} ✨',
     'toast.ore_captured_emoji': '⛏️ Ore captured! {emoji}',
+    'toast.ore_claimed': '⛏️ Ore claimed!',
+    'toast.ore_broken': '💥 Ore broken! Claim it!',
+    'toast.ore_released': '🚫 Ore released',
     'toast.ore_occupied': '⚔️ Ore occupied — attack the owner!',
     'toast.ore_switched': 'Switched to {emoji}',
     'toast.ore_owner_not_found': '❌ Owner not found on map',
@@ -5182,21 +5217,29 @@ const I18N = {
 
     // === Ore ===
     'ore.title': '⛏️ Ore Node Lv.{level}',
+    'ore.level_short': 'Lv.{level}',
+    'ore.type': 'Type',
     'ore.income': 'Income',
     'ore.owner': 'Owner',
     'ore.free': '<span style="color:#00ff88">Free</span>',
     'ore.expires': 'Expires',
     'ore.switch': 'Switch to {emoji}',
+    'ore.claim_shards': '✨ Claim (Shards)',
+    'ore.claim_ether': '🌀 Claim (Ether)',
+    'ore.claim_dual': '✨🌀 Claim',
     'ore.capture_shards': '✨ Capture (Shards)',
     'ore.capture_ether': '🌀 Capture (Ether)',
     'ore.attack_owner': '⚔️ Attack owner',
-    'ore.attack': '⚔️ Attack node',
+    'ore.attack': '⚔️ Attack',
+    'ore.release': '🚫 Release',
     'ore.come_closer': '🔒 Come closer',
     'ore.come_closer_200': '🔒 Come closer (200m)',
     'ore.switched': 'Switched to {emoji}',
     'ore.owner_not_found': '❌ Owner not found on map',
     'ore.ether': 'Ether',
     'ore.shards': 'Shards',
+    'ore.broken_status': '💥 Broken — claim it!',
+    'ore.eruption_toast': 'Volcano Lv.{level} erupted!',
 
     // === Monument ===
     'mon.phase_shield': '🛡️ Shield',
@@ -6923,7 +6966,7 @@ function showError(message) {
 const map = L.map('map', {
   zoomControl: false,
   attributionControl: false,
-  minZoom: 15,
+  minZoom: 14,
   maxZoom: 19,
   zoomSnap: 0,
   zoomDelta: 0.5,
@@ -9849,6 +9892,34 @@ function initSocket() {
       }
       if (combatState.currentTarget?.type === 'ore' && combatState.currentTarget.id === data.ore_node_id)
         updatePopupHp(data.hp, data.max_hp);
+    });
+
+    _socket.on('ore:broken', (data) => {
+      const ore = oreData[data.ore_node_id];
+      if (ore) {
+        ore.hp = 0;
+        ore.owner_id = null;
+        ore.owner_name = null;
+        ore.is_mine = false;
+        if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
+      }
+    });
+
+    _socket.on('ore:eruption', (data) => {
+      const ore = oreData[data.ore_node_id];
+      if (ore) {
+        ore.owner_id = null;
+        ore.owner_name = null;
+        ore.is_mine = false;
+        ore.hp = ore.max_hp;
+        if (oreMarkers[data.ore_node_id]) oreMarkers[data.ore_node_id].setIcon(oreIcon(ore));
+      }
+      // Eruption flash animation
+      if (data.lat && data.lng && map) {
+        const flash = L.circle([data.lat, data.lng], { radius: 200, color: '#ff3300', fillColor: '#ff6600', fillOpacity: 0.5, weight: 2 }).addTo(map);
+        setTimeout(() => map.removeLayer(flash), 2000);
+        showToast(`🌋 ${t('ore.eruption_toast', {level: data.level})}`);
+      }
     });
 
     _socket.on('pvp:hit', (data) => {
@@ -14621,9 +14692,11 @@ async function doOreHit(target) {
     });
     const _oreT = oreData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _oreT ? L.latLng(_oreT.lat, _oreT.lng) : null);
-    if (data.captured) {
+    if (data.broken) {
       stopCombat(); closePopupKeepHold();
-      showToast(t('toast.ore_captured'));
+      showToast(t('toast.ore_broken'));
+      // Re-open popup so player can claim
+      setTimeout(() => showOrePopup(target.id), 300);
     }
   } catch (err) {
     const msg = err.message || '';
@@ -15639,18 +15712,25 @@ function renderClanHqs(clanHqs) {
 const oreMarkers = {};
 const oreData = {};
 
+const ORE_TYPE_EMOJI = { hill: '⛰', mountain: '🏔', peak: '🗻', volcano: '🌋' };
+
 function oreIcon(ore) {
-  const size = 40 + (ore.level * 3);
+  const oreType = ore.ore_type || 'hill';
+  const emoji = ORE_TYPE_EMOJI[oreType] || '⛰';
+  const sizeBonus = oreType === 'volcano' ? 10 : oreType === 'peak' ? 5 : 0;
+  const size = 40 + (ore.level * 3) + sizeBonus;
   const isOwned = !!ore.owner_id;
   const isMine = ore.is_mine;
-  const cls = isMine ? 'mine-owned' : (isOwned ? '' : 'free');
+  const isBroken = (ore.hp || 0) <= 0 && !isOwned;
+  const cls = isBroken ? 'broken' : isMine ? 'mine-owned' : (isOwned ? '' : 'free');
+  const typeCls = `type-${oreType}`;
   const hpPct = ore.max_hp > 0 ? Math.round((ore.hp || ore.max_hp) / ore.max_hp * 100) : 100;
-  const showHp = hpPct < 100;
+  const showHp = hpPct < 100 && !isBroken;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
   return L.divIcon({
-    html: `<div class="ore-marker ${cls}" style="width:${size}px;height:${size}px">
-      <span style="font-size:${size*0.55}px">⛏️</span>
+    html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px">
+      <span style="font-size:${size*0.55}px">${emoji}</span>
       <div class="ore-level">Ур.${ore.level}</div>
       ${ore.owner_name ? `<div class="ore-owner">${ore.owner_name}</div>` : ''}
       ${showHp ? `<div class="ore-hp-bar"><div class="ore-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
@@ -15688,9 +15768,21 @@ function renderOreNodes(ores) {
   }
 }
 
+const ORE_TYPE_NAMES_RU = { hill: 'Холм', mountain: 'Гора', peak: 'Пик', volcano: 'Вулкан' };
+const ORE_TYPE_NAMES_EN = { hill: 'Hill', mountain: 'Mountain', peak: 'Peak', volcano: 'Volcano' };
+const ORE_TYPE_INCOME_MUL = { hill: 1, mountain: 1.5, peak: 2.5, volcano: 4 };
+const ORE_TYPE_DUAL = { peak: true, volcano: true };
+
 function showOrePopup(oreId) {
   const ore = oreData[oreId];
   if (!ore) return;
+
+  const oreType = ore.ore_type || 'hill';
+  const oreEmoji = ORE_TYPE_EMOJI[oreType] || '⛰';
+  const oreTypeName = (_lang === 'ru' ? ORE_TYPE_NAMES_RU : ORE_TYPE_NAMES_EN)[oreType] || oreType;
+  const isDual = ORE_TYPE_DUAL[oreType] || false;
+  const incomeMul = ORE_TYPE_INCOME_MUL[oreType] || 1;
+  const incomePerHour = Math.floor(ore.level * incomeMul);
 
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, ore.lat, ore.lng) : null;
@@ -15699,10 +15791,10 @@ function showOrePopup(oreId) {
 
   const isOwned = !!ore.owner_id;
   const isMine = ore.is_mine;
-  const ownerOnline = ore.owner_online;
+  const isBroken = (ore.hp || 0) <= 0 && !isOwned;
 
   // Multitouch: if holding attack and can attack this ore, switch immediately
-  if (combatState.isHolding && isOwned && !isMine && inAttackRange && !ownerOnline) {
+  if (combatState.isHolding && !isMine && !isBroken && inAttackRange) {
     return openCombatPopup(t('combat.ore_target', {level: ore.level}), ore.id, 'ore', ore);
   }
 
@@ -15716,52 +15808,79 @@ function showOrePopup(oreId) {
   const expDate = new Date(ore.expires_at);
   const expStr = `${expDate.getDate().toString().padStart(2,'0')}.${(expDate.getMonth()+1).toString().padStart(2,'0')}`;
 
-  const currencyEmoji = ore.currency === 'ether' ? '🌀' : '✨';
-  const currencyName = ore.currency === 'ether' ? t('ore.ether') : t('ore.shards');
+  // Income display
+  let incomeStr;
+  if (isDual) {
+    incomeStr = `${incomePerHour} ✨+🌀/${t('per_hour')}`;
+  } else {
+    const currencyEmoji = ore.currency === 'ether' ? '🌀' : '✨';
+    const currencyName = ore.currency === 'ether' ? t('ore.ether') : t('ore.shards');
+    incomeStr = `${incomePerHour} ${currencyEmoji}/${t('per_hour')} (${currencyName})`;
+  }
 
   const stats = [
-    [t('ore.income'), `${ore.level} ${currencyEmoji}/${t('per_hour')} (${currencyName})`],
-    ['❤️ HP', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
+    [t('ore.type'), `${oreEmoji} ${oreTypeName}`],
+    [t('ore.income'), incomeStr],
+    ['❤️ HP', isBroken
+      ? `<span style="color:#ff4444;font-weight:bold">${t('ore.broken_status')}</span>`
+      : `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp || ore.max_hp}/${ore.max_hp}</span></div>`],
     [t('ore.owner'), isOwned ? (ore.owner_name || t('ore.owner')) : t('ore.free')],
     [t('ore.expires'), expStr],
   ];
 
   const actions = [];
-  if (isMine) {
-    const otherCurrency = ore.currency === 'ether' ? 'shards' : 'ether';
-    const otherEmoji = otherCurrency === 'ether' ? '🌀' : '✨';
-    actions.push({ label: t('ore.switch', {emoji: otherEmoji}), cls: 'yellow', action: () => switchOreCurrency(oreId, otherCurrency) });
-  } else if (!isOwned && inRange) {
-    actions.push({ label: t('ore.capture_shards'), cls: 'primary', action: () => captureOre(oreId, 'shards') });
-    actions.push({ label: t('ore.capture_ether'), cls: 'primary', action: () => captureOre(oreId, 'ether') });
-  } else if (isOwned && inAttackRange) {
-    actions.push({ label: t('ore.attack'), cls: 'danger', action: () => attackOreNode(ore) });
-  } else if (!inRange && !inAttackRange) {
-    actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
-  } else if (!isOwned && !inRange) {
+  if (isBroken && inRange) {
+    // Broken ore — claim buttons
+    if (isDual) {
+      actions.push({ label: t('ore.claim_dual'), cls: 'primary', action: () => claimOre(oreId) });
+    } else {
+      actions.push({ label: t('ore.claim_shards'), cls: 'primary', action: () => claimOre(oreId, 'shards') });
+      actions.push({ label: t('ore.claim_ether'), cls: 'primary', action: () => claimOre(oreId, 'ether') });
+    }
+  } else if (isBroken && !inRange) {
     actions.push({ label: t('ore.come_closer_200'), cls: '', disabled: true });
+  } else if (isMine) {
+    if (!isDual) {
+      const otherCurrency = ore.currency === 'ether' ? 'shards' : 'ether';
+      const otherEmoji = otherCurrency === 'ether' ? '🌀' : '✨';
+      actions.push({ label: t('ore.switch', {emoji: otherEmoji}), cls: 'yellow', action: () => switchOreCurrency(oreId, otherCurrency) });
+    }
+    actions.push({ label: t('ore.release'), cls: 'danger', action: () => releaseOre(oreId) });
+  } else if (!isMine && inAttackRange) {
+    // Attack any ore (owned or unowned) to break it
+    actions.push({ label: t('ore.attack'), cls: 'danger', action: () => attackOreNode(ore) });
+  } else {
+    actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
   }
 
-  openPopup(t('ore.title', {level: ore.level}), distLabel, stats, actions);
+  openPopup(`${oreEmoji} ${oreTypeName} ${t('ore.level_short', {level: ore.level})}`, distLabel, stats, actions);
 }
 
-async function captureOre(oreId, currency = 'shards') {
+async function claimOre(oreId, currency = 'shards') {
   const pos = state.playerPos;
   if (!pos) return showToast(t('toast.no_gps_short'));
   try {
     const data = await apiFetch('/api/ore', {
       method: 'POST',
-      body: JSON.stringify({ action: 'capture', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng, currency }),
+      body: JSON.stringify({ action: 'claim', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng, currency }),
     });
-    const emoji = currency === 'ether' ? '🌀' : '✨';
-    showToast(t('toast.ore_captured_emoji', {emoji: emoji}));
+    showToast(t('toast.ore_claimed'));
     closePopup();
   } catch (err) {
-    if (err.message?.includes('занят')) {
-      showToast(t('toast.ore_occupied'));
-    } else {
-      showToast(`❌ ${err.message}`);
-    }
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+async function releaseOre(oreId) {
+  try {
+    await apiFetch('/api/ore', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'release', telegram_id: TG_ID, ore_node_id: oreId }),
+    });
+    showToast(t('toast.ore_released'));
+    closePopup();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
   }
 }
 
