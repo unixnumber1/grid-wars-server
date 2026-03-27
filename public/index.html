@@ -7685,7 +7685,7 @@ function showHqPopup(hq, isOwn) {
       t('hq.title', {name: owner}),
       presenceText,
       [[t('core.level'), `${hq.level ?? 1}`]],
-      []
+      [{ label: t('btn.close'), isClose: true }]
     );
   }
 }
@@ -8487,7 +8487,23 @@ async function investInSkill(blockId, treeName) {
 
     showToast(t('skills.invested', {name: res.block_name || blockId, level: res.new_level}));
     document.getElementById('skill-popup')?.remove();
-    renderSkillsScreen(document.getElementById('skills-content'));
+    // Re-render only tree, preserve scroll position
+    const wrap = document.getElementById('skill-tree-wrap');
+    if (wrap) {
+      const scrollParent = wrap.closest('.profile-section') || wrap.parentElement;
+      const scrollTop = scrollParent?.scrollTop || 0;
+      wrap.innerHTML = renderSkillTreeHTML();
+      if (scrollParent) scrollParent.scrollTop = scrollTop;
+    }
+    // Update points display
+    const ptsEl = document.querySelector('.skills-points');
+    if (ptsEl) ptsEl.textContent = t('skills.points', {n: _skillData.available_points || 0});
+    const rstBtn = document.querySelector('.btn-reset');
+    if (rstBtn) {
+      const rc = _skillData.reset_cost || 0;
+      rstBtn.disabled = rc === 0;
+      rstBtn.innerHTML = '🔄 ' + (rc > 0 ? formatNumber(rc) + '💎' : '—');
+    }
   } catch(e) { showToast('❌ ' + e.message); }
 }
 
@@ -13339,6 +13355,8 @@ function openMarket() {
 function closeMarket() {
   document.getElementById('market-modal').classList.remove('open');
   document.getElementById('market-fab').style.display = 'none';
+  document.getElementById('market-buy-overlay')?.classList.remove('open');
+  document.getElementById('market-private-overlay')?.classList.remove('open');
 }
 
 function _updateMarketTabs() {
@@ -14143,7 +14161,10 @@ function getProfileGradient(level) {
 
 async function openPlayerProfile(targetTgId) {
   const ov = document.getElementById('profile-overlay');
-  ov.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#666;font-size:14px;">⏳</div>';
+  ov.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;color:#666;font-size:14px;">
+    ⏳
+    <button onclick="closeProfile()" style="margin-top:20px;padding:8px 24px;background:#252538;border:1px solid #333;border-radius:10px;color:#888;cursor:pointer">${t('btn.close')}</button>
+  </div>`;
   ov.classList.add('open');
 
   try {
