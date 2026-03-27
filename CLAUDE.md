@@ -138,7 +138,7 @@ ecosystem.config.cjs       — PM2 конфиг
 | `market_listings` | item_id, seller_id, price_diamonds, status, expires_at |
 | `couriers` | type, owner_id, current/target lat/lng, hp, status |
 | `courier_drops` | item_id, lat, lng, drop_type, expires_at |
-| `ore_nodes` | lat, lng, level, owner_id, currency(shards/ether), expires_at |
+| `ore_nodes` | lat, lng, level, ore_type(hill/mountain/peak/volcano), owner_id, currency(shards/ether/both), expires_at |
 | `clans` | name, symbol, color, level(1-10), treasury(BIGINT), leader_id |
 | `clan_members` | clan_id, player_id, role(leader/officer/member) |
 | `clan_headquarters` | player_id, clan_id, lat, lng, cell_id |
@@ -211,8 +211,8 @@ ecosystem.config.cjs       — PM2 конфиг
 |--------|---------|--------------|
 | Монеты | Шахты, PvP | Постройки, улучшения |
 | Алмазы | Боксы, вазы, ежедневный бонус, Stars | Сборщики, маркет, клан |
-| Осколки | Рудники (currency=shards) | Прокачка оружия |
-| Эфир | Рудники (currency=ether) | Прокачка ядер |
+| Осколки | Рудники (hill/mountain=shards, peak/volcano=оба) | Прокачка оружия |
+| Эфир | Рудники (hill/mountain=ether, peak/volcano=оба) | Прокачка ядер |
 
 ### Шахты
 - Уровень 0-200, доход по формуле `50 * level^2`
@@ -230,11 +230,17 @@ ecosystem.config.cjs       — PM2 конфиг
 - API: `POST /api/cores` action: install/uninstall/upgrade/inventory
 
 ### Рудники (`game/mechanics/oreNodes.js`)
-- НЕ привязаны к штабам
-- Спавн: кластеры 5км, 2-3 на игрока
+- **4 типа** (ore_type): ⛰ hill (50%), 🏔 mountain (30%), 🗻 peak (15%), 🌋 volcano (5%)
+- Каждый тип: свой диапазон уровней, множитель дохода, HP формула
+- **Доход**: hill=level/ч, mountain=×1.5, peak=×2.5, volcano=×4
+- **HP**: hill=1000+lv×500, mountain=2000+lv×800, peak=3000+lv×1200, volcano=5000+lv×2000
+- **Dual currency**: peak и volcano дают осколки И эфир одновременно
+- **Захват через бой**: любой рудник (даже ничейный) надо сломать (HP→0), затем claim
+- **Извержения вулканов**: шанс растёт 0%→90% за 21 день владения, сбрасывает владельца
+- **Спавн**: город-based, Overpass API (дороги, дворы), мин 500м между рудниками
+- **Количество**: min(max(10, onlinePlayers×8), 150) на город
 - Ресет: 1-е число каждого месяца 00:00 МСК
-- Автоспавн при старте если мало (<10% от ожидаемых)
-- Выбор валюты: shards или ether (при захвате и через switch-currency)
+- Автоспавн при старте, проверка каждый час
 
 ### Предметы
 - 3 типа: sword (attack+crit), axe (attack*1.4), shield (defense/HP)
