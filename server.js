@@ -539,11 +539,12 @@ function startMonumentLoop() {
       player.hp = 1000 + (player.bonus_hp || 0);
       player._respawn_at = null;
       player.last_hp_regen = null;
+      player.shield_until = new Date(now + 10_000).toISOString(); // 10s shield after respawn
       gameState.markDirty('players', player.id);
       // Find socket and emit respawn
       for (const [sid, info] of connectedPlayers) {
         if (String(info.telegram_id) === String(player.telegram_id)) {
-          io.to(sid).emit('player:respawned', {});
+          io.to(sid).emit('player:respawned', { shield_until: player.shield_until });
           break;
         }
       }

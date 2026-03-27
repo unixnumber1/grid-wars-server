@@ -9346,7 +9346,7 @@ function initSocket() {
         updatePlayerDisplay();
       }
       if (!data.killed) {
-        showToast(t('toast.pvp_hit_received', {name: data.attacker_name, damage: data.damage}));
+        screenShake();
       }
       // Death is handled by pvp:kill event
     });
@@ -9466,8 +9466,12 @@ function initSocket() {
       showMonumentDeathOverlay(data.respawn_in || 30, data.killer || t('combat.defender_target'));
     });
 
-    _socket.on('player:respawned', () => {
+    _socket.on('player:respawned', (data) => {
       removeMonumentDeathOverlay();
+      if (data && data.shield_until && state.player) {
+        state.player.shield_until = data.shield_until;
+        updateShieldDisplay();
+      }
       showToast(t('toast.respawned'));
     });
 
