@@ -11623,7 +11623,7 @@ function validateSetupForm() {
   const btn   = document.getElementById('btn-setup-start');
   const cb    = document.getElementById('setup-policy-checkbox');
   const v = input.value.trim();
-  const valid = v.length >= 3 && v.length <= 16 && /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(v);
+  const valid = v.length >= 3 && v.length <= 16 && /^[a-zA-Zа-яА-ЯёЁ0-9_ ]+$/.test(v) && v.trim() === v;
   btn.disabled = !(valid && cb.checked);
 }
 
