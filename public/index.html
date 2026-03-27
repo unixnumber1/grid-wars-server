@@ -8062,16 +8062,64 @@ function isBlockUnlockedClient(blockDef, playerSkills, treeName) {
   return (playerSkills[blockDef.requires] || 0) >= (reqBlock.maxLevel || 5);
 }
 
+const EFFECT_DESCRIPTIONS = {
+  weapon_damage_bonus: 'к урону оружия',
+  crit_chance_bonus: 'к шансу крита',
+  attack_speed_bonus: 'к скорости атаки',
+  player_hp_bonus: 'к HP игрока',
+  lifesteal: 'вампиризм',
+  pve_damage_bonus: 'к PvE урону',
+  pvp_loot_bonus: 'к луту с PvP',
+  attack_radius_bonus: 'м к радиусу атаки',
+  mine_income_bonus: 'к доходу шахт',
+  mine_capacity_bonus: 'к вместимости шахт',
+  mine_hp_bonus: 'к HP шахт',
+  mine_regen_bonus: 'к регену шахт',
+  ore_bonus: 'к добыче руды',
+  collector_radius_bonus: 'к радиусу сборщика',
+  mine_damage_reduction: 'снижение урона по шахтам',
+  radius_bonus: 'м к радиусу действия',
+  sniper_ability: 'первый удар — крит',
+  shadow_ability: 'невидимость 30 мин',
+  instant_collector: 'мгновенная доставка',
+  safe_pvp_loss: '5% потеря вместо 10%',
+  landlord_bonus: '+15% дохода шахт рядом',
+};
+
 function formatSkillEffect(effectObj, level) {
-  if (level === 0) return '0';
+  if (level === 0) return '—';
   const parts = [];
   for (const [key, val] of Object.entries(effectObj)) {
+    const desc = EFFECT_DESCRIPTIONS[key] || key;
     if (typeof val === 'boolean') {
-      parts.push(level >= 5 ? 'Активно' : 'Не активно');
+      parts.push(level >= 5 ? desc : 'Не активно');
     } else {
       const total = val * level;
-      if (Math.abs(val) < 0.1) parts.push(`+${(total * 100).toFixed(1)}%`);
-      else parts.push(`+${total}`);
+      if (key === 'attack_radius_bonus' || key === 'radius_bonus') {
+        parts.push(`+${total} ${desc}`);
+      } else if (Math.abs(val) < 0.1) {
+        parts.push(`+${(total * 100).toFixed(1)}% ${desc}`);
+      } else {
+        parts.push(`+${total} ${desc}`);
+      }
+    }
+  }
+  return parts.join(', ');
+}
+
+function getBlockDescription(block) {
+  if (block.description) return block.description;
+  const parts = [];
+  for (const [key, val] of Object.entries(block.effect)) {
+    const desc = EFFECT_DESCRIPTIONS[key] || key;
+    if (typeof val === 'boolean') {
+      parts.push(desc);
+    } else if (key === 'attack_radius_bonus' || key === 'radius_bonus') {
+      parts.push(`+${val}/ур ${desc}`);
+    } else if (Math.abs(val) < 0.1) {
+      parts.push(`+${(val * 100).toFixed(1)}%/ур ${desc}`);
+    } else {
+      parts.push(`+${val}/ур ${desc}`);
     }
   }
   return parts.join(', ');
@@ -8234,6 +8282,7 @@ function onSkillBlockClick(blockId, treeName) {
         <div class="sp-subtitle">${isAbility ? 'Абилка' : level + '/' + maxLevel + ' уровень'}</div>
       </div>
     </div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px">${getBlockDescription(block)}</div>
     ${isAbility ? `
       <div class="sp-effect">
         <div style="font-size:13px;color:#FFD700;margin-bottom:8px">✨ Способность</div>
@@ -15816,7 +15865,7 @@ async function _renderMembersTab(body) {
         <div class="cs-member-avatar">${avatar}</div>
         <div class="cs-member-info">
           <div class="cs-member-name" style="display:flex;align-items:center;">${onlineDot}${name}</div>
-          <div class="cs-member-meta">Ур.${p.level || 1} · ⛏️ ${m.mine_count} · 💎 ${m.donated_month || 0}</div>
+          <div class="cs-member-meta">Ур.${p.level || 1} · 💎 ${m.donated_month || 0}</div>
         </div>
         <div class="cs-member-role">${roleIcon} ${roleLabel}</div>
         ${canManage ? `<button style="font-size:18px;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;cursor:pointer;line-height:1;" onclick="event.stopPropagation();_showMemberActions('${p.telegram_id}','${m.role}','${escapedName}')">⋯</button>` : ''}
