@@ -36,7 +36,7 @@ oreRouter.post('/', async (req, res) => {
 
     const lang = getLang(gameState, telegram_id);
     if (ore.owner_id) return res.status(400).json({ error: ts(lang, 'err.ore_occupied') });
-    if ((ore.hp || ore.max_hp) > 0) return res.status(400).json({ error: ts(lang, 'err.ore_not_broken') });
+    if ((ore.hp ?? ore.max_hp) > 0) return res.status(400).json({ error: ts(lang, 'err.ore_not_broken') });
 
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
     const dist = haversine(pLat, pLng, ore.lat, ore.lng);
@@ -168,14 +168,14 @@ oreRouter.post('/', async (req, res) => {
       let execChance = 0;
       if (weapon.rarity === 'mythic') execChance = 7 + (wLvl / 90) * 10;
       else if (weapon.rarity === 'legendary') execChance = 13 + (wLvl / 100) * 7;
-      const oreHpNow = ore.hp || ore.max_hp;
+      const oreHpNow = ore.hp ?? ore.max_hp;
       if (execChance > 0 && oreHpNow < ore.max_hp * 0.5 && Math.random() * 100 < execChance) {
         damage = oreHpNow;
         isExecution = true;
       }
     }
 
-    ore.hp = Math.max(0, (ore.hp || ore.max_hp) - damage);
+    ore.hp = Math.max(0, (ore.hp ?? ore.max_hp) - damage);
     let broken = false;
 
     if (ore.hp <= 0) {
