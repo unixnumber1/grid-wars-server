@@ -15,7 +15,7 @@ const MAX_SPEED_KMH = 200;             // raised for GPS jamming jumps
 const PIN_MAX_DISTANCE_KM = 20;
 const MIN_UPDATE_INTERVAL_MS = 1000;
 const POSITION_HISTORY_SIZE = 20;       // increased for pattern analysis
-const VIOLATION_THRESHOLD = 15;         // raised — GPS jamming causes many false positives
+const VIOLATION_THRESHOLD = 30;         // raised — GPS jamming causes many false positives
 const BAN_DAYS = 30;
 
 // ── Cross-session teleport detection ──
@@ -28,8 +28,8 @@ const SESSION_GAP_MIN_MS = 60000;      // only check gaps > 1 minute
 // GPS jammers cause massive random jumps. Real spoofing is smooth.
 // If accuracy is terrible (>500m) or jump is huge but random — it's likely jamming, not cheating.
 const JAMMING_ACCURACY_THRESHOLD = 300; // meters — positions with accuracy > this are likely jammed
-const JAMMING_JUMP_KM = 5;             // jumps > 5km in <5sec are almost certainly jamming, not spoof
-const JAMMING_COOLDOWN_MS = 30000;      // suppress violations for 30s after jamming detection
+const JAMMING_JUMP_KM = 2;             // jumps > 2km in <5sec are almost certainly jamming, not spoof
+const JAMMING_COOLDOWN_MS = 60000;      // suppress violations for 60s after jamming detection
 
 // ── Joystick detection ──
 // Virtual joysticks move at realistic speeds but have telltale patterns:
@@ -146,7 +146,14 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, accura
         positionHistory.set(telegramId, history);
         return { valid: true };
       }
-      // Short gap + impossible speed — real-time spoof
+      // Short gap + impossible speed
+      if (distanceKm >= 2) {
+        // Large jump (≥2km) at impossible speed = GPS glitch, treat as jamming
+        jScore.jammingUntil = now + JAMMING_COOLDOWN_MS;
+        joystickScores.set(telegramId, jScore);
+        return { valid: false, reason: 'gps_jamming', speed: speedKmh };
+      }
+      // Small distance + impossible speed = real-time spoof
       recordSpoofViolation(telegramId, {
         timestamp: now, speed: speedKmh, distance: distanceKm,
         from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
