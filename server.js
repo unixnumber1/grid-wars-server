@@ -435,6 +435,17 @@ io.on('connection', (socket) => {
         playerDbId = p.id;
         // Seed antispoof history from last known DB position for cross-session teleport detection
         seedPositionFromDB(verifiedTgId, p.last_lat, p.last_lng, p.last_seen);
+        // Force-clear stale death state on reconnect (respawn timer may have been missed)
+        if (p.is_dead) {
+          const respawnPassed = !p._respawn_at || Date.now() >= new Date(p._respawn_at).getTime();
+          if (respawnPassed) {
+            p.is_dead = false;
+            p.hp = 1000 + (p.bonus_hp || 0);
+            p._respawn_at = null;
+            p.last_hp_regen = null;
+            gameState.markDirty('players', p.id);
+          }
+        }
       }
     }
     connectedPlayers.set(socket.id, {
@@ -790,7 +801,7 @@ function startDefenderLoop() {
             target._respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();
             gameState.markDirty('players', target.id);
             if (target._socketId) {
-              io.to(target._socketId).emit('player:died', { respawn_in: 30, killer: defender.emoji + ' Defender' });
+              io.to(target._socketId).emit('player:died', { respawn_in: PLAYER_RESPAWN_TIME / 1000, killer: defender.emoji + ' Defender' });
             }
             const idx = nearbyPlayers.indexOf(target);
             if (idx !== -1) nearbyPlayers.splice(idx, 1);

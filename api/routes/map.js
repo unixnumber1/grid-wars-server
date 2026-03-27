@@ -128,6 +128,18 @@ async function handleTick(req, res) {
   const nowMs  = Date.now();
   const nowISO = new Date(nowMs).toISOString();
 
+  // ── Auto-clear stale death state ──
+  if (player.is_dead) {
+    const respawnPassed = !player._respawn_at || nowMs >= new Date(player._respawn_at).getTime();
+    if (respawnPassed) {
+      player.is_dead = false;
+      player.hp = 1000 + (player.bonus_hp || 0);
+      player._respawn_at = null;
+      player.last_hp_regen = null;
+      if (gameState.loaded) gameState.markDirty('players', player.id);
+    }
+  }
+
   // ── 1. Update player location ────────────────────────────
   if (hasPos) {
     player.last_lat = pLat;

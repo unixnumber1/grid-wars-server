@@ -162,7 +162,7 @@ export const MONUMENT_DEFENDER_ATTACK_CD = 1000;
 export const MONUMENT_DEFENDER_SPEED = 14;       // м/с (~50 км/ч)
 export const MONUMENT_WAVE_REGEN_PERCENT = 0.01; // 1%/сек
 export const MONUMENT_WAVE_TRIGGERS = [75, 50, 25];
-export const PLAYER_RESPAWN_TIME = 30000;         // 30с
+export const PLAYER_RESPAWN_TIME = 10000;         // 10с
 export const WAVE_EMOJIS = {
   1: ['🧟','🧟‍♂️','🧟‍♀️','👻','💀'],
   2: ['👹','😡','🧌','👿','☠️'],

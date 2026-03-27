@@ -101,6 +101,7 @@ async function batchPersist() {
       // Strip leaked runtime fields from players (safety net)
       if (key === 'players') {
         delete clean.respawn_at;
+        delete clean.is_dead;
       }
       // Items: ensure integer columns are integers (not floats)
       if (key === 'items') {
