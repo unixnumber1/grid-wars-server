@@ -1312,6 +1312,9 @@
     .skill-block.ability .sb-fill { background:linear-gradient(90deg,#FFD700,#FFA500); }
     .sb-level { font-size:8px; color:#666; }
     .popup-close { background:none; border:none; color:#666; font-size:20px; cursor:pointer; padding:4px; -webkit-tap-highlight-color:transparent; }
+    .inv-main-tabs { display:flex; gap:6px; margin:0 16px 0; }
+    .inv-main-tab { flex:1; padding:10px; background:#111; border:1px solid #222; border-radius:10px; color:#666; font-size:14px; font-weight:600; cursor:pointer; text-align:center; -webkit-tap-highlight-color:transparent; }
+    .inv-main-tab.active { background:#1a1a2e; border-color:#4488ff; color:#fff; }
     .hq-btn:disabled { opacity:0.5; cursor:not-allowed; }
     .skill-popup { position:fixed; bottom:0; left:0; right:0; background:#0f0f1e; border-top:1px solid #222; border-radius:16px 16px 0 0; padding:20px 16px 32px; z-index:9500; animation:slideUpSk 0.2s ease-out; }
     @keyframes slideUpSk { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -4455,6 +4458,12 @@ const I18N = {
     'skills.reset_done': 'Навыки сброшены',
     'skills.not_active': 'Не активно',
     'skills.loading': 'Загрузка...',
+    'inv.tab_inventory': '🎒 Инвентарь',
+    'inv.tab_character': '🧑 Персонаж',
+    'inv.sub_rewards': 'Награды',
+    'inv.sub_skills': 'Навыки',
+    'inv.sub_badges': 'Бейджи',
+    'badge.none': 'Нет бейджей',
     'skills.level_n': '{n}/{max} уровень',
     'shadow.activated': '🎭 Тень активирована на 30 мин!',
     'shadow.already_active': '🎭 Тень уже активна',
@@ -5593,6 +5602,12 @@ const I18N = {
     'skills.reset_done': 'Skills reset',
     'skills.not_active': 'Not active',
     'skills.loading': 'Loading...',
+    'inv.tab_inventory': '🎒 Inventory',
+    'inv.tab_character': '🧑 Character',
+    'inv.sub_rewards': 'Rewards',
+    'inv.sub_skills': 'Skills',
+    'inv.sub_badges': 'Badges',
+    'badge.none': 'No badges',
     'skills.level_n': '{n}/{max} level',
     'shadow.activated': '🎭 Shadow activated for 30 min!',
     'shadow.already_active': '🎭 Shadow is already active',
@@ -6296,6 +6311,9 @@ function showProfilePopup() {
 
   // Check unclaimed rewards for dot
   checkUnclaimedRewards();
+
+  // Reset to Inventory tab
+  switchMainTab('inventory');
 
   // Show with slide-up animation
   const modal = document.getElementById('profile-modal');
@@ -8173,44 +8191,67 @@ async function doSellMine(mineId) {
 
 
 // ── Core management functions ──
-// ── Core inventory tab ──
+// ── Inventory navigation (2-level tabs) ──
+let _currentMainTab = 'inventory';
+
+function switchMainTab(mainTab) {
+  _currentMainTab = mainTab;
+  document.getElementById('main-tab-inventory').classList.toggle('active', mainTab === 'inventory');
+  document.getElementById('main-tab-character').classList.toggle('active', mainTab === 'character');
+
+  const subRow = document.getElementById('sub-tabs-row');
+  if (mainTab === 'inventory') {
+    subRow.innerHTML = `
+      <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">⚔️ ${t('profile.tab.equip')}</button>
+      <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">🔮 ${t('profile.tab.cores')}</button>
+      <div style="flex:1"></div>
+      <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
+        <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
+        <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️ ${t('craft.title') || 'Крафт'}</button>
+      </div>`;
+    switchInvTab('equip');
+  } else {
+    subRow.innerHTML = `
+      <button class="profile-inv-tab active" id="inv-tab-rewards" onclick="switchInvTab('rewards')">🎁 ${t('inv.sub_rewards') || 'Награды'}</button>
+      <button class="profile-inv-tab" id="inv-tab-skills" onclick="switchInvTab('skills')">🌿 ${t('inv.sub_skills') || 'Навыки'}</button>
+      <button class="profile-inv-tab" id="inv-tab-badges" onclick="switchInvTab('badges')">🏅 ${t('inv.sub_badges') || 'Бейджи'}</button>`;
+    switchInvTab('rewards');
+  }
+}
+
 function switchInvTab(tab) {
-  const eqBtn = document.getElementById('inv-tab-equip');
-  const crBtn = document.getElementById('inv-tab-cores');
-  const skBtn = document.getElementById('btn-skills-open');
-  const eqPanel = document.getElementById('inv-panel-equip');
-  const crPanel = document.getElementById('inv-panel-cores');
-  const rwPanel = document.getElementById('inv-panel-rewards');
-  const skPanel = document.getElementById('inv-panel-skills');
+  // Hide all panels
+  const panels = ['inv-panel-equip', 'inv-panel-cores', 'inv-panel-rewards', 'inv-panel-skills', 'inv-panel-badges'];
+  for (const id of panels) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
   const eqActions = document.getElementById('inv-equip-actions');
-  const rwBtn = document.getElementById('btn-rewards-open');
-
-  eqBtn.classList.remove('active');
-  crBtn.classList.remove('active');
-  if (skBtn) skBtn.style.borderColor = 'rgba(76,175,80,0.25)';
-  eqPanel.style.display = 'none';
-  crPanel.style.display = 'none';
-  rwPanel.style.display = 'none';
-  if (skPanel) skPanel.style.display = 'none';
   if (eqActions) eqActions.style.display = 'none';
-  if (rwBtn) rwBtn.style.borderColor = 'rgba(255,215,0,0.25)';
 
-  if (tab === 'cores') {
-    crBtn.classList.add('active');
-    crPanel.style.display = '';
+  // Deactivate all sub-tabs
+  document.querySelectorAll('#sub-tabs-row .profile-inv-tab').forEach(t => t.classList.remove('active'));
+
+  if (tab === 'equip') {
+    document.getElementById('inv-tab-equip')?.classList.add('active');
+    document.getElementById('inv-panel-equip').style.display = '';
+    if (eqActions) eqActions.style.display = 'flex';
+  } else if (tab === 'cores') {
+    document.getElementById('inv-tab-cores')?.classList.add('active');
+    document.getElementById('inv-panel-cores').style.display = '';
     renderCoresInventory();
   } else if (tab === 'rewards') {
-    if (rwBtn) rwBtn.style.borderColor = '#FFD700';
-    rwPanel.style.display = '';
+    document.getElementById('inv-tab-rewards')?.classList.add('active');
+    document.getElementById('inv-panel-rewards').style.display = '';
     loadLevelRewards();
   } else if (tab === 'skills') {
-    if (skBtn) skBtn.style.borderColor = '#4caf50';
-    if (skPanel) skPanel.style.display = '';
+    document.getElementById('inv-tab-skills')?.classList.add('active');
+    document.getElementById('inv-panel-skills').style.display = '';
     renderSkillsTab();
-  } else {
-    eqBtn.classList.add('active');
-    eqPanel.style.display = '';
-    if (eqActions) eqActions.style.display = 'flex';
+  } else if (tab === 'badges') {
+    document.getElementById('inv-tab-badges')?.classList.add('active');
+    document.getElementById('inv-panel-badges').style.display = '';
+    renderBadgesTab();
   }
 }
 
@@ -8584,6 +8625,43 @@ function updateShadowButton() {
     btn.style.borderColor = '#4caf50';
     btn.style.background = 'rgba(76,175,80,0.12)';
     btn.title = t('shadow.title_ready');
+  }
+}
+
+// ── Badges Tab (inline) ──────────────────────────────────────────────
+async function renderBadgesTab() {
+  const el = document.getElementById('badges-content');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:20px;color:#666">${t('skills.loading')}</div>`;
+  try {
+    const data = await apiFetch(`/api/player/profile?target_id=${TG_ID}&telegram_id=${TG_ID}`);
+    if (data.error) { el.innerHTML = `<div style="color:#f44;padding:20px">${data.error}</div>`; return; }
+    const p = data.profile;
+    const isOwn = true;
+    let html = '';
+
+    if (p.badges && p.badges.length > 0) {
+      if (p.active_badge) {
+        html += `<div style="text-align:center;margin-bottom:10px"><button onclick="setActiveBadge(null);renderBadgesTab()" style="background:#222;border:1px solid #444;color:#888;padding:6px 16px;border-radius:8px;font-size:12px;cursor:pointer">${t('badge.remove') || '✕ Снять титул'}</button></div>`;
+      }
+      html += `<div class="profile-badges-grid">${p.badges.map(b => {
+        const badge = BADGES[b.badge_id];
+        if (!badge) return '';
+        const isActive = p.active_badge === b.badge_id;
+        return `<div class="profile-badge-card ${isActive ? 'active' : ''}" onclick="setActiveBadge('${b.badge_id}');renderBadgesTab()" style="--badge-color:${badge.color}">
+          <div class="badge-emoji">${badge.emoji}</div>
+          <div class="badge-name">${badgeName(badge)}</div>
+          <div style="font-size:9px;color:#666;margin-top:2px">${badgeDesc(badge)}</div>
+          ${isActive ? '<div class="badge-active-label">✓</div>' : ''}
+          ${!isActive ? `<div class="badge-set-label">${t('badge.select') || 'Выбрать'}</div>` : ''}
+        </div>`;
+      }).join('')}</div>`;
+    } else {
+      html = `<div style="text-align:center;color:#666;padding:20px">${t('badge.none') || 'Нет бейджей'}</div>`;
+    }
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = `<div style="color:#f44;padding:20px">${err.message}</div>`;
   }
 }
 
@@ -18240,10 +18318,9 @@ async function spawnZombieScout() {
     <button id="profile-modal-close">✕</button>
     <span class="pm-name" id="profile-modal-name">—</span>
     <span class="pm-level" id="profile-modal-level">1ур</span>
-    <button id="btn-skills-open" onclick="switchInvTab('skills')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🌿</button>
+    <div style="flex:1"></div>
     <button id="btn-shadow-inv" onclick="toggleShadowAbility()" style="display:none;position:relative;width:34px;height:34px;border-radius:10px;background:rgba(66,66,66,0.12);border:1px solid rgba(66,66,66,0.25);font-size:18px;cursor:pointer;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎭</button>
-    <button id="btn-rewards-open" onclick="switchInvTab('rewards')" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🎁<span class="reward-tab-dot" id="rewards-tab-dot"></span></button>
-    <button id="btn-badge-open" onclick="closeProfileModal();openPlayerProfile(TG_ID)" style="position:relative;width:34px;height:34px;border-radius:10px;background:rgba(155,89,182,0.12);border:1px solid rgba(155,89,182,0.25);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">🏅</button>
+    <span class="reward-tab-dot" id="rewards-tab-dot" style="position:static;margin-left:-8px;margin-right:4px"></span>
   </div>
   <div id="profile-modal-body">
 
@@ -18276,8 +18353,14 @@ async function spawnZombieScout() {
     <div id="profile-stat-rows"></div>
   </div>
 
-  <!-- Inventory with tabs -->
-  <div class="profile-inv-tabs">
+  <!-- Main tabs: Inventory / Character -->
+  <div class="inv-main-tabs">
+    <button class="inv-main-tab active" id="main-tab-inventory" onclick="switchMainTab('inventory')">🎒 <span data-i18n="inv.tab_inventory">Инвентарь</span></button>
+    <button class="inv-main-tab" id="main-tab-character" onclick="switchMainTab('character')">🧑 <span data-i18n="inv.tab_character">Персонаж</span></button>
+  </div>
+
+  <!-- Sub-tabs row -->
+  <div class="profile-inv-tabs" id="sub-tabs-row">
     <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')" data-i18n="profile.tab.equip">⚔️ Снаряжение</button>
     <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')" data-i18n="profile.tab.cores">🔮 Ядра</button>
     <div style="flex:1;"></div>
@@ -18303,6 +18386,9 @@ async function spawnZombieScout() {
     </div>
     <div id="inv-panel-skills" style="display:none;margin-top:0;">
       <div id="skills-content"></div>
+    </div>
+    <div id="inv-panel-badges" style="display:none;margin-top:0;">
+      <div id="badges-content"></div>
     </div>
   </div>
   </div><!-- /profile-modal-body -->
