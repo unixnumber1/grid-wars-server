@@ -16,6 +16,8 @@ import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 
 export const buildingsRouter = Router();
 
+const lastCollectXpTime = new Map(); // telegram_id → timestamp (XP cooldown 60s)
+
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
     if (!info.lat || !info.lng) continue;
@@ -238,17 +240,22 @@ async function handleMineCollect(req, res) {
   }
   const collectedAmount = Math.round(totalCoins);
   if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
-  // Per-mine XP: 10% chance, 1% of coins — use saved mineCoinsMap (BEFORE last_collected was reset)
-  const { getCollectXp } = await import('../../game/mechanics/xp.js');
+  // Per-mine XP: 10% chance, 1% of coins — cooldown 60s to prevent autoclicker abuse
   const xpEvents = [];
   let totalXpGained = 0;
-  for (const mine of mines) {
-    const mineCoins = mineCoinsMap.get(mine.id) || 0;
-    const xp = getCollectXp(mineCoins);
-    if (xp > 0) {
-      totalXpGained += xp;
-      xpEvents.push({ xp, lat: mine.lat, lng: mine.lng, cell_id: mine.cell_id });
+  const lastXpTime = lastCollectXpTime.get(String(telegram_id)) || 0;
+  const xpCooldownOk = Date.now() - lastXpTime >= 60000;
+  if (xpCooldownOk) {
+    const { getCollectXp } = await import('../../game/mechanics/xp.js');
+    for (const mine of mines) {
+      const mineCoins = mineCoinsMap.get(mine.id) || 0;
+      const xp = getCollectXp(mineCoins);
+      if (xp > 0) {
+        totalXpGained += xp;
+        xpEvents.push({ xp, lat: mine.lat, lng: mine.lng, cell_id: mine.cell_id });
+      }
     }
+    if (totalXpGained > 0) lastCollectXpTime.set(String(telegram_id), Date.now());
   }
   let xpResult = null;
   if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) {} }
