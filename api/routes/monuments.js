@@ -246,6 +246,7 @@ async function handleAttackMonument(req, res) {
 
   const lang2 = getLang(gameState, telegram_id);
   if (monument.phase !== 'open' && monument.phase !== 'wave') return res.status(400).json({ error: ts(lang2, 'err.monument_not_open') });
+  if (monument.hp <= 0) return res.status(400).json({ error: ts(lang2, 'err.monument_not_open') });
 
   // Check if defenders alive — attacks go through but deal 0 damage
   const aliveDefenders = [...gameState.monumentDefenders.values()].filter(d => d.monument_id === monument_id && d.alive);
@@ -466,7 +467,7 @@ async function handleAttackDefender(req, res) {
 
     if (remainingAlive.length === 0) {
       const monument = gameState.monuments.get(defender.monument_id);
-      if (monument) {
+      if (monument && monument.phase !== 'defeated') {
         monument.phase = 'open';
         monument.invulnerable = false;
         monument._wave_shield_hp = 0;

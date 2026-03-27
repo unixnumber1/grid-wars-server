@@ -84,6 +84,7 @@ export function checkWaveComplete(monument, gameState, io, connectedPlayers) {
   const aliveCount = [...gameState.monumentDefenders.values()]
     .filter(d => d.monument_id === monument.id && d.alive).length;
   if (aliveCount > 0) return false;
+  if (monument.phase === 'defeated') return false;
 
   monument.phase = 'open';
   monument.invulnerable = false;
@@ -304,16 +305,17 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     }
   }
 
-  // Add cores to loot boxes (proportionally by damage)
-  await addCoresToLootBoxes(monument, participants, totalDamage, lootBoxes);
-
-  // Clean up defenders
+  // Clean up defenders BEFORE async operations to prevent race conditions
   for (const [did, d] of gameState.monumentDefenders) {
     if (d.monument_id === monument.id) {
       gameState.monumentDefenders.delete(did);
     }
   }
   gameState.activeWaves.delete(monument.id);
+
+  // Add cores to loot boxes (proportionally by damage)
+  await addCoresToLootBoxes(monument, participants, totalDamage, lootBoxes);
+
   gameState.monumentDamage.delete(monument.id);
 
   console.log(`[MONUMENTS] Monument lv${monument.level} "${monument.name}" defeated! ${participants.length} participants`);
