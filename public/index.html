@@ -14351,17 +14351,21 @@ function updateMineHpBar(data) {
     if (!bar) {
       bar = document.createElement('div');
       bar.className = 'mine-hp-bar';
-      bar.innerHTML = '<div class="mine-hp-fill"></div>';
+      bar.style.cssText = 'width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;';
+      const inner = document.createElement('div');
+      inner.className = 'mine-hp-bar-inner';
+      inner.style.cssText = 'height:100%;border-radius:2px;transition:width 1s;';
+      bar.appendChild(inner);
       marker._icon.querySelector('.marker-wrap')?.appendChild(bar);
     }
-    const fill = bar.querySelector('.mine-hp-fill');
-    const pct = data.max_hp > 0 ? Math.max(0, Math.min(100, data.hp / data.max_hp * 100)) : 0;
-    fill.style.width = pct + '%';
-    fill.style.background = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
-    // Auto-hide after 10s
-    bar.style.display = 'block';
-    clearTimeout(marker._hpBarTimeout);
-    marker._hpBarTimeout = setTimeout(() => { if (bar) bar.style.display = 'none'; }, 10000);
+    const fill = bar.querySelector('.mine-hp-bar-inner');
+    if (fill) {
+      const pct = data.max_hp > 0 ? Math.max(0, Math.min(100, data.hp / data.max_hp * 100)) : 0;
+      fill.style.width = pct + '%';
+      fill.style.background = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
+    }
+    // Show bar while damaged, hide when full
+    bar.style.display = data.hp < data.max_hp ? '' : 'none';
   }
 }
 
