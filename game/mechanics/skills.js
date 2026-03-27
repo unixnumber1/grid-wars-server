@@ -1,8 +1,8 @@
 import { gameState } from '../state/GameState.js';
 import { supabase } from '../../lib/supabase.js';
 import {
-  FARMER_SKILLS, RAIDER_SKILLS, SKILL_ORDER,
-  isSkillUnlocked, getPlayerSkillEffects,
+  FARMER_TREE, RAIDER_TREE,
+  isBlockUnlocked, getPlayerSkillEffects,
   SKILL_RESET_COST_PER_POINT,
   SHADOW_DURATION_MS, SHADOW_COOLDOWN_MS
 } from '../../config/skills.js';
@@ -23,8 +23,8 @@ export function resetSniperTarget(attackerTgId) {
   sniperLastTarget.delete(attackerTgId);
 }
 
-function getSkillList(tree) {
-  return tree === 'farmer' ? FARMER_SKILLS : RAIDER_SKILLS;
+function getTree(tree) {
+  return tree === 'raider' ? RAIDER_TREE : FARMER_TREE;
 }
 
 async function persistSkills(playerSkillRow) {
@@ -41,6 +41,8 @@ export async function handleGet(body, player) {
 
   return {
     ok: true,
+    farmer_tree: FARMER_TREE,
+    raider_tree: RAIDER_TREE,
     farmer: skillRow.farmer || {},
     raider: skillRow.raider || {},
     skill_points_used: totalSpent,
@@ -54,12 +56,14 @@ export async function handleGet(body, player) {
 }
 
 export async function handleInvest(body, player) {
-  const { tree, skill_id } = body;
-  if (!tree || !skill_id) return { status: 400, error: 'Missing tree or skill_id' };
+  const { tree, block_id, skill_id } = body;
+  const blockId = block_id || skill_id;
+  if (!tree || !blockId) return { status: 400, error: 'Missing tree or block_id' };
   if (tree !== 'farmer' && tree !== 'raider') return { status: 400, error: 'Invalid tree' };
 
-  const skillDef = getSkillList(tree).find(s => s.id === skill_id);
-  if (!skillDef) return { status: 400, error: 'Unknown skill' };
+  const blocks = getTree(tree);
+  const block = blocks.find(b => b.id === blockId);
+  if (!block) return { status: 400, error: 'Блок не найден' };
 
   const skillRow = gameState.getPlayerSkills(Number(player.telegram_id));
   const level = player.level || 1;
@@ -68,14 +72,15 @@ export async function handleInvest(body, player) {
   if (level <= totalSpent) return { status: 400, error: 'Нет доступных очков' };
 
   const branchData = skillRow[tree] || {};
-  const currentPoints = branchData[skill_id] || 0;
+  const currentLevel = branchData[blockId] || 0;
+  const maxLevel = block.maxLevel || 5;
 
-  if (currentPoints >= skillDef.maxPoints) return { status: 400, error: 'Навык уже на максимуме' };
+  if (currentLevel >= maxLevel) return { status: 400, error: 'Блок уже максимального уровня' };
 
-  if (!isSkillUnlocked(branchData, tree, skill_id)) return { status: 400, error: 'Навык заблокирован' };
+  if (!isBlockUnlocked(blockId, branchData, tree)) return { status: 400, error: 'Сначала прокачай предыдущий блок до максимума' };
 
   // Apply
-  branchData[skill_id] = currentPoints + 1;
+  branchData[blockId] = currentLevel + 1;
   skillRow[tree] = branchData;
   skillRow.skill_points_used = totalSpent + 1;
 
@@ -90,6 +95,8 @@ export async function handleInvest(body, player) {
 
   return {
     ok: true,
+    block_name: block.name,
+    new_level: currentLevel + 1,
     farmer: skillRow.farmer,
     raider: skillRow.raider,
     skill_points_used: skillRow.skill_points_used,

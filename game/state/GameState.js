@@ -160,7 +160,15 @@ class GameState {
     for (const c of (cores || []))      this.cores.set(c.id, c);
     for (const h of (zHordes || []))   this.zombieHordes.set(h.id, h);
     for (const z of (zZombies || []))  this.zombies.set(z.id, z);
-    for (const s of (pSkills || []))  this.playerSkills.set(Number(s.player_id), s);
+    for (const s of (pSkills || [])) {
+      // Detect old skill format and reset
+      if (s.farmer && (s.farmer.income !== undefined || s.farmer.capacity !== undefined)) {
+        s.farmer = {};
+        s.raider = {};
+        s.skill_points_used = 0;
+      }
+      this.playerSkills.set(Number(s.player_id), s);
+    }
     for (const ft of (fireTrucks || [])) this.fireTrucks.set(ft.id, ft);
 
     this._loaded = true;
