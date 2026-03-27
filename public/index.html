@@ -15537,11 +15537,7 @@ function showOrePopup(oreId) {
     actions.push({ label: t('ore.capture_shards'), cls: 'primary', action: () => captureOre(oreId, 'shards') });
     actions.push({ label: t('ore.capture_ether'), cls: 'primary', action: () => captureOre(oreId, 'ether') });
   } else if (isOwned && inAttackRange) {
-    if (ownerOnline) {
-      actions.push({ label: t('ore.attack_owner'), cls: 'danger', action: () => attackOreOwnerPvp(ore) });
-    } else {
-      actions.push({ label: t('ore.attack'), cls: 'danger', action: () => attackOreNode(ore) });
-    }
+    actions.push({ label: t('ore.attack'), cls: 'danger', action: () => attackOreNode(ore) });
   } else if (!inRange && !inAttackRange) {
     actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
   } else if (!isOwned && !inRange) {
