@@ -11611,8 +11611,11 @@ function showUsernameSetupScreen() {
   }
 
   document.getElementById('setup-username-input').addEventListener('input', validateSetupForm);
-  document.getElementById('setup-policy-checkbox').addEventListener('change', validateSetupForm);
+  const policyCb = document.getElementById('setup-policy-checkbox');
+  policyCb.addEventListener('change', validateSetupForm);
+  policyCb.addEventListener('click', () => setTimeout(validateSetupForm, 50));
   document.getElementById('btn-setup-start').addEventListener('click', submitSetupForm);
+  validateSetupForm();
 }
 
 function validateSetupForm() {
