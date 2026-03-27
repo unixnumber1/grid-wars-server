@@ -540,12 +540,20 @@ async function handleBuy(req, res) {
     `💰 Ваш предмет продан за ${price} 💎 (получено ${sellerPayout} 💎)`,
     { listing_id: listing.id, price, payout: sellerPayout });
 
-  // Use buyer's last known position from DB for delivery target
+  // Buyer position: prefer real-time coords from request, fallback to DB
   let courierId = null;
-  const { data: buyerPos } = await supabase
-    .from('players').select('last_lat, last_lng').eq('id', buyer.id).single();
-  const bLat = buyerPos?.last_lat;
-  const bLng = buyerPos?.last_lng;
+  const reqLat = lat != null ? parseFloat(lat) : NaN;
+  const reqLng = lng != null ? parseFloat(lng) : NaN;
+  let bLat, bLng;
+  if (!isNaN(reqLat) && !isNaN(reqLng)) {
+    bLat = reqLat;
+    bLng = reqLng;
+  } else {
+    const { data: buyerPos } = await supabase
+      .from('players').select('last_lat, last_lng').eq('id', buyer.id).single();
+    bLat = buyerPos?.last_lat;
+    bLng = buyerPos?.last_lng;
+  }
 
   let marketLat = null, marketLng = null;
   if (bLat != null && bLng != null) {
@@ -559,7 +567,20 @@ async function handleBuy(req, res) {
     }
   }
 
-  if (bLat != null && bLng != null && marketLat && marketLng) {
+  // If buyer is within SMALL_RADIUS of market — direct transfer, no courier
+  const distToMarket = (bLat != null && marketLat != null) ? haversine(bLat, bLng, marketLat, marketLng) : Infinity;
+  const directTransfer = distToMarket <= SMALL_RADIUS;
+
+  if (directTransfer) {
+    // Direct transfer — item goes straight to buyer's inventory
+    await supabase.from('items')
+      .update({ on_market: false, held_by_courier: null, held_by_market: null })
+      .eq('id', listing.item_id);
+    if (gameState.loaded) {
+      const gi = gameState.getItemById(listing.item_id);
+      if (gi) { gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
+    }
+  } else if (bLat != null && bLng != null && marketLat && marketLng) {
     const { data: courier } = await supabase
       .from('couriers')
       .insert({
@@ -582,7 +603,6 @@ async function handleBuy(req, res) {
       .single();
     if (courier) {
       courierId = courier.id;
-      // Add delivery courier to gameState
       if (gameState.loaded) {
         gameState.upsertCourier({
           id: courier.id, listing_id: listing.id, item_id: listing.item_id, owner_id: buyer.id,
