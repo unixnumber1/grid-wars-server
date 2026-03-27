@@ -267,7 +267,7 @@ async function handleAttackStart(req, res) {
   if (mineError || !mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать свою шахту' });
   if (mine.status !== 'normal') return res.status(400).json({ error: 'Шахта уже атакована' });
-  if (mine.level <= 0) return res.status(400).json({ error: 'Шахта неактивна' });
+  if (mine.level < 0) return res.status(400).json({ error: 'Шахта неактивна' });
   const dist = haversine(lat, lng, mine.lat, mine.lng);
   const _hSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const _effLarge = LARGE_RADIUS + (_hSkFx.attack_radius_bonus || 0);
@@ -536,7 +536,7 @@ async function handleMineHit(req, res) {
   if (mine.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать свою шахту' });
   if (mine.status !== 'normal' && mine.status !== 'under_attack')
     return res.status(400).json({ error: 'Шахта недоступна для атаки' });
-  if (mine.level <= 0) return res.status(400).json({ error: 'Шахта неактивна' });
+  if (mine.level < 0) return res.status(400).json({ error: 'Шахта неактивна' });
 
   // Distance check
   const pLat = parseFloat(lat), pLng = parseFloat(lng);
