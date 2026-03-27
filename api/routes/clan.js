@@ -377,6 +377,10 @@ async function handleDonate(req, res) {
     if (c) { c.treasury = newTreasury; gameState.markDirty('clans', c.id); }
   }
 
+  // Increment monthly donation counter
+  const { data: cmRow } = await supabase.from('clan_members').select('donated_month').eq('player_id', player.id).eq('clan_id', player.clan_id).is('left_at', null).maybeSingle();
+  await supabase.from('clan_members').update({ donated_month: (cmRow?.donated_month || 0) + donateAmount }).eq('player_id', player.id).eq('clan_id', player.clan_id).is('left_at', null);
+
   const dName = player.game_username || player.username || 'Player';
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', player.clan_id).is('left_at', null);
   if (mems?.length) {
@@ -553,7 +557,7 @@ async function handleInfo(req, res) {
 
   const { data: members } = await supabase
     .from('clan_members')
-    .select('player_id, role, joined_at, players(telegram_id, game_username, username, avatar, level, last_seen)')
+    .select('player_id, role, joined_at, donated_month, players(telegram_id, game_username, username, avatar, level, last_seen)')
     .eq('clan_id', clan_id).is('left_at', null)
     .order('joined_at', { ascending: true });
 

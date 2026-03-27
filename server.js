@@ -972,6 +972,10 @@ async function start() {
       await new Promise(r => setTimeout(r, 1000));
       // Ore will respawn via citySpawnCycle when players connect
       console.log('[ORE] Monthly reset complete — ores will respawn via city cycle');
+
+      // Reset clan monthly donation counters
+      await supabase.from('clan_members').update({ donated_month: 0 }).is('left_at', null).gt('donated_month', 0);
+      console.log('[CLAN] Monthly donation counters reset');
     } catch (e) {
       console.error('[ORE] Monthly reset error:', e.message);
     }
