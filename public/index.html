@@ -1311,11 +1311,13 @@
     .skill-block.maxed .sb-fill { background:linear-gradient(90deg,#4caf50,#8bc34a); }
     .skill-block.ability .sb-fill { background:linear-gradient(90deg,#FFD700,#FFA500); }
     .sb-level { font-size:8px; color:#666; }
-    .skill-popup { position:fixed; bottom:0; left:0; right:0; background:#0f0f1e; border-top:1px solid #222; border-radius:20px 20px 0 0; padding:20px 16px 32px; z-index:10001; animation:slideUpSk 0.2s ease-out; }
+    .popup-close { background:none; border:none; color:#666; font-size:20px; cursor:pointer; padding:4px; -webkit-tap-highlight-color:transparent; }
+    .hq-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .skill-popup { position:fixed; bottom:0; left:0; right:0; background:#0f0f1e; border-top:1px solid #222; border-radius:16px 16px 0 0; padding:20px 16px 32px; z-index:9500; animation:slideUpSk 0.2s ease-out; }
     @keyframes slideUpSk { from{transform:translateY(100%)} to{transform:translateY(0)} }
     .sp-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
     .sp-emoji { font-size:36px; }
-    .sp-title { font-size:18px; font-weight:700; color:#fff; }
+    .sp-title { font-size:16px; font-weight:700; color:#fff; }
     .sp-subtitle { font-size:12px; color:#888; margin-top:2px; }
     .sp-effect { background:#161626; border-radius:10px; padding:12px; margin-bottom:12px; }
     .sp-effect-row { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
@@ -4429,6 +4431,65 @@ const I18N = {
     // === Market Extras ===
     'market.price_ph': 'от 10 до 100 000',
     'market.code_label': 'Код: ',
+
+    // === Skills ===
+    'skills.title': 'Навыки',
+    'skills.points': 'Очков: {n}',
+    'skills.tab_raider': '⚔️ Рейдер',
+    'skills.tab_farmer': '⛏️ Фермер',
+    'skills.no_data': 'Нет данных',
+    'skills.ability': 'Абилка',
+    'skills.ability_header': '✨ Способность',
+    'skills.current': 'Сейчас',
+    'skills.after_invest': 'После вложения',
+    'skills.locked_prev': '🔒 Прокачай предыдущий блок до максимума',
+    'skills.maxed': '✅ Максимальный уровень',
+    'skills.invest': '+ Вложить очко (осталось {n})',
+    'skills.no_points': 'Нет доступных очков',
+    'skills.invested': '✅ {name} → ур. {level}',
+    'skills.reset_title': 'Сброс навыков',
+    'skills.reset_cost': 'Стоимость: {cost} 💎',
+    'skills.reset_info1': 'Все очки будут возвращены',
+    'skills.reset_info2': 'Навыки обнулятся',
+    'skills.reset_btn': 'Сбросить за {cost}💎',
+    'skills.reset_done': 'Навыки сброшены',
+    'skills.not_active': 'Не активно',
+    'skills.loading': 'Загрузка...',
+    'skills.level_n': '{n}/{max} уровень',
+    'shadow.activated': '🎭 Тень активирована на 30 мин!',
+    'shadow.already_active': '🎭 Тень уже активна',
+    'shadow.cooldown': '🎭 Перезарядка: {time}',
+    'shadow.title_active': 'Тень активна',
+    'shadow.title_cd': 'КД: {time}',
+    'shadow.title_ready': 'Активировать Тень',
+    'hq.roadmap_title': '🏠 Дорожная карта штаба',
+    'hq.roadmap_subtitle': 'Что открывается на каждом уровне',
+    'hq.roadmap_btn': 'ℹ️ Дорожная карта',
+    'hq.roadmap_level': 'Уровень {n}',
+    'hq.roadmap_collector': '🧲 Сборщик ×{n}',
+    'hq.roadmap_firetruck': '🚒 Пожарная ×{n}',
+    'hq.roadmap_base': 'Базовый штаб',
+    'effect.weapon_damage_bonus': 'к урону оружия',
+    'effect.crit_chance_bonus': 'к шансу крита',
+    'effect.attack_speed_bonus': 'к скорости атаки',
+    'effect.player_hp_bonus': 'к HP игрока',
+    'effect.lifesteal': 'вампиризм',
+    'effect.pve_damage_bonus': 'к PvE урону',
+    'effect.pvp_loot_bonus': 'к луту с PvP',
+    'effect.attack_radius_bonus': 'м к радиусу атаки',
+    'effect.mine_income_bonus': 'к доходу шахт',
+    'effect.mine_capacity_bonus': 'к вместимости шахт',
+    'effect.mine_hp_bonus': 'к HP шахт',
+    'effect.mine_regen_bonus': 'к регену шахт',
+    'effect.ore_bonus': 'к добыче руды',
+    'effect.collector_radius_bonus': 'к радиусу сборщика',
+    'effect.mine_damage_reduction': 'снижение урона по шахтам',
+    'effect.radius_bonus': 'м к радиусу действия',
+    'effect.sniper_ability': 'первый удар — крит',
+    'effect.shadow_ability': 'невидимость 30 мин',
+    'effect.instant_collector': 'мгновенная доставка',
+    'effect.safe_pvp_loss': '5% потеря вместо 10%',
+    'effect.landlord_bonus': '+15% дохода шахт рядом',
   },
 
   en: {
@@ -5508,6 +5569,65 @@ const I18N = {
     // === Market Extras ===
     'market.price_ph': 'from 10 to 100,000',
     'market.code_label': 'Code: ',
+
+    // === Skills ===
+    'skills.title': 'Skills',
+    'skills.points': 'Points: {n}',
+    'skills.tab_raider': '⚔️ Raider',
+    'skills.tab_farmer': '⛏️ Farmer',
+    'skills.no_data': 'No data',
+    'skills.ability': 'Ability',
+    'skills.ability_header': '✨ Ability',
+    'skills.current': 'Current',
+    'skills.after_invest': 'After upgrade',
+    'skills.locked_prev': '🔒 Max out the previous block first',
+    'skills.maxed': '✅ Maximum level',
+    'skills.invest': '+ Invest point ({n} left)',
+    'skills.no_points': 'No available points',
+    'skills.invested': '✅ {name} → lv. {level}',
+    'skills.reset_title': 'Reset skills',
+    'skills.reset_cost': 'Cost: {cost} 💎',
+    'skills.reset_info1': 'All points will be returned',
+    'skills.reset_info2': 'Skills will be reset',
+    'skills.reset_btn': 'Reset for {cost}💎',
+    'skills.reset_done': 'Skills reset',
+    'skills.not_active': 'Not active',
+    'skills.loading': 'Loading...',
+    'skills.level_n': '{n}/{max} level',
+    'shadow.activated': '🎭 Shadow activated for 30 min!',
+    'shadow.already_active': '🎭 Shadow is already active',
+    'shadow.cooldown': '🎭 Cooldown: {time}',
+    'shadow.title_active': 'Shadow active',
+    'shadow.title_cd': 'CD: {time}',
+    'shadow.title_ready': 'Activate Shadow',
+    'hq.roadmap_title': '🏠 HQ Roadmap',
+    'hq.roadmap_subtitle': 'What unlocks at each level',
+    'hq.roadmap_btn': 'ℹ️ Roadmap',
+    'hq.roadmap_level': 'Level {n}',
+    'hq.roadmap_collector': '🧲 Collector ×{n}',
+    'hq.roadmap_firetruck': '🚒 Fire truck ×{n}',
+    'hq.roadmap_base': 'Base HQ',
+    'effect.weapon_damage_bonus': 'weapon damage',
+    'effect.crit_chance_bonus': 'crit chance',
+    'effect.attack_speed_bonus': 'attack speed',
+    'effect.player_hp_bonus': 'player HP',
+    'effect.lifesteal': 'lifesteal',
+    'effect.pve_damage_bonus': 'PvE damage',
+    'effect.pvp_loot_bonus': 'PvP loot',
+    'effect.attack_radius_bonus': 'm attack radius',
+    'effect.mine_income_bonus': 'mine income',
+    'effect.mine_capacity_bonus': 'mine capacity',
+    'effect.mine_hp_bonus': 'mine HP',
+    'effect.mine_regen_bonus': 'mine regen',
+    'effect.ore_bonus': 'ore yield',
+    'effect.collector_radius_bonus': 'collector radius',
+    'effect.mine_damage_reduction': 'mine damage reduction',
+    'effect.radius_bonus': 'm interaction radius',
+    'effect.sniper_ability': 'first hit is crit',
+    'effect.shadow_ability': 'invisibility 30 min',
+    'effect.instant_collector': 'instant delivery',
+    'effect.safe_pvp_loss': '5% loss instead of 10%',
+    'effect.landlord_bonus': '+15% nearby mine income',
   }
 };
 
@@ -7117,7 +7237,7 @@ function showBuildMenu(cellLat, cellLng) {
   const card = document.getElementById('popup-card');
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <div style="font-size:16px;font-weight:600;color:#fff">${t('build.title')}</div>
-    <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+    <button onclick="closePopup()" class="popup-close">✕</button>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px">`;
 
@@ -7324,7 +7444,7 @@ function openPopup(title, subtitle, stats, actions) {
       <div style="font-size:16px;font-weight:600;color:#fff">${title}</div>
       ${subtitle ? `<div style="font-size:12px;color:#888;margin-top:2px">${subtitle}</div>` : ''}
     </div>
-    <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 0 0 8px">✕</button>
+    <button onclick="closePopup()" class="popup-close">✕</button>
   </div>`;
 
   // Stats as cards
@@ -7530,7 +7650,7 @@ function showHqPopup(hq, isOwn) {
             <div style="font-size:12px;color:#888">${t('hq.level', {n: hqLvl})}</div>
           </div>
         </div>
-        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+        <button onclick="closePopup()" class="popup-close">✕</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div class="hq-stat-card"><span>${t('hq.coins')}</span><span style="color:#FFD700;font-weight:600">${formatCoins(playerCoins)}</span></div>
@@ -7539,8 +7659,8 @@ function showHqPopup(hq, isOwn) {
       ${collectorsHtml}
       ${buildFireTruckHQSection(hqLvl)}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        <button class="hq-btn" style="background:#1a1a2e;border:1px solid #333;color:#aaa" onclick="showHqRoadmap(${hqLvl})">ℹ️ Дорожная карта</button>
-        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doUpgradeHq()">${t('hq.upgrade', {cost: formatCoins(nextCost)})}</button>` : ''}
+        <button class="hq-btn" style="background:#1a1a2e;border:1px solid #333;color:#aaa" onclick="showHqRoadmap(${hqLvl})">${t('hq.roadmap_btn')}</button>
+        ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doUpgradeHq()">${t('hq.upgrade', {cost: formatCoins(nextCost)})}</button>` : ''}
         <button class="hq-btn red" onclick="closePopup();confirmSellHq()">${t('hq.demolish')}</button>
       </div>
     `;
@@ -7572,16 +7692,16 @@ function showHqPopup(hq, isOwn) {
 
 function showHqRoadmap(currentLvl) {
   const levels = [
-    { lv: 1, cost: 0, unlocks: [] },
-    { lv: 2, cost: 1000, unlocks: ['🧲 Сборщик ×1'] },
+    { lv: 1, cost: 0, unlocks: [t('hq.roadmap_base')] },
+    { lv: 2, cost: 1000, unlocks: [t('hq.roadmap_collector', {n:1})] },
     { lv: 3, cost: 10000, unlocks: [] },
-    { lv: 4, cost: 100000, unlocks: ['🧲 Сборщик ×2'] },
-    { lv: 5, cost: 1000000, unlocks: ['🚒 Пожарная ×1', '🧲 Сборщик ×2'] },
-    { lv: 6, cost: 10000000, unlocks: ['🧲 Сборщик ×3'] },
-    { lv: 7, cost: 100000000, unlocks: ['🧲 Сборщик ×3'] },
-    { lv: 8, cost: 1000000000, unlocks: ['🧲 Сборщик ×4'] },
-    { lv: 9, cost: 10000000000, unlocks: ['🧲 Сборщик ×4'] },
-    { lv: 10, cost: 100000000000, unlocks: ['🚒 Пожарная ×2', '🧲 Сборщик ×5'] },
+    { lv: 4, cost: 100000, unlocks: [t('hq.roadmap_collector', {n:2})] },
+    { lv: 5, cost: 1000000, unlocks: [t('hq.roadmap_firetruck', {n:1}), t('hq.roadmap_collector', {n:2})] },
+    { lv: 6, cost: 10000000, unlocks: [t('hq.roadmap_collector', {n:3})] },
+    { lv: 7, cost: 100000000, unlocks: [t('hq.roadmap_collector', {n:3})] },
+    { lv: 8, cost: 1000000000, unlocks: [t('hq.roadmap_collector', {n:4})] },
+    { lv: 9, cost: 10000000000, unlocks: [t('hq.roadmap_collector', {n:4})] },
+    { lv: 10, cost: 100000000000, unlocks: [t('hq.roadmap_firetruck', {n:2}), t('hq.roadmap_collector', {n:5})] },
   ];
 
   let html = '<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
@@ -7594,7 +7714,7 @@ function showHqRoadmap(currentLvl) {
 
     html += `<div style="${bg};${border};border-radius:10px;padding:10px 12px;margin-bottom:6px;${opacity}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-weight:700;color:${isCurrent ? '#4488ff' : '#fff'};font-size:14px">${isPast ? '✅' : isCurrent ? '📍' : '🔒'} Уровень ${l.lv}</span>
+        <span style="font-weight:700;color:${isCurrent ? '#4488ff' : '#fff'};font-size:14px">${isPast ? '✅' : isCurrent ? '📍' : '🔒'} ${t('hq.roadmap_level', {n: l.lv})}</span>
         ${l.cost > 0 ? `<span style="font-size:11px;color:#888">${formatCoins(l.cost)} 💰</span>` : ''}
       </div>
       ${l.unlocks.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${l.unlocks.map(u => `<span style="font-size:11px;background:#1a2a1a;color:#4caf50;padding:2px 8px;border-radius:6px">${u}</span>`).join('')}</div>` : ''}
@@ -7606,13 +7726,13 @@ function showHqRoadmap(currentLvl) {
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div>
-        <div style="font-size:16px;font-weight:600;color:#fff">🏠 Дорожная карта штаба</div>
-        <div style="font-size:12px;color:#888;margin-top:2px">Что открывается на каждом уровне</div>
+        <div style="font-size:16px;font-weight:600;color:#fff">${t('hq.roadmap_title')}</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">${t('hq.roadmap_subtitle')}</div>
       </div>
-      <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+      <button onclick="closePopup()" class="popup-close">✕</button>
     </div>
     ${html}
-    <button onclick="closePopup()" style="width:100%;padding:12px;margin-top:10px;background:#252538;border:1px solid #333;border-radius:10px;color:#aaa;font-size:14px;cursor:pointer">Закрыть</button>
+    <button onclick="closePopup()" style="width:100%;padding:12px;margin-top:10px;background:#252538;border:1px solid #333;border-radius:10px;color:#aaa;font-size:14px;cursor:pointer">${t('btn.close')}</button>
   `;
   document.getElementById('popup-overlay').classList.add('open');
 }
@@ -8110,37 +8230,17 @@ function isBlockUnlockedClient(blockDef, playerSkills, treeName) {
   return (playerSkills[blockDef.requires] || 0) >= (reqBlock.maxLevel || 5);
 }
 
-const EFFECT_DESCRIPTIONS = {
-  weapon_damage_bonus: 'к урону оружия',
-  crit_chance_bonus: 'к шансу крита',
-  attack_speed_bonus: 'к скорости атаки',
-  player_hp_bonus: 'к HP игрока',
-  lifesteal: 'вампиризм',
-  pve_damage_bonus: 'к PvE урону',
-  pvp_loot_bonus: 'к луту с PvP',
-  attack_radius_bonus: 'м к радиусу атаки',
-  mine_income_bonus: 'к доходу шахт',
-  mine_capacity_bonus: 'к вместимости шахт',
-  mine_hp_bonus: 'к HP шахт',
-  mine_regen_bonus: 'к регену шахт',
-  ore_bonus: 'к добыче руды',
-  collector_radius_bonus: 'к радиусу сборщика',
-  mine_damage_reduction: 'снижение урона по шахтам',
-  radius_bonus: 'м к радиусу действия',
-  sniper_ability: 'первый удар — крит',
-  shadow_ability: 'невидимость 30 мин',
-  instant_collector: 'мгновенная доставка',
-  safe_pvp_loss: '5% потеря вместо 10%',
-  landlord_bonus: '+15% дохода шахт рядом',
-};
+function getEffectDesc(key) {
+  return t('effect.' + key) || key;
+}
 
 function formatSkillEffect(effectObj, level) {
   if (level === 0) return '—';
   const parts = [];
   for (const [key, val] of Object.entries(effectObj)) {
-    const desc = EFFECT_DESCRIPTIONS[key] || key;
+    const desc = getEffectDesc(key);
     if (typeof val === 'boolean') {
-      parts.push(level >= 5 ? desc : 'Не активно');
+      parts.push(level >= 5 ? desc : t('skills.not_active'));
     } else {
       const total = val * level;
       if (key === 'attack_radius_bonus' || key === 'radius_bonus') {
@@ -8159,7 +8259,7 @@ function getBlockDescription(block) {
   if (block.description) return block.description;
   const parts = [];
   for (const [key, val] of Object.entries(block.effect)) {
-    const desc = EFFECT_DESCRIPTIONS[key] || key;
+    const desc = getEffectDesc(key);
     if (typeof val === 'boolean') {
       parts.push(desc);
     } else if (key === 'attack_radius_bonus' || key === 'radius_bonus') {
@@ -8176,7 +8276,7 @@ function getBlockDescription(block) {
 async function renderSkillsTab() {
   const el = document.getElementById('skills-content');
   if (!el) return;
-  el.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">Загрузка...</div>';
+  el.innerHTML = `<div style="text-align:center;padding:20px;color:#666;">${t('skills.loading')}</div>`;
   try {
     const data = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'get' }) });
     _skillData = data;
@@ -8196,8 +8296,8 @@ function renderSkillsScreen(el) {
   let html = `<div class="skills-topbar">
     <div style="min-width:60px"></div>
     <div>
-      <div class="skills-title">Навыки</div>
-      <div class="skills-points">Очков: ${points}</div>
+      <div class="skills-title">${t('skills.title')}</div>
+      <div class="skills-points">${t('skills.points', {n: points})}</div>
     </div>
     <button onclick="confirmResetSkills()" class="btn-reset" ${resetCost === 0 ? 'disabled' : ''}>
       🔄 ${resetCost > 0 ? formatNumber(resetCost) + '💎' : '—'}
@@ -8205,8 +8305,8 @@ function renderSkillsScreen(el) {
   </div>`;
 
   html += `<div class="skills-tabs">
-    <button onclick="switchSkillTree('raider')" id="tab-raider" class="skill-tab ${_skillBranch==='raider'?'active':''}">⚔️ Рейдер</button>
-    <button onclick="switchSkillTree('farmer')" id="tab-farmer" class="skill-tab ${_skillBranch==='farmer'?'active':''}">⛏️ Фермер</button>
+    <button onclick="switchSkillTree('raider')" id="tab-raider" class="skill-tab ${_skillBranch==='raider'?'active':''}">${t('skills.tab_raider')}</button>
+    <button onclick="switchSkillTree('farmer')" id="tab-farmer" class="skill-tab ${_skillBranch==='farmer'?'active':''}">${t('skills.tab_farmer')}</button>
   </div>`;
 
   html += `<div id="skill-tree-wrap">${renderSkillTreeHTML()}</div>`;
@@ -8216,7 +8316,7 @@ function renderSkillsScreen(el) {
 
 function renderSkillTreeHTML() {
   const blocks = _skillTrees[_skillBranch] || [];
-  if (!blocks.length) return '<div style="text-align:center;padding:20px;color:#666">Нет данных</div>';
+  if (!blocks.length) return `<div style="text-align:center;padding:20px;color:#666">${t('skills.no_data')}</div>`;
   const playerSkills = _skillData?.[_skillBranch] || {};
 
   // Normalize columns: find min col, shift to 0-based, divide by 2 for compact layout
@@ -8327,24 +8427,24 @@ function onSkillBlockClick(blockId, treeName) {
       <div class="sp-emoji">${block.emoji}</div>
       <div>
         <div class="sp-title">${block.name}</div>
-        <div class="sp-subtitle">${isAbility ? 'Абилка' : level + '/' + maxLevel + ' уровень'}</div>
+        <div class="sp-subtitle">${isAbility ? t('skills.ability') : t('skills.level_n', {n: level, max: maxLevel})}</div>
       </div>
     </div>
     <div style="font-size:12px;color:#888;margin-bottom:12px">${getBlockDescription(block)}</div>
     ${isAbility ? `
       <div class="sp-effect">
-        <div style="font-size:13px;color:#FFD700;margin-bottom:8px">✨ Способность</div>
+        <div style="font-size:13px;color:#FFD700;margin-bottom:8px">${t('skills.ability_header')}</div>
         <div style="font-size:13px;color:#ddd">${block.description || ''}</div>
       </div>
     ` : `
       <div class="sp-effect">
         <div class="sp-effect-row">
-          <span class="sp-effect-label">Сейчас</span>
+          <span class="sp-effect-label">${t('skills.current')}</span>
           <span class="sp-effect-value">${currentEffect}</span>
         </div>
         ${!isMaxed ? `
           <div class="sp-effect-row">
-            <span class="sp-effect-label">После вложения</span>
+            <span class="sp-effect-label">${t('skills.after_invest')}</span>
             <span style="color:#4488ff;font-weight:600">${nextEffect}</span>
           </div>
         ` : ''}
@@ -8352,20 +8452,20 @@ function onSkillBlockClick(blockId, treeName) {
     `}
     ${!isUnlocked ? `
       <div style="text-align:center;color:#666;font-size:13px;padding:12px">
-        🔒 Прокачай предыдущий блок до максимума
+        ${t('skills.locked_prev')}
       </div>
     ` : isMaxed ? `
       <div style="text-align:center;color:#4caf50;font-size:14px;padding:12px">
-        ✅ Максимальный уровень
+        ${t('skills.maxed')}
       </div>
     ` : `
       <button class="sp-invest-btn" ${availablePoints <= 0 ? 'disabled' : ''} onclick="investInSkill('${blockId}','${treeName}')">
-        ${availablePoints > 0 ? '+ Вложить очко (осталось ' + availablePoints + ')' : 'Нет доступных очков'}
+        ${availablePoints > 0 ? t('skills.invest', {n: availablePoints}) : t('skills.no_points')}
       </button>
     `}
     <button onclick="document.getElementById('skill-popup').remove()"
       style="width:100%;padding:10px;margin-top:8px;background:none;border:1px solid #333;border-radius:10px;color:#888;cursor:pointer">
-      Закрыть
+      ${t('btn.close')}
     </button>
   `;
   document.body.appendChild(popup);
@@ -8385,7 +8485,7 @@ async function investInSkill(blockId, treeName) {
     _skillData.reset_cost = res.reset_cost;
     _skillData.effects = res.effects;
 
-    showToast('✅ ' + (res.block_name || blockId) + ' → уровень ' + res.new_level);
+    showToast(t('skills.invested', {name: res.block_name || blockId, level: res.new_level}));
     document.getElementById('skill-popup')?.remove();
     renderSkillsScreen(document.getElementById('skills-content'));
   } catch(e) { showToast('❌ ' + e.message); }
@@ -8394,21 +8494,21 @@ async function investInSkill(blockId, treeName) {
 function confirmResetSkills() {
   if (!_skillData || (_skillData.skill_points_used || 0) === 0) return;
   const cost = _skillData.reset_cost || 0;
-  openPopup('Сброс навыков', 'Стоимость: ' + formatNumber(cost) + ' 💎', [
-    ['Все очки будут возвращены', ''],
-    ['Навыки обнулятся', ''],
+  openPopup(t('skills.reset_title'), t('skills.reset_cost', {cost: formatNumber(cost)}), [
+    [t('skills.reset_info1'), ''],
+    [t('skills.reset_info2'), ''],
   ], [
-    { label: 'Сбросить за ' + formatNumber(cost) + '💎', cls:'danger', action: async () => {
+    { label: t('skills.reset_btn', {cost: formatNumber(cost)}), cls:'danger', action: async () => {
       try {
         const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'reset' }) });
         _skillData = { ..._skillData, ...res };
         if (res.farmer_tree) _skillTrees.farmer = res.farmer_tree;
         if (res.raider_tree) _skillTrees.raider = res.raider_tree;
-        showToast('Навыки сброшены');
+        showToast(t('skills.reset_done'));
         renderSkillsScreen(document.getElementById('skills-content'));
       } catch(e) { showToast('❌ ' + e.message); }
     }},
-    { label:'Отмена', isClose:true },
+    { label: t('btn.cancel'), isClose:true },
   ]);
 }
 
@@ -8421,7 +8521,7 @@ function formatDuration(ms) {
 async function activateShadow() {
   try {
     const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'activate-shadow' }) });
-    showToast('🎭 Тень активирована на 30 мин!');
+    showToast(t('shadow.activated'));
     state.shadow_active = true;
     state.shadow_until = res.shadow_until;
     state.shadow_cooldown = res.shadow_cooldown;
@@ -8438,11 +8538,11 @@ function toggleShadowAbility() {
   const active = state.shadow_active;
   const cdLeft = state.shadow_cooldown ? Math.max(0, state.shadow_cooldown - Date.now()) : 0;
   if (active) {
-    showToast('🎭 Тень уже активна');
+    showToast(t('shadow.already_active'));
     return;
   }
   if (cdLeft > 0) {
-    showToast('🎭 Перезарядка: ' + formatDuration(cdLeft));
+    showToast(t('shadow.cooldown', {time: formatDuration(cdLeft)}));
     return;
   }
   activateShadow();
@@ -8459,15 +8559,15 @@ function updateShadowButton() {
   if (active) {
     btn.style.borderColor = '#FFD700';
     btn.style.background = 'rgba(255,215,0,0.15)';
-    btn.title = 'Тень активна';
+    btn.title = t('shadow.title_active');
   } else if (cdLeft > 0) {
     btn.style.borderColor = '#666';
     btn.style.background = 'rgba(66,66,66,0.12)';
-    btn.title = 'КД: ' + formatDuration(cdLeft);
+    btn.title = t('shadow.title_cd', {time: formatDuration(cdLeft)});
   } else {
     btn.style.borderColor = '#4caf50';
     btn.style.background = 'rgba(76,175,80,0.12)';
-    btn.title = 'Активировать Тень';
+    btn.title = t('shadow.title_ready');
   }
 }
 
@@ -8977,7 +9077,7 @@ function showInstalledCorePopup(coreId) {
         <div style="font-size:16px;font-weight:600;color:#fff">${info.emoji} ${info.name} Lv.${core.level}</div>
         <div style="font-size:12px;color:#888;margin-top:2px">${t('core.multiplier_sub', {mul})}</div>
       </div>
-      <button onclick="closeCoreDetail()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 0 0 8px">✕</button>
+      <button onclick="closeCoreDetail()" class="popup-close">✕</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
       <div class="hq-stat-card"><span>${t('core.level')}</span><span class="val">${core.level}</span></div>
@@ -10885,7 +10985,7 @@ async function openReferralStats() {
       <div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="font-size:16px;font-weight:600;color:#fff">🔗 Лидерборд рефереров</div>
-          <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+          <button onclick="this.closest('[style*=fixed]').remove()" class="popup-close">✕</button>
         </div>
         <div style="display:flex;gap:12px;margin-bottom:14px">
           <div style="flex:1;background:#252538;border-radius:10px;padding:10px;text-align:center">
@@ -14005,7 +14105,7 @@ function showOtherPlayerPopup(p) {
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-size:16px;font-weight:600;color:#fff">${p.avatar || '👤'} ${displayName(p)}</div>
-      <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;padding:0 0 0 8px">✕</button>
+      <button onclick="closePopup()" class="popup-close">✕</button>
     </div>
     <div class="player-popup">
       <div class="player-popup-header">
@@ -14891,7 +14991,7 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div style="font-size:15px;font-weight:600;color:#fff">${title}</div>
-      <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:18px;cursor:pointer;padding:0 0 0 8px">✕</button>
+      <button onclick="closePopup()" class="popup-close">✕</button>
     </div>
     ${hpBarHtml}
     ${extraHtml}
@@ -17198,7 +17298,7 @@ function showCollectorPopup(collectorId) {
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:16px;font-weight:600;color:#fff">${t('coll.title', {n: idx, level: c.level})}</div>
-        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+        <button onclick="closePopup()" class="popup-close">✕</button>
       </div>
       ${burnTimerHtml}
       ${!isBurning ? `
@@ -17214,7 +17314,7 @@ function showCollectorPopup(collectorId) {
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>` : ''}
-        ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled style="opacity:0.5"'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
+        ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
         ${!isBurning ? `<button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>` : ''}
       </div>
       ${!isBurning ? `<div style="font-size:11px;color:#555;margin-top:8px;text-align:center">${t('coll.deliver_hint')}</div>` : ''}
@@ -17244,7 +17344,7 @@ function showCollectorPopup(collectorId) {
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:16px;font-weight:600;color:#fff">${t('coll.enemy_title', {level: c.level})}</div>
-        <button onclick="closePopup()" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer">✕</button>
+        <button onclick="closePopup()" class="popup-close">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:13px;color:#888">${c.owner_avatar || ''} ${c.owner_name || '?'}</div>
       ${eBurnHtml}
