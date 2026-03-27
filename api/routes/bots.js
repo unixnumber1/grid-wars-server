@@ -411,12 +411,17 @@ async function handleAttack(player, body) {
         // Respawn: 10s timer, restore 30% HP
         const respawnHp    = Math.max(1, Math.ceil(maxHp * 0.3));
         const respawnUntil = new Date(Date.now() + 10_000).toISOString();
+        const shieldUntil  = new Date(Date.now() + 2 * 60 * 1000).toISOString();
         result.playerDied  = true;
         result.respawnUntil = respawnUntil;
         playerHp = respawnHp;
+        // Update gameState shield
+        const gsP = gameState.getPlayerByTgId(body.telegram_id);
+        if (gsP) { gsP.shield_until = shieldUntil; gameState.markDirty('players', gsP.id); }
         await supabase.from('players').update({
           hp: respawnHp, max_hp: maxHp, last_hp_regen: new Date().toISOString(),
           deaths: (pFull.deaths ?? 0) + 1, respawn_until: respawnUntil,
+          shield_until: shieldUntil,
         }).eq('id', player.id);
       } else {
         await supabase.from('players').update({

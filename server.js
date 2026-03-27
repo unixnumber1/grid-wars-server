@@ -539,7 +539,7 @@ function startMonumentLoop() {
       player.hp = 1000 + (player.bonus_hp || 0);
       player._respawn_at = null;
       player.last_hp_regen = null;
-      player.shield_until = new Date(now + 10_000).toISOString(); // 10s shield after respawn
+      player.shield_until = new Date(now + 2 * 60 * 1000).toISOString(); // 2min shield after respawn
       gameState.markDirty('players', player.id);
       // Find socket and emit respawn
       for (const [sid, info] of connectedPlayers) {
@@ -806,6 +806,14 @@ function startDefenderLoop() {
             }
             const idx = nearbyPlayers.indexOf(target);
             if (idx !== -1) nearbyPlayers.splice(idx, 1);
+            // Clear all defender targeting for this dead player
+            for (const d of aliveDefenders) {
+              if (String(d._target_player_id) === String(target.telegram_id)) {
+                d._target_player_id = null;
+                d._target_lat = null;
+                d._target_lng = null;
+              }
+            }
           }
         }
       } catch (e) {
