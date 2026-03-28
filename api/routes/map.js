@@ -98,7 +98,7 @@ async function handleTick(req, res) {
   const hasPos  = !isNaN(pLat) && !isNaN(pLng) && pLat !== 0;
 
   // Reject overly large bbox
-  if (hasBbox && ((n - s) > 0.1 || (e - w) > 0.1)) {
+  if (hasBbox && ((n - s) > 0.3 || (e - w) > 0.3)) {
     return res.json({ mines: [], headquarters: [], bots: [], vases: [], online_players: [], couriers: [], courier_drops: [], markets: [] });
   }
 
@@ -737,7 +737,7 @@ mapRouter.get('/', async (req, res) => {
   }
 
   // Reject if bbox is too large
-  if ((n - s) > 0.1 || (e - w) > 0.1) {
+  if ((n - s) > 0.3 || (e - w) > 0.3) {
     return res.json({ mines: [], headquarters: [], bots: [], vases: [], online_players: [] });
   }
 

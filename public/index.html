@@ -7558,10 +7558,14 @@ function renderBuildings() {
       onlineMarkers[p.id] = marker;
     }
   }
+  const _playerBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(onlineMarkers)) {
     if (!activePlayerIds.has(id)) {
-      map.removeLayer(onlineMarkers[id]);
-      delete onlineMarkers[id];
+      const pos = onlineMarkers[id].getLatLng();
+      if (!_playerBounds.contains(pos)) {
+        map.removeLayer(onlineMarkers[id]);
+        delete onlineMarkers[id];
+      }
     }
   }
 }
@@ -8186,7 +8190,7 @@ map.on('click', e => {
 let _loadBuildingsTimer = null;
 function _debouncedLoad() {
   clearTimeout(_loadBuildingsTimer);
-  _loadBuildingsTimer = setTimeout(() => { loadVisibleBuildings(); }, 150);
+  _loadBuildingsTimer = setTimeout(() => { loadVisibleBuildings(); }, 80);
 }
 map.on('moveend', _debouncedLoad);
 map.on('zoomend', _debouncedLoad);
@@ -9794,7 +9798,7 @@ async function loadVisibleBuildings(force = false) {
   if (_mapLoadPending) return;
 
   const now = Date.now();
-  if (!force && now - _lastMapFetchTime < 2000) return;
+  if (!force && now - _lastMapFetchTime < 1000) return;
 
   const bounds = map.getBounds();
   _lastMapCenter = bounds.getCenter();
@@ -9805,8 +9809,8 @@ async function loadVisibleBuildings(force = false) {
     const pos = state.playerPos;
     const sw = bounds.getSouthWest();
     const ne = bounds.getNorthEast();
-    const latPad = (ne.lat - sw.lat) * 0.2;
-    const lngPad = (ne.lng - sw.lng) * 0.2;
+    const latPad = (ne.lat - sw.lat) * 0.5;
+    const lngPad = (ne.lng - sw.lng) * 0.5;
     const params = new URLSearchParams({
       north: ne.lat + latPad,
       south: sw.lat - latPad,
@@ -10477,8 +10481,8 @@ async function unifiedTick() {
     const pos = state.playerPos;
     const bounds = map.getBounds();
     const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
-    const latPad = (ne.lat - sw.lat) * 0.2;
-    const lngPad = (ne.lng - sw.lng) * 0.2;
+    const latPad = (ne.lat - sw.lat) * 0.5;
+    const lngPad = (ne.lng - sw.lng) * 0.5;
 
     if (_tickAbort) _tickAbort.abort();
     _tickAbort = new AbortController();
@@ -10637,12 +10641,16 @@ function renderVases(vasesRaw) {
   const vases  = (vasesRaw || []).filter(v => new Date(v.expires_at) > now);
   const activeIds = new Set(vases.map(v => v.id));
 
-  // Remove gone vases
+  // Remove gone vases — only if outside extended viewport
+  const _vaseBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(vaseMarkers)) {
     if (!activeIds.has(id)) {
-      vaseLayer.removeLayer(vaseMarkers[id]);
-      delete vaseMarkers[id];
-      delete vaseData[id];
+      const pos = vaseMarkers[id].getLatLng();
+      if (!_vaseBounds.contains(pos)) {
+        vaseLayer.removeLayer(vaseMarkers[id]);
+        delete vaseMarkers[id];
+        delete vaseData[id];
+      }
     }
   }
 
@@ -10888,10 +10896,14 @@ function startBotAnimation() {
 
 function renderBots(bots) {
   const activeIds = new Set(bots.map(b => b.id));
+  const _botBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(botMarkers)) {
     if (!activeIds.has(id)) {
-      botLayer.removeLayer(botMarkers[id].marker);
-      delete botMarkers[id]; delete botData[id];
+      const pos = botMarkers[id].marker.getLatLng();
+      if (!_botBounds.contains(pos)) {
+        botLayer.removeLayer(botMarkers[id].marker);
+        delete botMarkers[id]; delete botData[id];
+      }
     }
   }
   for (const bot of bots) {
@@ -16146,11 +16158,15 @@ function oreIcon(ore) {
 function renderOreNodes(ores) {
   if (!ores || ores.length === 0) return; // Don't wipe markers on empty tick
   const activeIds = new Set(ores.map(o => o.id));
+  const _oreBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(oreMarkers)) {
     if (!activeIds.has(id)) {
-      map.removeLayer(oreMarkers[id]);
-      delete oreMarkers[id];
-      delete oreData[id];
+      const pos = oreMarkers[id].getLatLng();
+      if (!_oreBounds.contains(pos)) {
+        map.removeLayer(oreMarkers[id]);
+        delete oreMarkers[id];
+        delete oreData[id];
+      }
     }
   }
   for (const ore of ores) {
@@ -17285,8 +17301,12 @@ function lootBoxIcon(box) {
 function renderMonuments(monuments) {
   if (!monuments || !monuments.length) return;
   const activeIds = new Set(monuments.map(m => m.id));
+  const _monBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(monumentMarkers)) {
-    if (!activeIds.has(id)) { map.removeLayer(monumentMarkers[id]); delete monumentMarkers[id]; delete monumentData[id]; }
+    if (!activeIds.has(id)) {
+      const pos = monumentMarkers[id].getLatLng();
+      if (!_monBounds.contains(pos)) { map.removeLayer(monumentMarkers[id]); delete monumentMarkers[id]; delete monumentData[id]; }
+    }
   }
   for (const m of monuments) {
     monumentData[m.id] = m;
@@ -17309,8 +17329,12 @@ function renderMonuments(monuments) {
 function renderMonumentDefenders(defenders) {
   if (!defenders) return;
   const activeIds = new Set(defenders.map(d => d.id));
+  const _defBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(defenderMarkers)) {
-    if (!activeIds.has(id)) { map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id]; }
+    if (!activeIds.has(id)) {
+      const pos = defenderMarkers[id].getLatLng();
+      if (!_defBounds.contains(pos)) { map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id]; }
+    }
   }
   for (const d of defenders) {
     const prev = defenderData[d.id];
@@ -17346,6 +17370,19 @@ function renderMonumentDefenders(defenders) {
 
 function renderLootBoxes(boxes) {
   if (!boxes || !boxes.length) return; // Don't wipe markers on empty tick
+  // Cleanup markers outside extended viewport
+  const _lbActiveIds = new Set(boxes.map(b => b.id));
+  const _lbBounds = map.getBounds().pad(0.5);
+  for (const id of Object.keys(lootBoxMarkers)) {
+    if (!_lbActiveIds.has(id)) {
+      const pos = lootBoxMarkers[id].getLatLng();
+      if (!_lbBounds.contains(pos)) {
+        map.removeLayer(lootBoxMarkers[id]);
+        delete lootBoxMarkers[id];
+        delete lootBoxData[id];
+      }
+    }
+  }
   for (const box of boxes) {
     lootBoxData[box.id] = box;
     if (lootBoxMarkers[box.id]) continue;
@@ -17814,6 +17851,20 @@ function collectorIcon(c) {
 
 function renderCollectors(collectors) {
   if (!collectors || !collectors.length) return;
+  // Cleanup markers outside extended viewport
+  const _colActiveIds = new Set(collectors.map(c => c.id));
+  const _colBounds = map.getBounds().pad(0.5);
+  for (const id of Object.keys(collectorMarkers)) {
+    if (!_colActiveIds.has(id)) {
+      const pos = collectorMarkers[id].getLatLng();
+      if (!_colBounds.contains(pos)) {
+        map.removeLayer(collectorMarkers[id]);
+        delete collectorMarkers[id];
+        delete collectorData[id];
+        if (collectorCircles[id]) { map.removeLayer(collectorCircles[id]); delete collectorCircles[id]; }
+      }
+    }
+  }
   for (const c of collectors) {
     // Estimate capacity client-side (mines in 200m owned by same player)
     const myMines = (state.mapBuildings?.mines || []).filter(m => m.owner_id === c.owner_id && haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
@@ -18137,6 +18188,20 @@ function firetruckIcon(ft) {
 
 function renderFireTrucks(trucks) {
   if (!trucks || !trucks.length) return;
+  // Cleanup markers outside extended viewport
+  const _ftActiveIds = new Set(trucks.map(ft => ft.id));
+  const _ftBounds = map.getBounds().pad(0.5);
+  for (const id of Object.keys(firetruckMarkers)) {
+    if (!_ftActiveIds.has(id)) {
+      const pos = firetruckMarkers[id].getLatLng();
+      if (!_ftBounds.contains(pos)) {
+        map.removeLayer(firetruckMarkers[id]);
+        delete firetruckMarkers[id];
+        delete firetruckData[id];
+        if (firetruckCircles[id]) { map.removeLayer(firetruckCircles[id]); delete firetruckCircles[id]; }
+      }
+    }
+  }
   for (const ft of trucks) {
     firetruckData[ft.id] = ft;
     if (firetruckMarkers[ft.id]) {
@@ -18566,9 +18631,13 @@ function updateFirefighterMarker(ffId) {
 
 function renderFirefighters(fighters) {
   const activeIds = new Set((fighters || []).map(f => f.id));
-  // Remove stale
+  // Remove stale — only if outside extended viewport
+  const _ffBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(firefighterMarkers)) {
-    if (!activeIds.has(id)) removeFirefighterMarker(id);
+    if (!activeIds.has(id)) {
+      const pos = firefighterMarkers[id].getLatLng();
+      if (!_ffBounds.contains(pos)) removeFirefighterMarker(id);
+    }
   }
   for (const ff of (fighters || [])) {
     firefighterData[ff.id] = ff;
