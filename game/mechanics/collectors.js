@@ -17,6 +17,12 @@ export const COLLECTOR_MAX_MINE_LEVEL = {
   6: 120, 7: 140, 8: 160, 9: 180, 10: 200,
 };
 
+// Collection interval in ms per collector level (lv1=60min, -5min per level, lv10=15min)
+export const COLLECTOR_INTERVAL_MS = {
+  1: 60 * 60000, 2: 55 * 60000, 3: 50 * 60000, 4: 45 * 60000, 5: 40 * 60000,
+  6: 35 * 60000, 7: 30 * 60000, 8: 25 * 60000, 9: 20 * 60000, 10: 15 * 60000,
+};
+
 export const COLLECTOR_LEVELS = {
   1:  { hp: 3000,  upgradeCost: 0 },
   2:  { hp: 5000,  upgradeCost: 500_000 },
@@ -96,53 +102,54 @@ export function autoCollect(collector) {
 }
 
 /**
- * Auto-upgrade mines near a collector using its stored_coins.
- * Upgrades weakest mine first, one level per mine per cycle.
+ * Auto-upgrade ONE weakest mine near a collector using its stored_coins.
+ * Only upgrades a single mine per cycle — the rest stays in storage.
  */
-export function autoUpgradeMines(collector) {
+export function autoUpgradeOneMine(collector) {
   const maxLevel = COLLECTOR_MAX_MINE_LEVEL[collector.level] || 20;
-  const mines = getCollectorMines(collector)
+  const mine = getCollectorMines(collector)
     .filter(m => m.level < maxLevel && (!m.status || m.status === 'normal') && !m.upgrade_finish_at)
-    .sort((a, b) => a.level - b.level);
+    .sort((a, b) => a.level - b.level)[0];
 
-  let upgraded = 0;
-  for (const mine of mines) {
-    if (mine.level >= maxLevel) continue;
-    const cost = getMineUpgradeCost(mine.level);
-    if (collector.stored_coins < cost) break;
+  if (!mine) return 0;
 
-    collector.stored_coins -= cost;
-    mine.level += 1;
-    mine.hp = getMineHp(mine.level);
-    mine.max_hp = getMineHp(mine.level);
-    mine.pending_level = null;
-    mine.upgrade_finish_at = null;
-    gameState.markDirty('mines', mine.id);
-    upgraded++;
-  }
+  const cost = getMineUpgradeCost(mine.level);
+  if (collector.stored_coins < cost) return 0;
 
-  if (upgraded > 0) {
-    gameState.markDirty('collectors', collector.id);
-    console.log(`[COLLECTORS] Collector ${collector.id} auto-upgraded ${upgraded} mines (${collector.stored_coins} coins left)`);
-  }
-  return upgraded;
+  collector.stored_coins -= cost;
+  mine.level += 1;
+  mine.hp = getMineHp(mine.level);
+  mine.max_hp = getMineHp(mine.level);
+  mine.pending_level = null;
+  mine.upgrade_finish_at = null;
+  gameState.markDirty('mines', mine.id);
+  gameState.markDirty('collectors', collector.id);
+  console.log(`[COLLECTORS] Collector ${collector.id} auto-upgraded mine ${mine.id} to lv${mine.level} (${collector.stored_coins} coins left)`);
+  return 1;
 }
 
 /**
  * Run auto-collection + auto-upgrade for ALL collectors.
- * Called from game loop every hour.
+ * Called every 5 min; each collector has its own interval based on level.
  */
 export function autoCollectAll() {
+  const now = Date.now();
   let totalAll = 0;
   let totalUpgraded = 0;
   for (const collector of gameState.collectors.values()) {
     if (collector.hp <= 0) continue;
     if (collector.status === 'burning') continue;
+
+    // Check per-collector interval based on level
+    const intervalMs = COLLECTOR_INTERVAL_MS[collector.level] || COLLECTOR_INTERVAL_MS[1];
+    const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : 0;
+    if (now - lastAutoCollect < intervalMs) continue;
+
     const collected = autoCollect(collector);
     totalAll += collected;
-    // Auto-upgrade only in 'upgrade' mode (default is 'collect')
-    if (collector.mode === 'upgrade') {
-      const upgraded = autoUpgradeMines(collector);
+    // Auto-upgrade one mine if auto_upgrade enabled (always collects too)
+    if (collector.auto_upgrade) {
+      const upgraded = autoUpgradeOneMine(collector);
       totalUpgraded += upgraded;
     }
   }

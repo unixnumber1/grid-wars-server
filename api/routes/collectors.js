@@ -441,11 +441,10 @@ async function handleExtinguish(req, res) {
   return res.json({ success: true, hp: restoredHp, max_hp: cfg.hp, diamonds: newDiamonds });
 }
 
-// ── SET MODE (collect or upgrade) ──
+// ── TOGGLE AUTO-UPGRADE ──
 async function handleSetMode(req, res) {
-  const { telegram_id, collector_id, mode } = req.body || {};
-  if (!telegram_id || !collector_id || !mode) return res.status(400).json({ error: 'Missing fields' });
-  if (mode !== 'collect' && mode !== 'upgrade') return res.status(400).json({ error: 'Invalid mode' });
+  const { telegram_id, collector_id, auto_upgrade } = req.body || {};
+  if (!telegram_id || !collector_id || auto_upgrade === undefined) return res.status(400).json({ error: 'Missing fields' });
 
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -453,9 +452,9 @@ async function handleSetMode(req, res) {
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
 
-  collector.mode = mode;
+  collector.auto_upgrade = !!auto_upgrade;
   gameState.markDirty('collectors', collector.id);
-  await supabase.from('collectors').update({ mode }).eq('id', collector.id);
+  await supabase.from('collectors').update({ auto_upgrade: collector.auto_upgrade }).eq('id', collector.id);
 
-  return res.json({ success: true, mode });
+  return res.json({ success: true, auto_upgrade: collector.auto_upgrade });
 }

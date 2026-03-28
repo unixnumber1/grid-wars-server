@@ -4524,6 +4524,7 @@ const I18N = {
     'misc.full': 'ПОЛНЫЙ',
     'misc.collect_mode': '💰 Сбор',
     'misc.upgrade_mode': '⚙️ Апгрейд до Lv.{n}',
+    'misc.auto_upgrade': 'Автоапгрейд (до Lv.{n})',
     'misc.extinguish_cost': '🧯 Потушить (5💎)',
 
     // === Clan Hardcoded ===
@@ -5686,6 +5687,7 @@ const I18N = {
     'misc.full': 'FULL',
     'misc.collect_mode': '💰 Collect',
     'misc.upgrade_mode': '⚙️ Upgrade to Lv.{n}',
+    'misc.auto_upgrade': 'Auto-upgrade (to Lv.{n})',
     'misc.extinguish_cost': '🧯 Extinguish (5💎)',
 
     // === Clan Hardcoded ===
@@ -17937,8 +17939,10 @@ function showCollectorPopup(collectorId) {
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
   const barColor = fillPct < 70 ? '#4caf50' : fillPct < 90 ? '#ff9800' : '#f44336';
 
+  const COLL_INTERVAL = {1:60,2:55,3:50,4:45,5:40,6:35,7:30,8:25,9:20,10:15};
+  const intervalMin = COLL_INTERVAL[c.level] || 60;
   const lastCollect = c.last_collected_at ? new Date(c.last_collected_at).getTime() : Date.now();
-  const nextMin = Math.ceil(Math.max(0, (lastCollect + 3600000) - Date.now()) / 60000);
+  const nextMin = Math.ceil(Math.max(0, (lastCollect + intervalMin * 60000) - Date.now()) / 60000);
 
   // Index among own collectors
   const myColls = Object.values(collectorData).filter(x => x.is_mine);
@@ -17952,7 +17956,7 @@ function showCollectorPopup(collectorId) {
     const nextCost = c.level < 10 ? upgCostsDiamonds[c.level + 1] : null;
     const canUpgrade = !isBurning && nextCost && (state.player?.diamonds || 0) >= nextCost;
     const maxMineLevel = {1:20,2:40,3:60,4:80,5:100,6:120,7:140,8:160,9:180,10:200}[c.level] || 20;
-    const curMode = c.mode || 'collect';
+    const autoUpgradeOn = !!c.auto_upgrade;
 
     // Burning timer
     let burnTimerHtml = '';
@@ -17972,14 +17976,18 @@ function showCollectorPopup(collectorId) {
       </div>
       ${burnTimerHtml}
       ${!isBurning ? `
-      <div style="display:flex;gap:4px;margin-bottom:10px">
-        <button id="coll-mode-collect" class="hq-btn ${curMode === 'collect' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'collect' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','collect')">${t('misc.collect_mode')}</button>
-        <button id="coll-mode-upgrade" class="hq-btn ${curMode === 'upgrade' ? 'blue' : ''}" style="flex:1;padding:8px;font-size:12px;${curMode !== 'upgrade' ? 'background:#333;color:#888' : ''}" onclick="doCollectorSetMode('${collectorId}','upgrade')">${t('misc.upgrade_mode', {n: maxMineLevel})}</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:8px 12px;background:#1a1a2e;border-radius:10px">
+        <span style="font-size:13px;color:#ccc">⚙️ ${t('misc.auto_upgrade', {n: maxMineLevel})}</span>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer">
+          <input type="checkbox" ${autoUpgradeOn ? 'checked' : ''} onchange="doCollectorToggleUpgrade('${collectorId}',this.checked)" style="opacity:0;width:0;height:0">
+          <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:${autoUpgradeOn ? '#4caf50' : '#333'};border-radius:12px;transition:background 0.3s"></span>
+          <span style="position:absolute;top:2px;left:${autoUpgradeOn ? '22px' : '2px'};width:20px;height:20px;background:#fff;border-radius:50%;transition:left 0.3s"></span>
+        </label>
       </div>` : ''}
       <div style="display:flex;flex-direction:column;gap:6px">
         ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.hp')}</span><span>${formatNumber(c.hp)} / ${formatNumber(c.max_hp)}</span></div>` : ''}
         ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.stored')}</span><span style="color:#FFD700">${formatCoins(coins)} / ${formatCoins(capacity)}</span></div>` : ''}
-        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.timer')}</span><span>${t('coll.timer_min', {n: nextMin})}</span></div>` : ''}
+        ${!isBurning ? `<div class="hq-stat-card"><span>${t('coll.timer')} (${intervalMin}${t('time.min')})</span><span>${t('coll.timer_min', {n: nextMin})}</span></div>` : ''}
       </div>
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
@@ -18119,16 +18127,15 @@ async function doCollectorSell(collectorId) {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
-async function doCollectorSetMode(collectorId, mode) {
+async function doCollectorToggleUpgrade(collectorId, on) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'set-mode', telegram_id: TG_ID, collector_id: collectorId, mode }),
+      body: JSON.stringify({ action: 'set-mode', telegram_id: TG_ID, collector_id: collectorId, auto_upgrade: on }),
     });
     if (data.success) {
       const c = collectorData[collectorId];
-      if (c) c.mode = mode;
-      showCollectorPopup(collectorId);
+      if (c) c.auto_upgrade = data.auto_upgrade;
     }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }

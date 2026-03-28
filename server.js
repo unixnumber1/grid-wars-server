@@ -927,12 +927,12 @@ async function start() {
     }
   }, 3600000);
 
-  // Collector auto-collect: every hour
+  // Collector auto-collect: every 5 min (each collector has own interval by level)
   setInterval(() => {
     try {
       import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(() => {});
     } catch (_) {}
-  }, 3600000); // 1 hour
+  }, 300000); // 5 min
   // Also run once at startup after 30s
   setTimeout(() => {
     import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(() => {});
