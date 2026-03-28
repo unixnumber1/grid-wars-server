@@ -3233,7 +3233,7 @@
       </div>
     </div>
   </div>
-  <button id="btn-inventory" data-i18n-title="hud.inv_title" style="position:relative;">🎒<span class="reward-tab-dot" id="inv-rewards-dot" style="position:absolute;top:4px;right:4px;"></span></button>
+  <button id="btn-inventory" data-i18n-title="hud.inv_title">🎒</button>
   <button id="btn-collect" disabled data-i18n="btn.collect">💰 Собрать</button>
 </div>
 
@@ -9167,9 +9167,7 @@ function showClaimAllSummary(levels, granted) {
 
 function updateRewardsDot(count) {
   const tabDot = document.getElementById('rewards-tab-dot');
-  const invDot = document.getElementById('inv-rewards-dot');
   if (tabDot) tabDot.style.display = count > 0 ? 'block' : 'none';
-  if (invDot) invDot.style.display = count > 0 ? 'block' : 'none';
 }
 
 async function checkUnclaimedRewards() {
