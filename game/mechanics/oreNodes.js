@@ -67,6 +67,20 @@ const _spawnErrorCache = new Map(); // cityKey -> timestamp of last error
 const SPAWN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 const ERROR_CACHE_TTL = 30 * 60 * 1000; // 30min — don't retry failed cities too often
 
+export function clearSpawnErrorCache() {
+  const size = _spawnErrorCache.size;
+  _spawnErrorCache.clear();
+  console.log(`[ORE] Cleared spawn error cache (${size} entries)`);
+  return size;
+}
+
+export function clearSpawnPointsCache() {
+  const size = _spawnPointsCache.size;
+  _spawnPointsCache.clear();
+  console.log(`[ORE] Cleared spawn points cache (${size} entries)`);
+  return size;
+}
+
 async function fetchSpawnPoints(cityKey, bounds) {
   const cached = _spawnPointsCache.get(cityKey);
   if (cached && Date.now() - cached.updatedAt < SPAWN_CACHE_TTL) return cached.points;
@@ -186,7 +200,7 @@ export async function spawnOreNodesForCity(cityKey, bounds, playerCount) {
     }
   }
 
-  console.log(`[ORE] ${cityKey}: spawned ${spawned}/${toSpawn}${useOverpass ? ' (Overpass)' : ' (random fallback)'}`);
+  console.log(`[ORE] ${cityKey}: spawned ${spawned}/${toSpawn}`);
   return spawned;
 }
 

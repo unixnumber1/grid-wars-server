@@ -13,6 +13,7 @@ import { playerCityCache } from '../../lib/geocity.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
+import { clearSpawnErrorCache, clearSpawnPointsCache } from '../../game/mechanics/oreNodes.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gridDisk } from 'h3-js';
 
@@ -767,6 +768,24 @@ adminRouter.post('/', async (req, res) => {
       || '✅ Технические работы завершены! Игра снова доступна. Удачной охоты! ⚔️';
     const sent = await _notifyAllPlayers(text);
     return res.status(200).json({ success: true, maintenance: false, notified: sent });
+  }
+
+  // ── force-ore-spawn: clear caches and trigger full ore spawn cycle ──
+  if (action === 'force-ore-spawn') {
+    const clearPoints = !!req.body.clear_points_cache;
+    const errorsCleared = clearSpawnErrorCache();
+    const pointsCleared = clearPoints ? clearSpawnPointsCache() : 0;
+
+    if (typeof global._citySpawnCycle === 'function') {
+      global._citySpawnCycle().catch(e => console.error('[ADMIN] force-ore-spawn error:', e.message));
+    }
+
+    return res.json({
+      success: true,
+      errors_cleared: errorsCleared,
+      points_cleared: pointsCleared,
+      message: 'Spawn cycle triggered in background',
+    });
   }
 
   // ── maintenance toggle (default) ──

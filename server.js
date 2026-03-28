@@ -865,22 +865,27 @@ async function start() {
       if (!cityKeys.length) { console.log('[SPAWN] No cities in cache yet'); return; }
 
       for (const cityKey of cityKeys) {
-        const playerCount = getCityPlayerCount(cityKey);
-        if (playerCount <= 0) continue;
+        try {
+          const playerCount = getCityPlayerCount(cityKey);
+          if (playerCount <= 0) continue;
 
-        const cityBounds = await getCityBounds(cityKey);
-        if (!cityBounds?.boundingbox) continue;
+          const cityBounds = await getCityBounds(cityKey);
+          if (!cityBounds?.boundingbox) continue;
 
-        const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
+          const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
 
-        // Ore nodes (top-up to target if needed)
-        await spawnOreNodesForCity(cityKey, bounds, playerCount);
+          // Ore nodes (top-up to target if needed)
+          await spawnOreNodesForCity(cityKey, bounds, playerCount);
+        } catch (e) {
+          console.error(`[SPAWN] Error spawning ores for ${cityKey}: ${e.message}`);
+        }
 
         // Pause between cities to avoid Overpass/Nominatim rate limit
         await new Promise(r => setTimeout(r, 5000));
       }
     } catch (e) { console.error('[SPAWN] city cycle error:', e.message); }
   }
+  global._citySpawnCycle = citySpawnCycle;
   // Populate city cache from all players with coordinates, then spawn
   setTimeout(async () => {
     try {

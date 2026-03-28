@@ -35,6 +35,7 @@ async function handleInstall(req, res) {
     return res.status(403).json({ error: 'Not your core' });
   const lang = getLang(gameState, telegram_id);
   if (core.mine_cell_id) return res.status(400).json({ error: ts(lang, 'err.core_installed') });
+  if (core.on_market) return res.status(400).json({ error: 'Core is listed on market' });
 
   const mine = gameState.mines.get(mine_id);
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
@@ -104,6 +105,8 @@ async function handleUpgrade(req, res) {
   if (Number(core.owner_id) !== Number(player.telegram_id))
     return res.status(403).json({ error: 'Not your core' });
 
+  if (core.on_market) return res.status(400).json({ error: 'Core is listed on market' });
+
   const cost = getCoreUpgradeCost(core.level);
   const playerEther = player.ether || 0;
   if (playerEther < cost)
@@ -145,6 +148,7 @@ async function handleSell(req, res) {
     return res.status(403).json({ error: 'Not your core' });
   if (core.mine_cell_id)
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.uninstall_core_first') });
+  if (core.on_market) return res.status(400).json({ error: 'Core is listed on market' });
 
   // Calculate sell price: lv0 = 10 ether, otherwise 10% of invested ether
   let sellPrice = 10;
@@ -183,6 +187,7 @@ async function handleMassSell(req, res) {
     if (!core) continue;
     if (Number(core.owner_id) !== Number(player.telegram_id)) continue;
     if (core.mine_cell_id) continue;
+    if (core.on_market) continue;
 
     let sellPrice = 10;
     if (core.level > 0) {

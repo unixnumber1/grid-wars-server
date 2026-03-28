@@ -317,7 +317,8 @@ async function moveCouriers(nowMs, nowISO) {
             id: globalThis.crypto.randomUUID(),
             courier_id: dc.id,
             owner_id: dc.owner_id,
-            item_id: dc.item_id,
+            item_id: dc.item_id || null,
+            core_id: dc.core_id || null,
             listing_id: dc.listing_id,
             lat: dropLat,
             lng: dropLng,
@@ -602,14 +603,20 @@ async function periodicCleanup(nowMs, nowISO) {
     }
 
     // Expire loot drops
-    const { data: expiredDrops } = await supabase.from('courier_drops').select('id,item_id')
+    const { data: expiredDrops } = await supabase.from('courier_drops').select('id,item_id,core_id')
       .eq('picked_up', false).not('expires_at', 'is', null).lt('expires_at', nowISO).limit(50);
     if (expiredDrops?.length) {
       for (const drop of expiredDrops) {
-        await Promise.all([
-          supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', drop.item_id),
-          supabase.from('courier_drops').update({ picked_up: true }).eq('id', drop.id),
-        ]);
+        const ops = [supabase.from('courier_drops').update({ picked_up: true }).eq('id', drop.id)];
+        if (drop.item_id) ops.push(supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', drop.item_id));
+        if (drop.core_id) {
+          ops.push(supabase.from('cores').update({ on_market: false }).eq('id', drop.core_id));
+          if (gameState.loaded) {
+            const core = gameState.cores.get(drop.core_id);
+            if (core) { core.on_market = false; gameState.markDirty('cores', core.id); }
+          }
+        }
+        await Promise.all(ops);
       }
     }
 
