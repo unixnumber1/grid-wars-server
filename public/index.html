@@ -13194,10 +13194,12 @@ async function openMonumentWorldMap() {
     // Defer init to next frame so container has computed dimensions
     requestAnimationFrame(() => {
       _initMwmGlobe();
+      // Place markers immediately — no need to wait for style/tiles
+      _placeMwmMarkers();
     });
   } else {
     mwmMap.resize();
-    _renderMwmMonuments();
+    _placeMwmMarkers();
   }
 
   document.getElementById('mwm-search-input').value = '';
@@ -13209,8 +13211,7 @@ async function openMonumentWorldMap() {
 function closeMonumentWorldMap() {
   document.getElementById('monument-worldmap-overlay').classList.remove('open');
   _closeMwmPopup();
-  _mwmHtmlMarkers.forEach(m => m.remove());
-  _mwmHtmlMarkers = [];
+  _clearMwmMarkers();
 }
 
 function _initMwmGlobe() {
@@ -13243,97 +13244,25 @@ function _initMwmGlobe() {
     attributionControl: false,
   });
 
-  mwmMap.on('load', () => {
-    mwmMap.setFog({
-      color: 'rgb(10, 10, 20)',
-      'high-color': 'rgb(20, 20, 50)',
-      'horizon-blend': 0.05,
-      'space-color': 'rgb(5, 5, 15)',
-      'star-intensity': 0.6,
-    });
-    _renderMwmMonuments();
-  });
-
-  mwmMap.on('click', (e) => {
-    const features = mwmMap.queryRenderedFeatures(e.point, { layers: ['mwm-monuments-circle'] });
-    if (features.length > 0) {
-      _showMwmPopup(features[0].properties.id);
-    } else {
-      _closeMwmPopup();
-    }
-  });
+  try { mwmMap.setFog({ color: 'rgb(10, 10, 20)', 'high-color': 'rgb(20, 20, 50)', 'horizon-blend': 0.05, 'space-color': 'rgb(5, 5, 15)', 'star-intensity': 0.6 }); } catch(e) {}
 }
 
 let _mwmHtmlMarkers = [];
 
-function _renderMwmMonuments() {
-  if (!mwmMap || !mwmMap.isStyleLoaded()) return;
-  if (!mwmAllMonuments.length) return;
-
-  const geojson = {
-    type: 'FeatureCollection',
-    features: mwmAllMonuments.map(m => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [m.lng, m.lat] },
-      properties: { id: m.id, name: m.name, emoji: m.emoji, level: m.level, phase: m.phase },
-    })),
-  };
-
-  try {
-    if (mwmMap.getSource('mwm-monuments')) {
-      mwmMap.getSource('mwm-monuments').setData(geojson);
-    } else {
-      mwmMap.addSource('mwm-monuments', { type: 'geojson', data: geojson });
-
-      mwmMap.addLayer({
-        id: 'mwm-monuments-glow',
-        type: 'circle',
-        source: 'mwm-monuments',
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 10, 8, 14, 15, 20],
-          'circle-color': [
-            'match', ['get', 'phase'],
-            'shield', '#4488ff',
-            'open', '#ff6600',
-            'wave', '#ff6600',
-            '#666666'
-          ],
-          'circle-opacity': 0.25,
-          'circle-blur': 1,
-        },
-      });
-
-      mwmMap.addLayer({
-        id: 'mwm-monuments-circle',
-        type: 'circle',
-        source: 'mwm-monuments',
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 5, 8, 8, 15, 12],
-          'circle-color': [
-            'match', ['get', 'phase'],
-            'shield', '#4488ff',
-            'open', '#ff6600',
-            'wave', '#ff6600',
-            '#666666'
-          ],
-          'circle-stroke-color': '#fff',
-          'circle-stroke-width': 1,
-          'circle-opacity': 0.9,
-        },
-      });
-    }
-  } catch (e) {
-    console.error('[mwm] render error:', e);
-  }
-
-  // HTML markers for emoji (MapLibre SDF fonts can't render emoji)
+function _clearMwmMarkers() {
   _mwmHtmlMarkers.forEach(m => m.remove());
   _mwmHtmlMarkers = [];
+}
+
+function _placeMwmMarkers() {
+  if (!mwmMap) return;
+  _clearMwmMarkers();
   for (const m of mwmAllMonuments) {
+    const phaseColor = m.phase === 'shield' ? '#4488ff' : (m.phase === 'open' || m.phase === 'wave') ? '#ff6600' : '#666';
     const el = document.createElement('div');
-    el.style.cssText = 'font-size:20px;cursor:pointer;line-height:1;';
+    el.style.cssText = `font-size:22px;cursor:pointer;line-height:1;text-align:center;filter:drop-shadow(0 0 6px ${phaseColor});`;
     el.textContent = m.emoji || '🏛️';
-    el.addEventListener('click', () => _showMwmPopup(m.id));
+    el.addEventListener('click', (e) => { e.stopPropagation(); _showMwmPopup(m.id); });
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([m.lng, m.lat])
       .addTo(mwmMap);
