@@ -876,8 +876,8 @@ async function start() {
         // Ore nodes (top-up to target if needed)
         await spawnOreNodesForCity(cityKey, bounds, playerCount);
 
-        // Pause between cities to avoid Nominatim rate limit
-        await new Promise(r => setTimeout(r, 2000));
+        // Pause between cities to avoid Overpass/Nominatim rate limit
+        await new Promise(r => setTimeout(r, 5000));
       }
     } catch (e) { console.error('[SPAWN] city cycle error:', e.message); }
   }

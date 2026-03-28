@@ -23,14 +23,10 @@ async function fetchVaseSpawnPoints(cityKey, bounds) {
   const query = `
     [out:json][timeout:30];
     (
-      area["place"~"^(city|town|village)$"](${bbox});
-    )->.urbanArea;
-    (
-      way["highway"="residential"](area.urbanArea)(${bbox});
-      way["highway"="living_street"](area.urbanArea)(${bbox});
-      way["highway"="tertiary"](area.urbanArea)(${bbox});
-      way["highway"="footway"](area.urbanArea)(${bbox});
-      way["highway"="pedestrian"](area.urbanArea)(${bbox});
+      way["highway"="residential"](${bbox});
+      way["highway"="living_street"](${bbox});
+      way["highway"="tertiary"](${bbox});
+      way["highway"="pedestrian"](${bbox});
     );
     out center 500;
   `;

@@ -72,18 +72,14 @@ async function fetchSpawnPoints(cityKey, bounds) {
   const [minLat, maxLat, minLng, maxLng] = bounds;
   const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
 
-  // Search roads only inside urban areas (city/town/village)
+  // Urban roads only — no "service" (often leads to fields/parking)
   const query = `
-    [out:json][timeout:30];
+    [out:json][timeout:25];
     (
-      area["place"~"^(city|town|village)$"](${bbox});
-    )->.urbanArea;
-    (
-      way["highway"="residential"](area.urbanArea)(${bbox});
-      way["highway"="living_street"](area.urbanArea)(${bbox});
-      way["highway"="tertiary"](area.urbanArea)(${bbox});
-      way["highway"="footway"](area.urbanArea)(${bbox});
-      way["highway"="pedestrian"](area.urbanArea)(${bbox});
+      way["highway"="residential"](${bbox});
+      way["highway"="living_street"](${bbox});
+      way["highway"="tertiary"](${bbox});
+      way["highway"="pedestrian"](${bbox});
     );
     out center 500;
   `;
