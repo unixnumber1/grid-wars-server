@@ -187,7 +187,7 @@ async function handleListItem(req, res) {
     if (lat != null && lng != null) {
       const pLat = parseFloat(lat), pLng = parseFloat(lng);
       if (!isNaN(pLat) && !isNaN(pLng)) {
-        const { data: markets } = await supabase.from('markets').select('id, lat, lng, name').limit(50);
+        const { data: markets } = await supabase.from('markets').select('id, lat, lng, name').limit(500);
         if (markets && markets.length > 0) {
           let minDist = Infinity;
           for (const m of markets) {
@@ -512,7 +512,7 @@ async function handleBuy(req, res) {
     // Find nearest market for courier start
     let marketLat = null, marketLng = null;
     if (bLat != null && bLng != null) {
-      const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(100);
+      const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(500);
       if (allMarkets?.length) {
         let minDist = Infinity;
         for (const m of allMarkets) {
@@ -640,7 +640,7 @@ async function handleBuy(req, res) {
 
   let marketLat = null, marketLng = null;
   if (bLat != null && bLng != null) {
-    const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(100);
+    const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(500);
     if (allMarkets && allMarkets.length > 0) {
       let minDist = Infinity;
       for (const m of allMarkets) {
