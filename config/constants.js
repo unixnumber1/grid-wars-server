@@ -242,7 +242,7 @@ export const CLAN_MAX_MEMBERS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 export const CLAN_BOOST_PRICES = [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500];
 
 // ── Collector upgrade prices ──
-export const COLLECTOR_UPGRADE_PRICES = [0, 30, 50, 75, 100, 130, 160, 200, 250, 300];
+export const COLLECTOR_UPGRADE_PRICES = [0, 20, 35, 55, 80, 100, 120, 140, 175, 225];
 
 // ═══════════════════════════════════════════════════════
 //  Zombie Hordes
