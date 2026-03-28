@@ -42,7 +42,7 @@ function syncFrontend() {
       if (lastHash) {
         try {
           const diff = execSync(`git diff ${lastHash} ${newHash} --name-only`, { cwd: PROJECT_DIR }).toString();
-          if (diff.includes('server.js') || diff.includes('routes/') || diff.includes('lib/') || diff.includes('socket/')) {
+          if (diff.includes('server.js') || diff.includes('routes/') || diff.includes('lib/') || diff.includes('socket/') || diff.includes('config/') || diff.includes('game/')) {
             execSync('pm2 restart grid-wars', { stdio: 'pipe' });
             console.log('[watcher] Сервер перезапущен (изменился бэкенд)');
           }
