@@ -796,7 +796,7 @@ function startDefenderLoop() {
             });
           }
 
-          if (hp <= 0) {
+          if (hp <= 0 && !target.is_dead) {
             target.hp = 0;
             target.is_dead = true;
             target._respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();

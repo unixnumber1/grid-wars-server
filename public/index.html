@@ -10157,6 +10157,7 @@ function initSocket() {
     });
 
     _socket.on('player:died', (data) => {
+      if (_monumentDeathTimer) return; // already dead, ignore duplicate
       stopCombat();
       showMonumentDeathOverlay(data.respawn_in || 30, data.killer || t('combat.defender_target'));
     });
@@ -15709,7 +15710,13 @@ function showMonumentDeathOverlay(seconds, killer) {
     if (sec <= 0) {
       clearInterval(_monumentDeathTimer);
       _monumentDeathTimer = null;
-      // Don't auto-close — wait for server 'player:respawned'
+      // Fallback: if server doesn't send respawn within 5s, force close
+      setTimeout(() => {
+        if (document.getElementById('death-screen')?.classList.contains('open')) {
+          removeMonumentDeathOverlay();
+          showToast(t('toast.respawned'));
+        }
+      }, 5000);
     }
   }, 1000);
 }
