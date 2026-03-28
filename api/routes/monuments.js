@@ -19,6 +19,23 @@ import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 
 export const monumentsRouter = Router();
 
+// Lightweight list for monument world map
+monumentsRouter.get('/all', (req, res) => {
+  const list = [];
+  for (const m of gameState.monuments.values()) {
+    list.push({
+      id: m.id,
+      name: m.name,
+      emoji: m.emoji || '🏛️',
+      lat: m.lat,
+      lng: m.lng,
+      level: m.level,
+      phase: m.phase,
+    });
+  }
+  res.json(list);
+});
+
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
     if (!info.lat || !info.lng) continue;

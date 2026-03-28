@@ -18,6 +18,10 @@
   <!-- Socket.io client -->
   <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
 
+  <!-- MapLibre GL (monument world map globe) -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -2802,6 +2806,83 @@
     .zombie-marker { text-align: center; line-height: 1; pointer-events: auto !important; cursor: pointer; }
     .zombie-boss { filter: drop-shadow(0 0 8px rgba(0,255,0,0.8)); }
     @keyframes flashFade { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+    /* ── Monument World Map ── */
+    #monument-worldmap-overlay {
+      display: none; position: fixed; inset: 0;
+      background: #0a0a14; z-index: 8500;
+      flex-direction: column; overflow: hidden;
+    }
+    #monument-worldmap-overlay.open { display: flex; }
+
+    #mwm-search-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      padding-top: calc(10px + env(safe-area-inset-top, 0px));
+      background: rgba(13,13,26,0.95);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0; z-index: 2; position: relative;
+    }
+    #mwm-close-btn {
+      background: none; border: none; color: #888;
+      font-size: 20px; cursor: pointer; padding: 4px 8px; flex-shrink: 0;
+    }
+    #mwm-search-wrap { flex: 1; position: relative; }
+    #mwm-search-input {
+      width: 100%; background: rgba(255,255,255,0.06);
+      color: #fff; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px; padding: 10px 14px; font-size: 14px;
+      outline: none; box-sizing: border-box;
+    }
+    #mwm-search-input:focus { border-color: rgba(33,150,243,0.5); }
+    #mwm-search-results {
+      display: none; position: absolute; top: 100%; left: 0; right: 0;
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 0 0 10px 10px; max-height: 240px; overflow-y: auto;
+      z-index: 3;
+    }
+    #mwm-search-results.visible { display: block; }
+    .mwm-search-item {
+      padding: 10px 14px; cursor: pointer; display: flex;
+      align-items: center; gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .mwm-search-item:active { background: rgba(255,255,255,0.06); }
+    .mwm-search-item-emoji { font-size: 20px; flex-shrink: 0; }
+    .mwm-search-item-info { flex: 1; min-width: 0; }
+    .mwm-search-item-name { font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mwm-search-item-level { font-size: 11px; color: #888; }
+
+    #mwm-globe { flex: 1; position: relative; }
+    #mwm-globe .maplibregl-ctrl-bottom-left,
+    #mwm-globe .maplibregl-ctrl-bottom-right { display: none; }
+
+    #mwm-popup {
+      display: none; position: absolute; bottom: 24px;
+      left: 16px; right: 16px;
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; padding: 16px; z-index: 2;
+    }
+    #mwm-popup.visible { display: block; }
+    .mwm-popup-header { display: flex; align-items: center; gap: 12px; }
+    .mwm-popup-emoji { font-size: 36px; flex-shrink: 0; }
+    .mwm-popup-info { flex: 1; min-width: 0; }
+    .mwm-popup-title { font-size: 16px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mwm-popup-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+    .mwm-popup-level { font-size: 12px; color: #aaa; }
+    .mwm-popup-phase {
+      font-size: 11px; padding: 2px 8px; border-radius: 6px;
+      display: inline-block; font-weight: 600;
+    }
+    .mwm-popup-phase.shield { background: rgba(68,136,255,0.2); color: #4488ff; }
+    .mwm-popup-phase.open { background: rgba(255,100,0,0.2); color: #ff6600; }
+    .mwm-popup-phase.defeated { background: rgba(255,255,255,0.08); color: #666; }
+    .mwm-popup-view-btn {
+      width: 100%; margin-top: 12px; padding: 12px;
+      background: rgba(33,150,243,0.15); border: 1px solid rgba(33,150,243,0.3);
+      color: #2196F3; border-radius: 12px; font-size: 14px; font-weight: 600;
+      cursor: pointer; text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -2954,6 +3035,7 @@
       <!-- Monuments section -->
       <div class="settings-card">
         <div class="settings-section-title">🏛️ МОНУМЕНТЫ</div>
+        <button onclick="openMonumentWorldMap()" class="settings-action-btn s-blue" style="justify-content:center;margin-bottom:8px;" data-i18n="mwm.btn">🌍 Карта монументов</button>
         <button id="btn-open-monument-form" onclick="document.getElementById('monument-request-form').style.display = document.getElementById('monument-request-form').style.display === 'none' ? '' : 'none'" class="settings-action-btn s-default" style="justify-content:center;" data-i18n="monreq.suggest_btn">🏛️ Предложить монумент</button>
         <div id="monument-request-form" style="display:none;margin-top:12px;">
           <div class="section-subtitle" data-i18n-html="monreq.subtitle_html">Знаешь интересное место? Предложи его как монумент!<br><span style="color:#888;font-size:12px">1 заявка в день</span></div>
@@ -3019,6 +3101,21 @@
         <div id="admin-referral-summary" style="margin-top:8px;font-size:12px;color:#888"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Monument World Map -->
+<div id="monument-worldmap-overlay">
+  <div id="mwm-search-bar">
+    <button id="mwm-close-btn" onclick="closeMonumentWorldMap()">✕</button>
+    <div id="mwm-search-wrap">
+      <input type="text" id="mwm-search-input" autocomplete="off">
+      <div id="mwm-search-results"></div>
+    </div>
+  </div>
+  <div id="mwm-globe"></div>
+  <div id="mwm-popup">
+    <div id="mwm-popup-content"></div>
   </div>
 </div>
 
@@ -4340,6 +4437,13 @@ const I18N = {
 
     // === Monument Request ===
     'monreq.tab': '🏛️ Монументы',
+    'mwm.btn': '🌍 Карта монументов',
+    'mwm.search_ph': '🔍 Поиск монументов...',
+    'mwm.view_btn': '📍 Посмотреть на карте',
+    'mwm.no_results': 'Монументы не найдены',
+    'mwm.phase_shield': '🛡️ Щит',
+    'mwm.phase_open': '⚔️ Открыт',
+    'mwm.phase_defeated': '💀 Побеждён',
     'monreq.title': '🏛️ Предложить монумент',
     'monreq.suggest_btn': '🏛️ Предложить монумент',
     'monreq.subtitle': 'Знаешь интересное место? Предложи его как монумент!',
@@ -5495,6 +5599,13 @@ const I18N = {
 
     // === Monument Request ===
     'monreq.tab': '🏛️ Monuments',
+    'mwm.btn': '🌍 Monument Map',
+    'mwm.search_ph': '🔍 Search monuments...',
+    'mwm.view_btn': '📍 View on map',
+    'mwm.no_results': 'No monuments found',
+    'mwm.phase_shield': '🛡️ Shield',
+    'mwm.phase_open': '⚔️ Open',
+    'mwm.phase_defeated': '💀 Defeated',
     'monreq.title': '🏛️ Suggest Monument',
     'monreq.suggest_btn': '🏛️ Suggest monument',
     'monreq.subtitle': 'Know an interesting place? Suggest it as a monument!',
@@ -13047,6 +13158,239 @@ async function _playCraftAnimation(resultItem, sourceItems) {
   await _craftSleep(300);
   overlay.remove();
   showItemReveal(resultItem, 'craft');
+}
+
+// ─────────────────────────────────────────────
+//  Monument World Map (Globe)
+// ─────────────────────────────────────────────
+let mwmMap = null;
+let mwmAllMonuments = [];
+let mwmLoaded = false;
+let mwmSelectedId = null;
+
+async function openMonumentWorldMap() {
+  document.getElementById('settings-drawer').classList.remove('open');
+  const overlay = document.getElementById('monument-worldmap-overlay');
+  overlay.classList.add('open');
+
+  // Fetch monument data if not cached
+  if (!mwmLoaded) {
+    try {
+      const res = await apiFetch('/api/monuments/all');
+      mwmAllMonuments = res;
+      mwmLoaded = true;
+      setTimeout(() => { mwmLoaded = false; }, 300000); // 5 min TTL
+    } catch (e) {
+      showToast('❌ ' + (e.message || 'Failed to load monuments'));
+      overlay.classList.remove('open');
+      return;
+    }
+  }
+
+  if (!mwmMap) {
+    _initMwmGlobe();
+  } else {
+    mwmMap.resize();
+  }
+  _renderMwmMonuments();
+
+  document.getElementById('mwm-search-input').value = '';
+  document.getElementById('mwm-search-input').placeholder = t('mwm.search_ph') || '🔍 Поиск монументов...';
+  document.getElementById('mwm-search-results').classList.remove('visible');
+  _closeMwmPopup();
+}
+
+function closeMonumentWorldMap() {
+  document.getElementById('monument-worldmap-overlay').classList.remove('open');
+  _closeMwmPopup();
+}
+
+function _initMwmGlobe() {
+  mwmMap = new maplibregl.Map({
+    container: 'mwm-globe',
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    center: [37.6, 55.75],
+    zoom: 1.5,
+    projection: 'globe',
+    maxZoom: 15,
+    attributionControl: false,
+  });
+
+  mwmMap.on('load', () => {
+    mwmMap.setFog({
+      color: 'rgb(10, 10, 20)',
+      'high-color': 'rgb(20, 20, 50)',
+      'horizon-blend': 0.05,
+      'space-color': 'rgb(5, 5, 15)',
+      'star-intensity': 0.6,
+    });
+    _renderMwmMonuments();
+  });
+
+  mwmMap.on('click', (e) => {
+    const features = mwmMap.queryRenderedFeatures(e.point, { layers: ['mwm-monuments-circle'] });
+    if (features.length > 0) {
+      _showMwmPopup(features[0].properties.id);
+    } else {
+      _closeMwmPopup();
+    }
+  });
+}
+
+function _renderMwmMonuments() {
+  if (!mwmMap || !mwmMap.isStyleLoaded()) return;
+
+  const geojson = {
+    type: 'FeatureCollection',
+    features: mwmAllMonuments.map(m => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [m.lng, m.lat] },
+      properties: { id: m.id, name: m.name, emoji: m.emoji, level: m.level, phase: m.phase },
+    })),
+  };
+
+  if (mwmMap.getSource('mwm-monuments')) {
+    mwmMap.getSource('mwm-monuments').setData(geojson);
+    return;
+  }
+
+  mwmMap.addSource('mwm-monuments', { type: 'geojson', data: geojson });
+
+  mwmMap.addLayer({
+    id: 'mwm-monuments-glow',
+    type: 'circle',
+    source: 'mwm-monuments',
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 10, 8, 14, 15, 20],
+      'circle-color': [
+        'match', ['get', 'phase'],
+        'shield', '#4488ff',
+        'open', '#ff6600',
+        'wave', '#ff6600',
+        '#666666'
+      ],
+      'circle-opacity': 0.25,
+      'circle-blur': 1,
+    },
+  });
+
+  mwmMap.addLayer({
+    id: 'mwm-monuments-circle',
+    type: 'circle',
+    source: 'mwm-monuments',
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 5, 8, 8, 15, 12],
+      'circle-color': [
+        'match', ['get', 'phase'],
+        'shield', '#4488ff',
+        'open', '#ff6600',
+        'wave', '#ff6600',
+        '#666666'
+      ],
+      'circle-stroke-color': '#fff',
+      'circle-stroke-width': 1,
+      'circle-opacity': 0.9,
+    },
+  });
+
+  mwmMap.addLayer({
+    id: 'mwm-monuments-label',
+    type: 'symbol',
+    source: 'mwm-monuments',
+    minzoom: 5,
+    layout: {
+      'text-field': ['get', 'emoji'],
+      'text-size': 20,
+      'text-allow-overlap': true,
+    },
+  });
+}
+
+function _showMwmPopup(monumentId) {
+  const m = mwmAllMonuments.find(x => x.id === monumentId);
+  if (!m) return;
+  mwmSelectedId = monumentId;
+
+  const phaseClass = m.phase === 'shield' ? 'shield' : (m.phase === 'open' || m.phase === 'wave') ? 'open' : 'defeated';
+  const phaseLabel = m.phase === 'shield' ? t('mwm.phase_shield')
+    : (m.phase === 'open' || m.phase === 'wave') ? t('mwm.phase_open')
+    : t('mwm.phase_defeated');
+
+  document.getElementById('mwm-popup-content').innerHTML = `
+    <div class="mwm-popup-header">
+      <span class="mwm-popup-emoji">${m.emoji}</span>
+      <div class="mwm-popup-info">
+        <div class="mwm-popup-title">${m.name}</div>
+        <div class="mwm-popup-meta">
+          <span class="mwm-popup-level">⭐ ${m.level}</span>
+          <span class="mwm-popup-phase ${phaseClass}">${phaseLabel}</span>
+        </div>
+      </div>
+    </div>
+    <button class="mwm-popup-view-btn" onclick="mwmFlyToMonument('${m.id}')">${t('mwm.view_btn') || '📍 Посмотреть на карте'}</button>
+  `;
+  document.getElementById('mwm-popup').classList.add('visible');
+
+  mwmMap.flyTo({ center: [m.lng, m.lat], zoom: 8, duration: 1500 });
+}
+
+function _closeMwmPopup() {
+  document.getElementById('mwm-popup').classList.remove('visible');
+  mwmSelectedId = null;
+}
+
+function mwmFlyToMonument(monumentId) {
+  const m = mwmAllMonuments.find(x => x.id === monumentId);
+  if (!m) return;
+  closeMonumentWorldMap();
+  map.flyTo([m.lat, m.lng], 17, { duration: 1.2 });
+}
+
+// Search autocomplete
+(function() {
+  let debounceTimer = null;
+  const input = document.getElementById('mwm-search-input');
+  const resultsEl = document.getElementById('mwm-search-results');
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => _searchMwm(input.value.trim()), 200);
+  });
+
+  input.addEventListener('focus', () => {
+    if (input.value.trim().length >= 1) _searchMwm(input.value.trim());
+  });
+
+  document.getElementById('monument-worldmap-overlay').addEventListener('click', (e) => {
+    if (!e.target.closest('#mwm-search-wrap')) resultsEl.classList.remove('visible');
+  });
+
+  function _searchMwm(query) {
+    if (!query || query.length < 1) { resultsEl.classList.remove('visible'); return; }
+    const q = query.toLowerCase();
+    const matches = mwmAllMonuments.filter(m => m.name.toLowerCase().includes(q)).slice(0, 15);
+
+    if (matches.length === 0) {
+      resultsEl.innerHTML = `<div style="padding:12px 14px;color:#666;font-size:13px">${t('mwm.no_results') || 'Монументы не найдены'}</div>`;
+    } else {
+      resultsEl.innerHTML = matches.map(m => `
+        <div class="mwm-search-item" onclick="mwmSelectSearchResult('${m.id}')">
+          <span class="mwm-search-item-emoji">${m.emoji}</span>
+          <div class="mwm-search-item-info">
+            <div class="mwm-search-item-name">${m.name}</div>
+            <div class="mwm-search-item-level">⭐ ${m.level} · ${m.phase}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    resultsEl.classList.add('visible');
+  }
+})();
+
+function mwmSelectSearchResult(monumentId) {
+  document.getElementById('mwm-search-results').classList.remove('visible');
+  document.getElementById('mwm-search-input').blur();
+  _showMwmPopup(monumentId);
 }
 
 // ─────────────────────────────────────────────
