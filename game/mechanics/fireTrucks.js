@@ -13,15 +13,15 @@ export const FIRETRUCK_MINE_COST_PERCENT = 0.05;  // 5% of mine total upgrade co
 // ── Level config ──
 export const FIRETRUCK_LEVELS = {
   1:  { radius: 200,  hp: 2000,  upgradeCost: 0 },
-  2:  { radius: 225,  hp: 3500,  upgradeCost: 50 },
-  3:  { radius: 250,  hp: 5500,  upgradeCost: 100 },
-  4:  { radius: 275,  hp: 8000,  upgradeCost: 200 },
-  5:  { radius: 300,  hp: 12000, upgradeCost: 350 },
-  6:  { radius: 350,  hp: 17000, upgradeCost: 550 },
-  7:  { radius: 400,  hp: 24000, upgradeCost: 800 },
-  8:  { radius: 450,  hp: 33000, upgradeCost: 1200 },
-  9:  { radius: 500,  hp: 45000, upgradeCost: 1800 },
-  10: { radius: 600,  hp: 60000, upgradeCost: 2800 },
+  2:  { radius: 225,  hp: 3500,  upgradeCost: 30 },
+  3:  { radius: 250,  hp: 5500,  upgradeCost: 45 },
+  4:  { radius: 275,  hp: 8000,  upgradeCost: 70 },
+  5:  { radius: 300,  hp: 12000, upgradeCost: 100 },
+  6:  { radius: 350,  hp: 17000, upgradeCost: 130 },
+  7:  { radius: 400,  hp: 24000, upgradeCost: 160 },
+  8:  { radius: 450,  hp: 33000, upgradeCost: 200 },
+  9:  { radius: 500,  hp: 45000, upgradeCost: 270 },
+  10: { radius: 600,  hp: 60000, upgradeCost: 420 },
 };
 
 /**
