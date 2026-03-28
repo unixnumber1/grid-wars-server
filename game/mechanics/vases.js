@@ -10,11 +10,16 @@ function getVaseCountForCity(playerCount) {
 
 // ── Overpass road points cache (shared idea with oreNodes) ──
 const _vaseSpawnCache = new Map(); // cityKey -> { points, updatedAt }
+const _vaseErrorCache = new Map(); // cityKey -> timestamp of last error
 const VASE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+const VASE_ERROR_TTL = 30 * 60 * 1000; // 30min
 
 async function fetchVaseSpawnPoints(cityKey, bounds) {
   const cached = _vaseSpawnCache.get(cityKey);
   if (cached && Date.now() - cached.updatedAt < VASE_CACHE_TTL) return cached.points;
+
+  const lastError = _vaseErrorCache.get(cityKey);
+  if (lastError && Date.now() - lastError < VASE_ERROR_TTL) return null;
 
   const [minLat, maxLat, minLng, maxLng] = bounds;
   const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
@@ -51,6 +56,7 @@ async function fetchVaseSpawnPoints(cityKey, bounds) {
     return points;
   } catch (e) {
     console.error(`[VASES] Overpass error for ${cityKey}: ${e.message}`);
+    _vaseErrorCache.set(cityKey, Date.now());
     return null;
   }
 }

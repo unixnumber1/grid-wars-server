@@ -63,11 +63,17 @@ export function getOreCountForCity(playerCount) {
 
 // ── Overpass spawn points cache ──
 const _spawnPointsCache = new Map(); // cityKey -> { points, updatedAt }
+const _spawnErrorCache = new Map(); // cityKey -> timestamp of last error
 const SPAWN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+const ERROR_CACHE_TTL = 30 * 60 * 1000; // 30min — don't retry failed cities too often
 
 async function fetchSpawnPoints(cityKey, bounds) {
   const cached = _spawnPointsCache.get(cityKey);
   if (cached && Date.now() - cached.updatedAt < SPAWN_CACHE_TTL) return cached.points;
+
+  // Don't hammer Overpass if this city recently failed
+  const lastError = _spawnErrorCache.get(cityKey);
+  if (lastError && Date.now() - lastError < ERROR_CACHE_TTL) return null;
 
   const [minLat, maxLat, minLng, maxLng] = bounds;
   const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
@@ -104,7 +110,8 @@ async function fetchSpawnPoints(cityKey, bounds) {
     return points;
   } catch (e) {
     console.error(`[ORE] Overpass error for ${cityKey}: ${e.message}`);
-    return null; // no fallback — skip city if Overpass fails
+    _spawnErrorCache.set(cityKey, Date.now()); // don't retry for 30min
+    return null;
   }
 }
 
