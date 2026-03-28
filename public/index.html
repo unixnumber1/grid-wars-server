@@ -1082,16 +1082,6 @@
       100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(0.9); }
     }
 
-    /* Screen shake */
-    @keyframes screenShakeAnim {
-      0%   { transform: translate(0,0); }
-      20%  { transform: translate(-5px,3px); }
-      40%  { transform: translate(5px,-3px); }
-      60%  { transform: translate(-4px,4px); }
-      80%  { transform: translate(4px,-2px); }
-      100% { transform: translate(0,0); }
-    }
-    .screen-shake { animation: screenShakeAnim 0.4s ease-out; }
 
     /* Combat HP bar in popup */
     .combat-section {
@@ -4491,7 +4481,7 @@ const I18N = {
     'skills.not_active': 'Не активно',
     'skills.loading': 'Загрузка...',
     'inv.tab_inventory': '🎒 Инвентарь',
-    'inv.tab_character': '🧑 Персонаж',
+    'inv.tab_character': 'Персонаж',
     'inv.sub_rewards': 'Награды',
     'inv.sub_skills': 'Навыки',
     'inv.sub_badges': 'Бейджи',
@@ -5646,7 +5636,7 @@ const I18N = {
     'skills.not_active': 'Not active',
     'skills.loading': 'Loading...',
     'inv.tab_inventory': '🎒 Inventory',
-    'inv.tab_character': '🧑 Character',
+    'inv.tab_character': 'Character',
     'inv.sub_rewards': 'Rewards',
     'inv.sub_skills': 'Skills',
     'inv.sub_badges': 'Badges',
@@ -7172,13 +7162,16 @@ function _flashHexGrid() {
   const playerCell = h3.latLngToCell(pos.lat, pos.lng, H3_RES);
   const zoneCells = h3.gridDisk(playerCell, dynDiskK);
 
+  const isLightMap = _currentMapStyle === 'light';
+  const gridColor = isLightMap ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.6)';
+  const gridFill  = isLightMap ? 'rgba(60,60,60,0.15)' : 'rgba(200,200,200,0.15)';
   for (const cellId of zoneCells) {
     const boundary = h3.cellToBoundary(cellId);
     const building = getBuildingInCell(cellId);
     const poly = L.polygon(boundary, {
-      color: 'rgba(255,255,255,0.6)',
+      color: gridColor,
       weight: 1.2,
-      fillColor: building ? 'rgba(200,200,200,0.15)' : 'transparent',
+      fillColor: building ? gridFill : 'transparent',
       fillOpacity: building ? 1 : 0,
       interactive: false,
     });
@@ -7190,7 +7183,7 @@ function _flashHexGrid() {
   requestAnimationFrame(() => {
     hexLayer.eachLayer(poly => {
       if (poly._path) poly._path.style.transition = 'stroke-opacity 1s ease-out, stroke-width 1s ease-out, fill-opacity 1s ease-out';
-      poly.setStyle({ color: 'rgba(255,255,255,0)', weight: 0.3, fillOpacity: 0 });
+      poly.setStyle({ color: isLightMap ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)', weight: 0.3, fillOpacity: 0 });
     });
     _hexFlashTimeout = setTimeout(() => {
       hexLayer.clearLayers();
@@ -8244,7 +8237,7 @@ function switchMainTab(mainTab) {
 
   // Update character tab emoji to player avatar
   const charTab = document.getElementById('main-tab-character');
-  if (charTab) charTab.innerHTML = `${state.player?.avatar || '🧑'} <span>${t('inv.tab_character') || 'Персонаж'}</span>`;
+  if (charTab) charTab.innerHTML = `${state.player?.avatar || ''} <span>${t('inv.tab_character') || 'Персонаж'}</span>`;
 
   const subRow = document.getElementById('sub-tabs-row');
   const actionsRow = document.getElementById('inv-equip-actions');
@@ -9929,7 +9922,7 @@ function initSocket() {
         updatePlayerDisplay();
       }
       if (!data.killed) {
-        screenShake();
+        // shake removed
       }
       // Death is handled by pvp:kill event
     });
@@ -10868,11 +10861,6 @@ function showFloatingText(latLng, text, color) {
   setTimeout(() => el.remove(), 1500);
 }
 
-function screenShake() {
-  document.body.style.transform = 'translateX(4px)';
-  setTimeout(() => { document.body.style.transform = 'translateX(-4px)'; }, 50);
-  setTimeout(() => { document.body.style.transform = ''; }, 100);
-}
 
 let _respawnTimer = null;
 function startRespawnCountdown(untilISO) {
@@ -10913,7 +10901,6 @@ async function doAttackBot(botId) {
       showFloatingText(ll, `${data.isCrit ? '💥 ' : ''}-${data.damage}`, data.isCrit ? '#FFD700' : '#ff4444');
     }
     if (data.counterDamage > 0) {
-      screenShake();
       if (state.player) state.player.hp = data.playerHp;
     }
     if (data.playerDied) {
@@ -12875,86 +12862,190 @@ async function _playCraftAnimation(resultItem, sourceItems) {
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;';
   document.body.appendChild(overlay);
 
-  // Phase 1: items form a circle
+  // Canvas for energy lines and particles
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  overlay.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+
+  const rarityColor = RARITY_COLORS_CLIENT[resultItem.rarity] || '#888';
+  const glowColor = resultItem.rarity === 'legendary' ? '#FFD700' : (rarityColor.startsWith('linear') ? '#FFD700' : rarityColor);
+
+  // Phase 1: items appear and spread into a circle (0-800ms)
+  const startRadius = 120;
   const icons = sourceItems.map(item => {
     const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
     const bc = rc.startsWith('linear') ? '#FFD700' : rc;
     const el = document.createElement('div');
-    el.style.cssText = `position:absolute;font-size:32px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:2px solid ${bc};background:rgba(0,0,0,0.8);transition:all 0.6s cubic-bezier(0.34,1.56,0.64,1);transform:translate(-50%,-50%);left:50%;top:50%;opacity:0;filter:drop-shadow(0 0 8px ${bc});`;
+    el.style.cssText = `position:absolute;font-size:32px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;border:2px solid ${bc};background:rgba(0,0,0,0.8);left:50%;top:50%;opacity:0;filter:drop-shadow(0 0 8px ${bc});transform:translate(-50%,-50%) scale(0);transition:all 0.7s cubic-bezier(0.34,1.56,0.64,1);`;
     el.textContent = item.emoji;
     overlay.appendChild(el);
-    return el;
+    return { el, color: bc };
   });
 
-  await _craftSleep(100);
-  const radius = 110;
-  icons.forEach((el, i) => {
-    const angle = (i / icons.length) * Math.PI * 2 - Math.PI / 2;
-    el.style.opacity = '1';
-    el.style.transform = `translate(calc(-50% + ${Math.cos(angle) * radius}px), calc(-50% + ${Math.sin(angle) * radius}px))`;
-  });
-  await _craftSleep(700);
-
-  // Phase 2: spin faster and faster
-  const ring = document.createElement('div');
-  ring.style.cssText = 'position:absolute;width:100%;height:100%;top:0;left:0;';
-  icons.forEach(el => ring.appendChild(el));
-  overlay.appendChild(ring);
-
-  const craftStyle = document.createElement('style');
-  craftStyle.textContent = `
-    @keyframes _craftSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-    @keyframes _craftItemAppear { 0%{transform:scale(0) rotate(-180deg);opacity:0} 60%{transform:scale(1.3) rotate(10deg)} 100%{transform:scale(1) rotate(0deg);opacity:1} }
-  `;
-  document.head.appendChild(craftStyle);
-
-  let duration = 2.0;
-  const spinInterval = setInterval(() => {
-    duration = Math.max(0.15, duration * 0.82);
-    ring.style.animation = `_craftSpin ${duration}s linear infinite`;
-  }, 350);
-
-  let shakeIntensity = 2;
-  const shakeInterval = setInterval(() => {
-    shakeIntensity = Math.min(18, shakeIntensity * 1.3);
-    const sx = (Math.random() - 0.5) * shakeIntensity;
-    const sy = (Math.random() - 0.5) * shakeIntensity;
-    overlay.style.transform = `translate(${sx}px,${sy}px)`;
-  }, 80);
-
-  await _craftSleep(2800);
-
-  // Phase 3: stop — white out
-  clearInterval(spinInterval);
-  clearInterval(shakeInterval);
-  overlay.style.transform = 'none';
-  ring.style.animation = 'none';
-
-  const whiteout = document.createElement('div');
-  whiteout.style.cssText = 'position:absolute;inset:0;background:white;opacity:0;transition:opacity 0.8s ease-in;';
-  overlay.appendChild(whiteout);
   await _craftSleep(50);
-  whiteout.style.opacity = '1';
-  await _craftSleep(850);
+  icons.forEach((icon, i) => {
+    const angle = (i / icons.length) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * startRadius;
+    const y = Math.sin(angle) * startRadius;
+    icon.el.style.opacity = '1';
+    icon.el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(1)`;
+    icon.angle = angle;
+  });
+  await _craftSleep(800);
 
-  // Phase 4: rarity color flash
-  const rarityColor = RARITY_COLORS_CLIENT[resultItem.rarity] || '#888';
-  const flashColor = resultItem.rarity === 'legendary' ? '#FFD700' : (rarityColor.startsWith('linear') ? '#FFD700' : rarityColor);
+  // Phase 2: spin + shrink toward center with energy lines (800-3500ms)
+  let currentRadius = startRadius;
+  let rotation = 0;
+  let spinSpeed = 0.02;
+  let animating = true;
+  let mergePhase = false;
+  const particles = [];
 
-  whiteout.style.transition = 'background 0.05s, opacity 0.4s';
-  whiteout.style.background = flashColor;
-  whiteout.style.opacity = '0.95';
-  await _craftSleep(120);
-  whiteout.style.opacity = '0';
-  whiteout.style.transition = 'opacity 0.5s ease-out';
+  function drawFrame() {
+    if (!animating) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Energy lines between adjacent items
+    if (currentRadius > 15) {
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < icons.length; i++) {
+        const a1 = icons[i].angle + rotation;
+        const a2 = icons[(i + 1) % icons.length].angle + rotation;
+        const x1 = cx + Math.cos(a1) * currentRadius;
+        const y1 = cy + Math.sin(a1) * currentRadius;
+        const x2 = cx + Math.cos(a2) * currentRadius;
+        const y2 = cy + Math.sin(a2) * currentRadius;
+        const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+        const alpha = Math.min(0.8, (1 - currentRadius / startRadius) * 1.5);
+        grad.addColorStop(0, icons[i].color + Math.round(alpha * 255).toString(16).padStart(2, '0'));
+        grad.addColorStop(1, icons[(i + 1) % icons.length].color + Math.round(alpha * 255).toString(16).padStart(2, '0'));
+        ctx.strokeStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        // Curved line through center for energy effect
+        const mx = cx + Math.cos((a1 + a2) / 2) * currentRadius * 0.4;
+        const my = cy + Math.sin((a1 + a2) / 2) * currentRadius * 0.4;
+        ctx.quadraticCurveTo(mx, my, x2, y2);
+        ctx.stroke();
+      }
+    }
+
+    // Center glow grows as items get closer
+    const glowStrength = 1 - currentRadius / startRadius;
+    if (glowStrength > 0.1) {
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 60 + glowStrength * 80);
+      grad.addColorStop(0, glowColor + Math.round(glowStrength * 0.6 * 255).toString(16).padStart(2, '0'));
+      grad.addColorStop(1, glowColor + '00');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Burst particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.015;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fillStyle = p.color + Math.round(p.life * 255).toString(16).padStart(2, '0');
+      ctx.fill();
+    }
+
+    requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+
+  // Animate spin acceleration + radius shrink over 2700ms
+  const shrinkStart = Date.now();
+  const shrinkDuration = 2700;
+  function updatePositions() {
+    if (!animating || mergePhase) return;
+    const elapsed = Date.now() - shrinkStart;
+    const t = Math.min(1, elapsed / shrinkDuration);
+    // Ease-in curve for acceleration feel
+    const easedT = t * t * t;
+
+    currentRadius = startRadius * (1 - easedT * 0.85);
+    spinSpeed = 0.02 + easedT * 0.18;
+    rotation += spinSpeed;
+
+    const itemScale = 1 - easedT * 0.5;
+    icons.forEach((icon) => {
+      const a = icon.angle + rotation;
+      const x = Math.cos(a) * currentRadius;
+      const y = Math.sin(a) * currentRadius;
+      icon.el.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${itemScale})`;
+      icon.el.style.filter = `drop-shadow(0 0 ${8 + easedT * 16}px ${icon.color})`;
+    });
+
+    // Spawn trail particles as items spin
+    if (t > 0.3 && Math.random() < t * 0.4) {
+      const ri = Math.floor(Math.random() * icons.length);
+      const a = icons[ri].angle + rotation;
+      particles.push({
+        x: cx + Math.cos(a) * currentRadius,
+        y: cy + Math.sin(a) * currentRadius,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+        size: 2 + Math.random() * 3,
+        life: 1,
+        color: icons[ri].color,
+      });
+    }
+
+    if (t < 1) requestAnimationFrame(updatePositions);
+  }
+  updatePositions();
+  await _craftSleep(shrinkDuration);
+
+  // Phase 3: merge — all items fly to center (3500-4000ms)
+  mergePhase = true;
+  icons.forEach((icon) => {
+    icon.el.style.transition = 'all 0.4s cubic-bezier(0.55,0,1,0.45)';
+    icon.el.style.transform = 'translate(-50%,-50%) scale(0)';
+    icon.el.style.opacity = '0';
+  });
+
+  // Burst particles outward from center
+  for (let i = 0; i < 60; i++) {
+    const angle = (i / 60) * Math.PI * 2;
+    const speed = 3 + Math.random() * 6;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 2 + Math.random() * 4,
+      life: 1,
+      color: glowColor,
+    });
+  }
+
+  await _craftSleep(400);
+
+  // Phase 4: bright flash in rarity color
+  animating = false;
+  const flash = document.createElement('div');
+  flash.style.cssText = `position:absolute;inset:0;background:${glowColor};opacity:0;transition:opacity 0.15s ease-in;`;
+  overlay.appendChild(flash);
+  await _craftSleep(30);
+  flash.style.opacity = '0.95';
+  await _craftSleep(200);
+  flash.style.transition = 'opacity 0.5s ease-out';
+  flash.style.opacity = '0';
   await _craftSleep(500);
 
-  // Phase 5: show item reveal
+  // Phase 5: fade out and reveal
   overlay.style.transition = 'opacity 0.3s';
   overlay.style.opacity = '0';
   await _craftSleep(300);
   overlay.remove();
-  craftStyle.remove();
   showItemReveal(resultItem, 'craft');
 }
 
@@ -18477,7 +18568,7 @@ async function spawnZombieScout() {
   <!-- Main tabs: Inventory / Character -->
   <div class="inv-main-tabs">
     <button class="inv-main-tab active" id="main-tab-inventory" onclick="switchMainTab('inventory')">🎒 <span>Инвентарь</span></button>
-    <button class="inv-main-tab" id="main-tab-character" onclick="switchMainTab('character')">🧑 <span>Персонаж</span></button>
+    <button class="inv-main-tab" id="main-tab-character" onclick="switchMainTab('character')"><span>Персонаж</span></button>
   </div>
 
   <!-- Sub-tabs row + actions -->
