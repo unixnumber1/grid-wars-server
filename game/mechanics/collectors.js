@@ -102,30 +102,38 @@ export function autoCollect(collector) {
 }
 
 /**
- * Auto-upgrade ONE weakest mine near a collector using its stored_coins.
- * Only upgrades a single mine per cycle — the rest stays in storage.
+ * Auto-upgrade weakest mines near a collector using its stored_coins.
+ * Keeps upgrading until coins run out or no eligible mines remain.
  */
-export function autoUpgradeOneMine(collector) {
+export function autoUpgradeMines(collector) {
   const maxLevel = COLLECTOR_MAX_MINE_LEVEL[collector.level] || 20;
-  const mine = getCollectorMines(collector)
-    .filter(m => m.level < maxLevel && (!m.status || m.status === 'normal') && !m.upgrade_finish_at)
-    .sort((a, b) => a.level - b.level)[0];
+  let upgraded = 0;
 
-  if (!mine) return 0;
+  while (collector.stored_coins > 0) {
+    const mine = getCollectorMines(collector)
+      .filter(m => m.level < maxLevel && (!m.status || m.status === 'normal') && !m.upgrade_finish_at)
+      .sort((a, b) => a.level - b.level)[0];
 
-  const cost = getMineUpgradeCost(mine.level);
-  if (collector.stored_coins < cost) return 0;
+    if (!mine) break;
 
-  collector.stored_coins -= cost;
-  mine.level += 1;
-  mine.hp = getMineHp(mine.level);
-  mine.max_hp = getMineHp(mine.level);
-  mine.pending_level = null;
-  mine.upgrade_finish_at = null;
-  gameState.markDirty('mines', mine.id);
-  gameState.markDirty('collectors', collector.id);
-  console.log(`[COLLECTORS] Collector ${collector.id} auto-upgraded mine ${mine.id} to lv${mine.level} (${collector.stored_coins} coins left)`);
-  return 1;
+    const cost = getMineUpgradeCost(mine.level);
+    if (collector.stored_coins < cost) break;
+
+    collector.stored_coins -= cost;
+    mine.level += 1;
+    mine.hp = getMineHp(mine.level);
+    mine.max_hp = getMineHp(mine.level);
+    mine.pending_level = null;
+    mine.upgrade_finish_at = null;
+    gameState.markDirty('mines', mine.id);
+    upgraded++;
+  }
+
+  if (upgraded > 0) {
+    gameState.markDirty('collectors', collector.id);
+    console.log(`[COLLECTORS] Collector ${collector.id} auto-upgraded ${upgraded} mines (${collector.stored_coins} coins left)`);
+  }
+  return upgraded;
 }
 
 /**
@@ -147,9 +155,9 @@ export function autoCollectAll() {
 
     const collected = autoCollect(collector);
     totalAll += collected;
-    // Auto-upgrade one mine if auto_upgrade enabled (always collects too)
+    // Auto-upgrade mines if auto_upgrade enabled
     if (collector.auto_upgrade) {
-      const upgraded = autoUpgradeOneMine(collector);
+      const upgraded = autoUpgradeMines(collector);
       totalUpgraded += upgraded;
     }
   }
