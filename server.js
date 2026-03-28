@@ -443,6 +443,7 @@ io.on('connection', (socket) => {
             p.hp = 1000 + (p.bonus_hp || 0);
             p._respawn_at = null;
             p.last_hp_regen = null;
+            p.shield_until = new Date(Date.now() + 2 * 60 * 1000).toISOString();
             gameState.markDirty('players', p.id);
           }
         }
