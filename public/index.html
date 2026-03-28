@@ -365,6 +365,7 @@
 
     /* Leaflet marker overrides */
     .leaflet-marker-icon { border: none !important; background: none !important; }
+    .leaflet-tile-pane { will-change: transform, filter; }
 
     .marker-emoji {
       font-size: 24px;
@@ -7073,6 +7074,8 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
+const TILE_OPTS = { maxZoom: 19, subdomains: 'abcd', keepBuffer: 4, updateWhenZooming: false, updateWhenIdle: true };
+
 // Map style from localStorage — apply saved style on load
 (function() {
   const INIT_STYLES = {
@@ -7084,7 +7087,7 @@ const map = L.map('map', {
   };
   const saved = localStorage.getItem('mapStyle') || 'total_black';
   const s = INIT_STYLES[saved] || INIT_STYLES.total_black;
-  L.tileLayer(s.url, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+  L.tileLayer(s.url, TILE_OPTS).addTo(map);
   if (s.filter) {
     setTimeout(() => {
       const tp = document.querySelector('.leaflet-tile-pane');
@@ -12441,7 +12444,7 @@ function _applyMapStyle(styleId) {
   _currentMapStyle = styleId;
   localStorage.setItem('mapStyle', styleId);
   map.eachLayer(layer => { if (layer instanceof L.TileLayer) map.removeLayer(layer); });
-  L.tileLayer(style.url, { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
+  L.tileLayer(style.url, TILE_OPTS).addTo(map);
   const tilePane = document.querySelector('.leaflet-tile-pane');
   if (tilePane) tilePane.style.filter = style.filter || '';
   showToast(t('toast.map_style_changed'));
