@@ -855,12 +855,11 @@ async function start() {
     }
   }
 
-  // ── City-based spawn cycle (monuments + ore + vases) ──
+  // ── City-based spawn cycle (ore only — vases spawn at midnight MSK) ──
   async function citySpawnCycle() {
     try {
       const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
       const { spawnOreNodesForCity } = await import('./lib/oreNodes.js');
-      const { spawnVasesForCity } = await import('./lib/vases.js');
 
       const cityKeys = getAllCityKeys();
       if (!cityKeys.length) { console.log('[SPAWN] No cities in cache yet'); return; }
@@ -874,11 +873,8 @@ async function start() {
 
         const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
 
-        // Ore nodes
+        // Ore nodes (top-up to target if needed)
         await spawnOreNodesForCity(cityKey, bounds, playerCount);
-
-        // Vases
-        await spawnVasesForCity(cityKey, bounds, playerCount);
 
         // Pause between cities to avoid Nominatim rate limit
         await new Promise(r => setTimeout(r, 2000));
@@ -897,24 +893,24 @@ async function start() {
       }
       console.log('[GEOCITY] City cache populated, starting spawn cycle');
       await citySpawnCycle();
+      // Spawn vases on startup if none exist (e.g. after server restart)
+      if (gameState.vases.size === 0) {
+        console.log('[VASES] No vases found — spawning initial batch');
+        const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
+        const { spawnVasesForCity } = await import('./lib/vases.js');
+        for (const cityKey of getAllCityKeys()) {
+          const pc = getCityPlayerCount(cityKey);
+          if (pc <= 0) continue;
+          const cb = await getCityBounds(cityKey);
+          if (!cb?.boundingbox) continue;
+          await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
     } catch (e) { console.error('[GEOCITY] init error:', e.message); }
   }, 5000);
-  // Every hour — check all cities
+  // Every hour — check all cities for ore top-up
   setInterval(citySpawnCycle, 3600000);
-  // Every 5 min — top up vases only
-  setInterval(async () => {
-    try {
-      const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
-      const { spawnVasesForCity } = await import('./lib/vases.js');
-      for (const cityKey of getAllCityKeys()) {
-        const pc = getCityPlayerCount(cityKey);
-        if (pc <= 0) continue;
-        const cb = await getCityBounds(cityKey);
-        if (!cb?.boundingbox) continue;
-        await spawnVasesForCity(cityKey, cb.boundingbox, pc);
-      }
-    } catch (e) { console.error('[VASES] top-up error:', e.message); }
-  }, 5 * 60 * 1000);
 
   // Weekly monument reset (Sunday midnight MSK, checked every hour)
   setInterval(async () => {
@@ -938,23 +934,46 @@ async function start() {
     import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(() => {});
   }, 30000);
 
-  // Vase daily cleanup: midnight MSK remove expired (checked every 30 min)
+  // Vase daily spawn at midnight MSK + cleanup expired (checked every 5 min)
   setInterval(async () => {
     try {
       const now = new Date();
-      const mskHour = (now.getUTCHours() + 3) % 24;
-      if (mskHour !== 0 || now.getMinutes() > 30) return;
-      // Clean expired vases from DB
-      await supabase.from('vases').delete().lt('expires_at', new Date().toISOString());
-      // Clean from gameState
-      for (const [id, v] of gameState.vases) {
-        if (new Date(v.expires_at) < new Date() || v.broken_by) gameState.vases.delete(id);
+      const mskNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+      // Clean expired/broken vases every run
+      const expiredCount = [...gameState.vases.values()].filter(v =>
+        new Date(v.expires_at) < now || v.broken_by
+      ).length;
+      if (expiredCount > 0) {
+        await supabase.from('vases').delete().lt('expires_at', now.toISOString());
+        await supabase.from('vases').delete().not('broken_by', 'is', null);
+        for (const [id, v] of gameState.vases) {
+          if (new Date(v.expires_at) < now || v.broken_by) gameState.vases.delete(id);
+        }
       }
-      console.log('[VASES] Cleaned expired vases');
+
+      // Spawn new vases only at 00:00-00:05 MSK
+      if (mskNow.getHours() !== 0 || mskNow.getMinutes() > 5) return;
+      const vaseResetKey = `vase_${mskNow.getFullYear()}_${mskNow.getMonth()}_${mskNow.getDate()}`;
+      if (global._lastVaseSpawn === vaseResetKey) return;
+      global._lastVaseSpawn = vaseResetKey;
+
+      console.log('[VASES] Daily midnight spawn starting...');
+      const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
+      const { spawnVasesForCity } = await import('./lib/vases.js');
+      for (const cityKey of getAllCityKeys()) {
+        const pc = getCityPlayerCount(cityKey);
+        if (pc <= 0) continue;
+        const cb = await getCityBounds(cityKey);
+        if (!cb?.boundingbox) continue;
+        await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      console.log('[VASES] Daily midnight spawn complete');
     } catch (e) {
-      console.error('[VASES] Cleanup error:', e.message);
+      console.error('[VASES] Daily spawn/cleanup error:', e.message);
     }
-  }, 1800000); // 30 min
+  }, 300000); // 5 min
 
   // Monthly ore reset check (every 5 min)
   setInterval(async () => {
@@ -970,8 +989,9 @@ async function start() {
       await supabase.from('ore_nodes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       gameState.oreNodes.clear();
       await new Promise(r => setTimeout(r, 1000));
-      // Ore will respawn via citySpawnCycle when players connect
-      console.log('[ORE] Monthly reset complete — ores will respawn via city cycle');
+      // Immediately spawn fresh ores for all cities
+      console.log('[ORE] Monthly reset complete — spawning fresh ores...');
+      await citySpawnCycle();
 
       // Reset clan monthly donation counters
       await supabase.from('clan_members').update({ donated_month: 0 }).is('left_at', null).gt('donated_month', 0);

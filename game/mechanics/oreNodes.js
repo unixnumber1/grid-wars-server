@@ -72,14 +72,18 @@ async function fetchSpawnPoints(cityKey, bounds) {
   const [minLat, maxLat, minLng, maxLng] = bounds;
   const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
 
+  // Search roads only inside urban areas (city/town/village)
   const query = `
-    [out:json][timeout:25];
+    [out:json][timeout:30];
     (
-      way["highway"="residential"](${bbox});
-      way["highway"="living_street"](${bbox});
-      way["highway"="service"](${bbox});
-      way["highway"="footway"](${bbox});
-      way["highway"="pedestrian"](${bbox});
+      area["place"~"^(city|town|village)$"](${bbox});
+    )->.urbanArea;
+    (
+      way["highway"="residential"](area.urbanArea)(${bbox});
+      way["highway"="living_street"](area.urbanArea)(${bbox});
+      way["highway"="tertiary"](area.urbanArea)(${bbox});
+      way["highway"="footway"](area.urbanArea)(${bbox});
+      way["highway"="pedestrian"](area.urbanArea)(${bbox});
     );
     out center 500;
   `;
@@ -104,13 +108,13 @@ async function fetchSpawnPoints(cityKey, bounds) {
     return points;
   } catch (e) {
     console.error(`[ORE] Overpass error for ${cityKey}: ${e.message}`);
-    return null; // fallback to random
+    return null; // no fallback — skip city if Overpass fails
   }
 }
 
-// Add random offset ±50-150m to a point
+// Add random offset ±20-50m to a point (small offset to stay near roads)
 function offsetPoint(lat, lng) {
-  const offsetM = 50 + Math.random() * 100; // 50-150m
+  const offsetM = 20 + Math.random() * 30; // 20-50m
   const angle = Math.random() * 2 * Math.PI;
   const dLat = (offsetM * Math.cos(angle)) / 111320;
   const dLng = (offsetM * Math.sin(angle)) / (111320 * Math.cos(lat * Math.PI / 180));
@@ -131,9 +135,12 @@ export async function spawnOreNodesForCity(cityKey, bounds, playerCount) {
 
   console.log(`[ORE] ${cityKey}: spawning ${toSpawn} ores (players: ${playerCount}, existing: ${existingInCity.length})`);
 
-  // Try Overpass for valid spawn points
+  // Require Overpass road points — no random fallback (prevents spawns in fields/forests)
   const roadPoints = await fetchSpawnPoints(cityKey, bounds);
-  const useOverpass = roadPoints && roadPoints.length >= 10;
+  if (!roadPoints || roadPoints.length < 10) {
+    console.log(`[ORE] ${cityKey}: skipping — not enough road points (${roadPoints?.length ?? 0})`);
+    return 0;
+  }
 
   const nowISO = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ORE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -143,19 +150,11 @@ export async function spawnOreNodesForCity(cityKey, bounds, playerCount) {
   const allOrePositions = [...gameState.oreNodes.values()].map(o => ({ lat: o.lat, lng: o.lng }));
 
   for (let attempt = 0; attempt < toSpawn * 5 && spawned < toSpawn; attempt++) {
-    let lat, lng;
-
-    if (useOverpass) {
-      // Pick random road point + offset
-      const pt = roadPoints[Math.floor(Math.random() * roadPoints.length)];
-      const off = offsetPoint(pt.lat, pt.lng);
-      lat = off.lat;
-      lng = off.lng;
-    } else {
-      // Fallback: random within city bounds
-      lat = minLat + Math.random() * (maxLat - minLat);
-      lng = minLng + Math.random() * (maxLng - minLng);
-    }
+    // Pick random road point + small offset
+    const pt = roadPoints[Math.floor(Math.random() * roadPoints.length)];
+    const off = offsetPoint(pt.lat, pt.lng);
+    const lat = off.lat;
+    const lng = off.lng;
 
     // Check min distance from all ore nodes
     let tooClose = false;
