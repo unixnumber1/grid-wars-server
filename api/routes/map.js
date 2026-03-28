@@ -7,10 +7,11 @@ import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, getMineCountBoost } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
+import { getOreIncome } from '../../lib/oreNodes.js';
 import { gameState } from '../../lib/gameState.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
-import { BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS } from '../../config/constants.js';
+import { BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS, ORE_TYPES } from '../../config/constants.js';
 
 const SPEED_METERS = BOT_SPEED_METERS;
 
@@ -598,10 +599,15 @@ async function handleTick(req, res) {
   if (gameState.loaded) {
     for (const ore of gameState.oreNodes.values()) {
       if (ore.owner_id === currentPlayerId) {
-        if (ore.currency === 'ether') {
-          etherIncome += ore.level;
+        const inc = getOreIncome(ore.level, ore.ore_type);
+        const cfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+        if (cfg.dualCurrency) {
+          oreIncome += inc;
+          etherIncome += inc;
+        } else if (ore.currency === 'ether') {
+          etherIncome += inc;
         } else {
-          oreIncome += ore.level;
+          oreIncome += inc;
         }
       }
     }
