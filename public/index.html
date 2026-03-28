@@ -17867,11 +17867,9 @@ function renderCollectors(collectors) {
     }
   }
   for (const c of collectors) {
-    // Estimate capacity client-side (mines in 200m owned by same player)
+    // Estimate capacity client-side (sum of mine capacities in 200m)
     const myMines = (state.mapBuildings?.mines || []).filter(m => m.owner_id === c.owner_id && haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
-    const totalIncome = myMines.reduce((s, m) => s + (m.income || 0), 0);
-    const capHours = [0,6,8,10,12,16,20,24,30,36,48][c.level] || 6;
-    c._capacity = Math.floor(totalIncome * 3600 * capHours);
+    c._capacity = myMines.reduce((s, m) => s + getMineCapacity(m.level), 0) || 1;
 
     collectorData[c.id] = c;
     if (collectorMarkers[c.id]) {
@@ -18135,6 +18133,7 @@ async function doCollectorToggleUpgrade(collectorId, on) {
     if (data.success) {
       const c = collectorData[collectorId];
       if (c) c.auto_upgrade = data.auto_upgrade;
+      showCollectorPopup(collectorId);
     }
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
