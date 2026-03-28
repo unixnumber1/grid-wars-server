@@ -13191,11 +13191,14 @@ async function openMonumentWorldMap() {
   }
 
   if (!mwmMap) {
-    _initMwmGlobe();
+    // Defer init to next frame so container has computed dimensions
+    requestAnimationFrame(() => {
+      _initMwmGlobe();
+    });
   } else {
     mwmMap.resize();
+    _renderMwmMonuments();
   }
-  _renderMwmMonuments();
 
   document.getElementById('mwm-search-input').value = '';
   document.getElementById('mwm-search-input').placeholder = t('mwm.search_ph') || '🔍 Поиск монументов...';
@@ -13211,7 +13214,26 @@ function closeMonumentWorldMap() {
 function _initMwmGlobe() {
   mwmMap = new maplibregl.Map({
     container: 'mwm-globe',
-    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    style: {
+      version: 8,
+      sources: {
+        'carto-dark': {
+          type: 'raster',
+          tiles: [
+            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          ],
+          tileSize: 256,
+          maxzoom: 18,
+        },
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': '#0a0a14' } },
+        { id: 'carto', type: 'raster', source: 'carto-dark' },
+      ],
+    },
     center: [37.6, 55.75],
     zoom: 1.5,
     projection: 'globe',
