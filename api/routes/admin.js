@@ -353,6 +353,102 @@ adminRouter.get('/referral-stats', async (req, res) => {
   }
 });
 
+// ── GET /players-list-all ────────────────────────────────────
+adminRouter.get('/players-list-all', (req, res) => {
+  const tgId = req.query.admin_id || req.query.telegram_id;
+  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+  if (!gameState.loaded) return res.json({ players: [] });
+
+  const offset = parseInt(req.query.offset, 10) || 0;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+
+  const all = [...gameState.players.values()]
+    .sort((a, b) => {
+      const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return cb - ca;
+    });
+
+  const slice = all.slice(offset, offset + limit);
+  const now = Date.now();
+  const FIVE_MIN = 5 * 60 * 1000;
+
+  const players = slice.map(p => {
+    const lastSeen = p.last_seen ? new Date(p.last_seen).getTime() : 0;
+    const ci = playerCityCache.get(String(p.telegram_id));
+    return {
+      id: p.id,
+      telegram_id: p.telegram_id,
+      username: p.game_username || p.username,
+      avatar: p.avatar,
+      level: p.level,
+      coins: p.coins,
+      diamonds: p.diamonds,
+      is_banned: p.is_banned,
+      online: now - lastSeen < FIVE_MIN,
+      created_at: p.created_at,
+      city: ci?.city || null,
+    };
+  });
+
+  return res.json({ players, total: all.length });
+});
+
+// ── GET /player-referrals ───────────────────────────────────
+adminRouter.get('/player-referrals', async (req, res) => {
+  const tgId = req.query.admin_id || req.query.telegram_id;
+  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+
+  const playerTgId = req.query.player_telegram_id;
+  if (!playerTgId) return res.status(400).json({ error: 'player_telegram_id required' });
+
+  try {
+    // Who referred this player
+    const { data: referredBy } = await supabase
+      .from('referrals')
+      .select('referrer_id, created_at')
+      .eq('referred_id', playerTgId)
+      .limit(1);
+
+    let referrer = null;
+    if (referredBy?.length) {
+      const rp = gameState.getPlayerByTgId(referredBy[0].referrer_id);
+      referrer = {
+        telegram_id: referredBy[0].referrer_id,
+        id: rp?.id || null,
+        username: rp?.game_username || rp?.username || String(referredBy[0].referrer_id),
+        avatar: rp?.avatar || null,
+        level: rp?.level || 0,
+        created_at: referredBy[0].created_at,
+      };
+    }
+
+    // Who this player referred
+    const { data: referrals } = await supabase
+      .from('referrals')
+      .select('referred_id, level50_rewarded, created_at')
+      .eq('referrer_id', playerTgId);
+
+    const referred = (referrals || []).map(r => {
+      const rp = gameState.getPlayerByTgId(r.referred_id);
+      return {
+        telegram_id: r.referred_id,
+        id: rp?.id || null,
+        username: rp?.game_username || rp?.username || String(r.referred_id),
+        avatar: rp?.avatar || null,
+        level: rp?.level || 0,
+        level50_rewarded: r.level50_rewarded,
+        created_at: r.created_at,
+      };
+    });
+
+    return res.json({ referrer, referred });
+  } catch (err) {
+    console.error('[admin/player-referrals]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST ─────────────────────────────────────────────────────
 adminRouter.post('/', async (req, res) => {
   const { telegram_id, admin_id, enabled, action } = req.body;

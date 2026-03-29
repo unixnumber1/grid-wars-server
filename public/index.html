@@ -3094,7 +3094,7 @@
       </div>
       <div class="settings-card">
         <div class="settings-section-title">ИГРОКИ</div>
-        <button class="settings-action-btn s-blue" onclick="openAdminPlayerModal()">&#x1F50D; Найти игрока</button>
+        <button class="settings-action-btn s-blue" onclick="openAdminPlayerModal()">👥 Игроки</button>
       </div>
       <div class="settings-card">
         <div class="settings-section-title">&#x1F517; РЕФЕРАЛЫ</div>
@@ -3132,6 +3132,7 @@
       <input class="apm-search" id="apm-search-input" type="text" placeholder="&#x1F50D; Ник или Telegram ID...">
     </div>
     <div id="apm-search-results" class="apm-body"></div>
+    <div id="apm-players-list" class="apm-body"></div>
   </div>
   <div id="apm-player-section" style="display:none;flex:1;overflow:hidden;display:none;flex-direction:column;">
     <div id="apm-player-header" style="padding:0 16px;"></div>
@@ -11326,26 +11327,94 @@ async function openReferralStats() {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
+let _apmListTimer = null;
+let _apmListOffset = 0;
+let _apmListTotal = 0;
+let _apmListLoading = false;
+
 function openAdminPlayerModal() {
   document.getElementById('admin-player-modal').classList.add('open');
   apmShowSearch();
   document.getElementById('apm-search-input').value = '';
   document.getElementById('apm-search-results').innerHTML = '';
+  _apmListOffset = 0;
+  apmLoadPlayersList(true);
+  clearInterval(_apmListTimer);
+  _apmListTimer = setInterval(() => {
+    if (!document.getElementById('apm-search-input').value.trim()) {
+      _apmListOffset = 0;
+      apmLoadPlayersList(true);
+    }
+  }, 30000);
   setTimeout(() => document.getElementById('apm-search-input').focus(), 100);
 }
 function closeAdminPlayerModal() {
   document.getElementById('admin-player-modal').classList.remove('open');
+  clearInterval(_apmListTimer);
+  _apmListTimer = null;
+}
+
+async function apmLoadPlayersList(reset) {
+  if (_apmListLoading) return;
+  _apmListLoading = true;
+  try {
+    const data = await apiFetch(`/api/admin/players-list-all?admin_id=${TG_ID}&offset=${_apmListOffset}&limit=30`);
+    const c = document.getElementById('apm-players-list');
+    if (reset) c.innerHTML = '';
+    _apmListTotal = data.total || 0;
+    if (!data.players?.length) {
+      if (reset) c.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">Нет игроков</div>';
+      return;
+    }
+    if (reset) {
+      c.innerHTML = `<div style="padding:4px 16px 8px;color:#888;font-size:12px;">Всего игроков: ${_apmListTotal}</div>`;
+    }
+    data.players.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'apm-player-card' + (p.is_banned ? ' banned' : '');
+      const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('ru', {day:'numeric',month:'short',year:'numeric'}) : '';
+      const cityU = p.city ? `📍${p.city}` : '';
+      card.innerHTML = `
+        <span class="apm-avatar">${p.avatar || '🐺'}</span>
+        <div class="apm-info">
+          <div class="apm-name">${p.is_banned ? '🚫 ' : ''}${p.username || '???'}</div>
+          <div class="apm-meta">Ур.${p.level||1} ${p.online?'🟢':'⚫'} ${cityU} <span style="color:#555">${dateStr}</span></div>
+        </div>
+        <span style="font-size:11px;color:#aaa;">💰${formatNumber(p.coins||0)}</span>
+      `;
+      card.addEventListener('click', () => apmLoadPlayer(p.id));
+      c.appendChild(card);
+    });
+    _apmListOffset += data.players.length;
+    // Load more button
+    const oldBtn = c.querySelector('.apm-load-more');
+    if (oldBtn) oldBtn.remove();
+    if (_apmListOffset < _apmListTotal) {
+      const btn = document.createElement('div');
+      btn.className = 'apm-load-more';
+      btn.style.cssText = 'text-align:center;padding:12px;color:#4fc3f7;cursor:pointer;font-size:13px;';
+      btn.textContent = `Загрузить ещё (${_apmListTotal - _apmListOffset} осталось)`;
+      btn.addEventListener('click', () => apmLoadPlayersList(false));
+      c.appendChild(btn);
+    }
+  } catch (err) { showToast('❌ ' + err.message); }
+  finally { _apmListLoading = false; }
 }
 function apmShowSearch() {
   document.getElementById('apm-search-section').style.display = '';
   document.getElementById('apm-player-section').style.display = 'none';
   document.getElementById('apm-back-btn').style.display = 'none';
-  document.getElementById('apm-title').textContent = 'Поиск игрока';
+  document.getElementById('apm-title').textContent = 'Игроки';
+  const q = document.getElementById('apm-search-input').value.trim();
+  document.getElementById('apm-players-list').style.display = q ? 'none' : '';
+  document.getElementById('apm-search-results').style.display = q ? '' : 'none';
 }
 
 document.getElementById('apm-search-input').addEventListener('input', (e) => {
   clearTimeout(_apmSearchTimer);
   const q = e.target.value.trim();
+  document.getElementById('apm-players-list').style.display = q ? 'none' : '';
+  document.getElementById('apm-search-results').style.display = q ? '' : 'none';
   if (!q) { document.getElementById('apm-search-results').innerHTML = ''; return; }
   _apmSearchTimer = setTimeout(async () => {
     try {
@@ -11417,8 +11486,8 @@ function apmShowPlayer() {
   }
 
   // Tabs
-  const tabs = ['inventory','resources','ban','logs'];
-  const tabLabels = { inventory:'Инвентарь', resources:'Ресурсы', ban:'Бан', logs:'Логи' };
+  const tabs = ['inventory','resources','ban','logs','referrals'];
+  const tabLabels = { inventory:'Инвентарь', resources:'Ресурсы', ban:'Бан', logs:'Логи', referrals:'Рефералы' };
   document.getElementById('apm-tabs').innerHTML = tabs.map(t =>
     `<div class="apm-tab${t===_apmActiveTab?' active':''}" data-tab="${t}">${tabLabels[t]}</div>`
   ).join('');
@@ -11432,6 +11501,7 @@ function apmShowPlayer() {
   else if (_apmActiveTab === 'resources') apmRenderResources(body);
   else if (_apmActiveTab === 'ban') apmRenderBan(body);
   else if (_apmActiveTab === 'logs') apmRenderLogs(body);
+  else if (_apmActiveTab === 'referrals') apmRenderReferrals(body);
 }
 
 // ── Inventory tab ──
@@ -11695,6 +11765,51 @@ async function apmRenderLogs(body) {
         ${l.message || ''}
       </div>`;
     });
+    html += '</div>';
+    body.innerHTML = html;
+  } catch (err) { body.innerHTML = `<div style="color:#f44;padding:20px;">❌ ${err.message}</div>`; }
+}
+
+// ── Referrals tab ──
+async function apmRenderReferrals(body) {
+  body.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Загрузка...</div>';
+  try {
+    const data = await apiFetch(`/api/admin/player-referrals?admin_id=${TG_ID}&player_telegram_id=${_apmPlayer.player.telegram_id}`);
+    let html = '<div class="apm-section" style="max-height:none;">';
+
+    // Who referred this player
+    html += '<div style="color:#888;font-size:12px;margin-bottom:6px;font-weight:600;">ПРИГЛАШЁН ИГРОКОМ</div>';
+    if (data.referrer) {
+      const r = data.referrer;
+      html += `<div class="apm-player-card" style="cursor:pointer;" onclick="apmLoadPlayer('${r.id}')">
+        <span class="apm-avatar">${r.avatar || '🐺'}</span>
+        <div class="apm-info">
+          <div class="apm-name">${r.username}</div>
+          <div class="apm-meta">Ур.${r.level||1}</div>
+        </div>
+      </div>`;
+    } else {
+      html += '<div style="color:#555;padding:8px 0;font-size:13px;">Без реферала</div>';
+    }
+
+    // Who this player referred
+    html += '<div style="color:#888;font-size:12px;margin:16px 0 6px;font-weight:600;">ПРИГЛАСИЛ ИГРОКОВ (' + (data.referred?.length || 0) + ')</div>';
+    if (data.referred?.length) {
+      data.referred.forEach(r => {
+        const lv50 = r.level50_rewarded ? ' <span style="color:#ffd93d;font-size:11px;">🏆 lv50</span>' : '';
+        const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('ru', {day:'numeric',month:'short'}) : '';
+        html += `<div class="apm-player-card" style="cursor:pointer;" onclick="apmLoadPlayer('${r.id}')">
+          <span class="apm-avatar">${r.avatar || '🐺'}</span>
+          <div class="apm-info">
+            <div class="apm-name">${r.username}${lv50}</div>
+            <div class="apm-meta">Ур.${r.level||1} <span style="color:#555">${dateStr}</span></div>
+          </div>
+        </div>`;
+      });
+    } else {
+      html += '<div style="color:#555;padding:8px 0;font-size:13px;">Пока никого не пригласил</div>';
+    }
+
     html += '</div>';
     body.innerHTML = html;
   } catch (err) { body.innerHTML = `<div style="color:#f44;padding:20px;">❌ ${err.message}</div>`; }
