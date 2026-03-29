@@ -493,6 +493,18 @@ async function handleUpgradeGet(req, res) {
     const newMaxHp = Math.round(getMineHp(mine.pending_level) * upgCoreHp * upgClanDef);
     const { data: updated, error: upErr } = await supabase.from('mines').update({ level: mine.pending_level, pending_level: null, upgrade_finish_at: null, hp: newMaxHp, max_hp: newMaxHp }).eq('id', mine.id).select().single();
     if (upErr) continue;
+    // Sync gameState immediately so tick returns correct level
+    if (gameState.loaded) {
+      const gm = gameState.getMineById(mine.id);
+      if (gm) {
+        gm.level = mine.pending_level;
+        gm.pending_level = null;
+        gm.upgrade_finish_at = null;
+        gm.hp = newMaxHp;
+        gm.max_hp = newMaxHp;
+        gameState.markDirty('mines', mine.id);
+      }
+    }
     let xpResult = null;
     try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(mine.pending_level)); } catch (e) {}
     completed.push({ ...updated, xp: xpResult });
