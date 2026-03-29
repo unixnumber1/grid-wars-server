@@ -9,10 +9,14 @@ const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // New XP curve — must match config/formulas.js getXpForLevel
+const _XP_PHASE_MULTS = [1, 1.3841, 3.823, 10.3429, 22.7109, 37.0594, 75.0935, 160.1584, 354.9619];
 function getXpForLevel(level) {
-  if (level <= 0 || level > 500) return 0;
-  let xp = Math.floor(80 * Math.pow(level, 2.15));
-  if (level % 100 === 0) xp *= 5;
+  if (level <= 0) return 0;
+  const phase = Math.floor((level - 1) / 100);
+  const mult = phase < _XP_PHASE_MULTS.length
+    ? _XP_PHASE_MULTS[phase]
+    : _XP_PHASE_MULTS[_XP_PHASE_MULTS.length - 1] * Math.pow(2.03, phase - _XP_PHASE_MULTS.length + 1);
+  let xp = Math.floor(80 * mult * Math.pow(level, 2.15));
   if (!Number.isFinite(xp) || xp > Number.MAX_SAFE_INTEGER) xp = Number.MAX_SAFE_INTEGER;
   return xp;
 }

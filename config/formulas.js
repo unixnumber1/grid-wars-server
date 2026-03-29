@@ -150,12 +150,17 @@ export function getMineEmoji(level) {
 
 // ─── Player level system ──────────────────────────────────────────────────────
 
-// Phase-based XP curve: 80 * 15^phase * n^2.15, x5 barrier every 100 levels
+// Phase-based XP curve: 80 * phaseMult * level^2.15
+// Century ratios: x12, x8.4 (-30%), x5.88 (-30%), x4.12 (-30%), floor x2.9
+const _XP_PHASE_MULTS = [1, 1.3841, 3.823, 10.3429, 22.7109, 37.0594, 75.0935, 160.1584, 354.9619];
+
 export function getXpForLevel(level) {
-  if (level <= 0 || level > 500) return 0;
-  // Continuous curve: 80 * level^2.15, with x5 barrier every 100 levels
-  let xp = Math.floor(80 * Math.pow(level, 2.15));
-  if (level % 100 === 0) xp *= 5;
+  if (level <= 0) return 0;
+  const phase = Math.floor((level - 1) / 100);
+  const mult = phase < _XP_PHASE_MULTS.length
+    ? _XP_PHASE_MULTS[phase]
+    : _XP_PHASE_MULTS[_XP_PHASE_MULTS.length - 1] * Math.pow(2.03, phase - _XP_PHASE_MULTS.length + 1);
+  let xp = Math.floor(80 * mult * Math.pow(level, 2.15));
   if (!Number.isFinite(xp) || xp > Number.MAX_SAFE_INTEGER) xp = Number.MAX_SAFE_INTEGER;
   return xp;
 }
