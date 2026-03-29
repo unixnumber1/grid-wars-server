@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overthrow — Гайд по механикам</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0d0d0d;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: #1a1a2e;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid #2a2a4a;
+  transition: transform 0.2s;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.card-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  background: #252538;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.card p {
+  color: #b0b0c0;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.card p:last-child {
+  margin-bottom: 0;
+}
+
+.highlight {
+  color: #ffd93d;
+  font-weight: 600;
+}
+
+.highlight-blue {
+  color: #4d96ff;
+  font-weight: 600;
+}
+
+.highlight-green {
+  color: #6bcb77;
+  font-weight: 600;
+}
+
+.highlight-red {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.highlight-purple {
+  color: #c084fc;
+  font-weight: 600;
+}
+
+.tip {
+  background: #252538;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  border-left: 3px solid #ffd93d;
+  color: #ccc;
+}
+
+.rarity-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.rarity-tag {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.r-common { background: #3a3a3a; color: #aaa; }
+.r-uncommon { background: #1a3a1a; color: #6bcb77; }
+.r-rare { background: #1a2a4a; color: #4d96ff; }
+.r-epic { background: #2a1a4a; color: #c084fc; }
+.r-mythic { background: #4a1a2a; color: #ff6b9d; }
+.r-legendary { background: #4a3a1a; color: #ffd93d; }
+
+.ore-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ore-item {
+  background: #252538;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.ore-item .ore-emoji {
+  font-size: 24px;
+}
+
+.ore-item .ore-name {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.ore-item .ore-desc {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.phase-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.phase-step {
+  background: #252538;
+  border-radius: 10px;
+  padding: 8px 14px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.phase-arrow {
+  color: #555;
+  font-size: 18px;
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #2a2a4a, transparent);
+  margin: 8px 0 16px;
+}
+
+.footer {
+  text-align: center;
+  color: #555;
+  font-size: 12px;
+  margin-top: 24px;
+  padding: 16px;
+}
+</style>
+</head>
+<body>
+
+<h1>⚔️ OVERTHROW ⚔️</h1>
+<p class="subtitle">Гайд по основным механикам</p>
+
+<!-- ШТАБ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🏠</div>
+    <div class="card-title">Штаб (HQ)</div>
+  </div>
+  <p>Твоя база — начало всего. Без штаба ты не можешь строить и качаться.</p>
+  <p>Вокруг штаба есть <span class="highlight">ближняя зона</span> — в ней ты строишь, улучшаешь и собираешь ресурсы. И <span class="highlight-blue">дальняя зона</span> — в ней можно атаковать мобов и других игроков.</p>
+  <p>Качай штаб — чем выше уровень, тем больше возможностей: новые постройки, слоты и бонусы.</p>
+  <div class="tip">💡 Штаб можно поставить только один раз — выбирай место с умом!</div>
+</div>
+
+<!-- ШАХТЫ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">⛏️</div>
+    <div class="card-title">Шахты</div>
+  </div>
+  <p>Шахты — твой <span class="highlight">основной источник монет</span>. Строишь рядом со штабом, качаешь и собираешь доход.</p>
+  <p>Чем выше уровень шахты, тем больше она приносит. Но и вместимость растёт — не забывай собирать, иначе хранилище переполнится.</p>
+  <p>⚠️ Шахты могут <span class="highlight-red">атаковать</span> — враги и мобы бьют по ним. Если HP упадёт до нуля, шахта загорится и через время разрушится.</p>
+  <p>У каждой шахты HP автоматически восстанавливается со временем.</p>
+  <div class="tip">💡 Ставь несколько шахт и качай их — больше шахт = больше дохода!</div>
+</div>
+
+<!-- СБОРЩИКИ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🤖</div>
+    <div class="card-title">Автосборщик</div>
+  </div>
+  <p>Лень собирать монеты вручную? <span class="highlight-green">Автосборщик</span> делает это за тебя!</p>
+  <p>Каждый час он обходит ближайшие шахты и собирает монеты. Может даже сам улучшать твои шахты в режиме апгрейда.</p>
+  <p>Когда накопит — отправляет курьера с доставкой тебе.</p>
+  <div class="tip">💡 Покупается за алмазы. Качай для увеличения HP и эффективности.</div>
+</div>
+
+<!-- ПОЖАРНАЯ МАШИНА -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🚒</div>
+    <div class="card-title">Пожарная машина</div>
+  </div>
+  <p>Спасает твои постройки от <span class="highlight-red">пожара</span>! Если шахту подожгли — пожарная потушит.</p>
+  <p>Чем выше уровень, тем больше радиус работы. Доступна с HQ 5 уровня.</p>
+  <div class="tip">💡 На HQ 10 уровня можно поставить сразу две машины.</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- АТАКА И PVP -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">⚔️</div>
+    <div class="card-title">Бой и PvP</div>
+  </div>
+  <p>Тапай по врагу чтобы атаковать. Каждый тап — удар. Скорость зависит от оружия.</p>
+  <p><span class="highlight-red">PvP</span> — можно бить других игроков в дальней зоне. Проигравший теряет часть монет, а победитель забирает их.</p>
+  <p>После смерти ты получаешь <span class="highlight-blue">щит на 2 минуты</span> — никто не сможет тебя атаковать.</p>
+  <p>🧌 <span class="highlight-green">Гоблины-воры</span> — мобы на карте. Бродят, воруют у шахт, убегают с добычей. Убей их за алмазы и XP!</p>
+  <div class="tip">💡 Ночью гоблинов больше и они агрессивнее — будь начеку!</div>
+</div>
+
+<!-- ОРУЖИЕ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🗡️</div>
+    <div class="card-title">Оружие и щиты</div>
+  </div>
+  <p>Три типа снаряжения:</p>
+  <p>🗡️ <span class="highlight">Меч</span> — быстрые удары + шанс крита</p>
+  <p>🪓 <span class="highlight-red">Топор</span> — медленнее, но бьёт сильнее</p>
+  <p>🛡️ <span class="highlight-blue">Щит</span> — защита и доп. HP</p>
+  <p>Можно надеть <span class="highlight-green">1 оружие + 1 щит</span> одновременно.</p>
+  <p style="margin-top: 8px;">Редкости:</p>
+  <div class="rarity-list">
+    <span class="rarity-tag r-common">Обычный</span>
+    <span class="rarity-tag r-uncommon">Необычный</span>
+    <span class="rarity-tag r-rare">Редкий</span>
+    <span class="rarity-tag r-epic">Эпический</span>
+    <span class="rarity-tag r-mythic">Мифический</span>
+    <span class="rarity-tag r-legendary">Легендарный</span>
+  </div>
+  <div class="tip">💡 Крафт: собери 10 предметов одной редкости → получи 1 следующей. Качай уровни оружия за осколки!</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ЯДРА -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">💎</div>
+    <div class="card-title">Ядра</div>
+  </div>
+  <p>Ядра — это <span class="highlight-purple">усилители для шахт</span>. Вставляешь в шахту — она становится мощнее.</p>
+  <p>4 типа ядер:</p>
+  <p>💰 <span class="highlight">Доход</span> — больше монет в час</p>
+  <p>📦 <span class="highlight-blue">Вместимость</span> — дольше копит до переполнения</p>
+  <p>❤️ <span class="highlight-red">HP</span> — шахта крепче, сложнее уничтожить</p>
+  <p>💚 <span class="highlight-green">Реген</span> — быстрее восстанавливает здоровье</p>
+  <p>В каждую шахту можно вставить до 10 ядер. Качай ядра за <span class="highlight-purple">эфир</span> — чем выше уровень, тем сильнее буст.</p>
+  <div class="tip">💡 Ядра падают с монументов. Их также можно купить/продать на маркете.</div>
+</div>
+
+<!-- РУДНИКИ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">⛰️</div>
+    <div class="card-title">Рудники</div>
+  </div>
+  <p>Рудники разбросаны по карте. Захвати рудник — и он будет <span class="highlight-green">пассивно давать</span> осколки и эфир каждый час.</p>
+  <p>Чтобы захватить — сломай его (бей пока HP не упадёт до нуля), потом забери себе.</p>
+  <div class="ore-grid">
+    <div class="ore-item">
+      <div class="ore-emoji">⛰️</div>
+      <div class="ore-name">Холм</div>
+      <div class="ore-desc">Базовый, лёгкий</div>
+    </div>
+    <div class="ore-item">
+      <div class="ore-emoji">🏔️</div>
+      <div class="ore-name">Гора</div>
+      <div class="ore-desc">Сильнее и крепче</div>
+    </div>
+    <div class="ore-item">
+      <div class="ore-emoji">🗻</div>
+      <div class="ore-name">Пик</div>
+      <div class="ore-desc">Оба ресурса!</div>
+    </div>
+    <div class="ore-item">
+      <div class="ore-emoji">🌋</div>
+      <div class="ore-name">Вулкан</div>
+      <div class="ore-desc">Лучший, но опасный</div>
+    </div>
+  </div>
+  <p style="margin-top: 10px;">🌋 <span class="highlight-red">Вулканы могут извергаться</span> — чем дольше владеешь, тем выше шанс потерять!</p>
+  <div class="tip">💡 Рудники обновляются 1-го числа каждого месяца. Пик и Вулкан дают сразу осколки И эфир!</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ВАЗЫ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🏺</div>
+    <div class="card-title">Вазы</div>
+  </div>
+  <p>Вазы случайно появляются рядом со штабами. Разбей вазу — получи <span class="highlight">алмазы</span>!</p>
+  <p>Вазы исчезают через время, так что лови момент.</p>
+  <div class="tip">💡 Проверяй карту почаще — вазы появляются неожиданно!</div>
+</div>
+
+<!-- МОНУМЕНТЫ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🗿</div>
+    <div class="card-title">Монументы (рейд-боссы)</div>
+  </div>
+  <p>Монументы — <span class="highlight-red">мощные рейд-боссы</span> на карте. Это серьёзный вызов с крутым лутом!</p>
+  <p>Бой проходит в 3 фазы:</p>
+  <div class="phase-flow">
+    <div class="phase-step">🛡️ Щит<br><small style="color:#888">Пробей защиту</small></div>
+    <span class="phase-arrow">→</span>
+    <div class="phase-step">👹 Защитники<br><small style="color:#888">Убей волны мобов</small></div>
+    <span class="phase-arrow">→</span>
+    <div class="phase-step">🎁 Лут<br><small style="color:#888">Забери награду!</small></div>
+  </div>
+  <p>Лут зависит от уровня монумента: <span class="highlight">алмазы</span>, <span class="highlight-purple">ядра</span>, <span class="highlight-blue">редкие предметы</span>.</p>
+  <p>🏆 Кто нанёс больше всех урона — получает <span class="highlight">лучшую награду</span>!</p>
+  <div class="tip">💡 Монументы возрождаются каждую неделю в воскресенье. Зови друзей — вместе легче!</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ДЕРЕВО НАВЫКОВ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🌳</div>
+    <div class="card-title">Дерево навыков</div>
+  </div>
+  <p>С каждым уровнем ты получаешь <span class="highlight-green">очки навыков</span>. Вкладывай их в дерево скиллов, чтобы усилить своего персонажа.</p>
+  <p>Выбирай ветку развития под свой стиль: больше урона, крепче защита, выше доход — решать тебе!</p>
+  <p>Не понравился билд? Можно <span class="highlight-blue">сбросить навыки</span> и перераспределить очки.</p>
+  <div class="tip">💡 Продумай стратегию — правильный билд решает в PvP и на рейдах!</div>
+</div>
+
+<!-- МАРКЕТ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🏪</div>
+    <div class="card-title">Маркет</div>
+  </div>
+  <p>Торговая площадка между игроками. Продавай и покупай <span class="highlight">предметы и ядра</span> за алмазы.</p>
+  <p>Предметы доставляются курьером — его видно на карте. Осторожно: другие игроки могут <span class="highlight-red">перехватить курьера</span> и забрать товар!</p>
+  <div class="tip">💡 Рынки расположены на реальных точках карты — подойди ближе чтобы торговать.</div>
+</div>
+
+<!-- КЛАНЫ -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-icon">🏰</div>
+    <div class="card-title">Кланы</div>
+  </div>
+  <p>Объединяйся с друзьями! Клан даёт <span class="highlight-green">бонусы к доходу и защите</span> всем участникам.</p>
+  <p>Качайте клан вместе — чем выше уровень, тем сильнее бусты. Лидер может активировать <span class="highlight">временный буст дохода</span> из казны клана.</p>
+  <div class="tip">💡 Для создания клана нужен штаб клана — дорогая, но стоящая инвестиция!</div>
+</div>
+
+<div class="footer">
+  ⚔️ Overthrow — играй, захватывай, доминируй ⚔️
+</div>
+
+</body>
+</html>

@@ -6,18 +6,22 @@ import { CORE_TYPES, MAX_CORE_SLOTS, getCoreMultiplier, getCoreUpgradeCost } fro
 import { SMALL_RADIUS } from '../../lib/formulas.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const coresRouter = Router();
 
 coresRouter.post('/', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'install')   return handleInstall(req, res);
-  if (action === 'uninstall') return handleUninstall(req, res);
-  if (action === 'upgrade')   return handleUpgrade(req, res);
-  if (action === 'sell')      return handleSell(req, res);
-  if (action === 'mass-sell') return handleMassSell(req, res);
-  if (action === 'inventory') return handleInventory(req, res);
-  return res.status(400).json({ error: 'Unknown action' });
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  return withPlayerLock(telegram_id, async () => {
+    if (action === 'install')   return handleInstall(req, res);
+    if (action === 'uninstall') return handleUninstall(req, res);
+    if (action === 'upgrade')   return handleUpgrade(req, res);
+    if (action === 'sell')      return handleSell(req, res);
+    if (action === 'mass-sell') return handleMassSell(req, res);
+    if (action === 'inventory') return handleInventory(req, res);
+    return res.status(400).json({ error: 'Unknown action' });
+  });
 });
 
 // ── install: put a core into a mine slot ──
@@ -31,7 +35,7 @@ async function handleInstall(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (Number(core.owner_id) !== Number(player.telegram_id))
+  if (parseInt(core.owner_id, 10) !== parseInt(player.telegram_id, 10) || !parseInt(core.owner_id, 10))
     return res.status(403).json({ error: 'Not your core' });
   const lang = getLang(gameState, telegram_id);
   if (core.mine_cell_id) return res.status(400).json({ error: ts(lang, 'err.core_installed') });
@@ -78,7 +82,7 @@ async function handleUninstall(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (Number(core.owner_id) !== Number(player.telegram_id))
+  if (parseInt(core.owner_id, 10) !== parseInt(player.telegram_id, 10) || !parseInt(core.owner_id, 10))
     return res.status(403).json({ error: 'Not your core' });
   if (!core.mine_cell_id) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.core_not_installed') });
 
@@ -102,7 +106,7 @@ async function handleUpgrade(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (Number(core.owner_id) !== Number(player.telegram_id))
+  if (parseInt(core.owner_id, 10) !== parseInt(player.telegram_id, 10) || !parseInt(core.owner_id, 10))
     return res.status(403).json({ error: 'Not your core' });
 
   if (core.on_market) return res.status(400).json({ error: 'Core is listed on market' });
@@ -144,7 +148,7 @@ async function handleSell(req, res) {
 
   const core = gameState.cores.get(core_id);
   if (!core) return res.status(404).json({ error: 'Core not found' });
-  if (Number(core.owner_id) !== Number(player.telegram_id))
+  if (parseInt(core.owner_id, 10) !== parseInt(player.telegram_id, 10) || !parseInt(core.owner_id, 10))
     return res.status(403).json({ error: 'Not your core' });
   if (core.mine_cell_id)
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.uninstall_core_first') });
@@ -185,7 +189,7 @@ async function handleMassSell(req, res) {
   for (const coreId of core_ids) {
     const core = gameState.cores.get(coreId);
     if (!core) continue;
-    if (Number(core.owner_id) !== Number(player.telegram_id)) continue;
+    if (parseInt(core.owner_id, 10) !== parseInt(player.telegram_id, 10) || !parseInt(core.owner_id, 10)) continue;
     if (core.mine_cell_id) continue;
     if (core.on_market) continue;
 

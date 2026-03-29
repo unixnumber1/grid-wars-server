@@ -4,6 +4,7 @@ import { generateItem, BOX_ODDS, rollWeighted, rollRandomType } from '../../lib/
 import { randomCoreType } from '../../game/mechanics/cores.js';
 import { gameState } from '../../lib/gameState.js';
 import { LEVEL_REWARDS_MAP } from '../../config/levelRewards.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const rewardsRouter = Router();
 
@@ -15,13 +16,15 @@ rewardsRouter.post('/', async (req, res) => {
     return res.status(400).json({ error: e.message });
   }
 
-  const player = gameState.getPlayerByTgId(tgId);
-  if (!player) return res.status(404).json({ error: 'Player not found' });
+  return withPlayerLock(tgId, async () => {
+    const player = gameState.getPlayerByTgId(tgId);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  if (action === 'get-level-rewards') return handleGetRewards(res, player, tgId);
-  if (action === 'claim-reward')      return handleClaimReward(res, player, tgId, req.body);
-  if (action === 'claim-all')         return handleClaimAll(res, player, tgId);
-  return res.status(400).json({ error: 'Unknown action' });
+    if (action === 'get-level-rewards') return handleGetRewards(res, player, tgId);
+    if (action === 'claim-reward')      return handleClaimReward(res, player, tgId, req.body);
+    if (action === 'claim-all')         return handleClaimAll(res, player, tgId);
+    return res.status(400).json({ error: 'Unknown action' });
+  });
 });
 
 // ── get-level-rewards ──────────────────────────────────────────

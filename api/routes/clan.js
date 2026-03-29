@@ -6,6 +6,7 @@ import { cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
 import { logActivity } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const clanRouter = Router();
 
@@ -111,6 +112,7 @@ async function handleCreate(req, res) {
   const lang = getLang(gameState, telegram_id);
   const trimName = name.trim();
   if (trimName.length < 3 || trimName.length > 20) return res.status(400).json({ error: ts(lang, 'err.clan_name_length') });
+  if (!/^[a-zA-Zа-яА-ЯёЁ0-9_ ]+$/.test(trimName)) return res.status(400).json({ error: 'Только буквы, цифры, пробелы и _' });
   if (symbol.length > 4) return res.status(400).json({ error: ts(lang, 'err.clan_symbol_length') });
   if (!ALLOWED_CLAN_COLORS.includes(color)) return res.status(400).json({ error: ts(lang, 'err.clan_color_invalid') });
 
@@ -947,24 +949,25 @@ clanRouter.get('/', async (req, res) => {
 clanRouter.post('/', async (req, res) => {
   const { action, telegram_id } = req.body || {};
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
-
-  switch (action) {
-    case 'build-hq':  return handleBuildHq(req, res);
-    case 'create':    return handleCreate(req, res);
-    case 'join':      return handleJoin(req, res);
-    case 'leave':     return handleLeave(req, res);
-    case 'donate':    return handleDonate(req, res);
-    case 'upgrade':   return handleUpgrade(req, res);
-    case 'set-role':  return handleSetRole(req, res);
-    case 'kick':      return handleKick(req, res);
-    case 'transfer':  return handleTransfer(req, res);
-    case 'boost':     return handleBoost(req, res);
-    case 'sell-hq':   return handleSellHq(req, res);
-    case 'disband':   return handleDisband(req, res);
-    case 'edit':            return handleEdit(req, res);
-    case 'apply':           return handleApply(req, res);
-    case 'accept-request':  return handleAcceptRequest(req, res);
-    case 'reject-request':  return handleRejectRequest(req, res);
-    default:                return res.status(400).json({ error: 'Unknown action' });
-  }
+  return withPlayerLock(telegram_id, async () => {
+    switch (action) {
+      case 'build-hq':  return handleBuildHq(req, res);
+      case 'create':    return handleCreate(req, res);
+      case 'join':      return handleJoin(req, res);
+      case 'leave':     return handleLeave(req, res);
+      case 'donate':    return handleDonate(req, res);
+      case 'upgrade':   return handleUpgrade(req, res);
+      case 'set-role':  return handleSetRole(req, res);
+      case 'kick':      return handleKick(req, res);
+      case 'transfer':  return handleTransfer(req, res);
+      case 'boost':     return handleBoost(req, res);
+      case 'sell-hq':   return handleSellHq(req, res);
+      case 'disband':   return handleDisband(req, res);
+      case 'edit':            return handleEdit(req, res);
+      case 'apply':           return handleApply(req, res);
+      case 'accept-request':  return handleAcceptRequest(req, res);
+      case 'reject-request':  return handleRejectRequest(req, res);
+      default:                return res.status(400).json({ error: 'Unknown action' });
+    }
+  });
 });

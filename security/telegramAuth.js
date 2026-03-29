@@ -38,7 +38,12 @@ export function verifyInitData(initDataStr) {
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
     const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
-    if (computedHash !== hash) return { valid: false, reason: 'hash_mismatch' };
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(hash, 'hex')))
+        return { valid: false, reason: 'hash_mismatch' };
+    } catch {
+      return { valid: false, reason: 'hash_mismatch' };
+    }
 
     // Check auth_date freshness
     const authDate = parseInt(params.get('auth_date'), 10);

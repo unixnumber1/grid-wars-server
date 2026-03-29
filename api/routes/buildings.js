@@ -13,6 +13,7 @@ import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const buildingsRouter = Router();
 
@@ -722,18 +723,23 @@ async function handleMineHit(req, res) {
 buildingsRouter.post('/headquarters', async (req, res) => {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, coins, diamonds');
-  if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
-  if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (action === 'upgrade') return handleHqUpgrade(player, res);
-  if (action === 'sell') return handleHqSell(player, res);
-  return handleHqPlace(player, req.body, res);
+  return withPlayerLock(telegram_id, async () => {
+    const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, coins, diamonds');
+    if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    if (action === 'upgrade') return handleHqUpgrade(player, res);
+    if (action === 'sell') return handleHqSell(player, res);
+    return handleHqPlace(player, req.body, res);
+  });
 });
 
 buildingsRouter.post('/mine', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'collect') return handleMineCollect(req, res);
-  return handleMineBuild(req, res);
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
+  return withPlayerLock(telegram_id, async () => {
+    if (action === 'collect') return handleMineCollect(req, res);
+    return handleMineBuild(req, res);
+  });
 });
 
 buildingsRouter.post('/attack', async (req, res) => {

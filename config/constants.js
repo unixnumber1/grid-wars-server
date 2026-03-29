@@ -9,7 +9,7 @@ export const MINE_BOOST_RADIUS = 20000; // meters — mine count boost radius (2
 export const PIN_DURATION_MS = 60 * 60 * 1000; // 1 hour PIN session
 
 // ── Admin ──
-export const ADMIN_TG_ID = 560013667;
+export const ADMIN_TG_ID = parseInt(process.env.ADMIN_TG_ID || '560013667', 10);
 
 // ── H3 grid ──
 export const H3_RESOLUTION = 10;       // ~65m hexes

@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import crypto from 'crypto';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -165,8 +166,11 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 app.post('/api/telegram-webhook', async (req, res) => {
   // Verify Telegram webhook signature
   if (WEBHOOK_SECRET) {
-    const token = req.headers['x-telegram-bot-api-secret-token'];
-    if (token !== WEBHOOK_SECRET) return res.status(403).json({ error: 'Forbidden' });
+    const token = req.headers['x-telegram-bot-api-secret-token'] || '';
+    try {
+      if (!token || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(WEBHOOK_SECRET)))
+        return res.status(403).json({ error: 'Forbidden' });
+    } catch { return res.status(403).json({ error: 'Forbidden' }); }
   }
 
   // Payment events: forward to items handler (must respond before res.json)

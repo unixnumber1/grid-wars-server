@@ -21,9 +21,8 @@ export const adminRouter = Router();
 const ADMIN_TG_ID = 560013667;
 
 function isAdmin(req) {
-  // Prefer verified ID from initData, fall back to query params
-  const tgId = req.verifiedTgId || parseInt(req.query?.admin_id || req.query?.telegram_id, 10);
-  return Number(tgId) === ADMIN_TG_ID;
+  if (!req.authVerified) return false;
+  return Number(req.verifiedTgId) === ADMIN_TG_ID;
 }
 
 function getBannedPlayers() {

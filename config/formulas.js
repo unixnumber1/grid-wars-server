@@ -152,12 +152,13 @@ export function getMineEmoji(level) {
 
 // Phase-based XP curve: 80 * 15^phase * n^2.15, x5 barrier every 100 levels
 export function getXpForLevel(level) {
-  if (level <= 0) return 0;
+  if (level <= 0 || level > 500) return 0;
   const phase = Math.floor((level - 1) / 100);
   const levelInPhase = ((level - 1) % 100) + 1;
   const base = 80 * Math.pow(15, phase);
   let xp = Math.floor(base * Math.pow(levelInPhase, 2.15));
   if (level % 100 === 0) xp *= 5;
+  if (!Number.isFinite(xp) || xp > Number.MAX_SAFE_INTEGER) xp = Number.MAX_SAFE_INTEGER;
   return xp;
 }
 

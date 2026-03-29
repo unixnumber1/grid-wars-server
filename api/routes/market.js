@@ -6,6 +6,7 @@ import { addXp } from '../../lib/xp.js';
 import { SMALL_RADIUS, LARGE_RADIUS, getPlayerAttack } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const marketRouter = Router();
 
@@ -1361,12 +1362,15 @@ marketRouter.get('/', async (req, res) => {
 });
 
 marketRouter.post('/', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'list-item')       return handleListItem(req, res);
-  if (action === 'buy')             return handleBuy(req, res);
-  if (action === 'cancel')          return handleCancel(req, res);
-  if (action === 'attack-courier')  return handleAttackCourier(req, res);
-  if (action === 'pickup-drop')     return handlePickupDrop(req, res);
-  if (action === 'move-couriers')   return handleMoveCouriers(req, res);
-  return res.status(400).json({ error: 'Unknown POST action' });
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  return withPlayerLock(telegram_id, async () => {
+    if (action === 'list-item')       return handleListItem(req, res);
+    if (action === 'buy')             return handleBuy(req, res);
+    if (action === 'cancel')          return handleCancel(req, res);
+    if (action === 'attack-courier')  return handleAttackCourier(req, res);
+    if (action === 'pickup-drop')     return handlePickupDrop(req, res);
+    if (action === 'move-couriers')   return handleMoveCouriers(req, res);
+    return res.status(400).json({ error: 'Unknown POST action' });
+  });
 });

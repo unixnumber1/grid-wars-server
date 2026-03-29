@@ -14,6 +14,7 @@ import {
 } from '../../lib/collectors.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS, COURIER_SPEED_PLAYER, COLLECTOR_UPGRADE_PRICES } from '../../config/constants.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const collectorsRouter = Router();
 
@@ -25,15 +26,18 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
 }
 
 collectorsRouter.post('/', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'build') return handleBuild(req, res);
-  if (action === 'upgrade') return handleUpgrade(req, res);
-  if (action === 'deliver') return handleDeliver(req, res);
-  if (action === 'sell') return handleSell(req, res);
-  if (action === 'hit') return handleHit(req, res);
-  if (action === 'extinguish') return handleExtinguish(req, res);
-  if (action === 'set-mode') return handleSetMode(req, res);
-  return res.status(400).json({ error: 'Unknown action' });
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  return withPlayerLock(telegram_id, async () => {
+    if (action === 'build') return handleBuild(req, res);
+    if (action === 'upgrade') return handleUpgrade(req, res);
+    if (action === 'deliver') return handleDeliver(req, res);
+    if (action === 'sell') return handleSell(req, res);
+    if (action === 'hit') return handleHit(req, res);
+    if (action === 'extinguish') return handleExtinguish(req, res);
+    if (action === 'set-mode') return handleSetMode(req, res);
+    return res.status(400).json({ error: 'Unknown action' });
+  });
 });
 
 // ── BUILD ──

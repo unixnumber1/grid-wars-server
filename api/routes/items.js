@@ -5,6 +5,7 @@ import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, ge
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const itemsRouter = Router();
 
@@ -332,8 +333,10 @@ itemsRouter.post('/', async (req, res) => {
   if (action === 'daily-diamonds') return handleDailyDiamonds(req, res);
   if (action === 'stars-invoice')  return handleStarsInvoice(req, res);
 
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  return withPlayerLock(telegram_id, async () => {
+
   if (action === 'upgrade-item') {
-    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
     const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,crystals');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
     const { item_id } = body;
@@ -398,7 +401,6 @@ itemsRouter.post('/', async (req, res) => {
   }
 
   if (action === 'buy-mythic') {
-    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
     const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
 
@@ -448,7 +450,6 @@ itemsRouter.post('/', async (req, res) => {
   }
 
   if (action === 'buy-mythic-set') {
-    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
     const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
 
@@ -499,7 +500,6 @@ itemsRouter.post('/', async (req, res) => {
   }
 
   if (action === 'buy-core-pack') {
-    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
     const { pack_index } = body;
     const { CORE_PACKS } = await import('../../config/constants.js');
     const pack = CORE_PACKS[pack_index];
@@ -553,7 +553,6 @@ itemsRouter.post('/', async (req, res) => {
   }
 
   if (action === 'mass-sell') {
-    if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
     const { item_ids } = body;
     if (!Array.isArray(item_ids) || item_ids.length === 0) return res.status(400).json({ error: 'item_ids required' });
     if (item_ids.length > 200) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.max_200_items') });
@@ -589,8 +588,6 @@ itemsRouter.post('/', async (req, res) => {
 
     return res.json({ success: true, sold_count: soldIds.length, crystals_gained: totalCrystals, crystals: newCrystals });
   }
-
-  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
   const selectFields = (action === 'sell') ? 'id,level,crystals' : (action === 'craft') ? 'id,level,diamonds,crystals' : (action === 'open-box') ? 'id,level,diamonds' : 'id,level';
   const { player, error } = await getPlayerByTelegramId(telegram_id, selectFields);
@@ -741,4 +738,5 @@ itemsRouter.post('/', async (req, res) => {
 
   if (result.status) return res.status(result.status).json({ error: result.error });
   return res.json({ success: true, ...result });
+  }); // withPlayerLock
 });

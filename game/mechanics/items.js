@@ -92,7 +92,8 @@ export function getTotalUpgradeCost(level) {
 }
 
 export function getUpgradedStats(item) {
-  const lvl = item.upgrade_level || 0;
+  const maxLvl = getMaxUpgradeLevel(item.rarity);
+  const lvl = Math.min(Math.max(item.upgrade_level || 0, 0), maxLvl);
   const mul = 1 + lvl * 0.09;
   const result = { ...item };
 

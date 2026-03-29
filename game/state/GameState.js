@@ -224,6 +224,19 @@ class GameState {
     return result;
   }
 
+  getDirtySnapshot() {
+    const result = {};
+    for (const [key, set] of Object.entries(this._dirty)) {
+      if (set.size > 0) result[key] = [...set];
+    }
+    return result;
+  }
+
+  clearDirty(collection, ids) {
+    const set = this._dirty[collection];
+    if (set) for (const id of ids) set.delete(id);
+  }
+
   // -- Spatial queries --
   // Returns objects within bounding box {n, s, e, w}
   getMapSnapshot(n, s, e, w, currentPlayerId, nowMs) {

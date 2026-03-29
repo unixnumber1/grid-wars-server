@@ -9,8 +9,11 @@ import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS, ORE_TYPES } from '../../config/constants.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const oreRouter = Router();
+const _oreClaimCooldown = new Map(); // telegramId -> timestamp
+const ORE_CLAIM_CD_MS = 60000; // 60s cooldown on claim/release
 
 function emitToNearby(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
@@ -22,11 +25,17 @@ function emitToNearby(lat, lng, radiusM, event, data) {
 oreRouter.post('/', async (req, res) => {
   const { action, telegram_id } = req.body || {};
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  return withPlayerLock(telegram_id, async () => {
 
   // ── Claim: capture a broken ore node (hp <= 0, no owner) ──
   if (action === 'claim') {
     const { ore_node_id, lat, lng, currency } = req.body;
     if (!ore_node_id) return res.status(400).json({ error: 'ore_node_id required' });
+
+    // Claim cooldown
+    const lastClaim = _oreClaimCooldown.get(String(telegram_id)) || 0;
+    if (Date.now() - lastClaim < ORE_CLAIM_CD_MS)
+      return res.status(429).json({ error: 'Подожди перед следующим захватом' });
 
     const player = gameState.getPlayerByTgId(telegram_id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -58,6 +67,7 @@ oreRouter.post('/', async (req, res) => {
       last_collected: ore.last_collected, currency: selectedCurrency,
     }).eq('id', ore.id);
 
+    _oreClaimCooldown.set(String(telegram_id), Date.now());
     logActivity(player.game_username, `захватил рудник ${oreTypeCfg.emoji} Ур.${ore.level}`);
 
     emitToNearby(ore.lat, ore.lng, 1000, 'ore:captured', {
@@ -234,4 +244,5 @@ oreRouter.post('/', async (req, res) => {
   }
 
   return res.status(400).json({ error: 'Unknown action' });
+  }); // withPlayerLock
 });
