@@ -233,6 +233,14 @@ adminRouter.get('/stats', async (req, res) => {
       clans: gameState.clans.size,
       cores: gameState.cores.size,
     },
+    online_players_list: [...connectedPlayers.values()]
+      .filter(cp => cp.telegram_id)
+      .map(cp => {
+        const p = gameState.loaded ? gameState.getPlayerByTgId(cp.telegram_id) : null;
+        if (!p) return null;
+        return { id: p.id, telegram_id: p.telegram_id, username: p.game_username || p.username, avatar: p.avatar, level: p.level, lat: cp.lat, lng: cp.lng };
+      }).filter(Boolean)
+      .filter((p, i, arr) => arr.findIndex(x => x.id === p.id) === i),
     online_history: global.onlineHistory || [],
     recent_errors: (global.recentErrors || []).slice(0, 50),
     recent_activity: (global.recentActivity || []).slice(0, 30),

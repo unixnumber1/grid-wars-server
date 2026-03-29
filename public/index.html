@@ -7549,7 +7549,9 @@ function renderBuildings() {
     activePlayerIds.add(p.id);
     if (onlineMarkers[p.id]) {
       const m = onlineMarkers[p.id];
-      _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
+      // Skip tick position update if socket recently sent real-time position
+      const socketFresh = m._lastSocketUpdate && (Date.now() - m._lastSocketUpdate < 6000);
+      if (!socketFresh) _animateMarkerTo(m, p.last_lat, p.last_lng, 800);
       const hasShieldNow = p.shield_until && new Date(p.shield_until) > new Date();
       if (m._gw_avatar !== p.avatar || m._gw_shield !== hasShieldNow) {
         m._gw_avatar = p.avatar;
@@ -9960,6 +9962,8 @@ function initSocket() {
         };
         marker._animFrame = requestAnimationFrame(animate);
       }
+      // Mark as socket-updated so tick doesn't overwrite
+      marker._lastSocketUpdate = Date.now();
       // Update cached position
       const p = (state.mapBuildings.online_players || []).find(op => op.id === playerId);
       if (p) { p.last_lat = data.lat; p.last_lng = data.lng; }
@@ -12506,6 +12510,25 @@ function renderAdminStats(s) {
         '<span>💎 Ядра: <b>' + gs.cores + '</b></span>' +
       '</div>' : '') +
     '</div>' +
+    // === Online players list ===
+    (function() {
+      const opl = s.online_players_list || [];
+      if (!opl.length) return '<div class="monitor-section"><div class="monitor-title">🟢 Онлайн (0)</div><div class="no-data">Нет игроков</div></div>';
+      return '<div class="monitor-section">' +
+        '<div class="monitor-title">🟢 Онлайн (' + opl.length + ')</div>' +
+        opl.map(function(p) {
+          return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a2e;">' +
+            '<span style="font-size:20px;">' + (p.avatar || '🐺') + '</span>' +
+            '<div style="flex:1;overflow:hidden;">' +
+              '<div style="color:#fff;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (p.username || '???') + '</div>' +
+              '<div style="color:#666;font-size:11px;">Ур.' + (p.level || 1) + '</div>' +
+            '</div>' +
+            '<button onclick="openAdminPlayerModal();setTimeout(function(){apmLoadPlayer(\'' + p.id + '\')},300)" style="background:#4fc3f7;border:none;color:#000;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;">👤</button>' +
+            (p.lat && p.lng ? '<button onclick="document.getElementById(\'settings-drawer\').classList.remove(\'open\');setTimeout(function(){map.flyTo([' + p.lat + ',' + p.lng + '],17)},200)" style="background:#4caf50;border:none;color:#000;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;">📍</button>' : '') +
+          '</div>';
+        }).join('') +
+      '</div>';
+    })() +
     // === Online chart ===
     chartHtml +
     errorsHtml +
