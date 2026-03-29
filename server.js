@@ -480,8 +480,13 @@ io.on('connection', (socket) => {
         verifiedTgId = result.user.id;
       } else {
         console.warn('[socket] Invalid initData from', data.telegram_id, result.reason);
-        // Don't disconnect — allow through for backward compat
+        socket.disconnect(true);
+        return;
       }
+    } else {
+      console.warn('[socket] No initData from', data.telegram_id);
+      socket.disconnect(true);
+      return;
     }
 
     let playerDbId = null;
@@ -525,21 +530,23 @@ io.on('connection', (socket) => {
   socket.on('player:location', (data) => {
     if (!data?.lat || !data?.lng) return;
     const player = connectedPlayers.get(socket.id);
-    if (player) {
-      // Validate position through antispoof
-      const validation = validatePosition(player.telegram_id, data.lat, data.lng, false, data.accuracy || null);
-      if (!validation.valid) {
-        // Silently ignore invalid positions (don't update player coords)
-        return;
-      }
-      player.lat = data.lat;
-      player.lng = data.lng;
-      // Update city cache (rate-limited internally to 1h)
-      if (player.telegram_id) {
-        import('./lib/geocity.js').then(({ updatePlayerCity }) => {
-          updatePlayerCity(player.telegram_id, data.lat, data.lng).catch(() => {});
-        }).catch(() => {});
-      }
+    if (!player) return;
+
+    // Use verified telegram_id from connectedPlayers, not from client data
+    const verifiedTgId = player.telegram_id;
+
+    // Validate position through antispoof
+    const validation = validatePosition(verifiedTgId, data.lat, data.lng, false, data.accuracy || null);
+    if (!validation.valid) return;
+
+    player.lat = data.lat;
+    player.lng = data.lng;
+
+    // Update city cache (rate-limited internally to 1h)
+    if (verifiedTgId) {
+      import('./lib/geocity.js').then(({ updatePlayerCity }) => {
+        updatePlayerCity(verifiedTgId, data.lat, data.lng).catch(() => {});
+      }).catch(() => {});
     }
 
     // Broadcast to nearby players (2km)
@@ -548,7 +555,7 @@ io.on('connection', (socket) => {
       const dist = haversine(data.lat, data.lng, other.lat, other.lng);
       if (dist <= 2000) {
         io.to(sid).emit('player:moved', {
-          telegram_id: data.telegram_id,
+          telegram_id: verifiedTgId,
           lat: data.lat,
           lng: data.lng,
         });
@@ -556,8 +563,8 @@ io.on('connection', (socket) => {
     }
 
     // Update in-memory state
-    if (data.telegram_id) {
-      const p = gameState.getPlayerByTgId(data.telegram_id);
+    if (verifiedTgId) {
+      const p = gameState.getPlayerByTgId(verifiedTgId);
       if (p) {
         p.last_lat = data.lat;
         p.last_lng = data.lng;

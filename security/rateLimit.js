@@ -29,9 +29,11 @@ const ADMIN_TG_ID = 560013667;
 
 export function rateLimitMw(type = 'default') {
   return (req, res, next) => {
-    const telegramId = req.body?.telegram_id || req.query?.telegram_id;
+    // Use verified telegram_id from auth middleware, fall back to body/query
+    const telegramId = req.verifiedTgId || req.body?.telegram_id || req.query?.telegram_id;
     if (!telegramId) return next();
-    if (Number(telegramId) === ADMIN_TG_ID) return next();
+    // Only skip rate limit for verified admin (not spoofed)
+    if (Number(telegramId) === ADMIN_TG_ID && req.authVerified) return next();
 
     const key = `${telegramId}:${type}`;
     const limit = LIMITS[type] || LIMITS.default;

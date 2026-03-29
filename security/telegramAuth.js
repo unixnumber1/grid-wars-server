@@ -73,9 +73,12 @@ export function verifyTelegramAuth(req, res, next) {
 
   const initData = req.headers['x-telegram-init-data'];
 
-  // No initData — allow through but mark as unverified
-  // Sensitive actions must check req.authVerified themselves
+  // No initData — block POST/PUT/DELETE (mutations require auth), allow GET
   if (!initData) {
+    if (req.method !== 'GET') {
+      console.warn(`[AUTH] Blocked unauthenticated ${req.method} ${fullPath} from ${req.ip}`);
+      return res.status(403).json({ error: 'Auth required', reason: 'missing_init_data' });
+    }
     req.authVerified = false;
     return next();
   }
