@@ -12303,32 +12303,53 @@ function renderAdminStats(s) {
 
   const gs = s.gamestate || {};
 
-  // Online chart SVG
+  // Online chart SVG — area chart with gradient
   const hist = s.online_history || [];
   let chartHtml = '';
   if (hist.length > 1) {
     const maxCount = Math.max(...hist.map(h => h.count), 1);
-    const w = 280, h2 = 60, pad = 2;
-    const step = (w - pad * 2) / (hist.length - 1);
-    const points = hist.map((h, i) => {
-      const x = pad + i * step;
-      const y = h2 - pad - (h.count / maxCount) * (h2 - pad * 2);
-      return x.toFixed(1) + ',' + y.toFixed(1);
-    }).join(' ');
+    const w = 300, h2 = 80, padX = 4, padY = 14;
+    const step = (w - padX * 2) / (hist.length - 1);
+    const pts = hist.map((h, i) => ({
+      x: padX + i * step,
+      y: h2 - padY - (h.count / maxCount) * (h2 - padY * 2),
+    }));
+    const line = pts.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+    const area = pts.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ') +
+      ' ' + pts[pts.length-1].x.toFixed(1) + ',' + (h2-padY) + ' ' + pts[0].x.toFixed(1) + ',' + (h2-padY);
+    // Time labels
     const labels = [];
-    const labelStep = Math.max(1, Math.floor(hist.length / 5));
+    const labelStep = Math.max(1, Math.floor(hist.length / 6));
     for (let i = 0; i < hist.length; i += labelStep) {
-      const x = pad + i * step;
-      labels.push('<text x="' + x.toFixed(1) + '" y="' + (h2 - 1) + '" fill="#666" font-size="8" text-anchor="middle">' + hist[i].time + '</text>');
+      labels.push('<text x="' + pts[i].x.toFixed(1) + '" y="' + (h2-2) + '" fill="#555" font-size="9" text-anchor="middle">' + hist[i].time + '</text>');
     }
-    chartHtml = '<div class="online-chart">' +
-      '<div class="chart-title">Онлайн за ' + hist.length * 5 + ' мин (макс: ' + maxCount + ')</div>' +
-      '<svg width="100%" viewBox="0 0 ' + w + ' ' + (h2 + 2) + '" preserveAspectRatio="none">' +
-        '<polyline points="' + points + '" fill="none" stroke="#4caf50" stroke-width="1.5" stroke-linejoin="round"/>' +
-        labels.join('') +
+    // Y gridlines
+    const gridlines = [0.25, 0.5, 0.75].map(f => {
+      const y = h2 - padY - f * (h2 - padY * 2);
+      const val = Math.round(maxCount * f);
+      return '<line x1="' + padX + '" y1="' + y.toFixed(1) + '" x2="' + (w-padX) + '" y2="' + y.toFixed(1) + '" stroke="#222" stroke-width="0.5"/>' +
+        '<text x="' + (w-padX+2) + '" y="' + (y+3).toFixed(1) + '" fill="#444" font-size="8">' + val + '</text>';
+    }).join('');
+    // Current value dot
+    const last = pts[pts.length-1];
+    const dot = '<circle cx="' + last.x.toFixed(1) + '" cy="' + last.y.toFixed(1) + '" r="3" fill="#4caf50"/>' +
+      '<text x="' + (last.x-2).toFixed(1) + '" y="' + (last.y-6).toFixed(1) + '" fill="#4caf50" font-size="10" font-weight="bold" text-anchor="end">' + hist[hist.length-1].count + '</text>';
+    const hours = Math.round(hist.length * 5 / 60);
+    chartHtml = '<div class="monitor-section">' +
+      '<div class="monitor-title">📈 Онлайн ' + (hours > 0 ? hours + 'ч' : hist.length * 5 + ' мин') +
+      '<span style="float:right;color:#4caf50;font-size:12px;">пик: ' + maxCount + ' | средн: ' + (s.avg_online || 0) + '</span></div>' +
+      '<svg width="100%" viewBox="0 0 ' + (w+20) + ' ' + h2 + '" style="display:block;margin-top:4px;">' +
+        '<defs><linearGradient id="og" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="#4caf50" stop-opacity="0.3"/>' +
+          '<stop offset="100%" stop-color="#4caf50" stop-opacity="0.02"/>' +
+        '</linearGradient></defs>' +
+        gridlines +
+        '<polygon points="' + area + '" fill="url(#og)"/>' +
+        '<polyline points="' + line + '" fill="none" stroke="#4caf50" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+        dot + labels.join('') +
       '</svg></div>';
   } else {
-    chartHtml = '<div class="online-chart"><div class="chart-title">Онлайн</div><div class="no-data">Данные накапливаются (каждые 5 мин)</div></div>';
+    chartHtml = '<div class="monitor-section"><div class="monitor-title">📈 Онлайн</div><div class="no-data">Данные накапливаются (каждые 5 мин)</div></div>';
   }
 
   // Errors section
@@ -12405,19 +12426,42 @@ function renderAdminStats(s) {
   }
   susHtml += '</div>';
 
+  // Retention display
+  const retD1 = s.retention_d1 != null ? s.retention_d1 + '%' : '—';
+  const retD7 = s.retention_d7 != null ? s.retention_d7 + '%' : '—';
+  const retD1Color = s.retention_d1 == null ? '#555' : s.retention_d1 >= 40 ? '#4caf50' : s.retention_d1 >= 20 ? '#ff9800' : '#f44336';
+  const retD7Color = s.retention_d7 == null ? '#555' : s.retention_d7 >= 20 ? '#4caf50' : s.retention_d7 >= 10 ? '#ff9800' : '#f44336';
+
+  // Level distribution bar
+  const ld = s.level_distribution || {};
+  const ldTotal = Object.values(ld).reduce((a, b) => a + b, 0) || 1;
+  const ldColors = { '1-5': '#f44336', '6-20': '#ff9800', '21-50': '#ffd93d', '51-100': '#4caf50', '100+': '#4d96ff' };
+  const ldBar = Object.entries(ld).map(([k, v]) => {
+    const pct = Math.max(v / ldTotal * 100, v > 0 ? 3 : 0);
+    return '<div style="width:' + pct.toFixed(1) + '%;background:' + ldColors[k] + ';height:100%;position:relative;" title="' + k + ': ' + v + '"></div>';
+  }).join('');
+  const ldLabels = Object.entries(ld).map(([k, v]) =>
+    '<span style="color:' + ldColors[k] + ';font-size:10px;">' + k + ': <b>' + v + '</b></span>'
+  ).join(' ');
+
+  // Conversion funnel
+  const convHq = s.total_players > 0 ? Math.round(s.with_hq / s.total_players * 100) : 0;
+
   el.innerHTML = '<div class="admin-monitor-card">' +
     '<div class="monitor-header">Мониторинг <button onclick="loadAdminStats()">↻</button></div>' +
+    // === Row 1: Players + Server ===
     '<div class="monitor-grid">' +
       '<div class="monitor-section">' +
-        '<div class="monitor-title">Игроки</div>' +
-        '<div class="monitor-row"><span>Онлайн</span><b>' + s.online_now + '</b></div>' +
+        '<div class="monitor-title">👥 Игроки</div>' +
+        '<div class="monitor-row"><span>🟢 Онлайн</span><b style="color:#4caf50;font-size:18px;">' + s.online_now + '</b></div>' +
         '<div class="monitor-row"><span>За 24ч</span><b>' + s.online_today + '</b></div>' +
+        '<div class="monitor-row"><span>За неделю</span><b>' + (s.new_week || 0) + ' новых</b></div>' +
         '<div class="monitor-row"><span>Всего</span><b>' + s.total_players + '</b></div>' +
-        '<div class="monitor-row"><span>Новых</span><b style="color:#4caf50">+' + s.new_today + '</b></div>' +
-        '<div class="monitor-row"><span>Сокеты</span><b>' + s.connected_sockets + '</b></div>' +
+        '<div class="monitor-row"><span>Со штабом</span><b>' + (s.with_hq || 0) + ' <span style="color:#888;font-size:11px;">(' + convHq + '%)</span></b></div>' +
+        '<div class="monitor-row"><span>Сокеты</span><b style="color:#888">' + s.connected_sockets + '</b></div>' +
       '</div>' +
       '<div class="monitor-section">' +
-        '<div class="monitor-title">Сервер</div>' +
+        '<div class="monitor-title">🖥️ Сервер</div>' +
         '<div class="monitor-row"><span>RAM</span><b>' + s.memory_used_mb + '/' + s.memory_total_mb + ' MB</b></div>' +
         '<div class="monitor-bar"><div style="width:' + ramPct + '%;background:' + ramColor + '"></div></div>' +
         '<div class="monitor-row"><span>CPU</span><b style="color:' + cpuColor + '">' + s.cpu_load.toFixed(2) + '</b></div>' +
@@ -12425,26 +12469,44 @@ function renderAdminStats(s) {
         '<div class="monitor-row"><span>Node</span><b style="color:#888">' + s.node_version + '</b></div>' +
       '</div>' +
     '</div>' +
+    // === Row 2: Retention + Levels ===
+    '<div class="monitor-grid">' +
+      '<div class="monitor-section">' +
+        '<div class="monitor-title">📊 Удержание</div>' +
+        '<div class="monitor-row"><span>D1</span><b style="color:' + retD1Color + ';font-size:16px;">' + retD1 + '</b>' +
+          (s.retention_d1_sample ? '<span style="color:#555;font-size:10px;margin-left:4px;">(' + s.retention_d1_sample + ' чел)</span>' : '') + '</div>' +
+        '<div class="monitor-row"><span>D7</span><b style="color:' + retD7Color + ';font-size:16px;">' + retD7 + '</b>' +
+          (s.retention_d7_sample ? '<span style="color:#555;font-size:10px;margin-left:4px;">(' + s.retention_d7_sample + ' чел)</span>' : '') + '</div>' +
+        '<div class="monitor-row"><span>Сегодня новых</span><b style="color:#4caf50">+' + s.new_today + '</b></div>' +
+      '</div>' +
+      '<div class="monitor-section">' +
+        '<div class="monitor-title">⭐ Уровни</div>' +
+        '<div style="height:10px;display:flex;border-radius:5px;overflow:hidden;margin:6px 0;">' + ldBar + '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">' + ldLabels + '</div>' +
+      '</div>' +
+    '</div>' +
+    // === GameState ===
     '<div class="monitor-section">' +
-      '<div class="monitor-title">GameState</div>' +
+      '<div class="monitor-title">🗄️ GameState</div>' +
       '<div class="monitor-grid-4">' +
-        '<div class="stat-chip">Шахты<br><b>' + (gs.mines || s.mines_loaded || 0) + '</b></div>' +
-        '<div class="stat-chip">Боты<br><b>' + (gs.bots || s.bots_loaded || 0) + '</b></div>' +
-        '<div class="stat-chip">Рудники<br><b>' + (gs.ore_nodes || s.ore_nodes_loaded || 0) + '</b></div>' +
-        '<div class="stat-chip">Игроки<br><b>' + (gs.players || s.players_loaded || 0) + '</b></div>' +
+        '<div class="stat-chip">⛏ Шахты<br><b>' + (gs.mines || 0) + '</b></div>' +
+        '<div class="stat-chip">🧌 Боты<br><b>' + (gs.bots || 0) + '</b></div>' +
+        '<div class="stat-chip">⛰ Рудники<br><b>' + (gs.ore_nodes || 0) + '</b></div>' +
+        '<div class="stat-chip">👤 Игроки<br><b>' + (gs.players || 0) + '</b></div>' +
       '</div>' +
       (gs.monuments_total != null ? '<div class="monument-stats">' +
-        '<span>Монументы: <b>' + gs.monuments_total + '</b></span>' +
-        '<span style="color:#ff9800;">Щит: ' + gs.monuments_shield + '</span>' +
-        '<span style="color:#4caf50;">Открыт: ' + gs.monuments_active + '</span>' +
-        '<span style="color:#666;">Побежд: ' + gs.monuments_defeated + '</span>' +
+        '<span>🗿 Монументы: <b>' + gs.monuments_total + '</b></span>' +
+        '<span style="color:#ff9800;">🛡 ' + gs.monuments_shield + '</span>' +
+        '<span style="color:#4caf50;">⚔ ' + gs.monuments_active + '</span>' +
+        '<span style="color:#666;">✅ ' + gs.monuments_defeated + '</span>' +
       '</div>' : '') +
       (gs.vases != null ? '<div class="monument-stats">' +
-        '<span>Вазы: <b>' + gs.vases + '</b></span>' +
-        '<span>Кланы: <b>' + gs.clans + '</b></span>' +
-        '<span>Ядра: <b>' + gs.cores + '</b></span>' +
+        '<span>🏺 Вазы: <b>' + gs.vases + '</b></span>' +
+        '<span>🏰 Кланы: <b>' + gs.clans + '</b></span>' +
+        '<span>💎 Ядра: <b>' + gs.cores + '</b></span>' +
       '</div>' : '') +
     '</div>' +
+    // === Online chart ===
     chartHtml +
     errorsHtml +
     bansHtml +

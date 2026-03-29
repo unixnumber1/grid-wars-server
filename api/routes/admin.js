@@ -145,15 +145,51 @@ adminRouter.get('/stats', async (req, res) => {
   const ONE_DAY = 24 * 60 * 60 * 1000;
 
   let online_now = 0, online_today = 0, total_players = 0, new_today = 0;
+  let new_week = 0, with_hq = 0;
+  const ONE_WEEK = 7 * ONE_DAY;
+  const ONE_HOUR = 60 * 60 * 1000;
+  // Retention buckets
+  let ret_d1 = 0, ret_d1_base = 0, ret_d7 = 0, ret_d7_base = 0;
+  // Level distribution
+  const levelBuckets = { '1-5': 0, '6-20': 0, '21-50': 0, '51-100': 0, '100+': 0 };
+  // Avg session (from online_history)
+  const hist = global.onlineHistory || [];
+  const peakOnline = hist.length > 0 ? Math.max(...hist.map(h => h.count)) : 0;
+  const avgOnline = hist.length > 0 ? Math.round(hist.reduce((s, h) => s + h.count, 0) / hist.length) : 0;
 
   if (gameState.loaded) {
     total_players = gameState.players.size;
     for (const p of gameState.players.values()) {
       const lastSeen = p.last_seen ? new Date(p.last_seen).getTime() : 0;
+      const created = p.created_at ? new Date(p.created_at).getTime() : 0;
+      const age = now - created;
+
       if (now - lastSeen < FIVE_MIN) online_now++;
       if (now - lastSeen < ONE_DAY) online_today++;
-      const created = p.created_at ? new Date(p.created_at).getTime() : 0;
-      if (now - created < ONE_DAY) new_today++;
+      if (age < ONE_DAY) new_today++;
+      if (age < ONE_WEEK) new_week++;
+
+      // Has HQ
+      if ([...gameState.headquarters.values()].some(h => String(h.player_id) === String(p.id))) with_hq++;
+
+      // Level distribution
+      const lv = p.level || 1;
+      if (lv > 100) levelBuckets['100+']++;
+      else if (lv > 50) levelBuckets['51-100']++;
+      else if (lv > 20) levelBuckets['21-50']++;
+      else if (lv > 5) levelBuckets['6-20']++;
+      else levelBuckets['1-5']++;
+
+      // D1 retention: registered 1-2 days ago, came back after first day
+      if (age >= ONE_DAY && age < 2 * ONE_DAY) {
+        ret_d1_base++;
+        if (lastSeen > created + ONE_DAY) ret_d1++;
+      }
+      // D7 retention: registered 7-14 days ago, came back after 7th day
+      if (age >= ONE_WEEK && age < 2 * ONE_WEEK) {
+        ret_d7_base++;
+        if (lastSeen > created + ONE_WEEK) ret_d7++;
+      }
     }
   }
 
@@ -165,6 +201,15 @@ adminRouter.get('/stats', async (req, res) => {
     online_today,
     total_players,
     new_today,
+    new_week,
+    with_hq,
+    peak_online: peakOnline,
+    avg_online: avgOnline,
+    retention_d1: ret_d1_base > 0 ? Math.round(ret_d1 / ret_d1_base * 100) : null,
+    retention_d1_sample: ret_d1_base,
+    retention_d7: ret_d7_base > 0 ? Math.round(ret_d7 / ret_d7_base * 100) : null,
+    retention_d7_sample: ret_d7_base,
+    level_distribution: levelBuckets,
     uptime_seconds: Math.floor(process.uptime()),
     memory_used_mb: memUsed,
     memory_total_mb: memTotal,
