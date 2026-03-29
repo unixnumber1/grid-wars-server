@@ -588,41 +588,18 @@ playerRouter.post('/init', async (req, res) => {
       }
     }
   }
-  // Process referral if pending
+  // Save pending referral — rewards given later when player places HQ (real engagement)
   if (player.starting_bonus_claimed === true) {
     const referrerId = pendingReferrals.get(Number(tgId));
     if (referrerId) {
       pendingReferrals.delete(Number(tgId));
       try {
-        // Insert referral (UNIQUE on referred_id prevents duplicates)
-        const { data: refInserted } = await supabase.from('referrals')
-          .insert({ referrer_id: referrerId, referred_id: Number(tgId), referrer_rewarded: true, referred_rewarded: true })
+        // Insert referral record without rewards yet
+        await supabase.from('referrals')
+          .insert({ referrer_id: referrerId, referred_id: Number(tgId), referrer_rewarded: false, referred_rewarded: false })
           .select('id').maybeSingle();
-        if (refInserted) {
-          // Award 50 diamonds to new player
-          const newDiamonds = (player.diamonds ?? 0) + 50;
-          await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
-          player.diamonds = newDiamonds;
-          if (gameState.loaded) {
-            const gp = gameState.getPlayerById(player.id);
-            if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); }
-          }
-          // Award 50 diamonds to referrer
-          const referrer = gameState.loaded ? gameState.getPlayerByTgId(referrerId) : null;
-          if (referrer) {
-            referrer.diamonds = (referrer.diamonds ?? 0) + 50;
-            gameState.markDirty('players', referrer.id);
-            await supabase.from('players').update({ diamonds: referrer.diamonds }).eq('id', referrer.id);
-          } else {
-            const { data: refP } = await supabase.from('players').select('id, diamonds').eq('telegram_id', referrerId).maybeSingle();
-            if (refP) await supabase.from('players').update({ diamonds: (refP.diamonds ?? 0) + 50 }).eq('id', refP.id);
-          }
-          // Notify referrer
-          sendTelegramNotification(referrerId, `🎉 По твоей ссылке зарегистрировался новый игрок! +50 💎`);
-          console.log(`[referral] ${tgId} referred by ${referrerId} — both rewarded 50 diamonds`);
-        }
+        console.log(`[referral] ${tgId} referred by ${referrerId} — saved, rewards pending HQ placement`);
       } catch (refErr) {
-        // UNIQUE violation = already referred, ignore
         if (!refErr.message?.includes('unique') && !refErr.message?.includes('duplicate')) {
           console.error('[referral] error:', refErr.message);
         }
