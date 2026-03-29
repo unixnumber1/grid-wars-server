@@ -576,6 +576,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    const player = connectedPlayers.get(socket.id);
+    if (player?.telegram_id && gameState.loaded) {
+      const p = gameState.getPlayerByTgId(player.telegram_id);
+      if (p) {
+        // Set last_seen to now so "online" check (5min window) expires naturally,
+        // but also check if this is the LAST socket for this player
+        const stillConnected = [...connectedPlayers.entries()].some(
+          ([sid, info]) => sid !== socket.id && String(info.telegram_id) === String(player.telegram_id)
+        );
+        if (!stillConnected) {
+          // Mark as offline immediately — set last_seen to 6 min ago
+          p.last_seen = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+          gameState.markDirty('players', p.id);
+        }
+      }
+    }
     connectedPlayers.delete(socket.id);
     log('Disconnected:', socket.id);
   });
