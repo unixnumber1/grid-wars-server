@@ -20,6 +20,12 @@ import { gridDisk } from 'h3-js';
 export const adminRouter = Router();
 const ADMIN_TG_ID = 560013667;
 
+function isAdmin(req) {
+  // Prefer verified ID from initData, fall back to query params
+  const tgId = req.verifiedTgId || parseInt(req.query?.admin_id || req.query?.telegram_id, 10);
+  return Number(tgId) === ADMIN_TG_ID;
+}
+
 function getBannedPlayers() {
   const banned = [];
   for (const p of gameState.players.values()) {
@@ -105,8 +111,7 @@ adminRouter.get('/', async (req, res) => {
 
   // ── players-list: search players by username ──
   if (action === 'players-list') {
-    const adminId = parseInt(admin_id, 10);
-    if (adminId !== ADMIN_TG_ID) return res.status(403).json({ error: 'Forbidden' });
+    if (!isAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
 
     const q = (search || '').trim();
     if (!q) return res.status(200).json({ players: [] });
@@ -134,8 +139,7 @@ adminRouter.get('/', async (req, res) => {
 
 // ── GET /stats ───────────────────────────────────────────────
 adminRouter.get('/stats', async (req, res) => {
-  const tgId = req.query.telegram_id || req.headers['x-telegram-id'];
-  if (String(tgId) !== '560013667') return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
 
   const now = Date.now();
   const FIVE_MIN = 5 * 60 * 1000;
@@ -255,8 +259,7 @@ adminRouter.get('/player-logs', (req, res) => {
 
 // ── GET /player-details ──────────────────────────────────────
 adminRouter.get('/player-details', (req, res) => {
-  const tgId = req.query.admin_id || req.query.telegram_id;
-  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
 
   const playerId = req.query.player_id;
   if (!playerId) return res.status(400).json({ error: 'player_id required' });
@@ -307,8 +310,7 @@ adminRouter.get('/player-details', (req, res) => {
 
 // ── Referral leaderboard ──────────────────────────────────────
 adminRouter.get('/referral-stats', async (req, res) => {
-  const tgId = req.query.admin_id || req.query.telegram_id;
-  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
 
   try {
     const { data: rows } = await supabase.from('referrals').select('referrer_id, referred_id, level50_rewarded, created_at');
@@ -355,8 +357,7 @@ adminRouter.get('/referral-stats', async (req, res) => {
 
 // ── GET /players-list-all ────────────────────────────────────
 adminRouter.get('/players-list-all', (req, res) => {
-  const tgId = req.query.admin_id || req.query.telegram_id;
-  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
   if (!gameState.loaded) return res.json({ players: [] });
 
   const offset = parseInt(req.query.offset, 10) || 0;
@@ -396,8 +397,7 @@ adminRouter.get('/players-list-all', (req, res) => {
 
 // ── GET /player-referrals ───────────────────────────────────
 adminRouter.get('/player-referrals', async (req, res) => {
-  const tgId = req.query.admin_id || req.query.telegram_id;
-  if (String(tgId) !== String(ADMIN_TG_ID)) return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
 
   const playerTgId = req.query.player_telegram_id;
   if (!playerTgId) return res.status(400).json({ error: 'player_telegram_id required' });
@@ -451,9 +451,8 @@ adminRouter.get('/player-referrals', async (req, res) => {
 
 // ── POST ─────────────────────────────────────────────────────
 adminRouter.post('/', async (req, res) => {
-  const { telegram_id, admin_id, enabled, action } = req.body;
-  const tgId = parseInt(telegram_id || admin_id, 10);
-  if (tgId !== ADMIN_TG_ID) {
+  const { enabled, action } = req.body;
+  if (!isAdmin(req)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 

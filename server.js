@@ -472,22 +472,19 @@ io.on('connection', (socket) => {
   console.log('[socket] Connected:', socket.id, 'total:', connectedPlayers.size + 1);
 
   socket.on('player:init', (data) => {
-    // Verify initData for socket connections
-    let verifiedTgId = data.telegram_id;
-    if (data.initData) {
-      const result = verifyInitData(data.initData);
-      if (result.valid) {
-        verifiedTgId = result.user.id;
-      } else {
-        console.warn('[socket] Invalid initData from', data.telegram_id, result.reason);
-        socket.disconnect(true);
-        return;
-      }
-    } else {
-      console.warn('[socket] No initData from', data.telegram_id);
+    // Verify initData — only source of truth for telegram_id
+    if (!data.initData) {
+      console.warn('[socket] No initData, disconnecting');
       socket.disconnect(true);
       return;
     }
+    const result = verifyInitData(data.initData);
+    if (!result.valid) {
+      console.warn('[socket] Invalid initData:', result.reason);
+      socket.disconnect(true);
+      return;
+    }
+    const verifiedTgId = result.user.id;
 
     let playerDbId = null;
     if (verifiedTgId && gameState.loaded) {
@@ -520,9 +517,9 @@ io.on('connection', (socket) => {
     console.log('[socket] Player init:', verifiedTgId, 'db_id:', playerDbId, 'total:', connectedPlayers.size);
 
     // Update player city cache for city-based spawning
-    if (data.telegram_id && data.lat && data.lng) {
+    if (verifiedTgId && data.lat && data.lng) {
       import('./lib/geocity.js').then(({ updatePlayerCity }) => {
-        updatePlayerCity(data.telegram_id, data.lat, data.lng).catch(() => {});
+        updatePlayerCity(verifiedTgId, data.lat, data.lng).catch(() => {});
       }).catch(() => {});
     }
   });

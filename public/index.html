@@ -5807,7 +5807,7 @@ function setLang(lang) {
   _saveLang(lang);
   console.log('[i18n] setLang called:', lang, 'cookie:', document.cookie);
   // Sync to server, then reload page to apply all translations
-  const body = JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: lang });
+  const body = JSON.stringify({ action: 'set-language', language: lang });
   if (TG_ID && typeof fetch === 'function') {
     fetch('/api/player/init', { method: 'POST', headers: {'Content-Type':'application/json'}, body })
       .finally(() => { console.log('[i18n] reloading...'); location.reload(); });
@@ -6658,7 +6658,7 @@ async function doUpgradeItem(item) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'upgrade-item', telegram_id: TG_ID, item_id: item.id }),
+      body: JSON.stringify({ action: 'upgrade-item', item_id: item.id }),
     });
     if (data.stats) Object.assign(item, data.stats);
     item.upgrade_level = data.upgrade_level;
@@ -6692,7 +6692,7 @@ function doSellItemDirect(item, price) {
         try {
           const data = await apiFetch('/api/items', {
             method: 'POST',
-            body: JSON.stringify({ telegram_id: TG_ID, action: 'sell', item_id: item.id }),
+            body: JSON.stringify({ action: 'sell', item_id: item.id }),
           });
           state.inventory = (state.inventory || []).filter(i => i.id !== item.id);
           if (state.player) state.player.crystals = data.crystals;
@@ -6712,7 +6712,7 @@ async function doEquipItem(itemId) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'equip', item_id: itemId }),
+      body: JSON.stringify({ action: 'equip', item_id: itemId }),
     });
     // Update state
     const item = state.inventory.find(i => i.id === itemId);
@@ -6749,7 +6749,7 @@ async function doUnequipItem(itemId) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'unequip', item_id: itemId }),
+      body: JSON.stringify({ action: 'unequip', item_id: itemId }),
     });
     const item = state.inventory.find(i => i.id === itemId);
     if (item) item.equipped = false;
@@ -7152,7 +7152,7 @@ function deactivatePin(toastKey) {
     map.flyTo([target.lat, target.lng], map.getZoom(), { animate: true, duration: 0.3 });
     apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: target.lat, lng: target.lng, pin_unpin: true }),
+      body: JSON.stringify({ action: 'location', lat: target.lat, lng: target.lng, pin_unpin: true }),
     }).catch(() => {});
   }
   loadVisibleBuildings();
@@ -7184,7 +7184,7 @@ async function doTeleportToHq() {
     map.flyTo([hqLat, hqLng], map.getZoom(), { animate: true, duration: 0.3 });
     apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: hqLat, lng: hqLng, pin_mode: true }),
+      body: JSON.stringify({ action: 'location', lat: hqLat, lng: hqLng, pin_mode: true }),
     }).catch(() => {});
     loadVisibleBuildings();
     // Auto-expire after 1 hour
@@ -7247,7 +7247,7 @@ function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
   // Send location to Socket.io server
   if (_socket?.connected) {
-    _socket.emit('player:location', { telegram_id: TG_ID, lat, lng, accuracy: _lastGpsAccuracy });
+    _socket.emit('player:location', { lat, lng, accuracy: _lastGpsAccuracy });
   }
   if (playerMarker) {
     _animatePlayerMarker(lat, lng, 1000);
@@ -8207,7 +8207,7 @@ async function doUpgradeHq() {
   try {
     const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }),
+      body: JSON.stringify({ action: 'upgrade' }),
     });
     state.hq = data.headquarters;
     _setPlayerCoins(data.player_coins);
@@ -8237,8 +8237,7 @@ async function doUpgrade(mineId, targetLevel) {
     const data = await apiFetch('/api/buildings/upgrade', {
       method: 'POST',
       body: JSON.stringify({
-        telegram_id: TG_ID,
-        mine_id: mineId,
+               mine_id: mineId,
         lat: pos?.lat,
         lng: pos?.lng,
         targetLevel,
@@ -8281,7 +8280,7 @@ async function doUpgrade(mineId, targetLevel) {
 async function pollCompleteUpgrades() {
   if (!TG_ID) return;
   try {
-    const data = await apiFetch(`/api/buildings/upgrade?telegram_id=${TG_ID}`);
+    const data = await apiFetch('/api/buildings/upgrade');
     if (!data.completed || data.completed.length === 0) return;
     const evolutions = [];
     const normals = [];
@@ -8336,7 +8335,7 @@ async function doSellMine(mineId) {
 
     const data = await apiFetch('/api/buildings/attack', {
       method: 'POST',
-      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
+      body: JSON.stringify({ action: 'sell', mine_id: mineId, lat: state.playerPos?.lat, lng: state.playerPos?.lng }),
     });
     _setPlayerCoins(data.player_coins);
     showToast(t('toast.mine_sold', {amount: formatCoins(data.total)}));
@@ -8477,7 +8476,7 @@ async function renderSkillsTab() {
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:20px;color:#666;">${t('skills.loading')}</div>`;
   try {
-    const data = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'get' }) });
+    const data = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({  action:'get' }) });
     _skillData = data;
     if (data.farmer_tree) _skillTrees.farmer = data.farmer_tree;
     if (data.raider_tree) _skillTrees.raider = data.raider_tree;
@@ -8673,7 +8672,7 @@ function onSkillBlockClick(blockId, treeName) {
 async function investInSkill(blockId, treeName) {
   try {
     const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({
-      action: 'invest', block_id: blockId, tree: treeName, telegram_id: TG_ID
+      action: 'invest', block_id: blockId, tree: treeName
     })});
     if (res.error) { showToast(res.error, 'red'); return; }
 
@@ -8715,7 +8714,7 @@ function confirmResetSkills() {
   ], [
     { label: t('skills.reset_btn', {cost: formatNumber(cost)}), cls:'danger', action: async () => {
       try {
-        const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'reset' }) });
+        const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({  action:'reset' }) });
         _skillData = { ..._skillData, ...res };
         if (res.farmer_tree) _skillTrees.farmer = res.farmer_tree;
         if (res.raider_tree) _skillTrees.raider = res.raider_tree;
@@ -8735,7 +8734,7 @@ function formatDuration(ms) {
 
 async function activateShadow() {
   try {
-    const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({ telegram_id:TG_ID, action:'activate-shadow' }) });
+    const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({  action:'activate-shadow' }) });
     showToast(t('shadow.activated'));
     state.shadow_active = true;
     state.shadow_until = res.shadow_until;
@@ -8792,7 +8791,7 @@ async function renderBadgesTab() {
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:20px;color:#666">${t('skills.loading')}</div>`;
   try {
-    const data = await apiFetch(`/api/player/profile?target_id=${TG_ID}&telegram_id=${TG_ID}`);
+    const data = await apiFetch(`/api/player/profile?target_id=${TG_ID}`);
     if (data.error) { el.innerHTML = `<div style="color:#f44;padding:20px">${data.error}</div>`; return; }
     const p = data.profile;
     const isOwn = true;
@@ -8833,7 +8832,7 @@ async function loadLevelRewards() {
   try {
     const data = await apiFetch('/api/rewards', {
       method: 'POST',
-      body: JSON.stringify({ action: 'get-level-rewards', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'get-level-rewards', }),
     });
     _rewardsCache = data;
     renderRewardsList(data);
@@ -8927,7 +8926,7 @@ async function claimReward(level) {
     // Now actually claim
     const data = await apiFetch('/api/rewards', {
       method: 'POST',
-      body: JSON.stringify({ action: 'claim-reward', telegram_id: TG_ID, level }),
+      body: JSON.stringify({ action: 'claim-reward', level }),
     });
     if (state.player) {
       if (data.diamonds_total != null) state.player.diamonds = data.diamonds_total;
@@ -8970,7 +8969,7 @@ async function claimAllRewards() {
   try {
     const data = await apiFetch('/api/rewards', {
       method: 'POST',
-      body: JSON.stringify({ action: 'claim-all', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'claim-all', }),
     });
     if (state.player) {
       if (data.diamonds_total != null) state.player.diamonds = data.diamonds_total;
@@ -9176,7 +9175,7 @@ async function checkUnclaimedRewards() {
   try {
     const data = await apiFetch('/api/rewards', {
       method: 'POST',
-      body: JSON.stringify({ action: 'get-level-rewards', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'get-level-rewards', }),
     });
     _rewardsCache = data;
     updateRewardsDot(data.unclaimed_count || 0);
@@ -9267,7 +9266,7 @@ async function sellSelectedCores() {
   try {
     const data = await apiFetch('/api/cores', {
       method: 'POST',
-      body: JSON.stringify({ action: 'mass-sell', telegram_id: TG_ID, core_ids: coreIds }),
+      body: JSON.stringify({ action: 'mass-sell', core_ids: coreIds }),
     });
     state._playerCores = (state._playerCores || []).filter(c => !coreIds.includes(c.id));
     if (state.player) state.player.ether = data.ether_total;
@@ -9351,7 +9350,7 @@ async function doCoreUpgrade(coreId) {
   try {
     const data = await apiFetch('/api/cores', {
       method: 'POST',
-      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, core_id: coreId }),
+      body: JSON.stringify({ action: 'upgrade', core_id: coreId }),
     });
     if (data.success) {
       if (state.player) state.player.ether = data.ether_left;
@@ -9373,7 +9372,7 @@ async function doCoreUninstall(coreId) {
     const mineCellId = c?.mine_cell_id;
     const data = await apiFetch('/api/cores', {
       method: 'POST',
-      body: JSON.stringify({ action: 'uninstall', telegram_id: TG_ID, core_id: coreId }),
+      body: JSON.stringify({ action: 'uninstall', core_id: coreId }),
     });
     if (data.success) {
       if (c) { c.mine_cell_id = null; c.slot_index = null; }
@@ -9394,7 +9393,7 @@ async function doCoreSell(coreId) {
   try {
     const data = await apiFetch('/api/cores', {
       method: 'POST',
-      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, core_id: coreId }),
+      body: JSON.stringify({ action: 'sell', core_id: coreId }),
     });
     if (data.success) {
       if (state.player) state.player.ether = data.ether;
@@ -9429,7 +9428,7 @@ async function doCoreInstall(coreId, mineId) {
     const data = await apiFetch('/api/cores', {
       method: 'POST',
       body: JSON.stringify({
-        action: 'install', telegram_id: TG_ID, core_id: coreId, mine_id: mineId,
+        action: 'install', core_id: coreId, mine_id: mineId,
         lat: state.playerPos?.lat, lng: state.playerPos?.lng,
       }),
     });
@@ -9461,7 +9460,7 @@ async function doBuildHq(lat, lng) {
   try {
     const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, lat, lng }),
+      body: JSON.stringify({ lat, lng }),
     });
     state.hq = data.headquarters;
     _setPlayerCoins(data.player_coins);
@@ -9504,7 +9503,7 @@ async function doSellHq() {
   try {
     await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'sell' }),
+      body: JSON.stringify({ action: 'sell' }),
     });
     // Optimistic: remove HQ marker immediately
     const myHq = state.hq;
@@ -9529,7 +9528,7 @@ async function doBuildCollector(lat, lng) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
+      body: JSON.stringify({ action: 'build', lat, lng }),
     });
     showToast(t('toast.collector_built', {count: data.mines_in_range}));
     if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
@@ -9543,7 +9542,7 @@ async function doBuildFireTruck(lat, lng) {
   try {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
+      body: JSON.stringify({ action: 'build', lat, lng }),
     });
     if (data.success) {
       showToast('🚒 Пожарная машина построена!');
@@ -9564,8 +9563,7 @@ async function doBuildMine(lat, lng) {
     return;
   }
   const payload = {
-    telegram_id: TG_ID,
-    player_lat: pos.lat,
+       player_lat: pos.lat,
     player_lng: pos.lng,
     mine_lat: lat,
     mine_lng: lng,
@@ -9622,7 +9620,7 @@ async function doCollect() {
   try {
     const data = await apiFetch('/api/buildings/mine', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'collect', lat: pos?.lat, lng: pos?.lng }),
+      body: JSON.stringify({ action: 'collect', lat: pos?.lat, lng: pos?.lng }),
     });
     if (data.player_coins != null) _setPlayerCoins(data.player_coins);
     // Don't overwrite totalIncome here — collect returns base income without clan bonuses
@@ -9664,7 +9662,7 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
   try {
     const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ lat: pos.lat, lng: pos.lng }),
     });
     state.hq = data.headquarters;
     _setPlayerCoins(data.player_coins);
@@ -9820,7 +9818,6 @@ async function loadVisibleBuildings(force = false) {
       east:  ne.lng + lngPad,
       west:  sw.lng - lngPad,
     });
-    if (TG_ID)    params.set('telegram_id', TG_ID);
     if (pos?.lat) params.set('lat', pos.lat);
     if (pos?.lng) params.set('lng', pos.lng);
 
@@ -9851,7 +9848,7 @@ async function refreshAll() {
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, username: TG_NAME }),
+      body: JSON.stringify({ username: TG_NAME }),
     });
     state.player      = data.player; // includes hp, max_hp, attack, kills, deaths
     state.hq          = data.headquarters;
@@ -9901,8 +9898,7 @@ function initSocket() {
       console.log('[socket] Connected:', _socket.id);
       if (TG_ID) {
         _socket.emit('player:init', {
-          telegram_id: TG_ID,
-          initData: _tgInitData,
+                   initData: _tgInitData,
           lat: state.playerPos?.lat,
           lng: state.playerPos?.lng,
         });
@@ -10496,8 +10492,7 @@ async function unifiedTick() {
       signal: _tickAbort.signal,
       body: JSON.stringify({
         action: 'tick',
-        telegram_id: TG_ID,
-        lat: pos.lat, lng: pos.lng,
+               lat: pos.lat, lng: pos.lng,
         north: ne.lat + latPad, south: sw.lat - latPad,
         east: ne.lng + lngPad, west: sw.lng - lngPad,
       }),
@@ -10728,7 +10723,7 @@ async function doBreakVase(vaseId) {
   try {
     const data = await apiFetch('/api/vases', {
       method: 'POST',
-      body: JSON.stringify({ action: 'break', telegram_id: TG_ID, vase_id: vaseId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'break', vase_id: vaseId, lat: pos.lat, lng: pos.lng }),
     });
 
     // Flying diamonds animation
@@ -11022,7 +11017,7 @@ async function doAttackBot(botId) {
   try {
     const data = await apiFetch('/api/bots', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
+      body: JSON.stringify({ action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
     });
     // Floating damage
     const ref = botMarkers[botId];
@@ -11129,7 +11124,7 @@ document.getElementById('btn-fix-positions').addEventListener('click', async () 
   try {
     const data = await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-positions' }),
+      body: JSON.stringify({ action: 'fix-positions' }),
     });
     showToast(t('toast.admin_fix_cells', {hq: data.fixed_hq, mines: data.fixed_mines}));
     await loadVisibleBuildings();
@@ -11148,7 +11143,7 @@ document.getElementById('btn-fix-usernames').addEventListener('click', async () 
   try {
     const data = await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-usernames' }),
+      body: JSON.stringify({ action: 'fix-usernames' }),
     });
     showToast(t('toast.admin_fix_hq', {count: data.fixed}));
   } catch (err) {
@@ -11165,7 +11160,7 @@ document.getElementById('btn-spawn-vases').addEventListener('click', async () =>
   try {
     const data = await apiFetch('/api/vases', {
       method: 'POST',
-      body: JSON.stringify({ action: 'spawn', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'spawn', }),
     });
     showToast(t('toast.admin_spawned_vases', {count: data.spawned}));
     _lastMapCenter = null;
@@ -11183,7 +11178,7 @@ document.getElementById('btn-fix-hq').addEventListener('click', async () => {
   try {
     const data = await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'fix-hq' }),
+      body: JSON.stringify({ action: 'fix-hq' }),
     });
     showToast(`✅ ${data.message}`);
     _lastMapCenter = null;
@@ -11204,7 +11199,7 @@ document.getElementById('btn-maintenance-toggle').addEventListener('click', asyn
     const action = newState ? 'maintenance-start' : 'maintenance-end';
     const data = await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action }),
+      body: JSON.stringify({ action }),
     });
     _adminMaintenanceOn = newState;
     updateAdminButton();
@@ -11254,7 +11249,7 @@ const CURRENCY_META = [
 // ── Referral Stats Modal ──
 async function openReferralStats() {
   try {
-    const data = await apiFetch(`/api/admin/referral-stats?telegram_id=${TG_ID}`);
+    const data = await apiFetch('/api/admin/referral-stats');
     const { leaderboard, total_referrals, total_gems } = data;
 
     // Update summary
@@ -11358,7 +11353,7 @@ async function apmLoadPlayersList(reset) {
   if (_apmListLoading) return;
   _apmListLoading = true;
   try {
-    const data = await apiFetch(`/api/admin/players-list-all?admin_id=${TG_ID}&offset=${_apmListOffset}&limit=30`);
+    const data = await apiFetch(`/api/admin/players-list-all?offset=${_apmListOffset}&limit=30`);
     const c = document.getElementById('apm-players-list');
     if (reset) c.innerHTML = '';
     _apmListTotal = data.total || 0;
@@ -11418,7 +11413,7 @@ document.getElementById('apm-search-input').addEventListener('input', (e) => {
   if (!q) { document.getElementById('apm-search-results').innerHTML = ''; return; }
   _apmSearchTimer = setTimeout(async () => {
     try {
-      const data = await apiFetch(`/api/admin/player-search?admin_id=${TG_ID}&q=${encodeURIComponent(q)}`);
+      const data = await apiFetch(`/api/admin/player-search?q=${encodeURIComponent(q)}`);
       const c = document.getElementById('apm-search-results');
       c.innerHTML = '';
       if (!data.players?.length) { c.innerHTML = '<div style="color:#666;text-align:center;padding:20px;">Не найдено</div>'; return; }
@@ -11444,7 +11439,7 @@ document.getElementById('apm-search-input').addEventListener('input', (e) => {
 
 async function apmLoadPlayer(playerId) {
   try {
-    const data = await apiFetch(`/api/admin/player-details?admin_id=${TG_ID}&player_id=${playerId}`);
+    const data = await apiFetch(`/api/admin/player-details?player_id=${playerId}`);
     _apmPlayer = data;
     apmShowPlayer();
   } catch (err) { showToast('❌ ' + err.message); }
@@ -11564,7 +11559,7 @@ async function apmGiveItem() {
   if (!type || !rarity) return showToast('Выберите тип и редкость');
   try {
     const res = await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'give-item', player_id: _apmPlayer.player.id, type, rarity, upgrade_level: level
+      action:'give-item', player_id: _apmPlayer.player.id, type, rarity, upgrade_level: level
     })});
     showToast(`✅ Выдан ${rarity} ${type} Ур.${level}`);
     if (res.item) {
@@ -11577,7 +11572,7 @@ async function apmGiveItem() {
 async function apmRemoveItem(itemId) {
   try {
     await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'remove-item', item_id: itemId
+      action:'remove-item', item_id: itemId
     })});
     showToast('✅ Предмет забран');
     _apmPlayer.items = _apmPlayer.items.filter(i => i.id !== itemId);
@@ -11590,7 +11585,7 @@ async function adminPlaceHqConfirm(playerId, lat, lng) {
   closePopup();
   try {
     await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'place-hq', player_id: playerId, lat, lng
+      action:'place-hq', player_id: playerId, lat, lng
     })});
     showToast('✅ Штаб установлен');
     _adminPlaceHqFor = null;
@@ -11606,7 +11601,7 @@ async function adminPlaceHqManual(playerId) {
   if (isNaN(lat) || isNaN(lng)) return showToast('❌ Введите координаты');
   try {
     await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'place-hq', player_id: playerId, lat, lng
+      action:'place-hq', player_id: playerId, lat, lng
     })});
     showToast('✅ Штаб установлен');
     _apmPlayer.player.has_hq = true;
@@ -11662,7 +11657,7 @@ async function apmChangeResource(currency, sign) {
   const action = sign > 0 ? 'reward' : 'deduct';
   try {
     const res = await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action, player_id: _apmPlayer.player.id, currency, amount: Math.abs(amount)
+      action, player_id: _apmPlayer.player.id, currency, amount: Math.abs(amount)
     })});
     const label = {coins:'монет',diamonds:'алмазов',crystals:'осколков',ether:'эфира'}[currency];
     const verb = sign > 0 ? 'Выдано' : 'Списано';
@@ -11728,7 +11723,7 @@ async function apmBan() {
   const days = customDays > 0 ? customDays : (selectedDur ? parseInt(selectedDur.dataset.days) : 1);
   try {
     await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'ban', player_id: _apmPlayer.player.id, reason, duration_days: days
+      action:'ban', player_id: _apmPlayer.player.id, reason, duration_days: days
     })});
     const durText = days === 0 ? 'навсегда' : `на ${days}д`;
     showToast(`🚫 ${_apmPlayer.player.username} забанен ${durText}`);
@@ -11739,7 +11734,7 @@ async function apmBan() {
 async function apmUnban() {
   try {
     await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
-      telegram_id: TG_ID, action:'unban', player_id: _apmPlayer.player.id
+      action:'unban', player_id: _apmPlayer.player.id
     })});
     showToast(`✅ ${_apmPlayer.player.username} разблокирован`);
     apmLoadPlayer(_apmPlayer.player.id);
@@ -11750,7 +11745,7 @@ async function apmUnban() {
 async function apmRenderLogs(body) {
   body.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Загрузка...</div>';
   try {
-    const data = await apiFetch(`/api/admin/player-logs?admin_id=${TG_ID}&player_telegram_id=${_apmPlayer.player.telegram_id}`);
+    const data = await apiFetch(`/api/admin/player-logs?player_telegram_id=${_apmPlayer.player.telegram_id}`);
     const logs = data.logs || [];
     if (!logs.length) { body.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Нет логов</div>'; return; }
 
@@ -11774,7 +11769,7 @@ async function apmRenderLogs(body) {
 async function apmRenderReferrals(body) {
   body.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Загрузка...</div>';
   try {
-    const data = await apiFetch(`/api/admin/player-referrals?admin_id=${TG_ID}&player_telegram_id=${_apmPlayer.player.telegram_id}`);
+    const data = await apiFetch(`/api/admin/player-referrals?player_telegram_id=${_apmPlayer.player.telegram_id}`);
     let html = '<div class="apm-section" style="max-height:none;">';
 
     // Who referred this player
@@ -11870,12 +11865,12 @@ async function submitSetupForm() {
     // Save avatar
     await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'avatar', telegram_id: TG_ID, avatar: _setupAvatar }),
+      body: JSON.stringify({ action: 'avatar', avatar: _setupAvatar }),
     });
     // Save username
     const res = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'set-username', telegram_id: TG_ID, username }),
+      body: JSON.stringify({ action: 'set-username', username }),
     });
     // Update state
     state.player.avatar = _setupAvatar;
@@ -11935,7 +11930,7 @@ async function doChangeUsername() {
   try {
     const res = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'set-username', telegram_id: TG_ID, username }),
+      body: JSON.stringify({ action: 'set-username', username }),
     });
     state.player.game_username = res.game_username;
     state.player.username_changes = res.username_changes;
@@ -11985,7 +11980,7 @@ async function boot() {
     const initRes = await fetch('/api/player/init', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_id: TG_ID, username: TG_NAME }),
+      body: JSON.stringify({ username: TG_NAME }),
       signal: AbortSignal.timeout(8000),
     });
     const data = await initRes.json();
@@ -12013,7 +12008,7 @@ async function boot() {
       if (data.player?.language && data.player.language !== storedLang) {
         apiFetch('/api/player/init', {
           method: 'POST',
-          body: JSON.stringify({ action: 'set-language', telegram_id: TG_ID, language: _lang })
+          body: JSON.stringify({ action: 'set-language', language: _lang })
         }).catch(() => {});
       }
     } else if (data.player?.language) {
@@ -12145,7 +12140,7 @@ async function submitMonumentRequest() {
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
-      body: JSON.stringify({ action: 'request', telegram_id: TG_ID, lat: coords.lat, lng: coords.lng, name, emoji, level }),
+      body: JSON.stringify({ action: 'request', lat: coords.lat, lng: coords.lng, name, emoji, level }),
     });
     showToast(t('monreq.sent', {id: data.request_id}));
     document.getElementById('req-coords').value = '';
@@ -12182,7 +12177,7 @@ async function selectAvatar(avatar) {
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'avatar', telegram_id: TG_ID, avatar }),
+      body: JSON.stringify({ action: 'avatar', avatar }),
     });
     state.player.avatar = data.player.avatar;
     if (data.diamonds != null) state.player.diamonds = data.diamonds;
@@ -12284,7 +12279,7 @@ let _adminStatsInterval = null;
 
 async function loadAdminStats() {
   try {
-    const res = await fetch(VPS_URL + '/api/admin/stats?telegram_id=' + TG_ID);
+    const res = await apiFetch('/api/admin/stats');
     if (!res.ok) return;
     const s = await res.json();
     renderAdminStats(s);
@@ -12475,7 +12470,7 @@ async function clearAdminErrors() {
   try {
     await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'clear-errors' }),
+      body: JSON.stringify({ action: 'clear-errors' }),
     });
     showToast('Ошибки очищены');
     loadAdminStats();
@@ -12489,7 +12484,7 @@ async function adminBanPlayer(telegramId) {
     if (!player) return showToast('Игрок не найден');
     await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'ban', player_id: player.id, reason: 'Подозрительная активность', duration_days: 30 }),
+      body: JSON.stringify({ action: 'ban', player_id: player.id, reason: 'Подозрительная активность', duration_days: 30 }),
     });
     showToast('Игрок забанен на 30д');
     loadAdminStats();
@@ -12502,7 +12497,7 @@ async function adminUnbanPlayer(telegramId) {
     if (!player) return showToast('Игрок не найден');
     await apiFetch('/api/admin', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'unban', player_id: player.id }),
+      body: JSON.stringify({ action: 'unban', player_id: player.id }),
     });
     showToast('Игрок разбанен');
     loadAdminStats();
@@ -12510,7 +12505,7 @@ async function adminUnbanPlayer(telegramId) {
 }
 
 async function findPlayerByTgId(telegramId) {
-  const data = await apiFetch('/api/admin/player-search?telegram_id=' + TG_ID + '&q=' + telegramId);
+  const data = await apiFetch('/api/admin/player-search?q=' + telegramId);
   return (data.players || [])[0] || null;
 }
 
@@ -12695,7 +12690,7 @@ async function buyMythic(weaponType) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'buy-mythic', telegram_id: TG_ID, weapon_type: weaponType }),
+      body: JSON.stringify({ action: 'buy-mythic', weapon_type: weaponType }),
     });
     if (state.player) state.player.diamonds = data.diamondsLeft;
     if (data.item) state.inventory = [data.item, ...(state.inventory || [])];
@@ -12741,7 +12736,7 @@ async function doOpenBox(boxType) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'open-box', box_type: boxType }),
+      body: JSON.stringify({ action: 'open-box', box_type: boxType }),
     });
 
     // Update state
@@ -12804,7 +12799,7 @@ async function buyMythicSet() {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'buy-mythic-set', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'buy-mythic-set', }),
     });
     if (state.player) state.player.diamonds = data.diamondsLeft;
     if (data.items) state.inventory = [...data.items, ...(state.inventory || [])];
@@ -12852,7 +12847,7 @@ async function buyCorePack(packIndex) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'buy-core-pack', telegram_id: TG_ID, pack_index: packIndex }),
+      body: JSON.stringify({ action: 'buy-core-pack', pack_index: packIndex }),
     });
     if (state.player) {
       state.player.diamonds = data.diamondsLeft;
@@ -13075,7 +13070,7 @@ async function doCraft() {
     const itemIds = sourceItems.map(i => i.id);
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'craft', item_ids: itemIds }),
+      body: JSON.stringify({ action: 'craft', item_ids: itemIds }),
     });
 
     // Remove consumed items from state
@@ -13563,7 +13558,7 @@ function _joystickSync() {
   _joystickLastSyncLng = pos.lng;
   apiFetch('/api/player/init', {
     method: 'POST',
-    body: JSON.stringify({ action: 'location', telegram_id: TG_ID, lat: pos.lat, lng: pos.lng }),
+    body: JSON.stringify({ action: 'location', lat: pos.lat, lng: pos.lng }),
   }).catch(() => {});
 }
 
@@ -13860,7 +13855,7 @@ async function doAttackCourier(courierId) {
   try {
     const data = await apiFetch('/api/market', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack-courier', telegram_id: TG_ID, courier_id: courierId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'attack-courier', courier_id: courierId, lat: pos.lat, lng: pos.lng }),
     });
 
     // Show floating damage (use interpolated display position)
@@ -14005,7 +14000,7 @@ async function doPickupDrop(dropId) {
   try {
     const data = await apiFetch('/api/market', {
       method: 'POST',
-      body: JSON.stringify({ action: 'pickup-drop', telegram_id: TG_ID, drop_id: dropId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'pickup-drop', drop_id: dropId, lat: pos.lat, lng: pos.lng }),
     });
     closePopup();
     if (dropMarkers[dropId]) {
@@ -14072,8 +14067,7 @@ async function _loadMarketListings() {
     if (_marketTab === 'browse') {
       const currentSort = _marketSubtab === 'cores' ? _marketCoreSort : _marketSort;
       const params = new URLSearchParams({
-        action: 'listings', telegram_id: TG_ID,
-        sort: currentSort === 'level' ? 'new' : currentSort,
+        action: 'listings',        sort: currentSort === 'level' ? 'new' : currentSort,
         page: _marketPage,
         item_type: _marketSubtab === 'cores' ? 'core' : 'item',
       });
@@ -14091,7 +14085,7 @@ async function _loadMarketListings() {
       loadMore.style.display = data.listings.length >= 20 ? 'block' : 'none';
       _renderMarketCards(_marketListings, grid, false);
     } else {
-      const params = new URLSearchParams({ action: 'my-listings', telegram_id: TG_ID });
+      const params = new URLSearchParams({ action: 'my-listings', });
       const data = await apiFetch(`/api/market?${params}`);
       _myListings = data.listings || [];
       empty.style.display = _myListings.length === 0 ? 'block' : 'none';
@@ -14276,8 +14270,7 @@ async function doBuyListing(listing) {
   try {
     const pos = state.playerPos;
     const body = {
-      telegram_id: TG_ID,
-      listing_id: listing.id,
+           listing_id: listing.id,
       lat: pos?.lat, lng: pos?.lng,
     };
     if (listing._privateCode) body.private_code = listing._privateCode;
@@ -14344,7 +14337,7 @@ async function doCancelListing(listingId) {
   try {
     await apiFetch('/api/market', {
       method: 'POST',
-      body: JSON.stringify({ action: 'cancel', telegram_id: TG_ID, listing_id: listingId }),
+      body: JSON.stringify({ action: 'cancel', listing_id: listingId }),
     });
     showToast(t('toast.listing_cancelled'));
     _loadMarketListings();
@@ -14352,7 +14345,7 @@ async function doCancelListing(listingId) {
     try {
       const initData = await apiFetch('/api/player/init', {
         method: 'POST',
-        body: JSON.stringify({ telegram_id: TG_ID }),
+        body: JSON.stringify({ }),
       });
       if (initData.inventory) state.inventory = initData.inventory;
     } catch (e) { /* will sync on next refreshAll */ }
@@ -14611,8 +14604,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const pos = state.playerPos;
       const body = {
         action: 'list-item',
-        telegram_id: TG_ID,
-        price_diamonds: price,
+               price_diamonds: price,
         is_private: _listIsPrivate,
         lat: pos?.lat, lng: pos?.lng,
       };
@@ -14722,7 +14714,7 @@ async function openLeaderboard() {
   currentDiv.innerHTML = '';
 
   try {
-    const url = TG_ID ? `/api/map?view=leaderboard&telegram_id=${TG_ID}` : '/api/map?view=leaderboard';
+    const url = '/api/map?view=leaderboard';
     const data = await apiFetch(url);
     _lbCache = data;
     _lbCacheTime = Date.now();
@@ -14859,7 +14851,7 @@ async function openPlayerProfile(targetTgId) {
   ov.classList.add('open');
 
   try {
-    const data = await apiFetch(`/api/player/profile?target_id=${targetTgId}&telegram_id=${TG_ID}`);
+    const data = await apiFetch(`/api/player/profile?target_id=${targetTgId}`);
     if (data.error) { showToast(data.error); closeProfile(); return; }
     const p = data.profile;
     const isOwn = String(targetTgId) === String(TG_ID);
@@ -14950,7 +14942,7 @@ async function setActiveBadge(badgeId) {
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'set-active-badge', badge_id: badgeId || null, telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'set-active-badge', badge_id: badgeId || null, }),
     });
     if (data.error) { showToast(data.error); return; }
     if (state.player) state.player.active_badge = badgeId || null;
@@ -14998,7 +14990,7 @@ async function initiatePvp(defenderTelegramId) {
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'pvp-initiate', telegram_id: TG_ID, defender_telegram_id: defenderTelegramId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'pvp-initiate', defender_telegram_id: defenderTelegramId, lat: pos.lat, lng: pos.lng }),
     });
     // Update coins
     if (state.player) {
@@ -15021,7 +15013,7 @@ async function fleePvp(attackerTelegramId) {
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
-      body: JSON.stringify({ action: 'pvp-flee', telegram_id: TG_ID, attacker_telegram_id: attackerTelegramId }),
+      body: JSON.stringify({ action: 'pvp-flee', attacker_telegram_id: attackerTelegramId }),
     });
     _setPlayerCoins(data.coinsLeft);
     updateCoinDisplay();
@@ -15191,8 +15183,7 @@ async function doMineHit(mine) {
       method: 'POST',
       body: JSON.stringify({
         action: 'hit',
-        telegram_id: TG_ID,
-        mine_id: mine.id,
+               mine_id: mine.id,
         lat: pos.lat,
         lng: pos.lng
       }),
@@ -15231,7 +15222,7 @@ async function doOreHit(target) {
   try {
     const data = await apiFetch('/api/ore', {
       method: 'POST',
-      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'hit', ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     const _oreT = oreData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _oreT ? L.latLng(_oreT.lat, _oreT.lng) : null);
@@ -15879,8 +15870,7 @@ async function doPvpHit(target) {
       method: 'POST',
       body: JSON.stringify({
         action: 'pvp-attack',
-        telegram_id: TG_ID,
-        target_telegram_id: target.telegram_id,
+               target_telegram_id: target.telegram_id,
         lat: pos.lat,
         lng: pos.lng
       }),
@@ -15910,7 +15900,7 @@ async function _finishAttack(mineId) {
   try {
     const data = await apiFetch('/api/buildings/attack', {
       method: 'POST',
-      body: JSON.stringify({ action: 'finish', telegram_id: TG_ID, mine_id: mineId }),
+      body: JSON.stringify({ action: 'finish', mine_id: mineId }),
     });
     if (data.result === 'burning') {
       showToast(t('toast.mine_burning_xp', {xp: data.xpGain}));
@@ -15929,7 +15919,7 @@ async function doExtinguish(mineId) {
   try {
     const data = await apiFetch('/api/buildings/attack', {
       method: 'POST',
-      body: JSON.stringify({ action: 'extinguish', telegram_id: TG_ID, mine_id: mineId }),
+      body: JSON.stringify({ action: 'extinguish', mine_id: mineId }),
     });
     showToast(t('toast.mine_extinguished', {restored: data.restoredHp, max: data.maxHp}));
     loadVisibleBuildings(true);
@@ -15947,7 +15937,7 @@ async function checkDailyDiamonds() {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'daily-check', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'daily-check', }),
     });
     updateDailyDiamondsUI(data.canClaim, data.nextClaimIn);
   } catch (err) {
@@ -15995,7 +15985,7 @@ async function claimDailyDiamonds() {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'daily-diamonds', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'daily-diamonds', }),
     });
     if (state.player) state.player.diamonds = data.diamonds;
     updateDiamondDisplay();
@@ -16012,7 +16002,7 @@ async function buyStars(diamonds = 100, stars = 15) {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'stars-invoice', diamonds, stars }),
+      body: JSON.stringify({ action: 'stars-invoice', diamonds, stars }),
     });
     if (data.invoiceLink && window.Telegram?.WebApp?.openInvoice) {
       window.Telegram.WebApp.openInvoice(data.invoiceLink, (status) => {
@@ -16023,7 +16013,7 @@ async function buyStars(diamonds = 100, stars = 15) {
             try {
               const initData = await apiFetch('/api/player/init', {
                 method: 'POST',
-                body: JSON.stringify({ telegram_id: TG_ID }),
+                body: JSON.stringify({ }),
               });
               if (initData.player) {
                 state.player.diamonds = initData.player.diamonds;
@@ -16128,7 +16118,7 @@ async function sellSelectedItems() {
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'mass-sell', item_ids: ids }),
+      body: JSON.stringify({ action: 'mass-sell', item_ids: ids }),
     });
     state.inventory = (state.inventory || []).filter(i => !ids.includes(i.id));
     if (state.player) state.player.crystals = data.crystals;
@@ -16419,7 +16409,7 @@ async function claimOre(oreId, currency = 'shards') {
   try {
     const data = await apiFetch('/api/ore', {
       method: 'POST',
-      body: JSON.stringify({ action: 'claim', telegram_id: TG_ID, ore_node_id: oreId, lat: pos.lat, lng: pos.lng, currency }),
+      body: JSON.stringify({ action: 'claim', ore_node_id: oreId, lat: pos.lat, lng: pos.lng, currency }),
     });
     showToast(t('toast.ore_claimed'));
     closePopup();
@@ -16432,7 +16422,7 @@ async function releaseOre(oreId) {
   try {
     await apiFetch('/api/ore', {
       method: 'POST',
-      body: JSON.stringify({ action: 'release', telegram_id: TG_ID, ore_node_id: oreId }),
+      body: JSON.stringify({ action: 'release', ore_node_id: oreId }),
     });
     showToast(t('toast.ore_released'));
     closePopup();
@@ -16445,7 +16435,7 @@ async function switchOreCurrency(oreId, currency) {
   try {
     await apiFetch('/api/ore', {
       method: 'POST',
-      body: JSON.stringify({ action: 'switch-currency', telegram_id: TG_ID, ore_node_id: oreId, currency }),
+      body: JSON.stringify({ action: 'switch-currency', ore_node_id: oreId, currency }),
     });
     const currName = currency === 'ether' ? t('ore.ether_emoji') : t('ore.shards_emoji');
     showToast(t('ore.switched', {name: currName}));
@@ -16808,7 +16798,7 @@ async function _renderBrowseTab(body) {
   body.innerHTML = '<input class="cs-search" placeholder="🔍 Поиск по названию..." id="cs-search-input"><div id="cs-clan-list"><div style="text-align:center;color:#888;padding:20px;">Загрузка...</div></div>';
 
   try {
-    const data = await apiFetch(`/api/clan?view=list&telegram_id=${TG_ID}`);
+    const data = await apiFetch('/api/clan?view=list');
     _allClans = data.clans || [];
     _filterAndRenderClans('');
   } catch (e) {
@@ -17007,7 +16997,7 @@ async function _saveEdit(name, symbol, color, min_level, description, join_polic
   try {
     const data = await apiFetch('/api/clan', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'edit', name, symbol, color, min_level, description, join_policy }),
+      body: JSON.stringify({ action: 'edit', name, symbol, color, min_level, description, join_policy }),
     });
     if (data.diamonds_spent > 0) {
       if (state.player) state.player.diamonds -= data.diamonds_spent;
@@ -17107,7 +17097,7 @@ function _renderCreateTab(body) {
     try {
       await apiFetch('/api/clan', {
         method: 'POST',
-        body: JSON.stringify({ telegram_id: TG_ID, action: 'create', name, symbol: selectedSymbol, color: selectedColor, description: desc, min_level: minLevel, join_policy: _clanJoinPolicy }),
+        body: JSON.stringify({ action: 'create', name, symbol: selectedSymbol, color: selectedColor, description: desc, min_level: minLevel, join_policy: _clanJoinPolicy }),
       });
       showToast('⚔️ Клан создан!');
       closeClanScreen();
@@ -17121,7 +17111,7 @@ async function doBuildClanHq(lat, lng) {
   try {
     const data = await apiFetch('/api/clan', {
       method: 'POST',
-      body: JSON.stringify({ telegram_id: TG_ID, action: 'build-hq', lat, lng }),
+      body: JSON.stringify({ action: 'build-hq', lat, lng }),
     });
     _setPlayerCoins(data.player_coins);
     showToast('🏰 Штаб клана построен!');
@@ -17132,7 +17122,7 @@ async function doBuildClanHq(lat, lng) {
 window.doClanJoin = async function doClanJoin(clanId) {
   closeClanScreen(); closePopup();
   try {
-    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'join', clan_id: clanId }) });
+    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'join', clan_id: clanId }) });
     showToast('⚔️ Вы вступили в клан!');
     refreshAll();
   } catch (err) { showToast(err.message); }
@@ -17140,14 +17130,14 @@ window.doClanJoin = async function doClanJoin(clanId) {
 
 window.doClanApply = async function doClanApply(clanId) {
   try {
-    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'apply', clan_id: clanId }) });
+    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'apply', clan_id: clanId }) });
     showToast('📩 Заявка отправлена!');
   } catch (err) { showToast(err.message); }
 }
 
 window.doClanAcceptRequest = async function(requestId) {
   try {
-    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'accept-request', request_id: requestId }) });
+    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'accept-request', request_id: requestId }) });
     showToast('✅ Заявка принята');
     if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
   } catch (err) { showToast(err.message); }
@@ -17155,7 +17145,7 @@ window.doClanAcceptRequest = async function(requestId) {
 
 window.doClanRejectRequest = async function(requestId) {
   try {
-    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'reject-request', request_id: requestId }) });
+    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'reject-request', request_id: requestId }) });
     showToast('❌ Заявка отклонена');
     if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
   } catch (err) { showToast(err.message); }
@@ -17166,7 +17156,7 @@ async function doClanLeave() {
     { label: t('clan.leave'), cls: 'danger', action: async () => {
       closePopup();
       try {
-        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'leave' }) });
+        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'leave' }) });
         showToast('🚪 Вы покинули клан');
         refreshAll();
       } catch (err) { showToast(err.message); }
@@ -17180,7 +17170,7 @@ async function doClanBoost(config) {
     { label: `🚀 ${t('misc.confirm')} (${config.boostCost} 💎)`, cls: 'yellow', action: async () => {
       closePopup();
       try {
-        const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'boost' }) });
+        const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'boost' }) });
         showToast(`🚀 Буст x${data.boost_multiplier} активирован!`);
         refreshAll();
       } catch (err) { showToast(err.message); }
@@ -17194,7 +17184,7 @@ async function doClanDisband() {
     { label: t('clan.disband'), cls: 'danger', action: async () => {
       closePopup();
       try {
-        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'disband' }) });
+        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'disband' }) });
         showToast('💀 Клан распущен');
         refreshAll();
       } catch (err) { showToast(err.message); }
@@ -17224,7 +17214,7 @@ async function _executeDonate(amount, prevDiamonds) {
   updateDiamondDisplay();
   showToast(`💎 Отправляем ${amount} алмазов...`);
   try {
-    const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'donate', amount }) });
+    const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'donate', amount }) });
     if (state.player) state.player.diamonds = data.player_diamonds;
     updateDiamondDisplay();
     showToast(`💎 Пожертвовано ${amount} алмазов! Казна: ${data.treasury}`);
@@ -17245,7 +17235,7 @@ async function doSellClanHq() {
     { label: t('inv.sell_btn'), cls: 'danger', action: async () => {
       closePopup();
       try {
-        const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'sell-hq' }) });
+        const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'sell-hq' }) });
         _setPlayerCoins(data.player_coins);
         showToast(`🏰 Штаб продан за ${formatCoins(data.refund)} монет`);
         // Remove all own clan HQ markers immediately
@@ -17264,7 +17254,7 @@ async function doSellClanHq() {
 
 async function doClanUpgrade() {
   try {
-    const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'upgrade' }) });
+    const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'upgrade' }) });
     const newLevel = data.clan.level;
     const oldConfig = getClanLevelConfig(newLevel - 1);
     const newConfig = getClanLevelConfig(newLevel);
@@ -17307,7 +17297,7 @@ function _showClanLevelUpScreen(level, oldCfg, newCfg) {
 
 async function doClanSetRole(targetTgId, role) {
   try {
-    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'set-role', target_telegram_id: targetTgId, role }) });
+    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'set-role', target_telegram_id: targetTgId, role }) });
     showToast(t('clan.role_changed', {role}));
     if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
   } catch (err) { showToast(err.message); }
@@ -17318,7 +17308,7 @@ async function doClanKick(targetTgId) {
     { label: t('clan.kick'), cls: 'danger', action: async () => {
       closePopup();
       try {
-        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ telegram_id: TG_ID, action: 'kick', target_telegram_id: targetTgId }) });
+        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'kick', target_telegram_id: targetTgId }) });
         showToast('🚫 Игрок исключён');
         if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
       } catch (err) { showToast(err.message); }
@@ -17808,7 +17798,7 @@ async function doMonumentShieldHit(target) {
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack-shield', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'attack-shield', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     const _monT = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, false, false, _monT ? L.latLng(_monT.lat, _monT.lng) : null);
@@ -17841,7 +17831,7 @@ async function doMonumentBodyHit(target) {
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack-monument', telegram_id: TG_ID, monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'attack-monument', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const _monT2 = monumentData[target.id];
@@ -17875,7 +17865,7 @@ async function doDefenderHit(target) {
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack-defender', telegram_id: TG_ID, defender_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'attack-defender', defender_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.killed) {
       // Remove defender marker
@@ -17909,7 +17899,7 @@ async function doJoinRaid(monumentId) {
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
-      body: JSON.stringify({ action: 'start-raid', telegram_id: TG_ID, monument_id: monumentId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'start-raid', monument_id: monumentId, lat: pos.lat, lng: pos.lng }),
     });
     showToast(t('mon.joined_raid', {n: data.participants}));
     closePopup();
@@ -17920,7 +17910,7 @@ async function doOpenLootBox(boxId) {
   try {
     const data = await apiFetch('/api/monuments', {
       method: 'POST',
-      body: JSON.stringify({ action: 'open-loot-box', telegram_id: TG_ID, box_id: boxId }),
+      body: JSON.stringify({ action: 'open-loot-box', box_id: boxId }),
     });
     closePopup();
     // Remove marker
@@ -18205,7 +18195,7 @@ async function doCollectorHit(target) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, collector_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'hit', collector_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     const c = collectorData[target.id];
     if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
@@ -18226,7 +18216,7 @@ async function doCollectorDeliver(collectorId) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'deliver', telegram_id: TG_ID, collector_id: collectorId }),
+      body: JSON.stringify({ action: 'deliver', collector_id: collectorId }),
     });
     closePopup();
     showToast(t('courier.sent', {n: formatCoins(data.net)}));
@@ -18239,7 +18229,7 @@ async function doCollectorUpgrade(collectorId) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, collector_id: collectorId }),
+      body: JSON.stringify({ action: 'upgrade', collector_id: collectorId }),
     });
     closePopup();
     showToast(t('coll.upgraded', {level: data.level}));
@@ -18253,7 +18243,7 @@ async function doCollectorSell(collectorId) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, collector_id: collectorId }),
+      body: JSON.stringify({ action: 'sell', collector_id: collectorId }),
     });
     closePopup();
     if (collectorMarkers[collectorId]) { map.removeLayer(collectorMarkers[collectorId]); delete collectorMarkers[collectorId]; delete collectorData[collectorId]; }
@@ -18266,7 +18256,7 @@ async function doCollectorToggleUpgrade(collectorId, on) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'set-mode', telegram_id: TG_ID, collector_id: collectorId, auto_upgrade: on }),
+      body: JSON.stringify({ action: 'set-mode', collector_id: collectorId, auto_upgrade: on }),
     });
     if (data.success) {
       const c = collectorData[collectorId];
@@ -18280,7 +18270,7 @@ async function doCollectorExtinguish(collectorId) {
   try {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
-      body: JSON.stringify({ action: 'extinguish', telegram_id: TG_ID, collector_id: collectorId }),
+      body: JSON.stringify({ action: 'extinguish', collector_id: collectorId }),
     });
     if (data.success) {
       const c = collectorData[collectorId];
@@ -18581,7 +18571,7 @@ async function doFireTruckDispatch(ftId) {
   try {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'dispatch', telegram_id: TG_ID, fire_truck_id: ftId }),
+      body: JSON.stringify({ action: 'dispatch', fire_truck_id: ftId }),
     });
     if (data.success) {
       closePopup();
@@ -18597,7 +18587,7 @@ async function doFireTruckUpgrade(ftId) {
   try {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID, fire_truck_id: ftId }),
+      body: JSON.stringify({ action: 'upgrade', fire_truck_id: ftId }),
     });
     if (data.success) {
       const ft = firetruckData[ftId];
@@ -18614,7 +18604,7 @@ async function doFireTruckSell(ftId) {
   try {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID, fire_truck_id: ftId }),
+      body: JSON.stringify({ action: 'sell', fire_truck_id: ftId }),
     });
     if (data.success) {
       closePopup();
@@ -18633,7 +18623,7 @@ async function doFireTruckExtinguishSelf(ftId) {
     const pos = state.playerPos || {};
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'extinguish-self', telegram_id: TG_ID, fire_truck_id: ftId, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'extinguish-self', fire_truck_id: ftId, lat: pos.lat, lng: pos.lng }),
     });
     if (data.success) {
       const ft = firetruckData[ftId];
@@ -18662,7 +18652,7 @@ async function doFireTruckHit(target) {
   try {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'hit', telegram_id: TG_ID, fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'hit', fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     const ft = firetruckData[target.id];
     if (ft) { ft.hp = data.hp; ft.max_hp = data.max_hp; ft.status = data.status; updateFireTruckMarker(target.id); }
@@ -18694,7 +18684,7 @@ async function doFirefighterHit(target) {
   try {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
-      body: JSON.stringify({ action: 'hit-firefighter', telegram_id: TG_ID, firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'hit-firefighter', firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     const ff = firefighterData[target.id];
     if (ff) { ff.hp = data.hp; ff.max_hp = data.max_hp; }
@@ -19006,7 +18996,7 @@ async function doZombieHit(target) {
   try {
     const data = await apiFetch('/api/zombies', {
       method: 'POST',
-      body: JSON.stringify({ action: 'attack', telegram_id: TG_ID, zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
+      body: JSON.stringify({ action: 'attack', zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
     });
     if (data.killed) {
       removeZombieMarker(target.id);
@@ -19035,7 +19025,7 @@ async function spawnZombieScout() {
   try {
     const data = await apiFetch('/api/zombies', {
       method: 'POST',
-      body: JSON.stringify({ action: 'spawn-scout', telegram_id: TG_ID }),
+      body: JSON.stringify({ action: 'spawn-scout', }),
     });
     if (data.error) { showToast(`❌ ${data.error}`); return; }
     showToast('🧟 Разведчик заспавнен!');
