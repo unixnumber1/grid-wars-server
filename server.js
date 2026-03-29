@@ -1038,7 +1038,8 @@ async function start() {
   // Populate city cache from all players with coordinates, then spawn
   setTimeout(async () => {
     try {
-      const { updatePlayerCity } = await import('./lib/geocity.js');
+      const { updatePlayerCity, clearCityBoundsCache } = await import('./lib/geocity.js');
+      clearCityBoundsCache(); // Rebuild with updated min-span logic
       const players = [...gameState.players.values()].filter(p => p.last_lat && p.last_lng);
       console.log(`[GEOCITY] Populating city cache for ${players.length} players...`);
       for (const p of players) {
