@@ -1080,12 +1080,12 @@ async function start() {
   // Collector auto-collect: every 5 min (each collector has own interval by level)
   setInterval(() => {
     try {
-      import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(() => {});
-    } catch (_) {}
+      import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(err => console.error('[COLLECTORS] autoCollectAll error:', err));
+    } catch (err) { console.error('[COLLECTORS] import error:', err); }
   }, 300000); // 5 min
   // Also run once at startup after 30s
   setTimeout(() => {
-    import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(() => {});
+    import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(err => console.error('[COLLECTORS] autoCollectAll startup error:', err));
   }, 30000);
 
   // Vase daily spawn at midnight MSK + cleanup expired (checked every 5 min)

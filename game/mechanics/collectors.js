@@ -94,9 +94,10 @@ export function autoCollect(collector) {
 
   if (totalCollected > 0) {
     collector.stored_coins = (collector.stored_coins || 0) + totalCollected;
-    collector.last_collected_at = new Date(now).toISOString();
-    gameState.markDirty('collectors', collector.id);
   }
+  // Always update timestamp so we don't accumulate stale elapsed time
+  collector.last_collected_at = new Date(now).toISOString();
+  gameState.markDirty('collectors', collector.id);
 
   return totalCollected;
 }
@@ -145,20 +146,24 @@ export function autoCollectAll() {
   let totalAll = 0;
   let totalUpgraded = 0;
   for (const collector of gameState.collectors.values()) {
-    if (collector.hp <= 0) continue;
-    if (collector.status === 'burning') continue;
+    try {
+      if (collector.hp <= 0) continue;
+      if (collector.status === 'burning') continue;
 
-    // Check per-collector interval based on level
-    const intervalMs = COLLECTOR_INTERVAL_MS[collector.level] || COLLECTOR_INTERVAL_MS[1];
-    const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : 0;
-    if (now - lastAutoCollect < intervalMs) continue;
+      // Check per-collector interval based on level
+      const intervalMs = COLLECTOR_INTERVAL_MS[collector.level] || COLLECTOR_INTERVAL_MS[1];
+      const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : 0;
+      if (now - lastAutoCollect < intervalMs) continue;
 
-    const collected = autoCollect(collector);
-    totalAll += collected;
-    // Auto-upgrade mines if auto_upgrade enabled
-    if (collector.auto_upgrade) {
-      const upgraded = autoUpgradeMines(collector);
-      totalUpgraded += upgraded;
+      const collected = autoCollect(collector);
+      totalAll += collected;
+      // Auto-upgrade mines if auto_upgrade enabled
+      if (collector.auto_upgrade) {
+        const upgraded = autoUpgradeMines(collector);
+        totalUpgraded += upgraded;
+      }
+    } catch (err) {
+      console.error(`[COLLECTORS] Error processing collector ${collector.id} (owner=${collector.owner_id}):`, err.message);
     }
   }
   if (totalAll > 0 || totalUpgraded > 0) {
