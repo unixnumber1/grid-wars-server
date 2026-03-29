@@ -497,16 +497,26 @@ io.on('connection', (socket) => {
         playerDbId = p.id;
         // Seed antispoof history from last known DB position for cross-session teleport detection
         seedPositionFromDB(verifiedTgId, p.last_lat, p.last_lng, p.last_seen);
-        // Force-clear stale death state on reconnect (respawn timer may have been missed)
+        // Handle death state on reconnect
         if (p.is_dead) {
-          const respawnPassed = !p._respawn_at || Date.now() >= new Date(p._respawn_at).getTime();
-          if (respawnPassed) {
+          const respawnAt = p._respawn_at ? new Date(p._respawn_at).getTime() : 0;
+          const remaining = Math.max(0, respawnAt - Date.now());
+          if (remaining <= 0) {
+            // Timer expired — respawn immediately
             p.is_dead = false;
             p.hp = 1000 + (p.bonus_hp || 0);
             p._respawn_at = null;
             p.last_hp_regen = null;
             p.shield_until = new Date(Date.now() + 2 * 60 * 1000).toISOString();
             gameState.markDirty('players', p.id);
+          } else {
+            // Still dead — re-show death screen with remaining time
+            setTimeout(() => {
+              io.to(socket.id).emit('player:died', {
+                respawn_in: Math.ceil(remaining / 1000),
+                killer: 'Reconnect',
+              });
+            }, 500);
           }
         }
       }
