@@ -3132,7 +3132,7 @@
       <input class="apm-search" id="apm-search-input" type="text" placeholder="&#x1F50D; Ник или Telegram ID...">
     </div>
     <div id="apm-search-results" class="apm-body"></div>
-    <div id="apm-players-list" class="apm-body"></div>
+    <div id="apm-players-list" style="flex:1;overflow-y:auto;padding:0 16px 12px;-webkit-overflow-scrolling:touch;"></div>
   </div>
   <div id="apm-player-section" style="display:none;flex:1;overflow:hidden;display:none;flex-direction:column;">
     <div id="apm-player-header" style="padding:0 16px;"></div>
@@ -11400,7 +11400,7 @@ async function apmLoadPlayersList(reset) {
   finally { _apmListLoading = false; }
 }
 function apmShowSearch() {
-  document.getElementById('apm-search-section').style.display = '';
+  document.getElementById('apm-search-section').style.display = 'flex';
   document.getElementById('apm-player-section').style.display = 'none';
   document.getElementById('apm-back-btn').style.display = 'none';
   document.getElementById('apm-title').textContent = 'Игроки';
