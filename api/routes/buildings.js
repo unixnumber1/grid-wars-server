@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
 import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
@@ -346,7 +346,7 @@ async function handleAttackStart(req, res) {
   const atkMsg = ts(ownerLang, 'notif.mine_attacked', { level: mine.level, name: player.game_username || ts(ownerLang, 'misc.unknown') });
   await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_attacked', message: atkMsg, data: { mine_id: mine.id } });
   const { data: owner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
-  if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, atkMsg);
+  if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, atkMsg, buildAttackButton(mine.lat, mine.lng));
   return res.json({ success: true, attackDuration, attackEndsAt, weapon: weapon ? { emoji: weapon.emoji, rarity: weapon.rarity, type: weapon.type } : null, mineHp: currentHp, mineMaxHp: computedMaxHp, avgDamage: Math.round(avgDamage) });
 }
 
@@ -733,7 +733,7 @@ async function handleMineHit(req, res) {
       }).then(() => {}).catch(() => {});
 
       const hitOwner = gameState.getPlayerById(mine.owner_id);
-      if (hitOwner?.telegram_id) sendTelegramNotification(hitOwner.telegram_id, hitAtkMsg);
+      if (hitOwner?.telegram_id) sendTelegramNotification(hitOwner.telegram_id, hitAtkMsg, buildAttackButton(mine.lat, mine.lng));
     }
     mine.hp = currentHp;
     mine.max_hp = computedMaxHp;

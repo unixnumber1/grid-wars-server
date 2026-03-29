@@ -7082,6 +7082,16 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
+// Handle ?focus=lat,lng param from Telegram notification buttons
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const focus = params.get('focus');
+  if (focus) {
+    const [lat, lng] = focus.split(',').map(Number);
+    if (lat && lng) setTimeout(() => map.flyTo([lat, lng], 17), 2000);
+  }
+})();
+
 const TILE_OPTS = { maxZoom: 19, subdomains: 'abcd', keepBuffer: 4, updateWhenZooming: false, updateWhenIdle: true };
 
 // Map style from localStorage — apply saved style on load
@@ -16376,12 +16386,15 @@ function oreIcon(ore) {
   const showHp = hpPct < 100 && !isBroken;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
+  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:#1a1a2e;border:2px solid ${isMine ? '#4caf50' : '#ff9800'};display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;">${ore.owner_avatar}</div>` : '';
+
   return L.divIcon({
-    html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px">
+    html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px;position:relative;">
       <span style="font-size:${size*0.55}px">${emoji}</span>
       <div class="ore-level">Ур.${ore.level}</div>
       ${ore.owner_name ? `<div class="ore-owner">${ore.owner_name}</div>` : ''}
       ${showHp ? `<div class="ore-hp-bar"><div class="ore-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
+      ${ownerBadge}
     </div>`,
     className: 'leaflet-interactive',
     iconSize: [size, size],
@@ -16408,7 +16421,7 @@ function renderOreNodes(ores) {
     oreData[ore.id] = ore;
     if (oreMarkers[ore.id]) {
       // Only update icon if data changed
-      if (!prev || prev.hp !== ore.hp || prev.owner_id !== ore.owner_id || prev.owner_name !== ore.owner_name) {
+      if (!prev || prev.hp !== ore.hp || prev.owner_id !== ore.owner_id || prev.owner_name !== ore.owner_name || prev.owner_avatar !== ore.owner_avatar) {
         oreMarkers[ore.id].setIcon(oreIcon(ore));
       }
     } else {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { getCellId } from '../../lib/grid.js';
 import { getMineHp } from '../../config/formulas.js';
@@ -259,7 +259,7 @@ async function handleHit(req, res) {
       };
       gameState.addNotification(notif);
       supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
-      if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg);
+      if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg, buildAttackButton(truck.lat, truck.lng));
     }
 
     emitToNearbyPlayers(truck.lat, truck.lng, 1000, 'firetruck:burning', {
