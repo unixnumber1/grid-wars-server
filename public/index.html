@@ -5809,7 +5809,9 @@ function setLang(lang) {
   // Sync to server, then reload page to apply all translations
   const body = JSON.stringify({ action: 'set-language', language: lang });
   if (TG_ID && typeof fetch === 'function') {
-    fetch('/api/player/init', { method: 'POST', headers: {'Content-Type':'application/json'}, body })
+    const _langHeaders = {'Content-Type':'application/json'};
+    if (_tgInitData) _langHeaders['X-Telegram-Init-Data'] = _tgInitData;
+    fetch('/api/player/init', { method: 'POST', headers: _langHeaders, body })
       .finally(() => { console.log('[i18n] reloading...'); location.reload(); });
   } else {
     location.reload();
@@ -10486,9 +10488,11 @@ async function unifiedTick() {
 
     if (_tickAbort) _tickAbort.abort();
     _tickAbort = new AbortController();
+    const _tickHeaders = { 'Content-Type': 'application/json' };
+    if (_tgInitData) _tickHeaders['X-Telegram-Init-Data'] = _tgInitData;
     const tickRes = await fetch('/api/map', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _tickHeaders,
       signal: _tickAbort.signal,
       body: JSON.stringify({
         action: 'tick',
@@ -11977,9 +11981,11 @@ async function boot() {
 
   setLoadingText('Loading player data...');
   try {
+    const _initHeaders = { 'Content-Type': 'application/json' };
+    if (_tgInitData) _initHeaders['X-Telegram-Init-Data'] = _tgInitData;
     const initRes = await fetch('/api/player/init', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _initHeaders,
       body: JSON.stringify({ username: TG_NAME }),
       signal: AbortSignal.timeout(8000),
     });
