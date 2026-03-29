@@ -251,14 +251,21 @@ export async function spawnOreNodesForCity(cityKey, bounds, playerCount, subZone
   );
 
   const targetCount = getOreCountForCity(playerCount);
-  const toSpawn = targetCount - existingInCity.length;
+  let toSpawn = targetCount - existingInCity.length;
+
+  // If city is full but sub-zones are provided (uncovered players), spawn 10 per zone
+  if (toSpawn <= 0 && subZones && subZones.length > 0) {
+    toSpawn = subZones.length * 10;
+    console.log(`[ORE] ${cityKey}: full but ${subZones.length} uncovered zones, spawning ${toSpawn} extra`);
+  }
+
   if (toSpawn <= 0) return 0;
 
   console.log(`[ORE] ${cityKey}: need ${toSpawn} ores (players: ${playerCount}, existing: ${existingInCity.length})`);
 
   let totalSpawned = 0;
 
-  // Large city with sub-zones: spawn per player zone
+  // Sub-zones: spawn per player zone
   if (subZones && subZones.length > 0) {
     const perZone = Math.max(1, Math.ceil(toSpawn / subZones.length));
     for (let i = 0; i < subZones.length; i++) {

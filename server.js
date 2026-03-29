@@ -915,31 +915,81 @@ async function start() {
   // ── City-based spawn cycle (ore only — vases spawn at midnight MSK) ──
   async function citySpawnCycle() {
     try {
-      const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
-      const { spawnOreNodesForCity } = await import('./lib/oreNodes.js');
+      const { getAllCityKeys, getCityBounds, getCityPlayerCount, playerCityCache, cityPlayersCache } = await import('./lib/geocity.js');
+      const { spawnOreNodesForCity, getOreCountForCity } = await import('./lib/oreNodes.js');
+      const { haversine } = await import('./lib/haversine.js');
 
       const cityKeys = getAllCityKeys();
       if (!cityKeys.length) { console.log('[SPAWN] No cities in cache yet'); return; }
 
+      // Calculate priority: cities with lowest ore % first
+      const cityInfos = [];
       for (const cityKey of cityKeys) {
-        try {
-          const playerCount = getCityPlayerCount(cityKey);
-          if (playerCount <= 0) continue;
+        const playerCount = getCityPlayerCount(cityKey);
+        if (playerCount <= 0) continue;
 
-          const cityBounds = await getCityBounds(cityKey);
-          if (!cityBounds?.boundingbox) continue;
+        const cb = await getCityBounds(cityKey);
+        if (!cb?.boundingbox) continue;
 
-          const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
+        const [minLat, maxLat, minLng, maxLng] = cb.boundingbox;
+        let existingCount = 0;
+        for (const o of gameState.oreNodes.values()) {
+          if (o.lat >= minLat && o.lat <= maxLat && o.lng >= minLng && o.lng <= maxLng) existingCount++;
+        }
+        const target = getOreCountForCity(playerCount);
+        const pct = target > 0 ? existingCount / target : 1;
 
-          // Ore nodes (top-up to target if needed)
-          await spawnOreNodesForCity(cityKey, bounds, playerCount, cityBounds.subZones);
-        } catch (e) {
-          console.error(`[SPAWN] Error spawning ores for ${cityKey}: ${e.message}`);
+        // Check for uncovered players (no ore within 3km)
+        const playersInCity = cityPlayersCache.get(cityKey);
+        let uncoveredPlayers = [];
+        if (playersInCity) {
+          for (const tgId of playersInCity) {
+            const pp = playerCityCache.get(tgId);
+            if (!pp?.lat || !pp?.lng) continue;
+            let hasNearbyOre = false;
+            for (const o of gameState.oreNodes.values()) {
+              if (haversine(pp.lat, pp.lng, o.lat, o.lng) < 3000) { hasNearbyOre = true; break; }
+            }
+            if (!hasNearbyOre) uncoveredPlayers.push({ lat: pp.lat, lng: pp.lng });
+          }
         }
 
-        // Pause between cities to avoid Overpass/Nominatim rate limit
-        await new Promise(r => setTimeout(r, 5000));
+        cityInfos.push({ cityKey, playerCount, bounds: cb.boundingbox, subZones: cb.subZones, pct, existingCount, target, uncoveredPlayers });
       }
+
+      // Sort: empty first, then by % ascending
+      cityInfos.sort((a, b) => a.pct - b.pct);
+
+      // Process max 10 cities per cycle (prioritized)
+      const MAX_CITIES_PER_CYCLE = 10;
+      let processed = 0;
+
+      for (const ci of cityInfos) {
+        if (processed >= MAX_CITIES_PER_CYCLE) break;
+
+        try {
+          // Skip cities at 100%+ unless they have uncovered players
+          if (ci.pct >= 1.0 && ci.uncoveredPlayers.length === 0) continue;
+
+          // If city is full but has uncovered players, create sub-zones for them
+          let subZones = ci.subZones;
+          if (ci.pct >= 1.0 && ci.uncoveredPlayers.length > 0) {
+            const PAD = 0.018;
+            subZones = ci.uncoveredPlayers.map(p => [p.lat - PAD, p.lat + PAD, p.lng - PAD, p.lng + PAD]);
+            console.log(`[ORE] ${ci.cityKey}: full but ${ci.uncoveredPlayers.length} uncovered players, spawning nearby`);
+          }
+
+          await spawnOreNodesForCity(ci.cityKey, ci.bounds, ci.playerCount, subZones);
+          processed++;
+        } catch (e) {
+          console.error(`[SPAWN] Error spawning ores for ${ci.cityKey}: ${e.message}`);
+        }
+
+        // 15s pause between cities to avoid Overpass rate limits
+        await new Promise(r => setTimeout(r, 15000));
+      }
+
+      console.log(`[SPAWN] Cycle done: processed ${processed} cities`);
     } catch (e) { console.error('[SPAWN] city cycle error:', e.message); }
   }
   global._citySpawnCycle = citySpawnCycle;
