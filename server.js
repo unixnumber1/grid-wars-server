@@ -932,7 +932,7 @@ async function start() {
           const bounds = cityBounds.boundingbox; // [minLat, maxLat, minLng, maxLng]
 
           // Ore nodes (top-up to target if needed)
-          await spawnOreNodesForCity(cityKey, bounds, playerCount);
+          await spawnOreNodesForCity(cityKey, bounds, playerCount, cityBounds.subZones);
         } catch (e) {
           console.error(`[SPAWN] Error spawning ores for ${cityKey}: ${e.message}`);
         }

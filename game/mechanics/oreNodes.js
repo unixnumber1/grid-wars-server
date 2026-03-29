@@ -81,18 +81,13 @@ export function clearSpawnPointsCache() {
   return size;
 }
 
-async function fetchSpawnPoints(cityKey, bounds) {
-  const cached = _spawnPointsCache.get(cityKey);
-  if (cached && Date.now() - cached.updatedAt < SPAWN_CACHE_TTL) return cached.points;
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+const TILE_SIZE_DEG = 0.045; // ~5km tile size
 
-  // Don't hammer Overpass if this city recently failed
-  const lastError = _spawnErrorCache.get(cityKey);
-  if (lastError && Date.now() - lastError < ERROR_CACHE_TTL) return null;
-
-  const [minLat, maxLat, minLng, maxLng] = bounds;
-  const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
-
-  // Urban roads only — no "service" (often leads to fields/parking)
+async function _queryOverpass(bbox) {
   const query = `
     [out:json][timeout:25];
     (
@@ -104,29 +99,91 @@ async function fetchSpawnPoints(cityKey, bounds) {
     out center 500;
   `;
 
-  try {
-    const resp = await fetch(
-      `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
-      { signal: AbortSignal.timeout(30000) }
-    );
-    if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
-    const data = await resp.json();
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const resp = await fetch(
+        `${endpoint}?data=${encodeURIComponent(query)}`,
+        { signal: AbortSignal.timeout(30000) }
+      );
+      if (!resp.ok) {
+        if (resp.status === 429) await new Promise(r => setTimeout(r, 5000));
+        continue;
+      }
+      const data = await resp.json();
+      return (data.elements || [])
+        .filter(el => (el.center?.lat && el.center?.lon) || (el.lat && el.lon))
+        .map(el => ({
+          lat: el.center?.lat ?? el.lat,
+          lng: el.center?.lon ?? el.lon,
+        }));
+    } catch (_) { continue; }
+  }
+  return null; // all endpoints failed
+}
 
-    const points = (data.elements || [])
-      .filter(el => (el.center?.lat && el.center?.lon) || (el.lat && el.lon))
-      .map(el => ({
-        lat: el.center?.lat ?? el.lat,
-        lng: el.center?.lon ?? el.lon,
-      }));
+async function fetchSpawnPoints(cityKey, bounds) {
+  const cached = _spawnPointsCache.get(cityKey);
+  if (cached && Date.now() - cached.updatedAt < SPAWN_CACHE_TTL) return cached.points;
 
+  // Don't hammer Overpass if this city recently failed
+  const lastError = _spawnErrorCache.get(cityKey);
+  if (lastError && Date.now() - lastError < ERROR_CACHE_TTL) return null;
+
+  const [minLat, maxLat, minLng, maxLng] = bounds;
+  const spanLat = maxLat - minLat;
+  const spanLng = maxLng - minLng;
+
+  // Small area — single query
+  if (spanLat <= TILE_SIZE_DEG * 2 && spanLng <= TILE_SIZE_DEG * 2) {
+    const bbox = `${minLat},${minLng},${maxLat},${maxLng}`;
+    const points = await _queryOverpass(bbox);
+    if (!points) {
+      console.error(`[ORE] Overpass failed for ${cityKey}`);
+      _spawnErrorCache.set(cityKey, Date.now());
+      return null;
+    }
     console.log(`[ORE] Overpass ${cityKey}: ${points.length} road points`);
     _spawnPointsCache.set(cityKey, { points, updatedAt: Date.now() });
     return points;
-  } catch (e) {
-    console.error(`[ORE] Overpass error for ${cityKey}: ${e.message}`);
-    _spawnErrorCache.set(cityKey, Date.now()); // don't retry for 30min
+  }
+
+  // Large area — tile into ~5km chunks, query each
+  console.log(`[ORE] ${cityKey}: large area (${(spanLat*111).toFixed(0)}x${(spanLng*111*0.6).toFixed(0)}km), tiling...`);
+  const allPoints = [];
+  let tiles = 0, failed = 0;
+
+  for (let lat = minLat; lat < maxLat; lat += TILE_SIZE_DEG) {
+    for (let lng = minLng; lng < maxLng; lng += TILE_SIZE_DEG) {
+      const tLat2 = Math.min(lat + TILE_SIZE_DEG, maxLat);
+      const tLng2 = Math.min(lng + TILE_SIZE_DEG, maxLng);
+      const bbox = `${lat},${lng},${tLat2},${tLng2}`;
+      tiles++;
+
+      const points = await _queryOverpass(bbox);
+      if (points) {
+        allPoints.push(...points);
+      } else {
+        failed++;
+      }
+
+      // Pause between tiles to avoid rate limiting
+      await new Promise(r => setTimeout(r, 2000));
+
+      // Cap total points to avoid memory bloat
+      if (allPoints.length >= 2000) break;
+    }
+    if (allPoints.length >= 2000) break;
+  }
+
+  if (allPoints.length === 0) {
+    console.error(`[ORE] Overpass failed for ${cityKey}: 0/${tiles} tiles succeeded`);
+    _spawnErrorCache.set(cityKey, Date.now());
     return null;
   }
+
+  console.log(`[ORE] Overpass ${cityKey}: ${allPoints.length} road points from ${tiles - failed}/${tiles} tiles`);
+  _spawnPointsCache.set(cityKey, { points: allPoints, updatedAt: Date.now() });
+  return allPoints;
 }
 
 // Add random offset ±20-50m to a point (small offset to stay near roads)
@@ -138,42 +195,25 @@ function offsetPoint(lat, lng) {
   return { lat: lat + dLat, lng: lng + dLng };
 }
 
-// ── Spawn ore for a city by bounding box ──
-export async function spawnOreNodesForCity(cityKey, bounds, playerCount) {
-  const [minLat, maxLat, minLng, maxLng] = bounds;
-
-  const existingInCity = [...gameState.oreNodes.values()].filter(o =>
-    o.lat >= minLat && o.lat <= maxLat && o.lng >= minLng && o.lng <= maxLng
-  );
-
-  const targetCount = getOreCountForCity(playerCount);
-  const toSpawn = targetCount - existingInCity.length;
-  if (toSpawn <= 0) return 0;
-
-  console.log(`[ORE] ${cityKey}: spawning ${toSpawn} ores (players: ${playerCount}, existing: ${existingInCity.length})`);
-
-  // Require Overpass road points — no random fallback (prevents spawns in fields/forests)
-  const roadPoints = await fetchSpawnPoints(cityKey, bounds);
+// ── Spawn ores into a single bounding box ──
+async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
+  const roadPoints = await fetchSpawnPoints(cacheKey, bounds);
   if (!roadPoints || roadPoints.length < 10) {
-    console.log(`[ORE] ${cityKey}: skipping — not enough road points (${roadPoints?.length ?? 0})`);
+    console.log(`[ORE] ${cacheKey}: skipping — not enough road points (${roadPoints?.length ?? 0})`);
     return 0;
   }
 
   const nowISO = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ORE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
   let spawned = 0;
-
-  // Collect all existing ore positions for distance check
   const allOrePositions = [...gameState.oreNodes.values()].map(o => ({ lat: o.lat, lng: o.lng }));
 
   for (let attempt = 0; attempt < toSpawn * 5 && spawned < toSpawn; attempt++) {
-    // Pick random road point + small offset
     const pt = roadPoints[Math.floor(Math.random() * roadPoints.length)];
     const off = offsetPoint(pt.lat, pt.lng);
     const lat = off.lat;
     const lng = off.lng;
 
-    // Check min distance from all ore nodes
     let tooClose = false;
     for (const pos of allOrePositions) {
       if (haversine(lat, lng, pos.lat, pos.lng) < ORE_MIN_DISTANCE) { tooClose = true; break; }
@@ -199,9 +239,48 @@ export async function spawnOreNodesForCity(cityKey, bounds, playerCount) {
       spawned++;
     }
   }
-
-  console.log(`[ORE] ${cityKey}: spawned ${spawned}/${toSpawn}`);
   return spawned;
+}
+
+// ── Spawn ore for a city (handles sub-zones for large cities) ──
+export async function spawnOreNodesForCity(cityKey, bounds, playerCount, subZones) {
+  const [minLat, maxLat, minLng, maxLng] = bounds;
+
+  const existingInCity = [...gameState.oreNodes.values()].filter(o =>
+    o.lat >= minLat && o.lat <= maxLat && o.lng >= minLng && o.lng <= maxLng
+  );
+
+  const targetCount = getOreCountForCity(playerCount);
+  const toSpawn = targetCount - existingInCity.length;
+  if (toSpawn <= 0) return 0;
+
+  console.log(`[ORE] ${cityKey}: need ${toSpawn} ores (players: ${playerCount}, existing: ${existingInCity.length})`);
+
+  let totalSpawned = 0;
+
+  // Large city with sub-zones: spawn per player zone
+  if (subZones && subZones.length > 0) {
+    const perZone = Math.max(1, Math.ceil(toSpawn / subZones.length));
+    for (let i = 0; i < subZones.length; i++) {
+      const zone = subZones[i];
+      const zoneKey = `${cityKey}_zone${i}`;
+      const zoneNeed = Math.min(perZone, toSpawn - totalSpawned);
+      if (zoneNeed <= 0) break;
+
+      const spawned = await _spawnInBounds(cityKey, zoneKey, zone, zoneNeed);
+      totalSpawned += spawned;
+      console.log(`[ORE] ${zoneKey}: spawned ${spawned}/${zoneNeed}`);
+
+      // Pause between zones
+      if (i < subZones.length - 1) await new Promise(r => setTimeout(r, 3000));
+    }
+  } else {
+    // Small city — single bounds
+    totalSpawned = await _spawnInBounds(cityKey, cityKey, bounds, toSpawn);
+  }
+
+  console.log(`[ORE] ${cityKey}: spawned ${totalSpawned}/${toSpawn} total`);
+  return totalSpawned;
 }
 
 // ── Legacy global spawn (kept for backward compat in server.js initial startup) ──

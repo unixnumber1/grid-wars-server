@@ -9,7 +9,7 @@ import { haversine } from '../../lib/haversine.js';
 import { dailyMarketCheck } from '../../lib/markets.js';
 import { resetSpoofRecord } from '../../lib/antispoof.js';
 import { getPlayerLogs, logPlayer } from '../../lib/logger.js';
-import { playerCityCache } from '../../lib/geocity.js';
+import { playerCityCache, clearCityBoundsCache } from '../../lib/geocity.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
@@ -871,6 +871,7 @@ adminRouter.post('/', async (req, res) => {
     const clearPoints = !!req.body.clear_points_cache;
     const errorsCleared = clearSpawnErrorCache();
     const pointsCleared = clearPoints ? clearSpawnPointsCache() : 0;
+    const boundsCleared = clearCityBoundsCache();
 
     if (typeof global._citySpawnCycle === 'function') {
       global._citySpawnCycle().catch(e => console.error('[ADMIN] force-ore-spawn error:', e.message));
