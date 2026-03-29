@@ -7115,10 +7115,13 @@ const map = L.map('map', {
     const deltaY = startY - e.touches[0].clientY;
     const zoomDelta = deltaY / 100;
     const newZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
-    // CSS scale on map pane for smooth visual zoom (no tile reload)
+    // CSS scale on map container for smooth visual zoom (no tile reload)
     const scale = Math.pow(2, newZoom - startZoom);
-    const pane = map.getPane('mapPane');
-    if (pane) pane.style.transform = `scale(${scale})`;
+    const mc = map.getContainer().querySelector('.leaflet-map-pane');
+    if (mc) {
+      mc.style.transformOrigin = '50% 50%';
+      mc.style.transform = `scale(${scale})`;
+    }
     isDragging = newZoom; // store current zoom
   }, { passive: false, capture: true });
 
@@ -7127,8 +7130,8 @@ const map = L.map('map', {
       const finalZoom = typeof isDragging === 'number' ? isDragging : startZoom;
       isDragging = false;
       // Reset CSS transform
-      const pane = map.getPane('mapPane');
-      if (pane) pane.style.transform = '';
+      const mc = map.getContainer().querySelector('.leaflet-map-pane');
+      if (mc) { mc.style.transform = ''; mc.style.transformOrigin = ''; }
       map.dragging.enable();
       map.touchZoom?.enable();
       // Apply actual zoom
@@ -7145,8 +7148,8 @@ const map = L.map('map', {
   container.addEventListener('touchcancel', () => {
     if (isDragging !== false) {
       isDragging = false;
-      const pane = map.getPane('mapPane');
-      if (pane) pane.style.transform = '';
+      const mc = map.getContainer().querySelector('.leaflet-map-pane');
+      if (mc) { mc.style.transform = ''; mc.style.transformOrigin = ''; }
       map.dragging.enable();
       map.touchZoom?.enable();
     }
@@ -15806,10 +15809,14 @@ function bindAttackButton(targetType, target) {
     if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
   }
 
+  // Isolate button touches from Leaflet to prevent pinch zoom conflicts
   btn.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    e.stopImmediatePropagation(); // Isolate button finger from Leaflet
-    startHold(e.touches[0]?.identifier);
+    e.stopPropagation();
+    startHold(e.changedTouches[0]?.identifier);
+  }, { passive: false });
+  btn.addEventListener('touchmove', (e) => {
+    e.stopPropagation(); // Prevent button drag from becoming map gesture
   }, { passive: false });
 
   btn.addEventListener('touchend', (e) => {
