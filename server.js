@@ -560,16 +560,19 @@ io.on('connection', (socket) => {
       }).catch(() => {});
     }
 
-    // Broadcast to nearby players (2km)
+    // Broadcast to nearby players (2km) with player info for instant marker creation
+    const gsPlayer = gameState.loaded ? gameState.getPlayerByTgId(verifiedTgId) : null;
+    const movePayload = {
+      telegram_id: verifiedTgId,
+      lat: data.lat, lng: data.lng,
+      id: gsPlayer?.id, avatar: gsPlayer?.avatar,
+      level: gsPlayer?.level, shield_until: gsPlayer?.shield_until,
+      username: gsPlayer?.game_username || gsPlayer?.username,
+    };
     for (const [sid, other] of connectedPlayers) {
       if (sid === socket.id || !other.lat) continue;
-      const dist = haversine(data.lat, data.lng, other.lat, other.lng);
-      if (dist <= 2000) {
-        io.to(sid).emit('player:moved', {
-          telegram_id: verifiedTgId,
-          lat: data.lat,
-          lng: data.lng,
-        });
+      if (haversine(data.lat, data.lng, other.lat, other.lng) <= 2000) {
+        io.to(sid).emit('player:moved', movePayload);
       }
     }
 

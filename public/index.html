@@ -9940,9 +9940,31 @@ function initSocket() {
     _socket.on('player:moved', (data) => {
       if (!data?.telegram_id || !data.lat || !data.lng) return;
       const tid = String(data.telegram_id);
-      const playerId = _tgIdToPlayerId[tid];
-      if (!playerId || !onlineMarkers[playerId]) return;
+      if (String(TG_ID) === tid) return; // skip self
+      let playerId = _tgIdToPlayerId[tid];
+
+      // Create marker on-the-fly if not yet known from tick
+      if (!playerId && data.id) {
+        playerId = data.id;
+        _tgIdToPlayerId[tid] = playerId;
+      }
+      if (!playerId) return;
+
+      if (!onlineMarkers[playerId] && data.id) {
+        const marker = L.marker([data.lat, data.lng], {
+          icon: otherPlayerIcon(data.avatar, data.shield_until, data.id),
+          zIndexOffset: 5000,
+        });
+        marker._playerData = { id: data.id, telegram_id: data.telegram_id, avatar: data.avatar, level: data.level, game_username: data.username, shield_until: data.shield_until, last_lat: data.lat, last_lng: data.lng };
+        marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showOtherPlayerPopup(marker._playerData); });
+        marker.addTo(map);
+        onlineMarkers[playerId] = marker;
+        marker._lastSocketUpdate = Date.now();
+        return;
+      }
+
       const marker = onlineMarkers[playerId];
+      if (!marker) return;
       const from = marker.getLatLng();
       const dist = haversine(from.lat, from.lng, data.lat, data.lng);
       if (dist < 2) return;
@@ -9951,7 +9973,7 @@ function initSocket() {
       if (dist < 10 || dist > 200) {
         marker.setLatLng([data.lat, data.lng]);
       } else {
-        const duration = dist < 50 ? 300 : 800;
+        const duration = Math.min(800, Math.max(200, dist * 10));
         const startTime = Date.now();
         const fromLat = from.lat, fromLng = from.lng;
         const animate = () => {
