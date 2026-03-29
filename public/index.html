@@ -17033,6 +17033,8 @@ function _filterAndRenderClans(query) {
       btnHtml = `<span style="color:#00ff88;font-size:12px;">${t('clan.your_clan')}</span>`;
     } else if (c.can_join) {
       btnHtml = `<button class="btn primary" style="padding:6px 12px;font-size:12px;" onclick="doClanJoin('${c.id}')">${t('btn.join')}</button>`;
+    } else if (c.my_request_id) {
+      btnHtml = `<button class="btn primary" style="padding:6px 12px;font-size:12px;background:#666;" onclick="doClanCancelRequest('${c.my_request_id}')">❌ Отозвать заявку</button>`;
     } else if (c.can_apply) {
       btnHtml = `<button class="btn primary" style="padding:6px 12px;font-size:12px;background:#ff9800;" onclick="doClanApply('${c.id}')">📩 Подать заявку</button>`;
     } else if (playerInClan) {
@@ -17339,6 +17341,15 @@ window.doClanApply = async function doClanApply(clanId) {
   try {
     await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'apply', clan_id: clanId }) });
     showToast('📩 Заявка отправлена!');
+    openClanScreen(null, 'browse');
+  } catch (err) { showToast(err.message); }
+}
+
+window.doClanCancelRequest = async function(requestId) {
+  try {
+    await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'cancel-request', request_id: requestId }) });
+    showToast('❌ Заявка отозвана');
+    openClanScreen(null, 'browse');
   } catch (err) { showToast(err.message); }
 }
 

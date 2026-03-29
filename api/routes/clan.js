@@ -194,11 +194,12 @@ async function handleCreate(req, res) {
 // ── LIST CLANS ──────────────────────────────────────────────
 async function handleList(req, res) {
   const { telegram_id } = req.query;
-  let playerLevel = 0, playerClanId = null, playerHasClanHq = false;
+  let playerLevel = 0, playerClanId = null, playerHasClanHq = false, playerId = null;
 
   if (telegram_id) {
     const { player } = await getPlayerByTelegramId(telegram_id, 'id, level, clan_id');
     if (player) {
+      playerId = player.id;
       playerLevel = player.level ?? 1;
       playerClanId = player.clan_id;
       const { data: cHq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
@@ -214,7 +215,7 @@ async function handleList(req, res) {
   if (qErr) return res.status(500).json({ error: qErr.message });
 
   const clanIds = (rawClans || []).map(c => c.id);
-  const [{ data: members }, { data: leaders }] = await Promise.all([
+  const [{ data: members }, { data: leaders }, { data: myRequests }] = await Promise.all([
     clanIds.length > 0
       ? supabase.from('clan_members').select('clan_id').in('clan_id', clanIds).is('left_at', null)
       : { data: [] },
@@ -224,24 +225,31 @@ async function handleList(req, res) {
         ? supabase.from('players').select('id, game_username, username').in('id', leaderIds)
         : { data: [] };
     })(),
+    playerId
+      ? supabase.from('clan_requests').select('id, clan_id').eq('player_id', playerId).eq('status', 'pending')
+      : { data: [] },
   ]);
 
   const countMap = {};
   for (const m of (members || [])) countMap[m.clan_id] = (countMap[m.clan_id] || 0) + 1;
   const leaderMap = {};
   for (const l of (leaders || [])) leaderMap[l.id] = l.game_username || l.username || '???';
+  const myRequestMap = {};
+  for (const r of (myRequests || [])) myRequestMap[r.clan_id] = r.id;
 
   const clans = (rawClans || []).map(c => {
     const config = getClanLevel(c.level);
     const mc = countMap[c.id] || 0;
     const policy = c.join_policy || 'open';
     const meetsReqs = !playerClanId && playerLevel >= (c.min_level || 1) && mc < config.maxMembers && playerHasClanHq;
+    const myReqId = myRequestMap[c.id] || null;
     return {
       ...c, member_count: mc, leader_name: leaderMap[c.leader_id] || '???',
       max_members: config.maxMembers, income_bonus: config.income, defense_bonus: config.defense, radius: config.radius,
       join_policy: policy,
       can_join: meetsReqs && policy === 'open',
-      can_apply: meetsReqs && policy === 'request',
+      can_apply: meetsReqs && policy === 'request' && !myReqId,
+      my_request_id: myReqId,
     };
   });
 
@@ -938,6 +946,24 @@ async function handleRejectRequest(req, res) {
   return res.json({ success: true });
 }
 
+// ── CANCEL REQUEST ──────────────────────────────────────────
+async function handleCancelRequest(req, res) {
+  const { telegram_id, request_id } = req.body;
+  if (!telegram_id || !request_id) return res.status(400).json({ error: 'telegram_id, request_id required' });
+
+  const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id');
+  if (pErr) return res.status(500).json({ error: pErr });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const { data: request } = await supabase.from('clan_requests').select('id, player_id').eq('id', request_id).eq('status', 'pending').maybeSingle();
+  if (!request) return res.status(404).json({ error: 'Request not found' });
+  if (request.player_id !== player.id) return res.status(403).json({ error: 'Not your request' });
+
+  await supabase.from('clan_requests').delete().eq('id', request_id);
+
+  return res.json({ success: true });
+}
+
 // ── ROUTES ──────────────────────────────────────────────────
 clanRouter.get('/', async (req, res) => {
   const { view } = req.query;
@@ -967,6 +993,7 @@ clanRouter.post('/', async (req, res) => {
       case 'apply':           return handleApply(req, res);
       case 'accept-request':  return handleAcceptRequest(req, res);
       case 'reject-request':  return handleRejectRequest(req, res);
+      case 'cancel-request':  return handleCancelRequest(req, res);
       default:                return res.status(400).json({ error: 'Unknown action' });
     }
   });
