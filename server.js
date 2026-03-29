@@ -291,13 +291,69 @@ app.post('/api/telegram-webhook', async (req, res) => {
       const reqId = parseInt(data.replace('approve_monument_', ''), 10);
       const { supabase: sb, sendTelegramNotification: notify } = await import('./lib/supabase.js');
       const { MONUMENT_HP: MHP, MONUMENT_SHIELD_HP: MSHP } = await import('./config/constants.js');
+      const { getCellId } = await import('./lib/grid.js');
       const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
       if (!mreq) { await answerCallback('Заявка не найдена'); return; }
       if (mreq.status !== 'pending') { await answerCallback('Заявка уже обработана'); return; }
 
+      const cell_id = getCellId(mreq.lat, mreq.lng);
+
+      // Displace existing building on this cell
+      if (gameState.loaded) {
+        let displaced = null;
+        for (const m of gameState.mines.values()) {
+          if (m.cell_id === cell_id && m.status !== 'destroyed') { displaced = { type: 'mine', obj: m, table: 'mines' }; break; }
+        }
+        if (!displaced) for (const c of gameState.collectors.values()) {
+          if (c.cell_id === cell_id) { displaced = { type: 'collector', obj: c, table: 'collectors' }; break; }
+        }
+        if (!displaced) for (const ft of gameState.fireTrucks.values()) {
+          if (ft.cell_id === cell_id && ft.status !== 'destroyed') { displaced = { type: 'fire_truck', obj: ft, table: 'fire_trucks' }; break; }
+        }
+        if (!displaced) for (const h of gameState.headquarters.values()) {
+          if (h.cell_id === cell_id) { displaced = { type: 'hq', obj: h, table: 'headquarters' }; break; }
+        }
+        if (!displaced) for (const ch of gameState.clanHqs.values()) {
+          if (ch.cell_id === cell_id) { displaced = { type: 'clan_hq', obj: ch, table: 'clan_headquarters' }; break; }
+        }
+
+        if (displaced) {
+          const ownerId = displaced.obj.owner_id || displaced.obj.player_id;
+
+          // Uninstall cores from mine
+          if (displaced.type === 'mine') {
+            const cores = gameState.getCoresForMine(cell_id);
+            for (const c of cores) {
+              c.mine_cell_id = null; c.slot_index = null;
+              gameState.markDirty('cores', c.id);
+            }
+            if (cores.length > 0) {
+              await sb.from('cores').update({ mine_cell_id: null, slot_index: null }).eq('mine_cell_id', cell_id);
+            }
+          }
+
+          // Delete building from DB
+          await sb.from(displaced.table).delete().eq('id', displaced.obj.id);
+
+          // Remove from gameState
+          if (displaced.type === 'mine') gameState.removeMine(displaced.obj.id);
+          else if (displaced.type === 'collector') gameState.collectors.delete(displaced.obj.id);
+          else if (displaced.type === 'fire_truck') gameState.fireTrucks.delete(displaced.obj.id);
+          else if (displaced.type === 'hq') { gameState.hqByPlayerId.delete(displaced.obj.player_id); gameState.headquarters.delete(displaced.obj.id); }
+          else if (displaced.type === 'clan_hq') gameState.clanHqs.delete(displaced.obj.id);
+
+          // Notify building owner
+          const ownerPlayer = gameState.getPlayerById(ownerId);
+          if (ownerPlayer) {
+            notify(ownerPlayer.telegram_id, `⚠️ Ваша постройка снесена для размещения монумента ${mreq.emoji} ${mreq.name}. Ядра возвращены в инвентарь.`).catch(() => {});
+          }
+          console.log(`[MONUMENTS] Displaced ${displaced.type} (${displaced.obj.id}) on cell ${cell_id} for monument #${reqId}`);
+        }
+      }
+
       const monument = {
         id: crypto.randomUUID(),
-        lat: mreq.lat, lng: mreq.lng,
+        lat: mreq.lat, lng: mreq.lng, cell_id,
         name: mreq.name, emoji: mreq.emoji, level: mreq.level,
         hp: MHP[mreq.level], max_hp: MHP[mreq.level],
         shield_hp: MSHP[mreq.level], max_shield_hp: MSHP[mreq.level],

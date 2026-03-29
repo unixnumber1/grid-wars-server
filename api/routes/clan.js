@@ -42,12 +42,14 @@ async function handleBuildHq(req, res) {
   const tapLat = parseFloat(lat), tapLng = parseFloat(lng);
   const cell_id = getCellId(tapLat, tapLng);
 
-  const [{ data: hqOnCell }, { data: mineOnCell }, { data: clanHqOnCell }] = await Promise.all([
-    supabase.from('headquarters').select('id').eq('cell_id', cell_id).maybeSingle(),
-    supabase.from('mines').select('id').eq('cell_id', cell_id).maybeSingle(),
-    supabase.from('clan_headquarters').select('id').eq('cell_id', cell_id).maybeSingle(),
-  ]);
-  if (hqOnCell || mineOnCell || clanHqOnCell) {
+  const cellOccupied =
+    [...gameState.mines.values()].some(m => m.cell_id === cell_id && m.status !== 'destroyed') ||
+    [...gameState.headquarters.values()].some(h => h.cell_id === cell_id) ||
+    [...gameState.collectors.values()].some(c => c.cell_id === cell_id) ||
+    [...gameState.clanHqs.values()].some(c => c.cell_id === cell_id) ||
+    [...gameState.monuments.values()].some(m => m.cell_id === cell_id) ||
+    [...gameState.fireTrucks.values()].some(ft => ft.cell_id === cell_id && ft.status !== 'destroyed');
+  if (cellOccupied) {
     return res.status(409).json({ error: ts(lang, 'err.cell_occupied') });
   }
 

@@ -187,8 +187,8 @@ async function handleListItem(req, res) {
     if (lat != null && lng != null) {
       const pLat = parseFloat(lat), pLng = parseFloat(lng);
       if (!isNaN(pLat) && !isNaN(pLng)) {
-        const { data: markets } = await supabase.from('markets').select('id, lat, lng, name').limit(500);
-        if (markets && markets.length > 0) {
+        const markets = gameState.getAllMarkets();
+        if (markets.length > 0) {
           let minDist = Infinity;
           for (const m of markets) {
             const d = haversine(pLat, pLng, m.lat, m.lng);
@@ -293,12 +293,8 @@ async function handleListItem(req, res) {
   if (lat != null && lng != null) {
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
     if (!isNaN(pLat) && !isNaN(pLng)) {
-      const { data: markets } = await supabase
-        .from('markets')
-        .select('id, lat, lng, name')
-        .limit(50);
-
-      if (markets && markets.length > 0) {
+      const markets = gameState.getAllMarkets();
+      if (markets.length > 0) {
         let minDist = Infinity;
         for (const m of markets) {
           const d = haversine(pLat, pLng, m.lat, m.lng);
@@ -512,8 +508,8 @@ async function handleBuy(req, res) {
     // Find nearest market for courier start
     let marketLat = null, marketLng = null;
     if (bLat != null && bLng != null) {
-      const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(500);
-      if (allMarkets?.length) {
+      const allMarkets = gameState.getAllMarkets();
+      if (allMarkets.length) {
         let minDist = Infinity;
         for (const m of allMarkets) {
           const d = haversine(bLat, bLng, m.lat, m.lng);
@@ -640,8 +636,8 @@ async function handleBuy(req, res) {
 
   let marketLat = null, marketLng = null;
   if (bLat != null && bLng != null) {
-    const { data: allMarkets } = await supabase.from('markets').select('lat,lng').limit(500);
-    if (allMarkets && allMarkets.length > 0) {
+    const allMarkets = gameState.getAllMarkets();
+    if (allMarkets.length > 0) {
       let minDist = Infinity;
       for (const m of allMarkets) {
         const d = haversine(bLat, bLng, m.lat, m.lng);

@@ -11,7 +11,7 @@ import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { getSniperFirstHit } from '../../game/mechanics/skills.js';
-import { WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { WEAPON_COOLDOWNS, COSMETIC_PRICES } from '../../config/constants.js';
 import { BADGES, checkAndAwardBadges } from '../../config/badges.js';
 
 export const playerRouter = Router();
@@ -75,17 +75,31 @@ async function handleAvatar(req, res) {
   const { telegram_id, avatar } = req.body;
   if (!telegram_id || !avatar) return res.status(400).json({ error: 'telegram_id and avatar are required' });
   if (!ALLOWED_AVATARS.includes(avatar)) return res.status(400).json({ error: 'Invalid avatar' });
-  const { player, error: findError } = await getPlayerByTelegramId(telegram_id);
+  const { player, error: findError } = await getPlayerByTelegramId(telegram_id, 'id,telegram_id,username,avatar,diamonds');
   if (findError) return res.status(500).json({ error: findError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: updated, error: updateError } = await supabase.from('players').update({ avatar }).eq('id', player.id).select('id, telegram_id, username, avatar').single();
+  const cost = COSMETIC_PRICES.reavatar_player;
+  const isChange = !!player.avatar;
+  let newDiamonds = player.diamonds ?? 0;
+  if (isChange) {
+    if (newDiamonds < cost)
+      return res.status(400).json({ error: `Недостаточно алмазов (нужно ${cost} 💎)` });
+    newDiamonds -= cost;
+  }
+  const updateObj = { avatar };
+  if (isChange) updateObj.diamonds = newDiamonds;
+  const { data: updated, error: updateError } = await supabase.from('players').update(updateObj).eq('id', player.id).select('id, telegram_id, username, avatar').single();
   if (updateError) return res.status(500).json({ error: updateError.message });
   // Update gameState so tick doesn't overwrite with old avatar
   if (gameState.loaded) {
     const p = gameState.getPlayerById(player.id);
-    if (p) { p.avatar = avatar; gameState.markDirty('players', p.id); }
+    if (p) {
+      p.avatar = avatar;
+      if (isChange) p.diamonds = newDiamonds;
+      gameState.markDirty('players', p.id);
+    }
   }
-  return res.status(200).json({ player: updated });
+  return res.status(200).json({ player: updated, diamonds: newDiamonds });
 }
 
 async function handleLocation(req, res) {

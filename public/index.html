@@ -3148,6 +3148,7 @@
       <div style="font-weight:700;font-size:15px;" data-i18n="settings.avatar.pick">&#x1F3A8; Выбери аватарку</div>
       <button id="btn-close-avatar-sheet" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;-webkit-tap-highlight-color:transparent;">&#x2715;</button>
     </div>
+    <div id="avatar-sheet-cost" style="font-size:13px;color:#aaa;margin-bottom:12px;"></div>
     <div id="avatar-grid"></div>
   </div>
 </div>
@@ -5890,15 +5891,15 @@ const mineUpgradeCost = getMineUpgradeCost;
 
 const HQ_LEVELS = [
   { level:1,  maxMines:10,  maxMineLevel:25,  upgradeCost:0 },
-  { level:2,  maxMines:20,  maxMineLevel:50,  upgradeCost:5_000 },
-  { level:3,  maxMines:30,  maxMineLevel:75,  upgradeCost:50_000 },
-  { level:4,  maxMines:40,  maxMineLevel:100, upgradeCost:500_000 },
-  { level:5,  maxMines:50,  maxMineLevel:125, upgradeCost:5_000_000 },
-  { level:6,  maxMines:60,  maxMineLevel:150, upgradeCost:50_000_000 },
-  { level:7,  maxMines:70,  maxMineLevel:175, upgradeCost:500_000_000 },
-  { level:8,  maxMines:80,  maxMineLevel:200, upgradeCost:5_000_000_000 },
-  { level:9,  maxMines:90,  maxMineLevel:200, upgradeCost:50_000_000_000 },
-  { level:10, maxMines:100, maxMineLevel:200, upgradeCost:500_000_000_000 },
+  { level:2,  maxMines:20,  maxMineLevel:50,  upgradeCost:1_000 },
+  { level:3,  maxMines:30,  maxMineLevel:75,  upgradeCost:10_000 },
+  { level:4,  maxMines:40,  maxMineLevel:100, upgradeCost:100_000 },
+  { level:5,  maxMines:50,  maxMineLevel:125, upgradeCost:1_000_000 },
+  { level:6,  maxMines:60,  maxMineLevel:150, upgradeCost:10_000_000 },
+  { level:7,  maxMines:70,  maxMineLevel:175, upgradeCost:100_000_000 },
+  { level:8,  maxMines:80,  maxMineLevel:200, upgradeCost:1_000_000_000 },
+  { level:9,  maxMines:90,  maxMineLevel:200, upgradeCost:10_000_000_000 },
+  { level:10, maxMines:100, maxMineLevel:200, upgradeCost:100_000_000_000 },
 ];
 function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
@@ -11797,7 +11798,7 @@ function openChangeUsername() {
   document.getElementById('change-username-current').textContent = `Текущий: ${displayName(state.player)}`;
   document.getElementById('change-username-cost').textContent = changes === 0
     ? '💎 Стоимость: БЕСПЛАТНО'
-    : '💎 Стоимость: 10 алмазов';
+    : '💎 Стоимость: 50 алмазов';
   document.getElementById('change-username-input').value = '';
   document.getElementById('change-username-error').textContent = '';
   document.getElementById('btn-change-username-confirm').disabled = true;
@@ -12057,12 +12058,19 @@ function buildAvatarGrid() {
 
 async function selectAvatar(avatar) {
   if (avatar === state.player?.avatar) return;
+  const hasAvatar = !!state.player?.avatar;
+  if (hasAvatar) {
+    const diamonds = state.player?.diamonds ?? 0;
+    if (diamonds < 50) { showToast('❌ Недостаточно алмазов (нужно 50 💎)'); return; }
+    if (!confirm('Сменить аватарку за 50 💎?')) return;
+  }
   try {
     const data = await apiFetch('/api/player/init', {
       method: 'POST',
       body: JSON.stringify({ action: 'avatar', telegram_id: TG_ID, avatar }),
     });
     state.player.avatar = data.player.avatar;
+    if (data.diamonds != null) state.player.diamonds = data.diamonds;
     buildAvatarGrid();
     updatePlayerDisplay();
     if (playerMarker && state.playerPos) {
@@ -14560,6 +14568,10 @@ document.getElementById('avatar-sheet-overlay').addEventListener('click', functi
 
 function openAvatarSheet() {
   buildAvatarGrid();
+  const hasAvatar = !!state.player?.avatar;
+  document.getElementById('avatar-sheet-cost').textContent = hasAvatar
+    ? '💎 Стоимость: 50 алмазов'
+    : '💎 Стоимость: БЕСПЛАТНО';
   document.getElementById('avatar-sheet-overlay').classList.add('open');
 }
 
