@@ -510,41 +510,55 @@ playerRouter.post('/init', async (req, res) => {
   const ADMIN_TG_ID = 560013667;
   let tgId;
   try { tgId = parseTgId(telegram_id); } catch (e) { return res.status(400).json({ error: e.message }); }
-  // Maintenance mode check
+  // Maintenance mode check (from gameState — no DB query)
   if (tgId !== ADMIN_TG_ID) {
-    const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'maintenance_mode').single();
-    if (setting?.value === 'true') return res.status(503).json({ maintenance: true });
+    if (gameState.loaded) {
+      const mSetting = gameState.appSettings?.get('maintenance_mode');
+      if (mSetting?.value === 'true') return res.status(503).json({ maintenance: true });
+    } else {
+      const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'maintenance_mode').single();
+      if (setting?.value === 'true') return res.status(503).json({ maintenance: true });
+    }
   }
   const withTimeout = (promise) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000))]);
   let player;
   try {
-    const { data, error: playerError } = await withTimeout(supabase.from('players').upsert({ telegram_id: tgId, username: username || null }, { onConflict: 'telegram_id', ignoreDuplicates: false }).select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role,daily_diamonds_claimed_at,last_lat,last_lng,last_seen,is_banned,active_badge,created_at').single());
+    const { data, error: playerError } = await withTimeout(supabase.from('players').upsert({ telegram_id: tgId, username: username || null }, { onConflict: 'telegram_id', ignoreDuplicates: false }).select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role,daily_diamonds_claimed_at,last_lat,last_lng,last_seen,is_banned,ban_reason,ban_until,active_badge,created_at').single());
     if (playerError) throw new Error(playerError.message);
     player = data;
   } catch (err) { return res.status(503).json({ error: 'DB unavailable', message: 'Сервер временно недоступен, попробуй через минуту' }); }
-  // Ban check
-  try {
-    const { data: banData } = await supabase.from('players').select('is_banned,ban_reason,ban_until').eq('id', player.id).single();
-    if (banData?.is_banned) {
-      const bannedForever = !banData.ban_until;
-      const bannedUntil = banData.ban_until ? new Date(banData.ban_until) : null;
-      const stillBanned = bannedForever || bannedUntil > new Date();
-      if (stillBanned) return res.status(403).json({ banned: true, reason: banData.ban_reason, until: banData.ban_until, avatar: player.avatar });
-      else await supabase.from('players').update({ is_banned: false, ban_reason: null, ban_until: null }).eq('id', player.id);
-    }
-  } catch (_) {}
+  // Ban check (from same upsert response — no extra DB query)
+  if (player.is_banned) {
+    const bannedForever = !player.ban_until;
+    const bannedUntil = player.ban_until ? new Date(player.ban_until) : null;
+    const stillBanned = bannedForever || bannedUntil > new Date();
+    if (stillBanned) return res.status(403).json({ banned: true, reason: player.ban_reason, until: player.ban_until, avatar: player.avatar });
+    else supabase.from('players').update({ is_banned: false, ban_reason: null, ban_until: null }).eq('id', player.id).then(() => {}).catch(() => {});
+  }
   let headquarters, mines, inventory, notifications;
   try {
-    const [hqRes, minesRes, itemsRes, notifRes] = await withTimeout(Promise.all([
-      supabase.from('headquarters').select('id,lat,lng,level,player_id,coins').eq('player_id', player.id).order('created_at', { ascending: true }).limit(1).maybeSingle(),
-      supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected,hp,max_hp,last_hp_update,status,burning_started_at,attacker_id,attack_ends_at').eq('owner_id', player.id),
-      supabase.from('items').select('id,type,rarity,name,emoji,stat_value,attack,crit_chance,defense,block_chance,equipped,on_market,obtained_at,upgrade_level,base_attack,base_crit_chance,base_defense').eq('owner_id', player.id).order('obtained_at', { ascending: false }),
-      supabase.from('notifications').select('id,type,message,data,created_at').eq('player_id', player.id).eq('read', false).order('created_at', { ascending: false }).limit(20),
-    ]));
-    headquarters = hqRes.data;
-    mines = (minesRes.data || []).map(m => { const cMax = getMineHp(m.level); const rph = getMineHpRegen(m.level); const rawHp = Math.min(m.hp ?? cMax, cMax); return { ...m, max_hp: cMax, hp: calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update), hp_regen: rph, income: getMineIncome(m.level), capacity: getMineCapacity(m.level) }; });
-    inventory = itemsRes.data;
-    notifications = notifRes.data;
+    if (gameState.loaded) {
+      // Fast path: read from in-memory gameState (0 DB queries for HQ/mines/items)
+      headquarters = gameState.getHqByPlayerId(player.id) || null;
+      const rawMines = [...gameState.mines.values()].filter(m => m.owner_id === player.id);
+      mines = rawMines.map(m => { const cMax = getMineHp(m.level); const rph = getMineHpRegen(m.level); const rawHp = Math.min(m.hp ?? cMax, cMax); return { ...m, max_hp: cMax, hp: calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update), hp_regen: rph, income: getMineIncome(m.level), capacity: getMineCapacity(m.level) }; });
+      inventory = gameState.getPlayerItems(player.id) || [];
+      // Only notifications need DB (not cached in gameState with full history)
+      const { data: notifData } = await withTimeout(supabase.from('notifications').select('id,type,message,data,created_at').eq('player_id', player.id).eq('read', false).order('created_at', { ascending: false }).limit(20));
+      notifications = notifData || [];
+    } else {
+      // Fallback: DB queries (parallel)
+      const [hqRes, minesRes, itemsRes, notifRes] = await withTimeout(Promise.all([
+        supabase.from('headquarters').select('id,lat,lng,level,player_id,coins').eq('player_id', player.id).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+        supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected,hp,max_hp,last_hp_update,status,burning_started_at,attacker_id,attack_ends_at').eq('owner_id', player.id),
+        supabase.from('items').select('id,type,rarity,name,emoji,stat_value,attack,crit_chance,defense,block_chance,equipped,on_market,obtained_at,upgrade_level,base_attack,base_crit_chance,base_defense').eq('owner_id', player.id).order('obtained_at', { ascending: false }),
+        supabase.from('notifications').select('id,type,message,data,created_at').eq('player_id', player.id).eq('read', false).order('created_at', { ascending: false }).limit(20),
+      ]));
+      headquarters = hqRes.data;
+      mines = (minesRes.data || []).map(m => { const cMax = getMineHp(m.level); const rph = getMineHpRegen(m.level); const rawHp = Math.min(m.hp ?? cMax, cMax); return { ...m, max_hp: cMax, hp: calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update), hp_regen: rph, income: getMineIncome(m.level), capacity: getMineCapacity(m.level) }; });
+      inventory = itemsRes.data;
+      notifications = notifRes.data;
+    }
   } catch (err) { return res.status(503).json({ error: 'DB unavailable', message: 'Сервер временно недоступен, попробуй через минуту' }); }
   const level = player.level ?? 1;
   const xp = player.xp ?? 0;

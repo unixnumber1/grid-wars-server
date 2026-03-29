@@ -12107,7 +12107,7 @@ async function boot() {
       method: 'POST',
       headers: _initHeaders,
       body: JSON.stringify({ username: TG_NAME }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(12000),
     });
     const data = await initRes.json();
 
@@ -12176,45 +12176,49 @@ async function boot() {
     return;
   }
 
+  // Start socket + tick immediately (don't wait for GPS)
+  initSocket();
+  startUnifiedTick();
+  startBotAnimation();
+
   setLoadingText('Getting GPS...');
   document.getElementById('loading').style.display = '';
 
-  // Request GPS
   if (!navigator.geolocation) {
-    setLoadingText('Geolocation not supported');
+    // Use last known position from server if GPS unavailable
+    if (state.player?.last_lat && state.player?.last_lng) {
+      onPosition({ coords: { latitude: state.player.last_lat, longitude: state.player.last_lng, accuracy: 100 } });
+      document.getElementById('loading').style.display = 'none';
+      _gameInitialised = true;
+    } else {
+      setLoadingText('Geolocation not supported');
+    }
     return;
+  }
+
+  // Use last known position as fallback while waiting for fresh GPS
+  if (state.player?.last_lat && state.player?.last_lng) {
+    onPosition({ coords: { latitude: state.player.last_lat, longitude: state.player.last_lng, accuracy: 100 } });
   }
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
     onPosition(pos);
     setLoadingText('Loading map...');
-    await loadVisibleBuildings(true); // force — initial load after GPS fix
+    await loadVisibleBuildings(true);
 
-    // Hide loading
     document.getElementById('loading').style.display = 'none';
 
-    // HQ is optional — no forced prompt
-
     updateCoinDisplay();
-
-    // Check unclaimed rewards for dot on inventory button
     checkUnclaimedRewards();
 
-    // Start GPS watch
     navigator.geolocation.watchPosition(onPosition, onGpsError, {
       enableHighAccuracy: true,
       maximumAge: 3000,
       timeout: 10000,
     });
 
-    // ── Socket.io connection + unified game tick (polling fallback) ──
-    initSocket();
-    startUnifiedTick();
-    startBotAnimation();
-
     _gameInitialised = true;
 
-    // Sync admin maintenance state
     if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
       apiFetch('/api/admin').then(d => {
         _adminMaintenanceOn = d.maintenance;
@@ -12222,7 +12226,16 @@ async function boot() {
       }).catch(() => {});
     }
 
-  }, onGpsError, { enableHighAccuracy: true, timeout: 15000 });
+  }, (err) => {
+    // GPS failed — if we have last known position, proceed anyway
+    if (state.player?.last_lat && state.player?.last_lng) {
+      document.getElementById('loading').style.display = 'none';
+      _gameInitialised = true;
+      loadVisibleBuildings(true);
+    } else {
+      onGpsError(err);
+    }
+  }, { enableHighAccuracy: true, timeout: 10000 });
 }
 
 // ─────────────────────────────────────────────
