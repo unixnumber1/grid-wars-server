@@ -236,7 +236,9 @@ async function moveCouriers(nowMs, nowISO) {
       const routeDist = Math.sqrt(routeLat * routeLat + routeLng * routeLng);
       if (routeDist < 0.0001) { cArrived.push(c); continue; }
       const speedDegPerSec = (c.speed || 0.0002) / 4;
-      const elapsedSec = (nowMs - new Date(c.created_at).getTime()) / 1000;
+      const createdMs = c.created_at ? new Date(c.created_at).getTime() : 0;
+      if (!createdMs || isNaN(createdMs)) { cArrived.push(c); continue; }
+      const elapsedSec = (nowMs - createdMs) / 1000;
       const traveled = speedDegPerSec * elapsedSec;
       const progress = Math.min(traveled / routeDist, 1.0);
       const maxSec = c.type === 'to_market' ? 1800 : (c.speed <= 0.0003 ? 3600 : 300); // pedestrian 1h, truck 5min, seller 30min

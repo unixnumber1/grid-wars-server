@@ -230,6 +230,7 @@ async function handleListItem(req, res) {
     let courierId = null;
     if (willHaveCourier) {
       const pLat = parseFloat(lat), pLng = parseFloat(lng);
+      const courierNow = new Date().toISOString();
       const { data: courier } = await supabase
         .from('couriers')
         .insert({
@@ -244,6 +245,7 @@ async function handleListItem(req, res) {
           hp: COURIER_HP, max_hp: COURIER_HP,
           status: 'moving',
           to_market_id: nearestMarket.id,
+          created_at: courierNow,
         })
         .select('id').single();
       if (courier) {
@@ -353,6 +355,7 @@ async function handleListItem(req, res) {
   let courierId = null;
   if (willHaveCourier) {
     const pLat = parseFloat(lat), pLng = parseFloat(lng);
+    const itemCourierNow = new Date().toISOString();
     const { data: courier } = await supabase
       .from('couriers')
       .insert({
@@ -371,6 +374,7 @@ async function handleListItem(req, res) {
         max_hp: COURIER_HP,
         status: 'moving',
         to_market_id: nearestMarket.id,
+        created_at: itemCourierNow,
       })
       .select('id')
       .single();
@@ -534,6 +538,7 @@ async function handleBuy(req, res) {
       }
     } else if (bLat != null && bLng != null && marketLat && marketLng) {
       // Delivery courier
+      const deliveryCourierNow = new Date().toISOString();
       const { data: courier } = await supabase
         .from('couriers')
         .insert({
@@ -547,6 +552,7 @@ async function handleBuy(req, res) {
           speed: COURIER_SPEED_DELIVERY,
           hp: COURIER_HP, max_hp: COURIER_HP,
           status: 'moving',
+          created_at: deliveryCourierNow,
         })
         .select('id').single();
       if (courier) {
