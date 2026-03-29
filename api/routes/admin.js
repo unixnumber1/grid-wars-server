@@ -936,6 +936,27 @@ adminRouter.post('/', async (req, res) => {
     });
   }
 
+  // ── force-vase-spawn: trigger vase spawn for all cities ──
+  if (action === 'force-vase-spawn') {
+    clearCityBoundsCache();
+    (async () => {
+      try {
+        const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('../../lib/geocity.js');
+        const { spawnVasesForCity } = await import('../../lib/vases.js');
+        for (const cityKey of getAllCityKeys()) {
+          const pc = getCityPlayerCount(cityKey);
+          if (pc <= 0) continue;
+          const cb = await getCityBounds(cityKey);
+          if (!cb?.boundingbox) continue;
+          await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+          await new Promise(r => setTimeout(r, 3000));
+        }
+        console.log('[ADMIN] force-vase-spawn complete');
+      } catch (e) { console.error('[ADMIN] force-vase-spawn error:', e.message); }
+    })();
+    return res.json({ success: true, message: 'Vase spawn triggered in background' });
+  }
+
   // ── maintenance toggle (default) ──
   const value = enabled ? 'true' : 'false';
   const { error } = await supabase

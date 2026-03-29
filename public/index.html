@@ -3089,6 +3089,7 @@
       <div class="settings-card">
         <div class="settings-section-title">ИГРОВЫЕ СОБЫТИЯ</div>
         <button id="btn-spawn-vases" class="settings-action-btn s-purple">&#x1F7E3; Заспаунить вазы</button>
+        <button class="settings-action-btn s-purple" onclick="forceSpawnVases()">🏺 Заспаунить вазы (все города)</button>
         <button id="btn-spawn-zombie" class="settings-action-btn s-danger" onclick="spawnZombieScout()">&#x1F9DF; Спавн зомби-разведчика</button>
         <button id="btn-joystick-toggle" class="settings-action-btn s-blue" onclick="toggleJoystick()" data-i18n="joy.off">&#x1F579;&#xFE0F; Джойстик: ВЫКЛ</button>
       </div>
@@ -19123,6 +19124,13 @@ async function doZombieHit(target) {
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`);
   }
+}
+
+async function forceSpawnVases() {
+  try {
+    const data = await apiFetch('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'force-vase-spawn' }) });
+    showToast('🏺 Спавн ваз запущен для всех городов');
+  } catch (err) { showToast('❌ ' + err.message); }
 }
 
 async function spawnZombieScout() {
