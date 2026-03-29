@@ -15894,17 +15894,12 @@ function showMonumentDeathOverlay(seconds, killer) {
     if (sec <= 0) {
       clearInterval(_monumentDeathTimer);
       _monumentDeathTimer = null;
-      // Fallback: if server doesn't send respawn within 5s, force close
-      setTimeout(() => {
-        if (document.getElementById('death-screen')?.classList.contains('open')) {
-          removeMonumentDeathOverlay();
-          if (state.player) {
-            state.player.shield_until = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-            updateShieldDisplay();
-          }
-          showToast(t('toast.respawned'));
-        }
-      }, 5000);
+      removeMonumentDeathOverlay();
+      if (state.player) {
+        state.player.shield_until = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+        updateShieldDisplay();
+      }
+      showToast(t('toast.respawned'));
     }
   }, 1000);
 }
@@ -18018,7 +18013,7 @@ function collectorIcon(c) {
   const glow = isBurning ? 'filter:drop-shadow(0 0 8px #ff4400)' : (isMine ? 'filter:drop-shadow(0 0 6px #4caf50)' : 'filter:drop-shadow(0 0 6px #f44336)');
   const capacity = c._capacity || 1;
   const fillPct = capacity > 0 ? Math.min(100, Math.round((c.stored_coins || 0) / capacity * 100)) : 0;
-  const isFull = fillPct >= 90;
+  const isFull = (c.stored_coins || 0) >= capacity;
   const barColor = isMine ? '#4caf50' : '#f44336';
 
   let label = '';

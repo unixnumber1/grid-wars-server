@@ -870,8 +870,13 @@ function startDefenderLoop() {
             emoji: defender.emoji,
           });
 
-          if (target._socketId) {
-            io.to(target._socketId).emit('pvp:hit', {
+          // Find socket for this player
+          let targetSid = null;
+          for (const [sid, info] of connectedPlayers) {
+            if (String(info.telegram_id) === String(target.telegram_id)) { targetSid = sid; break; }
+          }
+          if (targetSid) {
+            io.to(targetSid).emit('pvp:hit', {
               attacker_name: defender.emoji + ' Defender',
               damage, hp_left: hp, max_hp: maxHp,
             });
@@ -882,8 +887,8 @@ function startDefenderLoop() {
             target.is_dead = true;
             target._respawn_at = new Date(now + PLAYER_RESPAWN_TIME).toISOString();
             gameState.markDirty('players', target.id);
-            if (target._socketId) {
-              io.to(target._socketId).emit('player:died', { respawn_in: PLAYER_RESPAWN_TIME / 1000, killer: defender.emoji + ' Defender' });
+            if (targetSid) {
+              io.to(targetSid).emit('player:died', { respawn_in: PLAYER_RESPAWN_TIME / 1000, killer: defender.emoji + ' Defender' });
             }
             const idx = nearbyPlayers.indexOf(target);
             if (idx !== -1) nearbyPlayers.splice(idx, 1);
