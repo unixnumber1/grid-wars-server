@@ -53,6 +53,7 @@ async function handleSetUsername(req, res) {
       gameState.markDirty('players', p.id);
     }
   }
+  logPlayer(telegram_id, 'action', `Сменил ник: ${player.game_username || '(нет)'} → ${trimmed}`, { old_name: player.game_username, new_name: trimmed });
   return res.status(200).json({ success: true, game_username: trimmed, diamonds: newDiamonds, username_changes: changes + 1 });
 }
 
