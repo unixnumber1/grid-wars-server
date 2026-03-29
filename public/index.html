@@ -12285,9 +12285,7 @@ let _adminStatsInterval = null;
 
 async function loadAdminStats() {
   try {
-    const res = await apiFetch('/api/admin/stats');
-    if (!res.ok) return;
-    const s = await res.json();
+    const s = await apiFetch('/api/admin/stats');
     renderAdminStats(s);
   } catch (e) { console.error('[admin stats]', e.message); }
 }
