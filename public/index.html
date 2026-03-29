@@ -7083,11 +7083,15 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
-// Double-tap + drag zoom (like Google Maps) — uses CSS transform for smooth zoom
+// Double-tap + drag zoom (like Google Maps) — overlay CSS scale
 (function() {
   const container = map.getContainer();
   let lastTap = 0, isDragging = false, startY = 0, startZoom = 0;
-  let _dtZoomEnd = 0; // timestamp to suppress clicks after drag-zoom
+
+  // Create overlay div that scales visually without touching Leaflet internals
+  const zoomOverlay = document.createElement('div');
+  zoomOverlay.style.cssText = 'position:absolute;inset:0;z-index:9999;display:none;background:transparent;';
+  container.appendChild(zoomOverlay);
 
   container.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -7102,6 +7106,8 @@ const map = L.map('map', {
       startZoom = map.getZoom();
       map.dragging.disable();
       map.touchZoom?.disable();
+      // Show overlay to capture all touches
+      zoomOverlay.style.display = 'block';
       lastTap = 0;
     } else {
       lastTap = now;
@@ -7115,32 +7121,26 @@ const map = L.map('map', {
     const deltaY = startY - e.touches[0].clientY;
     const zoomDelta = deltaY / 100;
     const newZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
-    // CSS scale on map container for smooth visual zoom (no tile reload)
+    // Scale the entire map container visually from center
     const scale = Math.pow(2, newZoom - startZoom);
-    const mc = map.getContainer().querySelector('.leaflet-map-pane');
-    if (mc) {
-      mc.style.transformOrigin = '50% 50%';
-      mc.style.transform = `scale(${scale})`;
-    }
-    isDragging = newZoom; // store current zoom
+    container.style.transformOrigin = '50% 50%';
+    container.style.transform = `scale(${scale})`;
+    isDragging = newZoom;
   }, { passive: false, capture: true });
 
   container.addEventListener('touchend', (e) => {
     if (isDragging !== false) {
       const finalZoom = typeof isDragging === 'number' ? isDragging : startZoom;
       isDragging = false;
-      // Reset CSS transform
-      const mc = map.getContainer().querySelector('.leaflet-map-pane');
-      if (mc) { mc.style.transform = ''; mc.style.transformOrigin = ''; }
+      container.style.transform = '';
+      container.style.transformOrigin = '';
+      zoomOverlay.style.display = 'none';
       map.dragging.enable();
       map.touchZoom?.enable();
-      // Apply actual zoom
       const snapped = Math.round(finalZoom * 2) / 2;
       if (snapped !== startZoom) {
         map.setZoom(snapped, { animate: false });
       }
-      // Suppress map click for 500ms
-      _dtZoomEnd = Date.now();
       _suppressMapClick = Date.now();
     }
   }, { capture: true });
@@ -7148,8 +7148,9 @@ const map = L.map('map', {
   container.addEventListener('touchcancel', () => {
     if (isDragging !== false) {
       isDragging = false;
-      const mc = map.getContainer().querySelector('.leaflet-map-pane');
-      if (mc) { mc.style.transform = ''; mc.style.transformOrigin = ''; }
+      container.style.transform = '';
+      container.style.transformOrigin = '';
+      zoomOverlay.style.display = 'none';
       map.dragging.enable();
       map.touchZoom?.enable();
     }
@@ -15807,16 +15808,21 @@ function bindAttackButton(targetType, target) {
     combatState.touchId = null;
     btn.classList.remove('attacking');
     if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+    const card = document.getElementById('popup-card');
+    if (card) card.style.pointerEvents = '';
   }
 
-  // Isolate button touches from Leaflet to prevent pinch zoom conflicts
   btn.addEventListener('touchstart', (e) => {
     e.preventDefault();
     e.stopPropagation();
     startHold(e.changedTouches[0]?.identifier);
+    // Hide popup card from Leaflet touch detection during hold
+    const card = document.getElementById('popup-card');
+    if (card) card.style.pointerEvents = 'none';
+    btn.style.pointerEvents = 'auto';
   }, { passive: false });
   btn.addEventListener('touchmove', (e) => {
-    e.stopPropagation(); // Prevent button drag from becoming map gesture
+    e.stopPropagation();
   }, { passive: false });
 
   btn.addEventListener('touchend', (e) => {
