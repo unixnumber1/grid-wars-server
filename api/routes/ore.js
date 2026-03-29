@@ -12,8 +12,8 @@ import { WEAPON_COOLDOWNS, ORE_TYPES } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const oreRouter = Router();
-const _oreClaimCooldown = new Map(); // telegramId -> timestamp
-const ORE_CLAIM_CD_MS = 60000; // 60s cooldown on claim/release
+const _oreClaimCooldown = new Map();
+const ORE_CLAIM_CD_MS = 5000; // 5s cooldown — prevents spam but doesn't block gameplay
 
 function emitToNearby(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
