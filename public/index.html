@@ -13654,10 +13654,8 @@ function _joystickTick() {
   const newLat = pos.lat + (-_joystickDy * speed);
   const newLng = pos.lng + (_joystickDx * speed);
   _applyPlayerPosition(newLat, newLng);
-  if (pinMode) {
-    // Keep camera centered during joystick movement
-    map.setView([newLat, newLng], map.getZoom(), { animate: false });
-  }
+  // Keep camera centered during joystick movement
+  map.setView([newLat, newLng], map.getZoom(), { animate: false });
 }
 
 function _joystickSync() {
