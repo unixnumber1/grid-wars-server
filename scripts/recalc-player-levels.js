@@ -10,12 +10,10 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // New XP curve — must match config/formulas.js getXpForLevel
 function getXpForLevel(level) {
-  if (level <= 0) return 0;
-  const phase = Math.floor((level - 1) / 100);
-  const levelInPhase = ((level - 1) % 100) + 1;
-  const base = 80 * Math.pow(15, phase);
-  let xp = Math.floor(base * Math.pow(levelInPhase, 2.15));
+  if (level <= 0 || level > 500) return 0;
+  let xp = Math.floor(80 * Math.pow(level, 2.15));
   if (level % 100 === 0) xp *= 5;
+  if (!Number.isFinite(xp) || xp > Number.MAX_SAFE_INTEGER) xp = Number.MAX_SAFE_INTEGER;
   return xp;
 }
 
