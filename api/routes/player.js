@@ -20,6 +20,8 @@ const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
 const RENAME_COST_DIAMONDS = 50;
 
 async function handleSetUsername(req, res) {
+  if (!req.authVerified)
+    return res.status(403).json({ error: 'Auth required' });
   const { telegram_id, username } = req.body || {};
   if (!telegram_id || !username)
     return res.status(400).json({ error: 'telegram_id and username are required' });
