@@ -7083,10 +7083,11 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
-// Double-tap + drag zoom (like Google Maps)
+// Double-tap + drag zoom (like Google Maps) — uses CSS transform for smooth zoom
 (function() {
   const container = map.getContainer();
-  let lastTap = 0, isDragging = false, startY = 0, startZoom = 0, zoomCenter = null;
+  let lastTap = 0, isDragging = false, startY = 0, startZoom = 0;
+  let _dtZoomEnd = 0; // timestamp to suppress clicks after drag-zoom
 
   container.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -7099,37 +7100,57 @@ const map = L.map('map', {
       isDragging = true;
       startY = e.touches[0].clientY;
       startZoom = map.getZoom();
-      zoomCenter = map.getCenter();
       map.dragging.disable();
-      map.options.zoomSnap = 0; // Disable snap for smooth drag-zoom
+      map.touchZoom?.disable();
       lastTap = 0;
     } else {
       lastTap = now;
     }
-  }, { passive: false });
+  }, { passive: false, capture: true });
 
   container.addEventListener('touchmove', (e) => {
     if (!isDragging) return;
     e.preventDefault();
+    e.stopPropagation();
     const deltaY = startY - e.touches[0].clientY;
-    const zoomDelta = deltaY / 80;
+    const zoomDelta = deltaY / 100;
     const newZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
-    map.setView(zoomCenter, newZoom, { animate: false });
-  }, { passive: false });
+    // CSS scale on map pane for smooth visual zoom (no tile reload)
+    const scale = Math.pow(2, newZoom - startZoom);
+    const pane = map.getPane('mapPane');
+    if (pane) pane.style.transform = `scale(${scale})`;
+    isDragging = newZoom; // store current zoom
+  }, { passive: false, capture: true });
 
-  container.addEventListener('touchend', () => {
-    if (isDragging) {
+  container.addEventListener('touchend', (e) => {
+    if (isDragging !== false) {
+      const finalZoom = typeof isDragging === 'number' ? isDragging : startZoom;
       isDragging = false;
+      // Reset CSS transform
+      const pane = map.getPane('mapPane');
+      if (pane) pane.style.transform = '';
       map.dragging.enable();
-      map.options.zoomSnap = 0.5; // Restore snap
-      const snapped = Math.round(map.getZoom() * 2) / 2;
-      map.setZoom(snapped, { animate: true });
+      map.touchZoom?.enable();
+      // Apply actual zoom
+      const snapped = Math.round(finalZoom * 2) / 2;
+      if (snapped !== startZoom) {
+        map.setZoom(snapped, { animate: false });
+      }
+      // Suppress map click for 500ms
+      _dtZoomEnd = Date.now();
+      _suppressMapClick = Date.now();
     }
-  });
+  }, { capture: true });
 
   container.addEventListener('touchcancel', () => {
-    if (isDragging) { isDragging = false; map.dragging.enable(); map.options.zoomSnap = 0.5; }
-  });
+    if (isDragging !== false) {
+      isDragging = false;
+      const pane = map.getPane('mapPane');
+      if (pane) pane.style.transform = '';
+      map.dragging.enable();
+      map.touchZoom?.enable();
+    }
+  }, { capture: true });
 })();
 
 // Handle ?focus=lat,lng param from Telegram notification buttons
@@ -10171,7 +10192,6 @@ function initSocket() {
         combatState.isHolding = false;
         combatState.touchId = null;
         combatState.currentTarget = null;
-        map.touchZoom?.enable();
       } else if (data.loser_id === myId) {
         // I died — show death screen
         stopPopupCombat();
@@ -15774,8 +15794,6 @@ function bindAttackButton(targetType, target) {
     combatState.touchId = touchIdentifier ?? null;
     btn.classList.add('attacking');
     document.getElementById('popup-overlay')?.classList.add('combat-mode');
-    // Disable pinch zoom — finger on button counts as second touch for Leaflet
-    map.touchZoom?.disable();
     executePopupAttack();
     if (combatState.attackInterval) clearInterval(combatState.attackInterval);
     combatState.attackInterval = setInterval(executePopupAttack, cd + 50);
@@ -15786,12 +15804,11 @@ function bindAttackButton(targetType, target) {
     combatState.touchId = null;
     btn.classList.remove('attacking');
     if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
-    map.touchZoom?.enable();
   }
 
   btn.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    // Don't stopPropagation — allow other fingers to interact with map
+    e.stopImmediatePropagation(); // Isolate button finger from Leaflet
     startHold(e.touches[0]?.identifier);
   }, { passive: false });
 
@@ -15834,7 +15851,6 @@ function stopPopupCombat(keepHolding) {
   if (!keepHolding) {
     combatState.isHolding = false;
     combatState.touchId = null;
-    map.touchZoom?.enable();
   }
   combatState.currentTarget = null;
   if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
@@ -15959,7 +15975,6 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
       combatState.isHolding = false;
       combatState.touchId = null;
       if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
-      map.touchZoom?.enable();
     }
   }, { passive: true });
 })();
