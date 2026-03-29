@@ -365,6 +365,9 @@
 
     /* Leaflet marker overrides */
     .leaflet-marker-icon { border: none !important; background: none !important; }
+    /* Keep markers same size during double-tap drag zoom */
+    .zoom-dragging .leaflet-marker-icon,
+    .zoom-dragging .leaflet-marker-shadow { scale: var(--zoom-counter-scale, 1); }
     .leaflet-tile-pane { will-change: transform, filter; }
 
     .marker-emoji {
@@ -7125,6 +7128,8 @@ const map = L.map('map', {
     const scale = Math.pow(2, newZoom - startZoom);
     container.style.transformOrigin = '50% 50%';
     container.style.transform = `scale(${scale})`;
+    container.style.setProperty('--zoom-counter-scale', 1 / scale);
+    container.classList.add('zoom-dragging');
     isDragging = newZoom;
   }, { passive: false, capture: true });
 
@@ -7134,6 +7139,8 @@ const map = L.map('map', {
       isDragging = false;
       container.style.transform = '';
       container.style.transformOrigin = '';
+      container.classList.remove('zoom-dragging');
+      container.style.removeProperty('--zoom-counter-scale');
       zoomOverlay.style.display = 'none';
       map.dragging.enable();
       map.touchZoom?.enable();
@@ -7150,6 +7157,8 @@ const map = L.map('map', {
       isDragging = false;
       container.style.transform = '';
       container.style.transformOrigin = '';
+      container.classList.remove('zoom-dragging');
+      container.style.removeProperty('--zoom-counter-scale');
       zoomOverlay.style.display = 'none';
       map.dragging.enable();
       map.touchZoom?.enable();
