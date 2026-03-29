@@ -7076,11 +7076,60 @@ function showError(message) {
 const map = L.map('map', {
   zoomControl: false,
   attributionControl: false,
+  doubleClickZoom: false,
   minZoom: 14,
   maxZoom: 19,
   zoomSnap: 0.5,
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
+
+// Double-tap + drag zoom (like Google Maps)
+(function() {
+  const container = map.getContainer();
+  let lastTap = 0, isDragging = false, startY = 0, startZoom = 0;
+
+  container.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const now = Date.now();
+    const dt = now - lastTap;
+
+    if (dt < 300 && dt > 50) {
+      // Second tap — start drag-zoom
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = true;
+      startY = e.touches[0].clientY;
+      startZoom = map.getZoom();
+      map.dragging.disable();
+      lastTap = 0;
+    } else {
+      lastTap = now;
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const deltaY = startY - e.touches[0].clientY;
+    const zoomDelta = deltaY / 80;
+    const newZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
+    map.setZoom(newZoom, { animate: false });
+  }, { passive: false });
+
+  container.addEventListener('touchend', () => {
+    if (isDragging) {
+      isDragging = false;
+      map.dragging.enable();
+      // Snap to nearest 0.5
+      const snapped = Math.round(map.getZoom() * 2) / 2;
+      map.setZoom(snapped, { animate: true });
+    }
+  });
+
+  container.addEventListener('touchcancel', () => {
+    if (isDragging) { isDragging = false; map.dragging.enable(); }
+  });
+})();
 
 // Handle ?focus=lat,lng param from Telegram notification buttons
 (function() {
