@@ -1052,7 +1052,7 @@
       100% { opacity: 0; transform: translateY(-40px); }
     }
 
-    .vase-marker { filter: drop-shadow(0 0 3px rgba(255,215,0,0.3)); cursor: pointer; }
+    .vase-marker { filter: drop-shadow(0 0 6px rgba(255,215,0,0.5)); cursor: pointer; }
 
     /* Vase shatter */
     @keyframes shatter {
@@ -10790,7 +10790,7 @@ function renderVases(vasesRaw) {
     _knownVaseIds.add(vase.id);
     vaseData[vase.id] = vase;
     if (!vaseMarkers[vase.id]) {
-      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 2000 });
+      const marker = L.marker([vase.lat, vase.lng], { icon: _vaseIcon(), zIndexOffset: 3000 });
       marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showVasePopup(vase.id); });
       marker.addTo(vaseLayer);
       vaseMarkers[vase.id] = marker;
