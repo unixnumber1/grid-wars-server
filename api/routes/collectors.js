@@ -109,6 +109,7 @@ async function handleBuild(req, res) {
     level: 1,
     hp: cfg.hp, max_hp: cfg.hp,
     stored_coins: 0,
+    auto_upgrade: false,
     last_collected_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
   };

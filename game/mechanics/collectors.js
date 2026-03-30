@@ -74,7 +74,7 @@ export function autoCollect(collector) {
   const now = Date.now();
   const capacity = getCollectorCapacity(collector);
   // Use collector's own timestamp, NOT mine.last_collected (that belongs to manual collect)
-  const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : now;
+  const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : 0;
   const elapsedSec = Math.max(0, (now - lastAutoCollect) / 1000);
   if (elapsedSec <= 0) return 0;
 
@@ -82,7 +82,8 @@ export function autoCollect(collector) {
 
   for (const mine of minesInRange) {
     const income = getMineIncome(mine.level);
-    const accumulated = Math.floor(income * elapsedSec);
+    // Cap per mine to its capacity to prevent burst on first collect
+    const accumulated = Math.min(Math.floor(income * elapsedSec), getMineCapacity(mine.level));
     if (accumulated <= 0) continue;
 
     const room = capacity - collector.stored_coins - totalCollected;
@@ -155,12 +156,15 @@ export function autoCollectAll() {
       const lastAutoCollect = collector.last_collected_at ? new Date(collector.last_collected_at).getTime() : 0;
       if (now - lastAutoCollect < intervalMs) continue;
 
+      // Auto-upgrade FIRST to free up stored_coins capacity before collecting
+      if (collector.auto_upgrade) {
+        totalUpgraded += autoUpgradeMines(collector);
+      }
       const collected = autoCollect(collector);
       totalAll += collected;
-      // Auto-upgrade mines if auto_upgrade enabled
-      if (collector.auto_upgrade) {
-        const upgraded = autoUpgradeMines(collector);
-        totalUpgraded += upgraded;
+      // After collecting new coins, try upgrading again
+      if (collector.auto_upgrade && collected > 0) {
+        totalUpgraded += autoUpgradeMines(collector);
       }
     } catch (err) {
       console.error(`[COLLECTORS] Error processing collector ${collector.id} (owner=${collector.owner_id}):`, err.message);

@@ -4059,6 +4059,7 @@ const I18N = {
     'coll.timer_min': 'через {n} мин',
     'coll.upgrade': '⬆️ Улучшить — {cost}💎',
     'coll.sell': '💸 Продать — 37💎',
+    'coll.deliver_btn': 'Доставить монеты',
     'coll.deliver_hint': 'Заказать доставку можно через штаб',
     'coll.enemy_title': '🧲 Чужой сборщик · Ур.{level}',
     'coll.enemy_attack': '⚔️ Атаковать',
@@ -5222,6 +5223,7 @@ const I18N = {
     'coll.timer_min': 'in {n} min',
     'coll.upgrade': '⬆️ Upgrade — {cost}💎',
     'coll.sell': '💸 Sell — 37💎',
+    'coll.deliver_btn': 'Deliver coins',
     'coll.deliver_hint': 'Order delivery through HQ',
     'coll.enemy_title': '🧲 Enemy collector · Lv.{level}',
     'coll.enemy_attack': '⚔️ Attack',
@@ -18306,10 +18308,10 @@ function showCollectorPopup(collectorId) {
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>` : ''}
+        ${!isBurning && coins > 0 ? `<button class="hq-btn" onclick="closePopup();doCollectorDeliver('${collectorId}')">📦 ${t('coll.deliver_btn')}</button>` : ''}
         ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
         ${!isBurning ? `<button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>` : ''}
       </div>
-      ${!isBurning ? `<div style="font-size:11px;color:#555;margin-top:8px;text-align:center">${t('coll.deliver_hint')}</div>` : ''}
     `;
 
     // Burning countdown
