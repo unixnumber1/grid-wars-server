@@ -313,12 +313,14 @@ async function moveCouriers(nowMs, nowISO) {
           const buyer = gameState.getPlayerById(dc.owner_id);
           const dropLat = (buyer?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
           const dropLng = (buyer?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004;
+          // Resolve core_id: runtime field → fallback to listing
+          const _dcCoreId = dc._core_id || dc.core_id || gameState.getListingById(dc.listing_id)?.core_id || null;
           const drop = {
             id: globalThis.crypto.randomUUID(),
             courier_id: dc.id,
             owner_id: dc.owner_id,
             item_id: dc.item_id || null,
-            core_id: dc.core_id || null,
+            core_id: _dcCoreId,
             listing_id: dc.listing_id,
             lat: dropLat,
             lng: dropLng,

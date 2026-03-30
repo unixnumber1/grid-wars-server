@@ -231,12 +231,11 @@ async function handleListItem(req, res) {
     if (willHaveCourier) {
       const pLat = parseFloat(lat), pLng = parseFloat(lng);
       const courierNow = new Date().toISOString();
-      const { data: courier } = await supabase
+      const { data: courier, error: cInsErr } = await supabase
         .from('couriers')
         .insert({
           listing_id: listing.id,
           owner_id: player.id,
-          core_id,
           type: 'to_market',
           start_lat: pLat, start_lng: pLng,
           target_lat: nearestMarket.lat, target_lng: nearestMarket.lng,
@@ -248,12 +247,13 @@ async function handleListItem(req, res) {
           created_at: courierNow,
         })
         .select('id').single();
+      if (cInsErr) console.error('[market/list-core] courier insert error:', cInsErr.message);
       if (courier) {
         courierId = courier.id;
         if (gameState.loaded) {
           gameState.upsertCourier({
             id: courier.id, listing_id: listing.id, owner_id: player.id,
-            core_id,
+            _core_id: core_id,
             type: 'to_market', start_lat: pLat, start_lng: pLng,
             target_lat: nearestMarket.lat, target_lng: nearestMarket.lng,
             current_lat: pLat, current_lng: pLng,
@@ -539,11 +539,10 @@ async function handleBuy(req, res) {
     } else if (bLat != null && bLng != null && marketLat && marketLng) {
       // Delivery courier
       const deliveryCourierNow = new Date().toISOString();
-      const { data: courier } = await supabase
+      const { data: courier, error: cdErr } = await supabase
         .from('couriers')
         .insert({
           listing_id: listing.id,
-          core_id: listing.core_id,
           owner_id: buyer.id,
           type: 'delivery',
           start_lat: marketLat, start_lng: marketLng,
@@ -555,11 +554,12 @@ async function handleBuy(req, res) {
           created_at: deliveryCourierNow,
         })
         .select('id').single();
+      if (cdErr) console.error('[market/buy-core] courier insert error:', cdErr.message);
       if (courier) {
         courierId = courier.id;
         if (gameState.loaded) {
           gameState.upsertCourier({
-            id: courier.id, listing_id: listing.id, core_id: listing.core_id, owner_id: buyer.id,
+            id: courier.id, listing_id: listing.id, _core_id: listing.core_id, owner_id: buyer.id,
             type: 'delivery', start_lat: marketLat, start_lng: marketLng,
             target_lat: bLat, target_lng: bLng,
             current_lat: marketLat, current_lng: marketLng,
@@ -801,12 +801,23 @@ async function handleAttackCourier(req, res) {
 
   const { data: courier, error: cErr } = await supabase
     .from('couriers')
-    .select('id, owner_id, listing_id, item_id, core_id, current_lat, current_lng, hp, max_hp, status')
+    .select('id, owner_id, listing_id, item_id, current_lat, current_lng, hp, max_hp, status')
     .eq('id', courier_id)
     .maybeSingle();
 
   if (cErr) return res.status(500).json({ error: cErr.message });
   if (!courier) return res.status(404).json({ error: 'Courier not found' });
+
+  // Resolve core_id from listing (not stored on courier)
+  let _courierCoreId = null;
+  if (courier.listing_id) {
+    const listing = gameState.getListingById(courier.listing_id);
+    if (listing?.core_id) _courierCoreId = listing.core_id;
+    else {
+      const { data: dbListing } = await supabase.from('market_listings').select('core_id').eq('id', courier.listing_id).maybeSingle();
+      if (dbListing?.core_id) _courierCoreId = dbListing.core_id;
+    }
+  }
   if (courier.status !== 'moving') return res.status(400).json({ error: 'Courier not moving' });
   if (courier.owner_id === player.id) return res.status(400).json({ error: 'Cannot attack your own courier' });
 
@@ -833,7 +844,7 @@ async function handleAttackCourier(req, res) {
       .insert({
         courier_id: courier.id,
         item_id: courier.item_id || null,
-        core_id: courier.core_id || null,
+        core_id: _courierCoreId || null,
         listing_id: courier.listing_id,
         lat: courier.current_lat,
         lng: courier.current_lng,
@@ -851,7 +862,7 @@ async function handleAttackCourier(req, res) {
     if (gameState.loaded) {
       const gc = gameState.getCourierById(courier_id);
       if (gc) { gc.status = 'killed'; gc.hp = 0; gameState.markDirty('couriers', gc.id); }
-      if (drop) gameState.upsertDrop({ ...drop, courier_id: courier.id, item_id: courier.item_id, core_id: courier.core_id, listing_id: courier.listing_id, lat: courier.current_lat, lng: courier.current_lng, drop_type: 'loot', picked_up: false });
+      if (drop) gameState.upsertDrop({ ...drop, courier_id: courier.id, item_id: courier.item_id, core_id: _courierCoreId, listing_id: courier.listing_id, lat: courier.current_lat, lng: courier.current_lng, drop_type: 'loot', picked_up: false });
     }
 
     // Item/core dropped — clear market flags
@@ -860,12 +871,12 @@ async function handleAttackCourier(req, res) {
         .update({ held_by_courier: null, held_by_market: null, on_market: false })
         .eq('id', courier.item_id);
     }
-    if (courier.core_id) {
+    if (_courierCoreId) {
       await supabase.from('cores')
         .update({ on_market: false })
-        .eq('id', courier.core_id);
+        .eq('id', _courierCoreId);
       if (gameState.loaded) {
-        const core = gameState.cores.get(courier.core_id);
+        const core = gameState.cores.get(_courierCoreId);
         if (core) { core.on_market = false; gameState.markDirty('cores', core.id); }
       }
     }
@@ -1203,7 +1214,7 @@ async function handleMoveCouriers(req, res) {
             courier_id: dc.id,
             owner_id: dc.owner_id,
             item_id: dc.item_id || null,
-            core_id: dc.core_id || null,
+            core_id: dc._core_id || dc.core_id || null,
             listing_id: dc.listing_id,
             lat: dropLat,
             lng: dropLng,
