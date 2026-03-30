@@ -2342,53 +2342,29 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: radial-gradient(circle, rgba(255,215,0,0.25), transparent 70%);
+      background: radial-gradient(circle, rgba(255,215,0,0.12), transparent 70%);
       border-radius: 50%;
       position: relative;
-      filter: drop-shadow(0 0 8px rgba(255,215,0,0.6));
-      animation: orePulse 2s infinite;
+      filter: drop-shadow(0 0 4px rgba(255,215,0,0.3));
     }
     .ore-marker.free {
-      background: radial-gradient(circle, rgba(0,255,136,0.25), transparent 70%);
-      filter: drop-shadow(0 0 10px rgba(0,255,136,0.6));
-      animation: orePulseFree 1.2s infinite;
+      background: radial-gradient(circle, rgba(0,255,136,0.12), transparent 70%);
+      filter: drop-shadow(0 0 5px rgba(0,255,136,0.3));
     }
     .ore-marker.broken {
-      background: radial-gradient(circle, rgba(255,60,60,0.3), transparent 70%);
-      filter: drop-shadow(0 0 10px rgba(255,60,60,0.7));
-      animation: orePulseBroken 1s infinite;
+      background: radial-gradient(circle, rgba(255,60,60,0.15), transparent 70%);
+      filter: drop-shadow(0 0 5px rgba(255,60,60,0.35));
     }
     .ore-marker.mine-owned {
-      filter: drop-shadow(0 0 8px rgba(0,150,255,0.6));
+      filter: drop-shadow(0 0 4px rgba(0,150,255,0.3));
     }
-    .ore-marker.type-mountain { filter: drop-shadow(0 0 8px rgba(100,180,255,0.7)); }
-    .ore-marker.type-peak { filter: drop-shadow(0 0 10px rgba(180,100,255,0.7)); }
-    .ore-marker.type-volcano { filter: drop-shadow(0 0 12px rgba(255,80,20,0.8)); animation: oreVolcanoPulse 1.5s infinite; }
-    .ore-marker.type-volcano.free { animation: oreVolcanoPulseFree 1.2s infinite; }
+    .ore-marker.type-mountain { filter: drop-shadow(0 0 4px rgba(100,180,255,0.35)); }
+    .ore-marker.type-peak { filter: drop-shadow(0 0 5px rgba(180,100,255,0.35)); }
+    .ore-marker.type-volcano { filter: drop-shadow(0 0 6px rgba(255,80,20,0.4)); }
     .ore-level { font-size: 10px; color: #FFD700; font-weight: bold; text-shadow: 0 0 4px black; margin-top: -2px; }
     .ore-owner { font-size: 9px; color: #aaa; white-space: nowrap; text-shadow: 0 0 4px black; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
     .ore-hp-bar { position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 30px; height: 3px; background: #333; border-radius: 2px; overflow: hidden; }
     .ore-hp-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
-    @keyframes orePulse {
-      0%,100% { filter: drop-shadow(0 0 8px rgba(255,215,0,0.6)); }
-      50% { filter: drop-shadow(0 0 14px rgba(255,215,0,0.8)); }
-    }
-    @keyframes orePulseFree {
-      0%,100% { filter: drop-shadow(0 0 10px rgba(0,255,136,0.6)); }
-      50% { filter: drop-shadow(0 0 20px rgba(0,255,136,0.9)); }
-    }
-    @keyframes orePulseBroken {
-      0%,100% { filter: drop-shadow(0 0 8px rgba(255,60,60,0.5)); }
-      50% { filter: drop-shadow(0 0 16px rgba(255,60,60,0.9)); }
-    }
-    @keyframes oreVolcanoPulse {
-      0%,100% { filter: drop-shadow(0 0 10px rgba(255,80,20,0.6)); }
-      50% { filter: drop-shadow(0 0 18px rgba(255,40,0,0.9)); }
-    }
-    @keyframes oreVolcanoPulseFree {
-      0%,100% { filter: drop-shadow(0 0 12px rgba(255,80,20,0.7)); }
-      50% { filter: drop-shadow(0 0 24px rgba(255,40,0,1)); }
-    }
     /* Player HP bar on map */
     .player-hp-overlay {
       position: absolute;
@@ -16488,9 +16464,7 @@ function oreIcon(ore) {
   const showHp = hpPct < 100 && !isBroken;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
-  const badgeSize = Math.round(size * 0.18);
-  const badgeOff = Math.round(size * 0.06);
-  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:${badgeOff}px;right:${badgeOff}px;font-size:${badgeSize}px;line-height:1;">${ore.owner_avatar}</div>` : '';
+  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:2px;right:2px;font-size:10px;line-height:1;">${ore.owner_avatar}</div>` : '';
 
   return L.divIcon({
     html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px;position:relative;">
