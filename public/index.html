@@ -13897,7 +13897,7 @@ function _courierIcon(courier) {
     html: `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
       <div style="background:rgba(0,0,0,0.75);color:${labelColor};font-size:10px;padding:2px 6px;border-radius:8px;white-space:nowrap;margin-bottom:2px;border:1px solid ${labelBorder};max-width:80px;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">${label}</div>
       <span style="font-size:${size}px;line-height:1;pointer-events:auto;">${emoji}</span>
-      <div style="width:${size}px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>
+      ${hpPct < 100 ? `<div style="width:${size}px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;pointer-events:none;"><div style="width:${hpPct}%;height:100%;background:${hpColor};border-radius:2px;"></div></div>` : ''}
     </div>`,
     iconSize: [size + 40, size + 24],
     iconAnchor: [(size + 40) / 2, (size + 24) / 2],
