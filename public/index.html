@@ -365,10 +365,7 @@
 
     /* Leaflet marker overrides */
     .leaflet-marker-icon { border: none !important; background: none !important; }
-    /* Keep markers same size during double-tap drag zoom */
-    .zoom-dragging .leaflet-marker-icon,
-    .zoom-dragging .leaflet-marker-shadow { scale: var(--zoom-counter-scale, 1); }
-    .leaflet-tile-pane { will-change: transform, filter; }
+    .leaflet-tile-pane { will-change: transform, filter; background: #0d0d0d; }
 
     .marker-emoji {
       font-size: 24px;
@@ -7088,15 +7085,12 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
-// Double-tap + drag zoom (like Google Maps) — overlay CSS scale
+// Double-tap + drag zoom (like Google Maps) — uses Leaflet setZoom for proper rendering
+let _deferredMapClick = null; // timer id for deferred map click (allows double-tap cancel)
 (function() {
   const container = map.getContainer();
-  let lastTap = 0, isDragging = false, startY = 0, startZoom = 0;
-
-  // Create overlay div that scales visually without touching Leaflet internals
-  const zoomOverlay = document.createElement('div');
-  zoomOverlay.style.cssText = 'position:absolute;inset:0;z-index:9999;display:none;background:transparent;';
-  container.appendChild(zoomOverlay);
+  let lastTap = 0, isZoomDrag = false, startY = 0, startZoom = 0;
+  let pendingZoom = null, zoomRafId = null;
 
   container.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -7104,15 +7098,17 @@ const map = L.map('map', {
     const dt = now - lastTap;
 
     if (dt < 300 && dt > 50) {
+      // Double-tap detected — start zoom drag
       e.preventDefault();
       e.stopPropagation();
-      isDragging = true;
+      isZoomDrag = true;
       startY = e.touches[0].clientY;
       startZoom = map.getZoom();
+      pendingZoom = null;
       map.dragging.disable();
-      map.touchZoom?.disable();
-      // Show overlay to capture all touches
-      zoomOverlay.style.display = 'block';
+      map.touchZoom && map.touchZoom.disable();
+      // Cancel any deferred map click (build menu) from first tap
+      if (_deferredMapClick) { clearTimeout(_deferredMapClick); _deferredMapClick = null; }
       lastTap = 0;
     } else {
       lastTap = now;
@@ -7120,51 +7116,46 @@ const map = L.map('map', {
   }, { passive: false, capture: true });
 
   container.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
+    if (!isZoomDrag) return;
     e.preventDefault();
     e.stopPropagation();
     const deltaY = startY - e.touches[0].clientY;
     const zoomDelta = deltaY / 100;
     const newZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
-    // Scale the entire map container visually from center
-    const scale = Math.pow(2, newZoom - startZoom);
-    container.style.transformOrigin = '50% 50%';
-    container.style.transform = `scale(${scale})`;
-    container.style.setProperty('--zoom-counter-scale', 1 / scale);
-    container.classList.add('zoom-dragging');
-    isDragging = newZoom;
+    pendingZoom = newZoom;
+    if (!zoomRafId) {
+      zoomRafId = requestAnimationFrame(() => {
+        zoomRafId = null;
+        if (pendingZoom !== null && isZoomDrag) {
+          map.setZoom(pendingZoom, { animate: false });
+        }
+      });
+    }
   }, { passive: false, capture: true });
 
   container.addEventListener('touchend', (e) => {
-    if (isDragging !== false) {
-      const finalZoom = typeof isDragging === 'number' ? isDragging : startZoom;
-      isDragging = false;
-      container.style.transform = '';
-      container.style.transformOrigin = '';
-      container.classList.remove('zoom-dragging');
-      container.style.removeProperty('--zoom-counter-scale');
-      zoomOverlay.style.display = 'none';
-      map.dragging.enable();
-      map.touchZoom?.enable();
-      const snapped = Math.round(finalZoom * 2) / 2;
-      if (snapped !== startZoom) {
-        map.setZoom(snapped, { animate: false });
-      }
-      _suppressMapClick = Date.now();
+    if (!isZoomDrag) return;
+    isZoomDrag = false;
+    if (zoomRafId) { cancelAnimationFrame(zoomRafId); zoomRafId = null; }
+    map.dragging.enable();
+    map.touchZoom && map.touchZoom.enable();
+    // Snap to nearest 0.5
+    const cur = map.getZoom();
+    const snapped = Math.round(cur * 2) / 2;
+    if (snapped !== cur) {
+      map.setZoom(snapped, { animate: true, duration: 0.15 });
     }
+    _suppressMapClick = Date.now();
+    pendingZoom = null;
   }, { capture: true });
 
   container.addEventListener('touchcancel', () => {
-    if (isDragging !== false) {
-      isDragging = false;
-      container.style.transform = '';
-      container.style.transformOrigin = '';
-      container.classList.remove('zoom-dragging');
-      container.style.removeProperty('--zoom-counter-scale');
-      zoomOverlay.style.display = 'none';
-      map.dragging.enable();
-      map.touchZoom?.enable();
-    }
+    if (!isZoomDrag) return;
+    isZoomDrag = false;
+    if (zoomRafId) { cancelAnimationFrame(zoomRafId); zoomRafId = null; }
+    map.dragging.enable();
+    map.touchZoom && map.touchZoom.enable();
+    pendingZoom = null;
   }, { capture: true });
 })();
 
@@ -7178,7 +7169,7 @@ const map = L.map('map', {
   }
 })();
 
-const TILE_OPTS = { maxZoom: 19, subdomains: 'abcd', keepBuffer: 4, updateWhenZooming: false, updateWhenIdle: true };
+const TILE_OPTS = { maxZoom: 19, subdomains: 'abcd', keepBuffer: 6, updateWhenZooming: false, updateWhenIdle: true };
 
 // Map style from localStorage — apply saved style on load
 (function() {
@@ -8263,8 +8254,8 @@ function showMinePopup(mine, isOwn, canCapture) {
 // ─────────────────────────────────────────────
 let _suppressMapClick = 0; // timestamp — suppress map click briefly after marker click
 let _adminPlaceHqFor = null; // { playerId, playerName } — admin HQ placement mode
-map.on('click', e => {
-  if (Date.now() - _suppressMapClick < 300) return;
+
+function _processMapClick(e) {
   const { lat, lng } = e.latlng;
 
   // Admin: place HQ for another player
@@ -8283,7 +8274,6 @@ map.on('click', e => {
   const pos = state.playerPos;
   const dist = haversine(pos.lat, pos.lng, lat, lng);
   if (dist <= SMALL_RADIUS) {
-    // Check if hex has a building
     const cellId = getCellId(lat, lng);
     const building = getBuildingInCell(cellId);
     _flashHexGrid();
@@ -8291,6 +8281,16 @@ map.on('click', e => {
       showBuildMenu(lat, lng);
     }
   }
+}
+
+map.on('click', e => {
+  if (Date.now() - _suppressMapClick < 300) return;
+  // Defer click by 300ms so double-tap can cancel it
+  if (_deferredMapClick) clearTimeout(_deferredMapClick);
+  _deferredMapClick = setTimeout(() => {
+    _deferredMapClick = null;
+    _processMapClick(e);
+  }, 300);
 });
 
 let _loadBuildingsTimer = null;
@@ -16489,8 +16489,9 @@ function oreIcon(ore) {
   const showHp = hpPct < 100 && !isBroken;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
-  const badgeOff = Math.round(size * 0.12);
-  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:${badgeOff}px;right:${badgeOff}px;font-size:11px;line-height:1;">${ore.owner_avatar}</div>` : '';
+  const badgeSize = Math.round(size * 0.26);
+  const badgeOff = Math.round(size * 0.08);
+  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:${badgeOff}px;right:${badgeOff}px;font-size:${badgeSize}px;line-height:1;">${ore.owner_avatar}</div>` : '';
 
   return L.divIcon({
     html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px;position:relative;">
