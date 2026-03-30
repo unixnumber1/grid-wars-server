@@ -1052,13 +1052,7 @@
       100% { opacity: 0; transform: translateY(-40px); }
     }
 
-    /* Vase pulse */
-    @keyframes vasePulse {
-      0%   { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
-      50%  { filter: drop-shadow(0 0 16px rgba(255,215,0,1.0)); }
-      100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
-    }
-    .vase-marker { animation: vasePulse 2s ease-in-out infinite; cursor: pointer; }
+    .vase-marker { filter: drop-shadow(0 0 3px rgba(255,215,0,0.3)); cursor: pointer; }
 
     /* Vase shatter */
     @keyframes shatter {
@@ -10730,9 +10724,9 @@ function _formatVaseTimer(expiresAt) {
 function _vaseIcon() {
   return L.divIcon({
     className: 'leaflet-interactive',
-    html: `<div class="marker-wrap vase-marker" style="font-size:36px;line-height:1;pointer-events:auto;">🏺</div>`,
-    iconSize:   [52, 52],
-    iconAnchor: [26, 26],
+    html: `<div class="marker-wrap vase-marker" style="font-size:22px;line-height:1;pointer-events:auto;">🏺</div>`,
+    iconSize:   [32, 32],
+    iconAnchor: [16, 16],
   });
 }
 
