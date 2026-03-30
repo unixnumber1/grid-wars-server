@@ -13,6 +13,7 @@ import { playerCityCache, clearCityBoundsCache } from '../../lib/geocity.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
+import { CORE_TYPES } from '../../game/mechanics/cores.js';
 import { clearSpawnErrorCache, clearSpawnPointsCache } from '../../game/mechanics/oreNodes.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gridDisk } from 'h3-js';
@@ -595,6 +596,32 @@ adminRouter.post('/', async (req, res) => {
 
     gameState.items.set(inserted.id, inserted);
     return res.json({ success: true, item: inserted });
+  }
+
+  // ── give-core: create and give core to player ──
+  if (action === 'give-core') {
+    const { player_id, core_type, level } = req.body;
+    if (!player_id || !core_type) return res.status(400).json({ error: 'player_id, core_type required' });
+    if (!CORE_TYPES[core_type]) return res.status(400).json({ error: 'Invalid core_type' });
+
+    const player = gameState.getPlayerById(player_id);
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const coreLevel = Math.max(0, Math.min(parseInt(level) || 0, 100));
+    const core = {
+      owner_id: Number(player.telegram_id),
+      core_type,
+      level: coreLevel,
+      on_market: false,
+      mine_cell_id: null,
+      slot_index: null,
+    };
+
+    const { data: inserted, error: insErr } = await supabase.from('cores').insert(core).select().single();
+    if (insErr) return res.status(500).json({ error: insErr.message });
+
+    gameState.cores.set(inserted.id, inserted);
+    return res.json({ success: true, core: inserted });
   }
 
   // ── place-hq: place headquarters for another player ──

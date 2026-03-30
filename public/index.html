@@ -11821,7 +11821,47 @@ function apmRenderResources(body) {
     </div>`;
   });
   html += '</div>';
+
+  // Give core form
+  const coreTypes = [
+    { key:'income', emoji:'✴️', name:'Доход' },
+    { key:'capacity', emoji:'✳️', name:'Вместимость' },
+    { key:'hp', emoji:'❤️', name:'Здоровье' },
+    { key:'regen', emoji:'♻️', name:'Регенерация' },
+  ];
+  html += `<div class="apm-section">
+    <div style="font-size:13px;color:#ccc;margin-bottom:8px;font-weight:600;">Выдать ядро</div>
+    <div style="margin-bottom:6px;font-size:12px;color:#888;">Тип:</div>
+    <div id="apm-give-core-type">
+      ${coreTypes.map((ct,i) => `<span class="apm-chip${i===0?' active':''}" data-val="${ct.key}">${ct.emoji} ${ct.name}</span>`).join('')}
+    </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#888;">Уровень:</span>
+      <input type="number" id="apm-give-core-level" value="0" min="0" max="100" class="apm-input-sm" style="width:70px;">
+    </div>
+    <button class="apm-btn apm-btn-green apm-btn-lg" style="margin-top:10px;" onclick="apmGiveCore()">Создать и выдать</button>
+  </div>`;
+
   body.innerHTML = html;
+
+  // Core type chip toggle
+  body.querySelectorAll('#apm-give-core-type .apm-chip').forEach(c => c.addEventListener('click', () => {
+    body.querySelectorAll('#apm-give-core-type .apm-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
+}
+
+async function apmGiveCore() {
+  const coreType = document.querySelector('#apm-give-core-type .apm-chip.active')?.dataset.val;
+  const level = parseInt(document.getElementById('apm-give-core-level').value) || 0;
+  if (!coreType) return showToast('Выберите тип ядра');
+  try {
+    const res = await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      action:'give-core', player_id: _apmPlayer.player.id, core_type: coreType, level
+    })});
+    const names = {income:'дохода',capacity:'вместимости',hp:'здоровья',regen:'регенерации'};
+    showToast(`✅ Выдано ядро ${names[coreType]} Ур.${level}`);
+  } catch (err) { showToast('❌ ' + err.message); }
 }
 
 async function apmChangeResource(currency, sign) {
