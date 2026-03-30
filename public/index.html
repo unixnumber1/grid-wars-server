@@ -366,8 +366,6 @@
     /* Leaflet marker overrides */
     .leaflet-marker-icon { border: none !important; background: none !important; }
     .leaflet-tile-pane { will-change: transform, filter; background: #0d0d0d; }
-    /* Counter-scale markers during double-tap drag zoom so they keep original size */
-    .zoom-scaling .leaflet-marker-pane { scale: var(--zoom-inv, 1); }
 
     .marker-emoji {
       font-size: 24px;
@@ -7087,11 +7085,13 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
-// Double-tap + drag zoom (like Google Maps) — CSS scale during drag, single setZoom on release
-let _deferredMapClick = null; // timer id for deferred map click (allows double-tap cancel)
+// Double-tap + drag zoom — uses Leaflet's internal _move (same as native pinch zoom)
+let _deferredMapClick = null;
 (function() {
   const container = map.getContainer();
-  let lastTap = 0, isZoomDrag = false, startY = 0, startZoom = 0, currentZoom = 0;
+  let lastTap = 0, isZoomDrag = false, moved = false;
+  let startY = 0, startZoom = 0, currentZoom = 0, startCenter = null;
+  let animReq = null;
 
   container.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -7099,16 +7099,16 @@ let _deferredMapClick = null; // timer id for deferred map click (allows double-
     const dt = now - lastTap;
 
     if (dt < 300 && dt > 50) {
-      // Double-tap detected — start zoom drag
       e.preventDefault();
       e.stopPropagation();
       isZoomDrag = true;
+      moved = false;
       startY = e.touches[0].clientY;
       startZoom = map.getZoom();
       currentZoom = startZoom;
+      startCenter = map.getCenter();
       map.dragging.disable();
       map.touchZoom && map.touchZoom.disable();
-      // Cancel any deferred map click (build menu) from first tap
       if (_deferredMapClick) { clearTimeout(_deferredMapClick); _deferredMapClick = null; }
       lastTap = 0;
     } else {
@@ -7121,31 +7121,35 @@ let _deferredMapClick = null; // timer id for deferred map click (allows double-
     e.preventDefault();
     e.stopPropagation();
     const deltaY = startY - e.touches[0].clientY;
-    const zoomDelta = deltaY / 100;
+    const zoomDelta = deltaY / 120;
     currentZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
-    // Smooth CSS scale — no tile reload
-    const scale = Math.pow(2, currentZoom - startZoom);
-    container.style.transformOrigin = '50% 50%';
-    container.style.transform = `scale(${scale})`;
-    // Counter-scale markers so they keep original size
-    container.classList.add('zoom-scaling');
-    container.style.setProperty('--zoom-inv', 1 / scale);
+
+    if (!moved) {
+      map._moveStart(true, false);
+      moved = true;
+    }
+    if (animReq) cancelAnimationFrame(animReq);
+    animReq = requestAnimationFrame(() => {
+      animReq = null;
+      if (isZoomDrag) {
+        map._move(startCenter, currentZoom, {pinch: true, round: false});
+      }
+    });
   }, { passive: false, capture: true });
 
   function finishZoom() {
     if (!isZoomDrag) return;
     isZoomDrag = false;
-    // Remove CSS scale and counter-scale
-    container.style.transform = '';
-    container.style.transformOrigin = '';
-    container.classList.remove('zoom-scaling');
-    container.style.removeProperty('--zoom-inv');
+    if (animReq) { cancelAnimationFrame(animReq); animReq = null; }
     map.dragging.enable();
     map.touchZoom && map.touchZoom.enable();
-    // Apply real zoom once
-    const snapped = Math.round(currentZoom * 2) / 2;
-    if (snapped !== startZoom) {
-      map.setZoom(snapped, { animate: false });
+    if (moved) {
+      const finalZoom = map._limitZoom(Math.round(currentZoom * 2) / 2);
+      if (map.options.zoomAnimation) {
+        map._animateZoom(startCenter, finalZoom, true, map.options.zoomSnap);
+      } else {
+        map._resetView(startCenter, finalZoom);
+      }
     }
     _suppressMapClick = Date.now();
   }
