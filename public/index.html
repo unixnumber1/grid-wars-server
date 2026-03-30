@@ -8636,7 +8636,7 @@ function renderSkillTreeHTML() {
   if (!blocks.length) return `<div style="text-align:center;padding:20px;color:#666">${t('skills.no_data')}</div>`;
   const playerSkills = _skillData?.[_skillBranch] || {};
 
-  // Normalize columns: find min col, shift to 0-based, divide by 2 for compact layout
+  // Normalize columns: fit all blocks into available screen width
   const cols = blocks.map(b => b.position.col);
   const minCol = Math.min(...cols);
   const maxCol = Math.max(...cols);
@@ -8644,9 +8644,12 @@ function renderSkillTreeHTML() {
 
   const normCol = (c) => c - minCol;
   const numCols = normCol(maxCol) + 1;
-  const BLOCK_W = 48;
+  // Dynamic cell width: fit all columns into ~340px (mobile viewport)
+  const containerW = Math.min(window.innerWidth - 32, 400);
+  const dynCellW = Math.max(48, Math.floor(containerW / numCols));
+  const BLOCK_W = Math.min(48, dynCellW - 4);
   const BLOCK_H = 64;
-  const totalW = numCols * CELL_W;
+  const totalW = numCols * dynCellW;
   const totalH = (maxRow + 1) * CELL_H;
 
   // SVG for connector lines only (overlaid)
@@ -8655,9 +8658,9 @@ function renderSkillTreeHTML() {
     if (!block.requires) continue;
     const parent = blocks.find(b => b.id === block.requires);
     if (!parent) continue;
-    const x1 = normCol(parent.position.col) * CELL_W + CELL_W / 2;
+    const x1 = normCol(parent.position.col) * dynCellW + dynCellW / 2;
     const y1 = parent.position.row * CELL_H + BLOCK_H + 2;
-    const x2 = normCol(block.position.col) * CELL_W + CELL_W / 2;
+    const x2 = normCol(block.position.col) * dynCellW + dynCellW / 2;
     const y2 = block.position.row * CELL_H;
     const isUnlocked = isBlockUnlockedClient(block, playerSkills, _skillBranch);
     const color = isUnlocked ? '#4488ff55' : '#33333388';
@@ -8670,7 +8673,7 @@ function renderSkillTreeHTML() {
   let blocksHTML = '';
   for (const block of blocks) {
     const nx = normCol(block.position.col);
-    const left = nx * CELL_W + (CELL_W - BLOCK_W) / 2;
+    const left = nx * dynCellW + (dynCellW - BLOCK_W) / 2;
     const top = block.position.row * CELL_H;
     const level = playerSkills[block.id] || 0;
     const maxLevel = block.maxLevel || 5;
