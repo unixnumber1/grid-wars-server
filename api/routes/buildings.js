@@ -387,7 +387,7 @@ async function handleAttackFinish(req, res) {
     const burnMsg = ts(burnOwnerLang, 'notif.mine_burning', { level: mine.level });
     await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_burning', message: burnMsg, data: { mine_id: mine.id } });
     const { data: burnOwner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
-    if (burnOwner?.telegram_id) sendTelegramNotification(burnOwner.telegram_id, burnMsg);
+    if (burnOwner?.telegram_id) sendTelegramNotification(burnOwner.telegram_id, burnMsg, buildAttackButton(mine.lat, mine.lng));
     return res.json({ success: true, result: 'burning' });
   } else {
     const hpUpdateTime = new Date().toISOString();
@@ -710,7 +710,7 @@ async function handleMineHit(req, res) {
     }).then(() => {}).catch(() => {});
 
     const owner = gameState.getPlayerById(mine.owner_id);
-    if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, hitBurnMsg);
+    if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, hitBurnMsg, buildAttackButton(mine.lat, mine.lng));
 
     // XP: 10% chance, 1% of stolen coins (same mechanic as own mine collection)
     const { getCollectXp } = await import('../../game/mechanics/xp.js');

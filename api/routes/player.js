@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS } from '../../lib/formulas.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
@@ -217,7 +217,7 @@ async function handlePvpInitiate(req, res) {
     winner: battleResult.winner, coinsLost, coinsWon, xpGain,
   };
   await supabase.from('notifications').insert({ player_id: defender.id, type: 'pvp_battle', message: notifMsg, data: battlePayload });
-  sendTelegramNotification(defender.telegram_id, notifMsg);
+  sendTelegramNotification(defender.telegram_id, notifMsg, buildAttackButton(defender.last_lat, defender.last_lng));
   await Promise.all([
     supabase.from('players').update({ kills: (winner.kills ?? 0) + 1 }).eq('id', winner.id),
     supabase.from('players').update({ deaths: (loser.deaths ?? 0) + 1 }).eq('id', loser.id),
@@ -428,7 +428,7 @@ async function handlePvpAttack(req, res) {
       player_id: defender.id, type: 'pvp_kill', message: killMsg,
       data: { attacker_id: attacker.id, damage, coins_lost: coinsLost },
     }).then(() => {}).catch(() => {});
-    sendTelegramNotification(defender.telegram_id, killMsg);
+    sendTelegramNotification(defender.telegram_id, killMsg, buildAttackButton(defLat, defLng));
 
     // XP for kill
     try { await addXp(attacker.id, 100 + (attacker.level || 1) * 10); } catch (_) {}

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getPlayerByTelegramId, sendTelegramNotification } from '../../lib/supabase.js';
+import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { log } from '../../lib/log.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
@@ -875,7 +875,7 @@ async function handleAttackCourier(req, res) {
     notify(courier.owner_id, 'courier_killed', courierKillMsg,
       { courier_id: courier.id, listing_id: courier.listing_id });
     const { data: courierOwner } = await supabase.from('players').select('telegram_id').eq('id', courier.owner_id).maybeSingle();
-    if (courierOwner?.telegram_id) sendTelegramNotification(courierOwner.telegram_id, courierKillMsg);
+    if (courierOwner?.telegram_id) sendTelegramNotification(courierOwner.telegram_id, courierKillMsg, buildAttackButton(courier.current_lat, courier.current_lng));
 
     const xpResult = await addXp(player.id, COURIER_KILL_XP);
 
