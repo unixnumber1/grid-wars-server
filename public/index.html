@@ -16489,7 +16489,6 @@ function oreIcon(ore) {
   return L.divIcon({
     html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px;position:relative;">
       <span style="font-size:${size*0.55}px">${emoji}</span>
-      ${ore.owner_name ? `<div class="ore-owner">${ore.owner_name}</div>` : ''}
       ${showHp ? `<div class="ore-hp-bar"><div class="ore-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
       ${ownerBadge}
     </div>`,
