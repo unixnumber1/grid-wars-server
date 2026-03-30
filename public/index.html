@@ -16464,7 +16464,8 @@ function oreIcon(ore) {
   const showHp = hpPct < 100 && !isBroken;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
-  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:2px;right:2px;font-size:10px;line-height:1;">${ore.owner_avatar}</div>` : '';
+  const emojiR = Math.round(size * 0.275);
+  const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;left:50%;top:50%;margin-left:${emojiR - 4}px;margin-top:-${emojiR + 6}px;font-size:10px;line-height:1;">${ore.owner_avatar}</div>` : '';
 
   return L.divIcon({
     html: `<div class="ore-marker ${cls} ${typeCls}" style="width:${size}px;height:${size}px;position:relative;">
