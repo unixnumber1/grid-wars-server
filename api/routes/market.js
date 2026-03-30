@@ -35,6 +35,15 @@ function generateCode() {
   return code;
 }
 
+// Validate client-supplied private code (6 chars, valid charset)
+function validateCode(code) {
+  if (!code || typeof code !== 'string') return null;
+  const trimmed = code.trim().toUpperCase();
+  if (trimmed.length !== 6) return null;
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
 /* ── Action: listings (GET) ────────────────────────────────── */
 
 async function handleListings(req, res) {
@@ -132,7 +141,7 @@ async function handleMyListings(req, res) {
 /* ── Action: list-item (POST) ──────────────────────────────── */
 
 async function handleListItem(req, res) {
-  const { telegram_id, item_id, core_id, price_diamonds, is_private, lat, lng } = req.body || {};
+  const { telegram_id, item_id, core_id, price_diamonds, is_private, private_code: clientCode, lat, lng } = req.body || {};
   if (!telegram_id || (!item_id && !core_id) || !price_diamonds) {
     return res.status(400).json({ error: 'telegram_id, item_id or core_id, price_diamonds required' });
   }
@@ -181,7 +190,7 @@ async function handleListItem(req, res) {
       if (gc) { gc.on_market = true; gameState.markDirty('cores', core_id); }
     }
 
-    const privateCode = is_private ? generateCode() : null;
+    const privateCode = is_private ? (validateCode(clientCode) || generateCode()) : null;
     const expiresAt = new Date(Date.now() + LISTING_TTL_HOURS * 3600 * 1000).toISOString();
 
     let nearestMarket = null;
@@ -289,7 +298,7 @@ async function handleListItem(req, res) {
   if (item.equipped) return res.status(400).json({ error: 'Unequip item first' });
   if (item.on_market) return res.status(400).json({ error: 'Item already on market' });
 
-  const privateCode = is_private ? generateCode() : null;
+  const privateCode = is_private ? (validateCode(clientCode) || generateCode()) : null;
   const expiresAt = new Date(Date.now() + LISTING_TTL_HOURS * 3600 * 1000).toISOString();
 
   let nearestMarket = null;

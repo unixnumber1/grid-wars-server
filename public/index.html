@@ -14966,6 +14966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         action: 'list-item',
                price_diamonds: price,
         is_private: _listIsPrivate,
+        private_code: _listPrivateCode || undefined,
         lat: pos?.lat, lng: pos?.lng,
       };
       if (isCore) {
