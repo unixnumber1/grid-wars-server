@@ -2238,6 +2238,9 @@
     #shield-timer-display {
       display: none; font-size: 11px; color: #2979ff; margin-top: 2px;
     }
+    #shadow-timer-display {
+      display: none; font-size: 11px; color: #b388ff; margin-top: 2px;
+    }
 
     /* ── Mine attack animation overlay ── */
     #mine-attack-overlay {
@@ -3191,13 +3194,14 @@
 
 <div id="bottom-panel">
   <div id="player-block" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer;-webkit-tap-highlight-color:transparent;">
-    <div id="player-avatar-wrap"><span id="player-avatar-emoji">🐺</span></div>
+    <div id="player-avatar-wrap"><span id="player-avatar-emoji">🐺</span><span id="shadow-avatar-badge" style="display:none;position:absolute;top:-2px;right:-2px;font-size:10px;line-height:1;">🎭</span></div>
     <div id="player-info">
       <div style="display:flex;align-items:baseline;gap:6px;">
         <div id="player-name-display">—</div>
         <div id="player-level-display" data-i18n="hud.level">Ур. 1</div>
       </div>
       <div id="shield-timer-display"></div>
+      <div id="shadow-timer-display"></div>
       <div id="player-xp-bar-wrap">
         <div id="player-xp-bar-bg"><div id="player-xp-bar-fill"></div></div>
       </div>
@@ -8818,6 +8822,7 @@ async function activateShadow() {
       _skillData.shadow_cooldown = res.shadow_cooldown;
     }
     updateShadowButton();
+    updateShadowHud();
   } catch(e) { showToast('❌ ' + e.message); }
 }
 
@@ -8855,6 +8860,42 @@ function updateShadowButton() {
     btn.style.borderColor = '#4caf50';
     btn.style.background = 'rgba(76,175,80,0.12)';
     btn.title = t('shadow.title_ready');
+  }
+}
+
+let _shadowHudInterval = null;
+function updateShadowHud() {
+  const timerEl = document.getElementById('shadow-timer-display');
+  const badgeEl = document.getElementById('shadow-avatar-badge');
+  if (!timerEl || !badgeEl) return;
+
+  const active = state.shadow_active && state.shadow_until && Date.now() < state.shadow_until;
+  if (active) {
+    const leftMs = Math.max(0, state.shadow_until - Date.now());
+    const min = Math.floor(leftMs / 60000);
+    const sec = Math.floor((leftMs % 60000) / 1000);
+    timerEl.textContent = `🎭 ${min}:${sec.toString().padStart(2, '0')}`;
+    timerEl.style.display = 'block';
+    badgeEl.style.display = 'inline';
+    if (!_shadowHudInterval) {
+      _shadowHudInterval = setInterval(() => {
+        if (!state.shadow_active || !state.shadow_until || Date.now() >= state.shadow_until) {
+          state.shadow_active = false;
+          updateShadowHud();
+          return;
+        }
+        const ms = Math.max(0, state.shadow_until - Date.now());
+        const m = Math.floor(ms / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        const el = document.getElementById('shadow-timer-display');
+        if (el) el.textContent = `🎭 ${m}:${s.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+  } else {
+    timerEl.style.display = 'none';
+    timerEl.textContent = '';
+    badgeEl.style.display = 'none';
+    if (_shadowHudInterval) { clearInterval(_shadowHudInterval); _shadowHudInterval = null; }
   }
 }
 
@@ -9925,6 +9966,7 @@ async function refreshAll() {
     if (data.shadow_active !== undefined) state.shadow_active = data.shadow_active;
     if (data.shadow_until) state.shadow_until = data.shadow_until;
     if (data.shadow_cooldown) state.shadow_cooldown = data.shadow_cooldown;
+    updateShadowHud();
     if (data.headquarters) {
       hqLat = data.headquarters.lat;
       hqLng = data.headquarters.lng;
@@ -10465,6 +10507,7 @@ function processTickData(data) {
   if (data.shadow_active !== undefined) state.shadow_active = data.shadow_active;
   if (data.shadow_until) state.shadow_until = data.shadow_until;
   if (data.shadow_cooldown) state.shadow_cooldown = data.shadow_cooldown;
+  updateShadowHud();
   if (data.baseIncome != null) state.baseIncome = data.baseIncome;
   if (data.clanColor) state.clanColor = data.clanColor;
   if (data.inventory) state.inventory = data.inventory;
