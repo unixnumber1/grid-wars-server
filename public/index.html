@@ -18385,7 +18385,6 @@ function showCollectorPopup(collectorId) {
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>` : ''}
-        ${!isBurning && coins > 0 ? `<button class="hq-btn" onclick="closePopup();doCollectorDeliver('${collectorId}')">📦 ${t('coll.deliver_btn')}</button>` : ''}
         ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
         ${!isBurning ? `<button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>` : ''}
       </div>
