@@ -226,6 +226,7 @@ async function handleDeliver(req, res) {
     target_lat: courier.target_lat, target_lng: courier.target_lng,
     hp: courier.hp, max_hp: courier.max_hp, speed: courier.speed, status: courier.status,
     created_at: nowISO,
+    coins: net,
   }).select().single();
 
   if (cErr) return res.status(500).json({ error: cErr.message });

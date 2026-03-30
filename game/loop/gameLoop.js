@@ -273,8 +273,9 @@ async function moveCouriers(nowMs, nowISO) {
           // Write side-effects to DB
           supabase.from('market_listings').update({ status: 'active' }).eq('id', dc.listing_id).eq('status', 'pending').then(() => {}).catch(() => {});
           if (dc.item_id) supabase.from('items').update({ held_by_courier: null, held_by_market: dc.to_market_id || null }).eq('id', dc.item_id).then(() => {}).catch(() => {});
-        } else if (dc.type === 'delivery' && dc._coins > 0) {
+        } else if (dc.type === 'delivery' && (dc._coins > 0 || dc.coins > 0)) {
           // Collector coin delivery — create a coin drop on the ground
+          const courierCoins = dc._coins || dc.coins || 0;
           const owner = gameState.getPlayerById(dc.owner_id);
           const dropLat = (owner?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
           const dropLng = (owner?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004;
@@ -290,20 +291,22 @@ async function moveCouriers(nowMs, nowISO) {
             picked_up: false,
             expires_at: new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString(),
             created_at: nowISO,
-            _coins: dc._coins, // in-memory only for pickup
+            _coins: courierCoins, // in-memory for fast pickup
+            coins: courierCoins,  // persisted to DB
           };
           gameState.upsertDrop(drop);
-          supabase.from('courier_drops').insert({
+          await supabase.from('courier_drops').insert({
             id: drop.id, courier_id: dc.id, owner_id: dc.owner_id, lat: dropLat, lng: dropLng,
             drop_type: 'coin_delivery', picked_up: false,
+            coins: courierCoins,
             expires_at: drop.expires_at, created_at: nowISO,
-          }).then(() => {}).catch(() => {});
+          });
           const coinDelLang = gameState.getPlayerById(dc.owner_id)?.language || 'en';
           const notif = {
             id: globalThis.crypto.randomUUID(),
             player_id: dc.owner_id,
             type: 'collector_delivery',
-            message: ts(coinDelLang, 'notif.coin_delivery', { coins: dc._coins }),
+            message: ts(coinDelLang, 'notif.coin_delivery', { coins: courierCoins }),
             read: false,
             created_at: nowISO,
           };
@@ -330,8 +333,10 @@ async function moveCouriers(nowMs, nowISO) {
             created_at: nowISO,
           };
           gameState.upsertDrop(drop);
-          // Also write to DB
-          supabase.from('courier_drops').insert(drop).then(() => {}).catch(() => {});
+          // Write to DB — must complete before courier is deleted (FK constraint)
+          const cleanDrop = {};
+          for (const k of Object.keys(drop)) { if (!k.startsWith('_')) cleanDrop[k] = drop[k]; }
+          await supabase.from('courier_drops').insert(cleanDrop);
           if (dc.item_id) {
             const item = gameState.getItemById(dc.item_id);
             if (item) { item.held_by_courier = null; item.held_by_market = null; gameState.markDirty('items', item.id); }
@@ -351,9 +356,9 @@ async function moveCouriers(nowMs, nowISO) {
         }
       } catch (e) { console.error('[gameLoop] courier delivery error:', e.message); }
 
-      // Remove delivered courier from memory immediately + notify clients
+      // Remove delivered courier from memory + DB (after drop insert to avoid FK violation)
       gameState.couriers.delete(dc.id);
-      supabase.from('couriers').delete().eq('id', dc.id).then(() => {}).catch(() => {});
+      await supabase.from('couriers').delete().eq('id', dc.id);
       if (_io) _io.emit('courier:removed', { courier_id: dc.id });
     }
   } catch (e) {

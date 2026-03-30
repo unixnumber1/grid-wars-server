@@ -939,7 +939,7 @@ async function handlePickupDrop(req, res) {
   const { data: drop, error: dErr } = await supabase
     .from('courier_drops')
     .select(`
-      id, item_id, core_id, listing_id, lat, lng, picked_up, expires_at, drop_type, owner_id,
+      id, item_id, core_id, listing_id, lat, lng, picked_up, expires_at, drop_type, owner_id, coins,
       couriers!courier_drops_courier_id_fkey(type, owner_id, listing_id)
     `)
     .eq('id', drop_id)
@@ -1029,7 +1029,7 @@ async function handlePickupDrop(req, res) {
     if (!gd?._coins && !coinOwner) {
       // Old drop — just mark as picked up without giving coins
     }
-    const coins = gd?._coins || 0;
+    const coins = gd?._coins || gd?.coins || drop.coins || 0;
 
     await supabase.from('courier_drops').update({ picked_up: true, picked_by: player.id }).eq('id', drop_id);
     if (gd) { gd.picked_up = true; }
