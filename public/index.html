@@ -16362,8 +16362,10 @@ const clanHqLabels = {};
 function clanHqIcon(ch) {
   const isActive = ch.is_active && ch.color;
   const glow = isActive ? `filter: drop-shadow(0 0 8px ${ch.color});` : 'filter: grayscale(1); opacity:0.6;';
+  const symbol = ch.symbol || '';
+  const badge = symbol ? `<div style="position:absolute;top:1px;right:1px;font-size:10px;line-height:1;">${symbol}</div>` : '';
   return L.divIcon({
-    html: `<div style="font-size:28px;line-height:1;${glow}pointer-events:auto;display:flex;align-items:center;justify-content:center;width:40px;height:40px;">🏰</div>`,
+    html: `<div style="font-size:28px;line-height:1;${glow}pointer-events:auto;display:flex;align-items:center;justify-content:center;width:40px;height:40px;position:relative;">🏰${badge}</div>`,
     iconSize: [40, 40],
     iconAnchor: [20, 20],
     className: 'leaflet-interactive',
@@ -16393,7 +16395,7 @@ function renderClanHqs(clanHqs) {
     // Marker
     if (clanHqMarkers[ch.id]) {
       const mk = clanHqMarkers[ch.id];
-      const key = `${ch.is_active}_${ch.color}`;
+      const key = `${ch.is_active}_${ch.color}_${ch.symbol}`;
       if (mk._gw_key !== key) {
         mk._gw_key = key;
         mk.setIcon(clanHqIcon(ch));
@@ -16422,21 +16424,7 @@ function renderClanHqs(clanHqs) {
           interactive: false,
         }).addTo(map);
       }
-      // Label above marker
-      if (!clanHqLabels[ch.id]) {
-        const labelText = ch.clan_name ? `${ch.symbol || '🏰'} ${ch.clan_name}` : t('clan.no_clan_short');
-        const labelHtml = `<div class="clan-hq-label" style="border:1px solid ${ch.color || '#888'}">${labelText}</div>`;
-        clanHqLabels[ch.id] = L.marker([ch.lat, ch.lng], {
-          icon: L.divIcon({
-            html: labelHtml,
-            className: '',
-            iconSize: [120, 20],
-            iconAnchor: [60, 40],
-          }),
-          zIndexOffset: 1000,
-          interactive: false,
-        }).addTo(map);
-      }
+      if (clanHqLabels[ch.id]) { map.removeLayer(clanHqLabels[ch.id]); delete clanHqLabels[ch.id]; }
     } else {
       if (clanHqCircles[ch.id]) { map.removeLayer(clanHqCircles[ch.id]); delete clanHqCircles[ch.id]; }
       if (clanHqLabels[ch.id]) { map.removeLayer(clanHqLabels[ch.id]); delete clanHqLabels[ch.id]; }
