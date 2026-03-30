@@ -7136,7 +7136,7 @@ let _deferredMapClick = null;
   const focus = params.get('focus');
   if (focus) {
     const [lat, lng] = focus.split(',').map(Number);
-    if (lat && lng) setTimeout(() => map.flyTo([lat, lng], 17), 2000);
+    if (lat && lng) map.setView([lat, lng], 17, { animate: false });
   }
 })();
 
