@@ -18172,7 +18172,10 @@ async function doMonumentShieldHit(target) {
       updateMonumentMarkerIcon(target.id, true);
     }
     _updateMonumentPopupBars(target.id);
-    if (data.shield_broken) { stopCombat(); closePopupKeepHold(); showToast(t('mon.shield_broken')); }
+    if (data.shield_broken) {
+      stopCombat(); closePopupKeepHold(); showToast(t('mon.shield_broken'));
+      updateMonumentPhase(target.id, 'open');
+    }
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
