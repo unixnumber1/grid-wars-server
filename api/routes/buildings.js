@@ -516,17 +516,21 @@ async function handleUpgradeGet(req, res) {
 async function handleUpgradePost(req, res) {
   const { telegram_id, mine_id, lat, lng, targetLevel: targetLevelParam } = req.body;
   if (!telegram_id || !mine_id) return res.status(400).json({ error: 'telegram_id and mine_id are required' });
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level, coins, last_lat, last_lng');
-  if (playerError) return res.status(500).json({ error: playerError });
+
+  // Read from gameState (source of truth) — prevents stale DB reads causing rollbacks
+  const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,cell_id,lat,lng,pending_level,upgrade_finish_at').eq('id', mine_id).maybeSingle();
-  if (mineError) return res.status(500).json({ error: mineError.message });
+
+  const mine = gameState.getMineById(mine_id);
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'You do not own this mine' });
-  if (mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date()) {
+
+  // Block if upgrade already in progress
+  if (mine.pending_level != null && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date()) {
     const secondsLeft = Math.ceil((new Date(mine.upgrade_finish_at) - new Date()) / 1000);
     return res.status(400).json({ error: `Апгрейд ещё идёт (${secondsLeft} сек)` });
   }
+
   if (lat == null || lng == null) return res.status(400).json({ error: 'Координаты игрока не переданы' });
   const pLat = parseFloat(lat); const pLng = parseFloat(lng);
   if (isNaN(pLat) || isNaN(pLng)) return res.status(400).json({ error: 'Некорректные координаты' });
@@ -547,19 +551,28 @@ async function handleUpgradePost(req, res) {
   for (let l = mine.level; l < targetLevel; l++) upgradeSecs += l;
   if (upgradeSecs < 1) upgradeSecs = 1;
   const finishAt = new Date(Date.now() + upgradeSecs * 1000);
-  const [{ data: coinsOk, error: playerUpdateError }, { error: mineUpdateError }] = await Promise.all([
-    supabase.from('players').update({ coins: newBalance }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle(),
-    supabase.from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() }).eq('id', mine_id),
-  ]);
-  if (playerUpdateError || mineUpdateError) return res.status(500).json({ error: 'Failed to start upgrade' });
-  if (!coinsOk && !playerUpdateError) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+
+  // SEQUENTIAL: first deduct coins (optimistic lock), then update mine
+  const { data: coinsOk, error: playerUpdateError } = await supabase
+    .from('players').update({ coins: newBalance })
+    .eq('id', player.id).eq('coins', balance)
+    .select('id').maybeSingle();
+  if (playerUpdateError) return res.status(500).json({ error: 'Failed to deduct coins' });
+  if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
+
+  // Coins deducted — now update mine with idempotency guard
+  const { error: mineUpdateError } = await supabase
+    .from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() })
+    .eq('id', mine_id);
+  if (mineUpdateError) console.error('[upgrade] mine update error:', mineUpdateError.message);
+
   // Update gameState
-  if (gameState.loaded) {
-    const gm = gameState.getMineById(mine_id);
-    if (gm) { gm.pending_level = targetLevel; gm.upgrade_finish_at = finishAt.toISOString(); gameState.markDirty('mines', mine_id); }
-    const p = gameState.getPlayerById(player.id);
-    if (p) { p.coins = newBalance; gameState.markDirty('players', p.id); }
-  }
+  mine.pending_level = targetLevel;
+  mine.upgrade_finish_at = finishAt.toISOString();
+  gameState.markDirty('mines', mine_id);
+  player.coins = newBalance;
+  gameState.markDirty('players', player.id);
+
   logPlayer(telegram_id, 'action', `Улучшил шахту до уровня ${targetLevel}`, { mine_id, cost });
   return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: upgradeSecs, player_coins: newBalance, pendingLevel: targetLevel });
 }

@@ -237,14 +237,14 @@ async function handleTick(req, res) {
           mine.hp = newMineMaxHp;
           mine.max_hp = newMineMaxHp;
           gameState.markDirty('mines', mine.id);
-          // Also persist immediately
-          supabase.from('mines').update({
+          // Persist immediately — must await to prevent stale DB reads
+          await supabase.from('mines').update({
             level: mine.level,
             pending_level: null,
             upgrade_finish_at: null,
             hp: newMineMaxHp,
             max_hp: newMineMaxHp,
-          }).eq('id', mine.id).then(() => {}).catch(() => {});
+          }).eq('id', mine.id);
           let xpResult = null;
           try { xpResult = await addXp(currentPlayerId, XP_REWARDS.UPGRADE_MINE(mine.level)); } catch (_) {}
           completedUpgrades.push({ ...mine, xp: xpResult });
