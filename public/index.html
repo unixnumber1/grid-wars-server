@@ -7085,12 +7085,11 @@ const map = L.map('map', {
   zoomDelta: 0.5,
 }).setView([55.75, 37.61], 16);
 
-// Double-tap + drag zoom (like Google Maps) — uses Leaflet setZoom for proper rendering
+// Double-tap + drag zoom (like Google Maps) — CSS scale during drag, single setZoom on release
 let _deferredMapClick = null; // timer id for deferred map click (allows double-tap cancel)
 (function() {
   const container = map.getContainer();
-  let lastTap = 0, isZoomDrag = false, startY = 0, startZoom = 0;
-  let pendingZoom = null, zoomRafId = null;
+  let lastTap = 0, isZoomDrag = false, startY = 0, startZoom = 0, currentZoom = 0;
 
   container.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -7104,7 +7103,7 @@ let _deferredMapClick = null; // timer id for deferred map click (allows double-
       isZoomDrag = true;
       startY = e.touches[0].clientY;
       startZoom = map.getZoom();
-      pendingZoom = null;
+      currentZoom = startZoom;
       map.dragging.disable();
       map.touchZoom && map.touchZoom.disable();
       // Cancel any deferred map click (build menu) from first tap
@@ -7121,42 +7120,31 @@ let _deferredMapClick = null; // timer id for deferred map click (allows double-
     e.stopPropagation();
     const deltaY = startY - e.touches[0].clientY;
     const zoomDelta = deltaY / 100;
-    const newZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
-    pendingZoom = newZoom;
-    if (!zoomRafId) {
-      zoomRafId = requestAnimationFrame(() => {
-        zoomRafId = null;
-        if (pendingZoom !== null && isZoomDrag) {
-          map.setZoom(pendingZoom, { animate: false });
-        }
-      });
-    }
+    currentZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), startZoom + zoomDelta));
+    // Smooth CSS scale — no tile reload, markers stay anchored
+    const scale = Math.pow(2, currentZoom - startZoom);
+    container.style.transformOrigin = '50% 50%';
+    container.style.transform = `scale(${scale})`;
   }, { passive: false, capture: true });
 
-  container.addEventListener('touchend', (e) => {
+  function finishZoom() {
     if (!isZoomDrag) return;
     isZoomDrag = false;
-    if (zoomRafId) { cancelAnimationFrame(zoomRafId); zoomRafId = null; }
+    // Remove CSS scale
+    container.style.transform = '';
+    container.style.transformOrigin = '';
     map.dragging.enable();
     map.touchZoom && map.touchZoom.enable();
-    // Snap to nearest 0.5
-    const cur = map.getZoom();
-    const snapped = Math.round(cur * 2) / 2;
-    if (snapped !== cur) {
-      map.setZoom(snapped, { animate: true, duration: 0.15 });
+    // Apply real zoom once
+    const snapped = Math.round(currentZoom * 2) / 2;
+    if (snapped !== startZoom) {
+      map.setZoom(snapped, { animate: false });
     }
     _suppressMapClick = Date.now();
-    pendingZoom = null;
-  }, { capture: true });
+  }
 
-  container.addEventListener('touchcancel', () => {
-    if (!isZoomDrag) return;
-    isZoomDrag = false;
-    if (zoomRafId) { cancelAnimationFrame(zoomRafId); zoomRafId = null; }
-    map.dragging.enable();
-    map.touchZoom && map.touchZoom.enable();
-    pendingZoom = null;
-  }, { capture: true });
+  container.addEventListener('touchend', finishZoom, { capture: true });
+  container.addEventListener('touchcancel', finishZoom, { capture: true });
 })();
 
 // Handle ?focus=lat,lng param from Telegram notification buttons
@@ -16489,8 +16477,8 @@ function oreIcon(ore) {
   const showHp = hpPct < 100 && !isBroken;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
 
-  const badgeSize = Math.round(size * 0.26);
-  const badgeOff = Math.round(size * 0.08);
+  const badgeSize = Math.round(size * 0.18);
+  const badgeOff = Math.round(size * 0.06);
   const ownerBadge = ore.owner_avatar ? `<div style="position:absolute;top:${badgeOff}px;right:${badgeOff}px;font-size:${badgeSize}px;line-height:1;">${ore.owner_avatar}</div>` : '';
 
   return L.divIcon({
