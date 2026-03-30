@@ -112,7 +112,8 @@ async function handleUpgrade(req, res) {
   if (core.on_market) return res.status(400).json({ error: 'Core is listed on market' });
 
   const cost = getCoreUpgradeCost(core.level);
-  const playerEther = player.ether || 0;
+  const { data: freshE } = await supabase.from('players').select('ether').eq('id', player.id).single();
+  const playerEther = freshE?.ether ?? player.ether ?? 0;
   if (playerEther < cost)
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_ether'), need: cost, have: playerEther });
 
