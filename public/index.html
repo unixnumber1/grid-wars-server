@@ -8756,7 +8756,6 @@ async function investInSkill(blockId, treeName) {
     _skillData.effects = res.effects;
 
     showToast(t('skills.invested', {name: res.block_name || blockId, level: res.new_level}));
-    document.getElementById('skill-popup')?.remove();
     // Re-render only tree, preserve scroll position
     const wrap = document.getElementById('skill-tree-wrap');
     if (wrap) {
@@ -8774,6 +8773,8 @@ async function investInSkill(blockId, treeName) {
       rstBtn.disabled = rc === 0;
       rstBtn.innerHTML = '🔄 ' + (rc > 0 ? formatNumber(rc) + '💎' : '—');
     }
+    // Re-open popup with updated data
+    onSkillBlockClick(blockId, treeName);
   } catch(e) { showToast('❌ ' + e.message); }
 }
 
