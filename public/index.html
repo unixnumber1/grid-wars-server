@@ -8536,7 +8536,7 @@ let _skillBranch = 'raider';
 let _skillData = null;
 let _skillTrees = { farmer: [], raider: [] };
 
-const CELL_W = 50;
+const CELL_W = 54;
 const CELL_H = 72;
 
 function isBlockUnlockedClient(blockDef, playerSkills, treeName) {
@@ -8642,7 +8642,7 @@ function renderSkillTreeHTML() {
   const maxCol = Math.max(...cols);
   const maxRow = Math.max(...blocks.map(b => b.position.row));
 
-  const normCol = (c) => (c - minCol) / 2;
+  const normCol = (c) => c - minCol;
   const numCols = normCol(maxCol) + 1;
   const BLOCK_W = 48;
   const BLOCK_H = 64;
