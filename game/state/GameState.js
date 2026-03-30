@@ -272,8 +272,12 @@ class GameState {
       if (m.status === 'destroyed') continue;
       if (m.lat >= s && m.lat <= n && m.lng >= w && m.lng <= e) {
         const owner = this.players.get(m.owner_id);
+        // Mask attacker_id if attacker is in shadow mode
+        const atk = m.attacker_id ? this.players.get(m.attacker_id) : null;
+        const atkHidden = atk?._shadow_until && nowMs < atk._shadow_until;
         mines.push({
           ...m,
+          attacker_id: atkHidden ? null : m.attacker_id,
           players: owner ? { username: owner.username, game_username: owner.game_username, avatar: owner.avatar, level: owner.level } : null,
           is_mine: m.owner_id === currentPlayerId,
         });

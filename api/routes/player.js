@@ -207,12 +207,16 @@ async function handlePvpInitiate(req, res) {
   try { xpResult = await addXp(winner.id, xpGain); } catch (_) {}
   await supabase.from('pvp_log').insert({ attacker_id: attacker.id, defender_id: defender.id, winner_id: winner.id, attacker_hp_left: battleResult.attackerHpLeft, defender_hp_left: battleResult.defenderHpLeft, rounds: battleResult.rounds, coins_transferred: coinsWon });
   const defLang = getLang(gameState, defender.telegram_id);
+  const _pvpShadow = isInShadow(attacker);
+  const _atkDisplayName = _pvpShadow ? '???' : (attacker.game_username || ts(defLang, 'misc.player'));
   const notifMsg = winnerIsAttacker
-    ? ts(defLang, 'notif.pvp_defeated', { name: attacker.game_username || ts(defLang, 'misc.player'), coins: coinsLost })
-    : ts(defLang, 'notif.pvp_defended', { name: attacker.game_username || ts(defLang, 'misc.player') });
+    ? ts(defLang, 'notif.pvp_defeated', { name: _atkDisplayName, coins: coinsLost })
+    : ts(defLang, 'notif.pvp_defended', { name: _atkDisplayName });
   const battlePayload = {
     battle: battleResult,
-    attacker: { telegram_id: attacker.telegram_id, username: attacker.game_username, avatar: attacker.avatar, level: attacker.level, weapon: atkWeapon ? { emoji: atkWeapon.emoji, type: atkWeapon.type, name: atkWeapon.name, rarity: atkWeapon.rarity, attack: atkWeapon.attack } : null, shield: atkShield ? { emoji: atkShield.emoji, name: atkShield.name, defense: atkShield.defense } : null, bonusHp: attacker.bonus_hp || 0 },
+    attacker: _pvpShadow
+      ? { telegram_id: 0, username: '???', avatar: '🎭', level: 0, weapon: null, shield: null, bonusHp: 0 }
+      : { telegram_id: attacker.telegram_id, username: attacker.game_username, avatar: attacker.avatar, level: attacker.level, weapon: atkWeapon ? { emoji: atkWeapon.emoji, type: atkWeapon.type, name: atkWeapon.name, rarity: atkWeapon.rarity, attack: atkWeapon.attack } : null, shield: atkShield ? { emoji: atkShield.emoji, name: atkShield.name, defense: atkShield.defense } : null, bonusHp: attacker.bonus_hp || 0 },
     defender: { telegram_id: defender.telegram_id, username: defender.game_username, avatar: defender.avatar, level: defender.level, weapon: defWeapon ? { emoji: defWeapon.emoji, type: defWeapon.type, name: defWeapon.name, rarity: defWeapon.rarity, attack: defWeapon.attack } : null, shield: defShield ? { emoji: defShield.emoji, name: defShield.name, defense: defShield.defense } : null, bonusHp: defender.bonus_hp || 0 },
     winner: battleResult.winner, coinsLost, coinsWon, xpGain,
   };
@@ -423,10 +427,12 @@ async function handlePvpAttack(req, res) {
 
     // Notify defender
     const defKillLang = getLang(gameState, target_telegram_id);
-    const killMsg = ts(defKillLang, 'notif.pvp_killed', { name: attacker.game_username || ts(defKillLang, 'misc.player'), coins: coinsLost });
+    const _killShadow = isInShadow(attacker);
+    const _killName = _killShadow ? '???' : (attacker.game_username || ts(defKillLang, 'misc.player'));
+    const killMsg = ts(defKillLang, 'notif.pvp_killed', { name: _killName, coins: coinsLost });
     supabase.from('notifications').insert({
       player_id: defender.id, type: 'pvp_kill', message: killMsg,
-      data: { attacker_id: attacker.id, damage, coins_lost: coinsLost },
+      data: { attacker_id: _killShadow ? null : attacker.id, damage, coins_lost: coinsLost },
     }).then(() => {}).catch(() => {});
     sendTelegramNotification(defender.telegram_id, killMsg, buildAttackButton(defLat, defLng));
 
@@ -435,16 +441,18 @@ async function handlePvpAttack(req, res) {
 
     logActivity(attacker.game_username, `убил ${defender.game_username}`);
     logPlayer(attacker.telegram_id, 'action', `Убил ${defender.game_username}`, { damage, coins_won: coinsWon, target_id: defender.telegram_id });
-    logPlayer(defender.telegram_id, 'action', `Убит игроком ${attacker.game_username}`, { coins_lost: coinsLost, attacker_id: attacker.telegram_id });
+    logPlayer(defender.telegram_id, 'action', `Убит игроком ${_killName}`, { coins_lost: coinsLost, attacker_id: _killShadow ? null : attacker.telegram_id });
 
     // Emit kill event to nearby
     emitToNearbyPlayers(pLat, pLng, 1000, 'pvp:kill', {
-      winner_id: attacker.id, winner_tg: attacker.telegram_id, winner_name: attacker.game_username,
+      winner_id: _killShadow ? 0 : attacker.id, winner_tg: _killShadow ? 0 : attacker.telegram_id, winner_name: _killShadow ? '???' : attacker.game_username,
       loser_id: defender.id, loser_tg: defender.telegram_id, loser_name: defender.game_username,
       coins_transferred: coinsWon,
       shield_until: defender.shield_until,
     });
   }
+
+  const _hitShadow = isInShadow(attacker);
 
   // Emit projectile to nearby sockets (1km)
   emitToNearbyPlayers(pLat, pLng, 1000, 'projectile', {
@@ -454,7 +462,7 @@ async function handlePvpAttack(req, res) {
     blocked, execution: isExecution,
     target_type: 'player',
     target_id: defender.telegram_id,
-    attacker_id: attacker.telegram_id,
+    attacker_id: _hitShadow ? 0 : attacker.telegram_id,
     weapon_type: weaponType === 'none' ? 'fist' : weaponType,
   });
 
@@ -462,8 +470,8 @@ async function handlePvpAttack(req, res) {
   for (const [sid, info] of connectedPlayers) {
     if (String(info.telegram_id) === String(target_telegram_id)) {
       io.to(sid).emit('pvp:hit', {
-        attacker_id: attacker.telegram_id,
-        attacker_name: attacker.game_username,
+        attacker_id: _hitShadow ? 0 : attacker.telegram_id,
+        attacker_name: _hitShadow ? '???' : attacker.game_username,
         damage, crit: isCrit,
         blocked, execution: isExecution,
         hp_left: defHp <= 0 ? defMaxHp : defHp,

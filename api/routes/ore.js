@@ -7,7 +7,7 @@ import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
 import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
-import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS, ORE_TYPES } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 
@@ -208,7 +208,7 @@ oreRouter.post('/', async (req, res) => {
             id: globalThis.crypto.randomUUID(),
             player_id: oldOwnerId,
             type: 'ore_captured',
-            message: ts(oldOwnerLang, 'notif.ore_broken', { level: ore.level, emoji: oreTypeCfg.emoji, name: player.game_username || 'player' }),
+            message: ts(oldOwnerLang, 'notif.ore_broken', { level: ore.level, emoji: oreTypeCfg.emoji, name: isInShadow(player) ? '???' : (player.game_username || 'player') }),
             read: false, created_at: new Date().toISOString(),
           };
           gameState.addNotification(notif);
@@ -216,10 +216,11 @@ oreRouter.post('/', async (req, res) => {
         }
       }
 
+      const _oreShadow = isInShadow(player);
       emitToNearby(ore.lat, ore.lng, 1000, 'ore:broken', {
         ore_node_id: ore.id,
-        broken_by: player.id,
-        broken_by_name: player.game_username || player.username,
+        broken_by: _oreShadow ? 0 : player.id,
+        broken_by_name: _oreShadow ? '???' : (player.game_username || player.username),
       });
     } else {
       gameState.markDirty('oreNodes', ore.id);
@@ -232,7 +233,7 @@ oreRouter.post('/', async (req, res) => {
       damage, crit: isCrit, execution: isExecution,
       target_type: 'ore',
       target_id: ore.id,
-      attacker_id: player.telegram_id,
+      attacker_id: isInShadow(player) ? 0 : player.telegram_id,
       weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     });
 

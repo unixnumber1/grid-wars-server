@@ -12,7 +12,7 @@ import {
   COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS, COLLECTOR_EXTINGUISH_COST,
   COLLECTOR_MAX_MINE_LEVEL, getCollectorCapacity, getCollectorMines,
 } from '../../lib/collectors.js';
-import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS, COURIER_SPEED_PLAYER, COLLECTOR_UPGRADE_PRICES } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 
@@ -335,7 +335,7 @@ async function handleHit(req, res) {
     damage, crit: isCrit,
     target_type: 'collector', target_id: collector.id,
     weapon_type: weaponType,
-    attacker_id: player.id,
+    attacker_id: isInShadow(player) ? 0 : player.id,
   });
 
   emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'collector:hp_update', {
@@ -384,9 +384,10 @@ async function handleHit(req, res) {
     }
 
     // Emit burning event
+    const _cShadow = isInShadow(player);
     emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'collector:burning', {
       collector_id: collector.id,
-      attacker_name: player.game_username || '?',
+      attacker_name: _cShadow ? '???' : (player.game_username || '?'),
       stolen_coins: stolenCoins,
     });
 

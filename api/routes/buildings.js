@@ -11,7 +11,7 @@ import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
-import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 
@@ -343,7 +343,8 @@ async function handleAttackStart(req, res) {
     if (gm) { Object.assign(gm, { status: 'under_attack', attacker_id: player.id, attack_started_at: attackStartedAt, attack_ends_at: attackEndsAt, hp: currentHp, max_hp: computedMaxHp, last_hp_update: attackStartedAt }); gameState.markDirty('mines', mine_id); }
   }
   const ownerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
-  const atkMsg = ts(ownerLang, 'notif.mine_attacked', { level: mine.level, name: player.game_username || ts(ownerLang, 'misc.unknown') });
+  const shadow = isInShadow(player);
+  const atkMsg = ts(ownerLang, 'notif.mine_attacked', { level: mine.level, name: shadow ? '???' : (player.game_username || ts(ownerLang, 'misc.unknown')) });
   await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_attacked', message: atkMsg, data: { mine_id: mine.id } });
   const { data: owner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
   if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, atkMsg, buildAttackButton(mine.lat, mine.lng));
@@ -726,7 +727,8 @@ async function handleMineHit(req, res) {
 
       // Notify owner on first hit
       const hitOwnerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
-      const hitAtkMsg = ts(hitOwnerLang, 'notif.mine_attacked', { level: mine.level, name: player.game_username || ts(hitOwnerLang, 'misc.unknown') });
+      const _hitShadow = isInShadow(player);
+      const hitAtkMsg = ts(hitOwnerLang, 'notif.mine_attacked', { level: mine.level, name: _hitShadow ? '???' : (player.game_username || ts(hitOwnerLang, 'misc.unknown')) });
       supabase.from('notifications').insert({
         player_id: mine.owner_id, type: 'mine_attacked', message: hitAtkMsg,
         data: { mine_id: mine.id },
@@ -748,7 +750,7 @@ async function handleMineHit(req, res) {
     damage, crit: isCrit, execution: isExecution,
     target_type: 'mine',
     target_id: mine_id,
-    attacker_id: player.telegram_id,
+    attacker_id: isInShadow(player) ? 0 : player.telegram_id,
     weapon_type: weaponType === 'none' ? 'fist' : weaponType,
   });
 

@@ -8,7 +8,7 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from 
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS } from '../../config/constants.js';
-import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import {
   FIRETRUCK_BUILD_COST, FIRETRUCK_COOLDOWN_MS, FIRETRUCK_LEVELS,
   FIREFIGHTER_HP, FIREFIGHTER_SPEED,
@@ -226,7 +226,7 @@ async function handleHit(req, res) {
     damage, crit: isCrit,
     target_type: 'fire_truck', target_id: truck.id,
     weapon_type: weaponType,
-    attacker_id: player.id,
+    attacker_id: isInShadow(player) ? 0 : player.id,
   });
 
   emitToNearbyPlayers(truck.lat, truck.lng, 1000, 'firetruck:hp_update', {
@@ -234,6 +234,7 @@ async function handleHit(req, res) {
   });
 
   let destroyed = false;
+  const _ftShadow = isInShadow(player);
 
   if (truck.hp <= 0) {
     destroyed = true;
@@ -264,7 +265,7 @@ async function handleHit(req, res) {
 
     emitToNearbyPlayers(truck.lat, truck.lng, 1000, 'firetruck:burning', {
       fire_truck_id: truck.id,
-      attacker_name: player.game_username || '?',
+      attacker_name: _ftShadow ? '???' : (player.game_username || '?'),
     });
 
     try { await addXp(player.id, 100); } catch (_) {}
@@ -473,7 +474,7 @@ async function handleHitFirefighter(req, res) {
     damage, crit: isCrit,
     target_type: 'firefighter', target_id: ff.id,
     weapon_type: weaponType,
-    attacker_id: player.id,
+    attacker_id: isInShadow(player) ? 0 : player.id,
   });
 
   let killed = false;
@@ -483,7 +484,7 @@ async function handleHitFirefighter(req, res) {
 
     emitToNearbyPlayers(ff.current_lat, ff.current_lng, 1000, 'firefighter:killed', {
       firefighter_id: ff.id,
-      attacker_name: player.game_username || '?',
+      attacker_name: isInShadow(player) ? '???' : (player.game_username || '?'),
     });
 
     logActivity(player.game_username, `killed firefighter`);

@@ -659,3 +659,8 @@ export function getPlayerSkillEffects(playerSkillsRow) {
   const computed = getAllSkillEffects(playerSkillsRow);
   return { ...defaults, ...computed };
 }
+
+/** Check if a player object has active shadow (invisible) */
+export function isInShadow(player) {
+  return !!(player?._shadow_until && Date.now() < player._shadow_until);
+}
