@@ -35,8 +35,6 @@ export function startGameLoop(io, connectedPlayers) {
   log('[gameLoop] Starting game loop, interval:', TICK_INTERVAL, 'ms');
 
   setInterval(async () => {
-    if (connectedPlayers.size === 0) return;
-
     const nowMs = Date.now();
     const nowISO = new Date(nowMs).toISOString();
     _tickCount++;
