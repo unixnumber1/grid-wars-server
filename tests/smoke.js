@@ -145,6 +145,40 @@ async function testFormulas() {
   }
 }
 
+async function testConstants() {
+  console.log('\n⚙️ Константы');
+  try {
+    const {
+      MONUMENT_SHIELD_REGEN_PER_SEC, MONUMENT_ITEMS_LOOT, MONUMENT_GEMS_LOOT, MONUMENT_CORES_LOOT,
+      getShieldRegen, SMALL_RADIUS, LARGE_RADIUS, TICK_INTERVAL,
+    } = await import('../config/constants.js');
+
+    // Shield regen values
+    const regenOk = MONUMENT_SHIELD_REGEN_PER_SEC.length === 11 && getShieldRegen(1) === 500 && getShieldRegen(10) === 17000;
+    regenOk ? ok('Shield regen', `lv1=${getShieldRegen(1)}, lv10=${getShieldRegen(10)}`) : fail('Shield regen', `unexpected values`);
+
+    // Items loot pool system (not old trophy/gift)
+    const lv5 = MONUMENT_ITEMS_LOOT[5];
+    (lv5?.pool && lv5?.trophyBonus && !lv5.trophy) ? ok('Items loot pool system', `lv5 pool=${lv5.pool.length} entries`) : fail('Items loot', 'pool/trophyBonus missing or old format');
+
+    // Gems loot
+    const gems10 = MONUMENT_GEMS_LOOT[10];
+    (gems10?.min === 500 && gems10?.max === 1000) ? ok('Gems loot lv10', `${gems10.min}-${gems10.max}`) : fail('Gems loot', JSON.stringify(gems10));
+
+    // Cores loot
+    const cores10 = MONUMENT_CORES_LOOT[10];
+    (cores10?.chance === 0.95) ? ok('Cores loot lv10', `${cores10.chance * 100}% chance, ${cores10.min}-${cores10.max}`) : fail('Cores loot', JSON.stringify(cores10));
+
+    // Basic constants
+    (SMALL_RADIUS === 200) ? ok('SMALL_RADIUS', '200') : fail('SMALL_RADIUS', `${SMALL_RADIUS}`);
+    (LARGE_RADIUS === 500) ? ok('LARGE_RADIUS', '500') : fail('LARGE_RADIUS', `${LARGE_RADIUS}`);
+    (TICK_INTERVAL === 5000) ? ok('TICK_INTERVAL', '5000ms') : fail('TICK_INTERVAL', `${TICK_INTERVAL}`);
+
+  } catch (e) {
+    fail('import constants', e.message);
+  }
+}
+
 async function testDatabase() {
   console.log('\n🗄️ База данных');
   try {
@@ -155,7 +189,16 @@ async function testDatabase() {
     else fail('Supabase', 'пустая таблица players');
 
     // Check critical tables exist
-    const tables = ['monuments', 'collectors', 'monument_defenders', 'monument_loot_boxes', 'ore_nodes'];
+    const tables = [
+      'headquarters', 'mines', 'items', 'cores', 'bots', 'vases',
+      'markets', 'market_listings', 'couriers', 'courier_drops',
+      'ore_nodes', 'clans', 'clan_members', 'clan_headquarters',
+      'collectors', 'fire_trucks', 'monuments', 'monument_defenders',
+      'monument_loot_boxes', 'monument_requests',
+      'zombies', 'zombie_hordes', 'notifications',
+      'pvp_log', 'pvp_cooldowns', 'player_badges', 'player_skills',
+      'referrals', 'level_rewards_claimed', 'app_settings',
+    ];
     for (const t of tables) {
       const { error: tErr } = await supabase.from(t).select('id').limit(1);
       tErr ? fail(`таблица ${t}`, tErr.message) : ok(`таблица ${t}`);
@@ -192,6 +235,7 @@ async function main() {
   await testGameState();
   await testApiEndpoints();
   await testFormulas();
+  await testConstants();
   await testDatabase();
   await testSocketIo();
 
