@@ -378,11 +378,11 @@ async function handleAttackFinish(req, res) {
   }
   if (remainingHp <= 0) {
     const burnStarted = new Date().toISOString();
-    await supabase.from('mines').update({ status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null }).eq('id', mine_id);
+    await supabase.from('mines').update({ status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null, pending_level: null, upgrade_finish_at: null }).eq('id', mine_id);
     // Update gameState
     if (gameState.loaded) {
       const gm = gameState.getMineById(mine_id);
-      if (gm) { Object.assign(gm, { status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null }); gameState.markDirty('mines', mine_id); }
+      if (gm) { Object.assign(gm, { status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null, pending_level: null, upgrade_finish_at: null }); gameState.markDirty('mines', mine_id); }
     }
     const burnOwnerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
     const burnMsg = ts(burnOwnerLang, 'notif.mine_burning', { level: mine.level });
@@ -696,6 +696,8 @@ async function handleMineHit(req, res) {
     mine.attack_started_at = null;
     mine.attack_ends_at = null;
     mine.last_hp_update = null;
+    mine.pending_level = null;
+    mine.upgrade_finish_at = null;
     gameState.markDirty('mines', mine_id);
 
     // Write to DB immediately
@@ -703,6 +705,7 @@ async function handleMineHit(req, res) {
       status: 'burning', hp: 0, max_hp: computedMaxHp,
       burning_started_at: hpUpdateTime, last_collected: hpUpdateTime,
       attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null,
+      pending_level: null, upgrade_finish_at: null,
     }).eq('id', mine_id);
 
     // Add stolen coins to attacker
