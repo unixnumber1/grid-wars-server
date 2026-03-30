@@ -4033,11 +4033,17 @@ const I18N = {
 
     // === Build menu ===
     'build.title': '🏗️ Построить',
+    'build.tab_mines': 'Шахты',
+    'build.tab_other': 'Другое',
+    'build.nothing_available': 'Нет доступных построек',
     'build.hq': '⚡ Штаб',
     'build.mine': '⛏️ Шахта',
     'build.collector': '🧲 Автосборщик',
     'build.collector_desc': 'Собирает монеты с шахт в 200м',
     'build.collector_btn': '🧲 Построить сборщик',
+    'build.firetruck': 'Пожарная машина',
+    'build.firetruck_desc': 'Тушит горящие постройки в радиусе',
+    'build.firetruck_btn': 'Построить машину',
     'build.clan_hq': '🏰 Штаб Клана',
     'build.clan_hq_desc': 'Зона клана · Бусты для участников',
     'build.clan_hq_btn': '🏰 Построить штаб клана',
@@ -5197,11 +5203,17 @@ const I18N = {
 
     // === Build menu ===
     'build.title': '🏗️ Build',
+    'build.tab_mines': 'Mines',
+    'build.tab_other': 'Other',
+    'build.nothing_available': 'No buildings available',
     'build.hq': '⚡ HQ',
     'build.mine': '⛏️ Mine',
     'build.collector': '🧲 Collector',
     'build.collector_desc': 'Collects coins from mines within 200m',
     'build.collector_btn': '🧲 Build collector',
+    'build.firetruck': 'Fire Truck',
+    'build.firetruck_desc': 'Extinguishes burning buildings in radius',
+    'build.firetruck_btn': 'Build fire truck',
     'build.clan_hq': '🏰 Clan HQ',
     'build.clan_hq_desc': 'Clan zone · Boosts for members',
     'build.clan_hq_btn': '🏰 Build clan HQ',
@@ -7464,60 +7476,91 @@ function otherPlayerIcon(avatar, shieldUntil, clickId) {
   });
 }
 
-function showBuildMenu(cellLat, cellLng) {
+let _buildMenuTab = 'mines';
+function showBuildMenu(cellLat, cellLng, tab) {
+  if (tab) _buildMenuTab = tab;
   const hasHq = state.hq || (state.mapBuildings?.headquarters || []).some(h => h.is_mine);
-  // Use server flag (covers all clan HQs, not just viewport)
   const hasClanHq = state.hasClanHq || (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine || ch.player_id === state.player?.id);
   const playerCoins = state.player?.coins ?? 0;
-  const hasDiamonds = (state.player?.diamonds || 0) >= 75;
+  const diamonds = state.player?.diamonds || 0;
+  const hasDiamonds = diamonds >= 75;
   const canAffordClanHq = playerCoins >= CLAN_HQ_COST;
+  const hqLvl = state.hq?.level || ((state.mapBuildings?.headquarters || []).find(h => h.is_mine)?.level) || 1;
+
+  // Collector limits
+  const maxColl = Math.floor(hqLvl / 2);
+  const currentColl = Object.values(_myCollectorsCache).length;
+  const canBuildColl = maxColl > 0 && currentColl < maxColl;
+
+  // Fire truck limits
+  const maxFT = hqLvl >= 10 ? 2 : (hqLvl >= 5 ? 1 : 0);
+  const currentFT = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed').length;
+  const canBuildFT = maxFT > 0 && currentFT < maxFT;
+
+  // Count available "other" items
+  const otherItems = [];
+  if (!hasHq) otherItems.push('hq');
+  if (canBuildColl) otherItems.push('collector');
+  if (canBuildFT) otherItems.push('firetruck');
+  if (!hasClanHq) otherItems.push('clanhq');
 
   const card = document.getElementById('popup-card');
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+  const tabActive = 'background:#333;color:#fff;border-color:rgba(255,255,255,0.15)';
+  const tabInactive = 'background:transparent;color:#888;border-color:transparent';
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
     <div style="font-size:16px;font-weight:600;color:#fff">${t('build.title')}</div>
     <button onclick="closePopup()" class="popup-close">✕</button>
   </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px">
+    <button onclick="showBuildMenu(${cellLat},${cellLng},'mines')" style="flex:1;padding:8px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid;cursor:pointer;${_buildMenuTab === 'mines' ? tabActive : tabInactive}">⛏ ${t('build.tab_mines')}</button>
+    <button onclick="showBuildMenu(${cellLat},${cellLng},'other')" style="flex:1;padding:8px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid;cursor:pointer;${_buildMenuTab === 'other' ? tabActive : tabInactive}">🏗 ${t('build.tab_other')}${otherItems.length ? ` (${otherItems.length})` : ''}</button>
+  </div>
   <div style="display:flex;flex-direction:column;gap:8px">`;
 
-  if (!hasHq) {
+  if (_buildMenuTab === 'mines') {
     html += `<div class="hq-collector-card">
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.hq')}</span><span style="font-size:11px;color:#4caf50">${t('mine.free')}</span></div>
-      <div style="font-size:12px;color:#888;margin:4px 0">${t('hq.only_one')}</div>
-      <button class="hq-coll-btn active" onclick="closePopup();doBuildHq(${cellLat},${cellLng})">${t('hq.build')}</button>
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.mine')}</span><span style="font-size:11px;color:#4caf50">${t('mine.free')}</span></div>
+      <div style="font-size:12px;color:#888;margin:4px 0">${t('mine.generates')}</div>
+      <button class="hq-coll-btn active" onclick="closePopup();doBuildMine(${cellLat},${cellLng})">${t('mine.build')}</button>
     </div>`;
-  }
+  } else {
+    // Other tab — only show available buildings
+    if (!hasHq) {
+      html += `<div class="hq-collector-card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.hq')}</span><span style="font-size:11px;color:#4caf50">${t('mine.free')}</span></div>
+        <div style="font-size:12px;color:#888;margin:4px 0">${t('hq.only_one')}</div>
+        <button class="hq-coll-btn active" onclick="closePopup();doBuildHq(${cellLat},${cellLng})">${t('hq.build')}</button>
+      </div>`;
+    }
 
-  html += `<div class="hq-collector-card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.mine')}</span><span style="font-size:11px;color:#4caf50">${t('mine.free')}</span></div>
-    <div style="font-size:12px;color:#888;margin:4px 0">${t('mine.generates')}</div>
-    <button class="hq-coll-btn active" onclick="closePopup();doBuildMine(${cellLat},${cellLng})">${t('mine.build')}</button>
-  </div>`;
+    if (canBuildColl) {
+      html += `<div class="hq-collector-card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.collector')}</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
+        <div style="font-size:12px;color:#888;margin:4px 0">${t('build.collector_desc')} (${currentColl}/${maxColl})</div>
+        <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">${t('build.collector_btn')}</button>
+      </div>`;
+    }
 
-  html += `<div class="hq-collector-card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.collector')}</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
-    <div style="font-size:12px;color:#888;margin:4px 0">${t('build.collector_desc')}</div>
-    <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildCollector(${cellLat},${cellLng})">${t('build.collector_btn')}</button>
-  </div>`;
+    if (canBuildFT) {
+      html += `<div class="hq-collector-card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🚒 ${t('build.firetruck')}</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
+        <div style="font-size:12px;color:#888;margin:4px 0">${t('build.firetruck_desc')} (${currentFT}/${maxFT})</div>
+        <button class="hq-coll-btn ${hasDiamonds ? 'active' : ''}" ${hasDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildFireTruck(${cellLat},${cellLng})">🚒 ${t('build.firetruck_btn')}</button>
+      </div>`;
+    }
 
-  // Fire Truck option
-  const hqLvl = state.hq?.level || ((state.mapBuildings?.headquarters || []).find(h => h.is_mine)?.level) || 1;
-  const maxFT = hqLvl >= 10 ? 2 : (hqLvl >= 5 ? 1 : 0);
-  const currentFT = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed').length;
-  const canBuildFT = maxFT > 0 && currentFT < maxFT && hasDiamonds;
-  if (maxFT > 0) {
-    html += `<div class="hq-collector-card">
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">🚒 Пожарная машина</span><span style="font-size:11px;color:#64B5F6">75 💎</span></div>
-      <div style="font-size:12px;color:#888;margin:4px 0">Тушит горящие постройки в радиусе (${currentFT}/${maxFT})</div>
-      <button class="hq-coll-btn ${canBuildFT ? 'active' : ''}" ${canBuildFT ? '' : 'disabled'} onclick="closePopup();doBuildFireTruck(${cellLat},${cellLng})">🚒 Построить машину</button>
-    </div>`;
-  }
+    if (!hasClanHq) {
+      html += `<div class="hq-collector-card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.clan_hq')}</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
+        <div style="font-size:12px;color:#888;margin:4px 0">${t('build.clan_hq_desc')}</div>
+        <button class="hq-coll-btn ${canAffordClanHq ? 'active' : ''}" ${canAffordClanHq ? '' : 'disabled'} onclick="closePopup();doBuildClanHq(${cellLat},${cellLng})">${t('build.clan_hq_btn')}</button>
+      </div>`;
+    }
 
-  if (!hasClanHq) {
-    html += `<div class="hq-collector-card">
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.clan_hq')}</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
-      <div style="font-size:12px;color:#888;margin:4px 0">${t('build.clan_hq_desc')}</div>
-      <button class="hq-coll-btn ${canAffordClanHq ? 'active' : ''}" ${canAffordClanHq ? '' : 'disabled'} onclick="closePopup();doBuildClanHq(${cellLat},${cellLng})">${t('build.clan_hq_btn')}</button>
-    </div>`;
+    if (otherItems.length === 0) {
+      html += `<div style="text-align:center;color:#555;padding:20px;font-size:13px">${t('build.nothing_available')}</div>`;
+    }
   }
 
   html += `</div>`;
