@@ -513,7 +513,9 @@ playerRouter.post('/init', async (req, res) => {
     return res.json({ success: true, cooldowns_deleted: !cd.error, shields_reset: !sh.error });
   }
   // Default: full player init
-  const { telegram_id, username } = req.body;
+  const { telegram_id } = req.body;
+  // Use verified username from initData, fallback to body for backward compat
+  const username = req.verifiedUser?.username || req.body.username || null;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
   const ADMIN_TG_ID = 560013667;
   let tgId;

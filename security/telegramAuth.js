@@ -96,6 +96,7 @@ export function verifyTelegramAuth(req, res, next) {
 
   // Verified — override telegram_id so existing routes use verified value
   req.verifiedTgId = result.user.id;
+  req.verifiedUser = result.user; // full user: id, username, first_name, last_name, language_code
   req.authVerified = true;
   if (req.body) req.body.telegram_id = result.user.id;
   if (req.query) req.query.telegram_id = String(result.user.id);
