@@ -16695,7 +16695,7 @@ function showClanHqPopup(ch) {
       t('clan.level', {n: ch.clan_level}),
       [],
       [
-        { label: t('clan.enter_hq'), cls: 'primary', action: () => openClanScreen(ch.clan_id, 'hq') },
+        { label: t('clan.enter_hq'), cls: 'primary', noClose: true, action: () => openClanScreen(ch.clan_id, 'hq') },
         [
           { label: t('clan.demolish'), cls: 'danger', action: () => doSellClanHq() },
           { label: t('btn.close'), isClose: true },
