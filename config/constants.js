@@ -129,19 +129,19 @@ export const MONUMENT_GEMS_LOOT = [
   { min: 500, max: 1000 }, // lv10
 ];
 
-// Monument items loot: trophy = top damage, gift = others
+// Monument items loot: pool = shared item pool for all participants, trophyBonus = extra for top-1 damage dealer
 export const MONUMENT_ITEMS_LOOT = [
   null,
-  { trophy: [{ count: 3, rarity: 'rare' }], gift: [{ count: 1, rarity: 'rare' }] },
-  { trophy: [{ count: 4, rarity: 'rare' }], gift: [{ count: 2, rarity: 'rare' }] },
-  { trophy: [{ count: 3, rarity: 'rare' }, { count: 1, rarity: 'epic' }], gift: [{ count: 2, rarity: 'rare' }, { count: 1, rarity: 'epic' }] },
-  { trophy: [{ count: 4, rarity: 'rare' }, { count: 1, rarity: 'epic' }], gift: [{ count: 3, rarity: 'rare' }, { count: 1, rarity: 'epic' }] },
-  { trophy: [{ count: 3, rarity: 'epic' }, { count: 2, rarity: 'rare' }], gift: [{ count: 2, rarity: 'epic' }, { count: 2, rarity: 'rare' }] },
-  { trophy: [{ count: 4, rarity: 'epic' }, { count: 1, rarity: 'rare' }], gift: [{ count: 3, rarity: 'epic' }, { count: 1, rarity: 'rare' }] },
-  { trophy: [{ count: 5, rarity: 'epic' }], gift: [{ count: 3, rarity: 'epic' }, { count: 2, rarity: 'rare' }] },
-  { trophy: [{ count: 4, rarity: 'epic' }, { count: 1, rarity: 'mythic' }], gift: [{ count: 4, rarity: 'epic' }] },
-  { trophy: [{ count: 5, rarity: 'epic' }, { count: 1, rarity: 'mythic' }], gift: [{ count: 4, rarity: 'epic' }, { count: 1, rarity: 'mythic' }] },
-  { trophy: [{ count: 6, rarity: 'epic' }, { count: 1, rarity: 'mythic' }, { count: 1, rarity: 'legendary', chance: 0.15 }], gift: [{ count: 5, rarity: 'epic' }, { count: 1, rarity: 'mythic', chance: 0.10 }, { count: 1, rarity: 'legendary', chance: 0.05 }] },
+  { pool: [{ count: 5, rarity: 'rare' }],                                                                                    trophyBonus: { count: 1, rarity: 'rare' } },                    // lv1
+  { pool: [{ count: 7, rarity: 'rare' }],                                                                                    trophyBonus: { count: 1, rarity: 'rare' } },                    // lv2
+  { pool: [{ count: 6, rarity: 'rare' }, { count: 2, rarity: 'epic' }],                                                      trophyBonus: { count: 1, rarity: 'epic' } },                    // lv3
+  { pool: [{ count: 5, rarity: 'rare' }, { count: 4, rarity: 'epic' }],                                                      trophyBonus: { count: 1, rarity: 'epic' } },                    // lv4
+  { pool: [{ count: 5, rarity: 'rare' }, { count: 6, rarity: 'epic' }],                                                      trophyBonus: { count: 1, rarity: 'epic' } },                    // lv5
+  { pool: [{ count: 2, rarity: 'rare' }, { count: 8, rarity: 'epic' }],                                                      trophyBonus: { count: 1, rarity: 'epic' } },                    // lv6
+  { pool: [{ count: 9, rarity: 'epic' }],                                                                                    trophyBonus: { count: 1, rarity: 'mythic' } },                  // lv7
+  { pool: [{ count: 9, rarity: 'epic' }, { count: 1, rarity: 'mythic' }],                                                    trophyBonus: { count: 1, rarity: 'mythic' } },                  // lv8
+  { pool: [{ count: 10, rarity: 'epic' }, { count: 3, rarity: 'mythic' }],                                                   trophyBonus: { count: 1, rarity: 'mythic' } },                  // lv9
+  { pool: [{ count: 13, rarity: 'epic' }, { count: 2, rarity: 'mythic' }, { count: 1, rarity: 'legendary', chance: 0.15 }],  trophyBonus: { count: 1, rarity: 'legendary', chance: 0.20 } }, // lv10
 ];
 
 // Monument core drop table: chance (0-1), min/max cores per raid

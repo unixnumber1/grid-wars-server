@@ -194,6 +194,24 @@ export async function defeatMonument(monument, io, connectedPlayers) {
   const gemsConfig = MONUMENT_GEMS_LOOT[monument.level];
   const itemsConfig = MONUMENT_ITEMS_LOOT[monument.level];
 
+  // Roll gems once for the entire raid
+  const totalGems = gemsConfig
+    ? gemsConfig.min + Math.floor(Math.random() * (gemsConfig.max - gemsConfig.min + 1))
+    : 1;
+
+  // Build flat item pool sorted by rarity (best first) for proportional distribution
+  const RARITY_ORDER = ['legendary', 'mythic', 'epic', 'rare', 'uncommon', 'common'];
+  const itemPool = [];
+  if (itemsConfig?.pool) {
+    for (const entry of itemsConfig.pool) {
+      if (entry.chance && Math.random() > entry.chance) continue;
+      for (let j = 0; j < entry.count; j++) itemPool.push(entry.rarity);
+    }
+  }
+  itemPool.sort((a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b));
+  const totalPoolSize = itemPool.length;
+  const lowestRarity = itemsConfig?.pool?.at(-1)?.rarity || 'rare';
+
   const lootBoxes = [];
 
   for (let i = 0; i < participants.length; i++) {
@@ -205,20 +223,28 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     const isTop = i === 0;
     const box_type = isTop ? 'trophy' : 'gift';
 
-    // Gems proportional to damage
-    const totalGems = gemsConfig ? gemsConfig.min + Math.floor(Math.random() * (gemsConfig.max - gemsConfig.min + 1)) : 1;
+    // Gems proportional to damage (from shared pool)
     const playerGems = Math.max(1, Math.floor(totalGems * contribution));
 
-    // Items — separate tables for trophy/gift
-    const items = [];
-    const lootTable = isTop ? itemsConfig?.trophy : itemsConfig?.gift;
-    if (lootTable) {
-      for (const lootEntry of lootTable) {
-        if (lootEntry.chance && Math.random() > lootEntry.chance) continue;
-        for (let j = 0; j < lootEntry.count; j++) {
+    // Items — splice from pool proportionally (top players get best rarity first)
+    const playerItemCount = Math.max(1, Math.floor(totalPoolSize * contribution));
+    const playerRarities = itemPool.splice(0, playerItemCount);
+    // If pool exhausted but player deserves minimum 1 — give lowest rarity
+    if (playerRarities.length === 0) {
+      playerRarities.push(lowestRarity);
+    }
+    const items = playerRarities.map(rarity => {
+      const types = ['sword', 'axe', 'shield'];
+      return generateItem(types[Math.floor(Math.random() * 3)], rarity);
+    });
+
+    // Trophy bonus for top-1 damage dealer
+    if (isTop && itemsConfig?.trophyBonus) {
+      const tb = itemsConfig.trophyBonus;
+      if (!tb.chance || Math.random() <= tb.chance) {
+        for (let j = 0; j < tb.count; j++) {
           const types = ['sword', 'axe', 'shield'];
-          const type = types[Math.floor(Math.random() * types.length)];
-          items.push(generateItem(type, lootEntry.rarity));
+          items.push(generateItem(types[Math.floor(Math.random() * 3)], tb.rarity));
         }
       }
     }
@@ -260,6 +286,17 @@ export async function defeatMonument(monument, io, connectedPlayers) {
         });
       }
     }
+  }
+
+  // Leftover pool items (from rounding) go to top player
+  if (itemPool.length > 0 && lootBoxes.length > 0) {
+    const topBox = lootBoxes[0];
+    const topItems = JSON.parse(topBox.items);
+    for (const rarity of itemPool) {
+      const types = ['sword', 'axe', 'shield'];
+      topItems.push(generateItem(types[Math.floor(Math.random() * 3)], rarity));
+    }
+    topBox.items = JSON.stringify(topItems);
   }
 
   // Save all boxes to DB
@@ -339,7 +376,15 @@ async function addCoresToLootBoxes(monument, participants, totalDamage, lootBoxe
     const box = lootBoxes.find(b => Number(b.player_id) === Number(player_id));
     if (!box) continue;
 
-    const count = Math.min(remaining, Math.max(1, Math.round(totalCores * (damage / totalDamage))));
+    // Top-1 guaranteed at least 1 core; others get proportional share (may be 0)
+    let count;
+    if (i === 0) {
+      count = Math.max(1, Math.round(totalCores * (damage / totalDamage)));
+    } else {
+      count = Math.round(totalCores * (damage / totalDamage));
+    }
+    count = Math.min(remaining, count);
+    if (count === 0) continue;
 
     const items = typeof box.items === 'string' ? JSON.parse(box.items) : (box.items || []);
     for (let j = 0; j < count; j++) {
