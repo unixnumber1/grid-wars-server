@@ -25,6 +25,7 @@ const SPEED_METERS = BOT_SPEED_METERS;
 let _tickCount = 0;
 let _lastDailyMarketCheck = 0; // timestamp of last daily market check
 let _io = null;
+let _connectedPlayers = null;
 
 function hasChanged(prev, curr) {
   return JSON.stringify(prev) !== JSON.stringify(curr);
@@ -32,7 +33,13 @@ function hasChanged(prev, curr) {
 
 export function startGameLoop(io, connectedPlayers) {
   _io = io;
+  _connectedPlayers = connectedPlayers;
   log('[gameLoop] Starting game loop, interval:', TICK_INTERVAL, 'ms');
+
+  // Smooth shield regen every 1s (separate from main 5s tick)
+  setInterval(() => {
+    processMonumentShieldRegen();
+  }, 1000);
 
   setInterval(async () => {
     const nowMs = Date.now();
@@ -43,8 +50,7 @@ export function startGameLoop(io, connectedPlayers) {
       // ── 1. Move bots globally ──────────────────────────────
       await moveBots(nowMs, nowISO);
 
-      // ── 2. Monument shield regen ─────────────────────────
-      processMonumentShieldRegen();
+      // ── 2. Monument shield regen — moved to separate 1s interval ──
 
       // ── 3. Move couriers ───────────────────────────────────
       await moveCouriers(nowMs, nowISO);
@@ -92,10 +98,30 @@ function processMonumentShieldRegen() {
   for (const [id, monument] of gameState.monuments) {
     if (monument.phase !== 'shield') continue;
     if (monument.shield_hp >= monument.max_shield_hp) continue;
-    // Regen: 2% of max shield HP per tick (5s) = ~24% per minute
-    const regenAmount = Math.floor(monument.max_shield_hp * 0.02);
-    monument.shield_hp = Math.min(monument.max_shield_hp, monument.shield_hp + regenAmount);
-    gameState.markDirty('monuments', id);
+
+    const regenPerSec = getShieldRegen(monument.level);
+    if (!regenPerSec) continue;
+
+    const oldHp = monument.shield_hp;
+    monument.shield_hp = Math.min(monument.max_shield_hp, monument.shield_hp + regenPerSec);
+
+    if (monument.shield_hp !== oldHp) {
+      gameState.markDirty('monuments', id);
+      // Emit smooth update to nearby players
+      if (_io && _connectedPlayers) {
+        for (const [sid, info] of _connectedPlayers) {
+          if (!info.lat || !info.lng) continue;
+          const dist = haversine(info.lat, info.lng, monument.lat, monument.lng);
+          if (dist <= 1000) {
+            _io.to(sid).emit('monument:shield_update', {
+              monument_id: monument.id,
+              shield_hp: monument.shield_hp,
+              max_shield_hp: monument.max_shield_hp,
+            });
+          }
+        }
+      }
+    }
   }
 }
 

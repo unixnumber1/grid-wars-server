@@ -158,8 +158,13 @@ export const MONUMENT_CORES_LOOT = [
   { chance: 0.85, min: 3, max: 5 }, // lv9
   { chance: 0.95, min: 3, max: 5 }, // lv10
 ];
+// Shield regen per second (requires sustained group DPS above this to break)
+export const MONUMENT_SHIELD_REGEN_PER_SEC = [
+  0, 500, 1000, 1500, 2000, 3000,
+  4000, 7000, 10500, 15000, 17000,
+];
 export function getShieldRegen(level) {
-  return (MONUMENT_SHIELD_DPS_THRESHOLD[level] || 0) * 1.2;
+  return MONUMENT_SHIELD_REGEN_PER_SEC[level] || 0;
 }
 
 // ── Monument wave system ──
