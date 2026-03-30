@@ -9391,28 +9391,19 @@ function showInstalledCorePopup(coreId) {
   const cost = getCoreUpgradeCost(core.level);
   const ether = state.player?.ether || 0;
   const canUpgrade = ether >= cost;
-  const card = document.getElementById('core-detail-card');
-  card.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div>
-        <div style="font-size:16px;font-weight:600;color:#fff">${info.emoji} ${info.name} Lv.${core.level}</div>
-        <div style="font-size:12px;color:#888;margin-top:2px">${t('core.multiplier_sub', {mul})}</div>
-      </div>
-      <button onclick="closeCoreDetail()" class="popup-close">✕</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px">
-      <div class="hq-stat-card"><span>${t('core.level')}</span><span class="val">${core.level}</span></div>
-      <div class="hq-stat-card"><span>${t('core.multiplier')}</span><span class="val" style="color:#FFD700">x${mul}</span></div>
-      <div class="hq-stat-card"><span>${t('core.after_upgrade')}</span><span class="val" style="color:#4caf50">x${nextMul} (lv.${core.level + 1})</span></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <button id="core-overlay-upgrade" style="background:#2196f3;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;${canUpgrade ? '' : 'opacity:0.5;cursor:not-allowed;'}" ${canUpgrade ? '' : 'disabled'}>${t('core.upgrade_cost', { cost })} (${formatNumber(ether)}🌀)</button>
-      <button id="core-overlay-extract" style="background:#f44336;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">${t('core.extract_to_bag')}</button>
-    </div>
-  `;
-  document.getElementById('core-detail-overlay').classList.add('open');
-  document.getElementById('core-overlay-upgrade')?.addEventListener('click', () => { closeCoreDetail(); doCoreUpgrade(coreId); });
-  document.getElementById('core-overlay-extract')?.addEventListener('click', () => { closeCoreDetail(); doCoreUninstall(coreId); });
+  openPopup(
+    `${info.emoji} ${info.name}`,
+    '',
+    [
+      [t('core.level'), core.level],
+      [t('core.multiplier'), `<span style="color:#FFD700">x${mul}</span>`],
+      [t('core.after_upgrade'), `<span style="color:#4caf50">x${nextMul}</span> (lv.${core.level + 1})`],
+    ],
+    [
+      { label: t('core.upgrade_cost', { cost }) + ` (${formatNumber(ether)}🌀)`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      { label: t('core.extract'), cls: 'danger', action: () => doCoreUninstall(coreId) },
+    ]
+  );
 }
 document.getElementById('core-detail-overlay').addEventListener('click', (e) => {
   if (e.target === document.getElementById('core-detail-overlay')) closeCoreDetail();
@@ -9431,9 +9422,9 @@ async function doCoreUpgrade(coreId) {
       if (c) c.level = data.new_level;
       showToast(t('toast.core_upgraded', {level: data.new_level, multiplier: data.multiplier}));
       updateCoinDisplay();
-      // Refresh appropriate popup
-      if (c?.mine_cell_id) showInstalledCorePopup(coreId);
-      else showCoreDetailPopup(coreId);
+      renderCoresInventory();
+      // Refresh popup with updated data
+      showCoreDetailPopup(coreId);
     }
   } catch (e) { showToast(`❌ ${e.message}`); }
 }
