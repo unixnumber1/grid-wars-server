@@ -8644,9 +8644,10 @@ function renderSkillTreeHTML() {
 
   const normCol = (c) => c - minCol;
   const numCols = normCol(maxCol) + 1;
-  // Dynamic cell width: fit all columns into ~340px (mobile viewport)
-  const containerW = Math.min(window.innerWidth - 32, 400);
-  const dynCellW = Math.max(48, Math.floor(containerW / numCols));
+  // Dynamic cell width: fit all columns into actual available width
+  const wrapEl = document.getElementById('skill-tree-wrap');
+  const containerW = wrapEl ? wrapEl.clientWidth : (window.innerWidth - 32);
+  const dynCellW = Math.floor(containerW / numCols);
   const BLOCK_W = Math.min(48, dynCellW - 4);
   const BLOCK_H = 64;
   const totalW = numCols * dynCellW;
