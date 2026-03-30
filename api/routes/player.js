@@ -9,7 +9,7 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity, pendin
 import { validatePosition } from '../../lib/antispoof.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
-import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { getSniperFirstHit } from '../../game/mechanics/skills.js';
 import { WEAPON_COOLDOWNS, COSMETIC_PRICES } from '../../config/constants.js';
 import { BADGES, checkAndAwardBadges } from '../../config/badges.js';
