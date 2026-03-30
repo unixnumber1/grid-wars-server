@@ -6602,7 +6602,7 @@ function openItemDetailPopup(item) {
   // Build actions
   const actions = [];
   if (!isMaxed) {
-    actions.push({ label: t('inv.upgrade_cost', { cost: nextCost }), cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
+    actions.push({ label: t('inv.upgrade_cost', { cost: nextCost }) + ` (${formatNumber(crystals)}✨)`, cls: canAfford ? 'yellow' : '', disabled: !canAfford, noClose: true, action: () => doUpgradeItem(item) });
   }
   if (item.on_market) {
     // no actions — item in transit
@@ -9371,7 +9371,7 @@ function showCoreDetailPopup(coreId) {
       [t('core.after_upgrade'), `<span style="color:#4caf50">x${nextMul}</span> (lv.${core.level + 1})`],
     ],
     [
-      { label: t('core.upgrade_cost', { cost }), cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
+      { label: t('core.upgrade_cost', { cost }) + ` (${formatNumber(ether)}🌀)`, cls: canUpgrade ? 'yellow' : '', disabled: !canUpgrade, action: () => doCoreUpgrade(coreId) },
       ...(core.mine_cell_id ? [{ label: t('core.extract'), cls: 'danger', action: () => doCoreUninstall(coreId) }] : []),
       ...(!core.mine_cell_id ? [{ label: t('core.sell_for', {n: getCoreSellPrice(core.level) + '🌀'}), cls: 'danger', action: () => doCoreSell(coreId) }] : []),
     ]
@@ -9406,7 +9406,7 @@ function showInstalledCorePopup(coreId) {
       <div class="hq-stat-card"><span>${t('core.after_upgrade')}</span><span class="val" style="color:#4caf50">x${nextMul} (lv.${core.level + 1})</span></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <button id="core-overlay-upgrade" style="background:#2196f3;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;${canUpgrade ? '' : 'opacity:0.5;cursor:not-allowed;'}" ${canUpgrade ? '' : 'disabled'}>${t('core.upgrade_cost', { cost })}</button>
+      <button id="core-overlay-upgrade" style="background:#2196f3;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;${canUpgrade ? '' : 'opacity:0.5;cursor:not-allowed;'}" ${canUpgrade ? '' : 'disabled'}>${t('core.upgrade_cost', { cost })} (${formatNumber(ether)}🌀)</button>
       <button id="core-overlay-extract" style="background:#f44336;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">${t('core.extract_to_bag')}</button>
     </div>
   `;
