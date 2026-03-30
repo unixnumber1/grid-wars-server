@@ -7,146 +7,96 @@ export const SHADOW_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // ── RAIDER TREE ──
 export const RAIDER_TREE = [
-  // ═══ MAIN PATH (20 blocks = 100 pts to Shadow) ═══
+  // ═══ MAIN PATH — zigzag to Shadow (20 blocks = 100 pts) ═══
+  { id: 'damage_1', name: 'Урон I', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: null, unlocks: ['damage_2'], position: { col: 5, row: 0 } },
+  { id: 'damage_2', name: 'Урон II', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_1', unlocks: ['damage_3', 'crit_1'], position: { col: 7, row: 1 } },
+  { id: 'crit_1', name: 'Крит I', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'damage_2', unlocks: ['crit_2'], position: { col: 5, row: 2 } },
+  { id: 'crit_2', name: 'Крит II', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_1', unlocks: ['crit_3'], position: { col: 7, row: 3 } },
+  { id: 'crit_3', name: 'Крит III', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_2', unlocks: ['crit_4'], position: { col: 5, row: 4 } },
+  { id: 'crit_4', name: 'Крит IV', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_3', unlocks: ['speed_1', 'crit_5'], position: { col: 7, row: 5 } },
+  { id: 'speed_1', name: 'Скорость I', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'crit_4', unlocks: ['speed_2'], position: { col: 5, row: 6 } },
+  { id: 'speed_2', name: 'Скорость II', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_1', unlocks: ['speed_3'], position: { col: 7, row: 7 } },
+  { id: 'speed_3', name: 'Скорость III', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_2', unlocks: ['speed_4', 'vitality_1'], position: { col: 5, row: 8 } },
+  { id: 'vitality_1', name: 'Живучесть I', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'speed_3', unlocks: ['vitality_2'], position: { col: 7, row: 9 } },
+  { id: 'vitality_2', name: 'Живучесть II', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_1', unlocks: ['vitality_3'], position: { col: 5, row: 10 } },
+  { id: 'vitality_3', name: 'Живучесть III', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_2', unlocks: ['vitality_4', 'ranger_1'], position: { col: 7, row: 11 } },
+  { id: 'vitality_4', name: 'Живучесть IV', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_3', unlocks: ['vitality_5'], position: { col: 5, row: 12 } },
+  { id: 'vitality_5', name: 'Живучесть V', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_4', unlocks: ['vampire_1', 'destroyer_1'], position: { col: 7, row: 13 } },
+  { id: 'vampire_1', name: 'Вампир I', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vitality_5', unlocks: ['vampire_2'], position: { col: 5, row: 14 } },
+  { id: 'vampire_2', name: 'Вампир II', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_1', unlocks: ['vampire_3'], position: { col: 7, row: 15 } },
+  { id: 'vampire_3', name: 'Вампир III', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_2', unlocks: ['vampire_4'], position: { col: 5, row: 16 } },
+  { id: 'vampire_4', name: 'Вампир IV', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_3', unlocks: ['vampire_5'], position: { col: 7, row: 17 } },
+  { id: 'vampire_5', name: 'Вампир V', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_4', unlocks: ['shadow'], position: { col: 5, row: 18 } },
+  { id: 'shadow', name: 'Тень', emoji: '🎭', maxLevel: 5, cost: 1, type: 'ability', tree: 'raider', effect: { shadow_ability: true }, description: 'Невидим на карте 30 мин, перезарядка 24ч', requires: 'vampire_5', unlocks: [], position: { col: 7, row: 19 }, dead_end: true },
 
-  // УРОН (ствол)
-  { id: 'damage_1', name: 'Урон I', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: null, unlocks: ['damage_2'], position: { col: 6, row: 0 } },
-  { id: 'damage_2', name: 'Урон II', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_1', unlocks: ['damage_3', 'crit_1'], position: { col: 6, row: 1 } },
-
-  // КРИТ (основной)
-  { id: 'crit_1', name: 'Крит I', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'damage_2', unlocks: ['crit_2'], position: { col: 6, row: 2 } },
-  { id: 'crit_2', name: 'Крит II', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_1', unlocks: ['crit_3'], position: { col: 6, row: 3 } },
-  { id: 'crit_3', name: 'Крит III', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_2', unlocks: ['crit_4'], position: { col: 6, row: 4 } },
-  { id: 'crit_4', name: 'Крит IV', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_3', unlocks: ['speed_1', 'crit_5'], position: { col: 6, row: 5 } },
-
-  // СКОРОСТЬ (основной)
-  { id: 'speed_1', name: 'Скорость I', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'crit_4', unlocks: ['speed_2'], position: { col: 6, row: 6 } },
-  { id: 'speed_2', name: 'Скорость II', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_1', unlocks: ['speed_3'], position: { col: 6, row: 7 } },
-  { id: 'speed_3', name: 'Скорость III', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_2', unlocks: ['speed_4', 'vitality_1'], position: { col: 6, row: 8 } },
-
-  // ЖИВУЧЕСТЬ (основной, 5 блоков)
-  { id: 'vitality_1', name: 'Живучесть I', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'speed_3', unlocks: ['vitality_2'], position: { col: 6, row: 9 } },
-  { id: 'vitality_2', name: 'Живучесть II', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_1', unlocks: ['vitality_3'], position: { col: 6, row: 10 } },
-  { id: 'vitality_3', name: 'Живучесть III', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_2', unlocks: ['vitality_4', 'ranger_1'], position: { col: 6, row: 11 } },
-  { id: 'vitality_4', name: 'Живучесть IV', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_3', unlocks: ['vitality_5'], position: { col: 6, row: 12 } },
-  { id: 'vitality_5', name: 'Живучесть V', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { player_hp_bonus: 0.008 }, requires: 'vitality_4', unlocks: ['vampire_1', 'destroyer_1'], position: { col: 6, row: 13 } },
-
-  // ВАМПИР (основной)
-  { id: 'vampire_1', name: 'Вампир I', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vitality_5', unlocks: ['vampire_2'], position: { col: 6, row: 14 } },
-  { id: 'vampire_2', name: 'Вампир II', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_1', unlocks: ['vampire_3'], position: { col: 6, row: 15 } },
-  { id: 'vampire_3', name: 'Вампир III', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_2', unlocks: ['vampire_4'], position: { col: 6, row: 16 } },
-  { id: 'vampire_4', name: 'Вампир IV', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_3', unlocks: ['vampire_5'], position: { col: 6, row: 17 } },
-  { id: 'vampire_5', name: 'Вампир V', emoji: '🩸', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { lifesteal: 0.003 }, requires: 'vampire_4', unlocks: ['shadow'], position: { col: 6, row: 18 } },
-
-  // ТЕНЬ (ульт)
-  { id: 'shadow', name: 'Тень', emoji: '🎭', maxLevel: 5, cost: 1, type: 'ability', tree: 'raider', effect: { shadow_ability: true }, description: 'Невидим на карте 30 мин, перезарядка 24ч', requires: 'vampire_5', unlocks: [], position: { col: 6, row: 19 }, dead_end: true },
-
-  // ═══ DEAD ENDS (20 blocks) ═══
-
-  // Урон III-V (от damage_2)
-  { id: 'damage_3', name: 'Урон III', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_2', unlocks: ['damage_4'], position: { col: 4, row: 2 } },
-  { id: 'damage_4', name: 'Урон IV', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_3', unlocks: ['damage_5'], position: { col: 4, row: 3 } },
-  { id: 'damage_5', name: 'Урон V', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_4', unlocks: [], position: { col: 4, row: 4 }, dead_end: true },
-
-  // Крит V + Снайпер (от crit_4)
-  { id: 'crit_5', name: 'Крит V', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_4', unlocks: ['sniper'], position: { col: 8, row: 6 } },
-  { id: 'sniper', name: 'Снайпер', emoji: '🎯', maxLevel: 5, cost: 1, type: 'ability', tree: 'raider', effect: { sniper_ability: true }, description: 'Первый удар по новой цели — всегда крит', requires: 'crit_5', unlocks: [], position: { col: 8, row: 7 }, dead_end: true },
-
-  // Скорость IV-V (от speed_3)
-  { id: 'speed_4', name: 'Скорость IV', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_3', unlocks: ['speed_5'], position: { col: 4, row: 9 } },
-  { id: 'speed_5', name: 'Скорость V', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_4', unlocks: [], position: { col: 4, row: 10 }, dead_end: true },
-
-  // Охотник I-III (от vitality_3) — радиус атаки
-  { id: 'ranger_1', name: 'Охотник I', emoji: '🏹', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_radius_bonus: 2 }, requires: 'vitality_3', unlocks: ['ranger_2'], position: { col: 4, row: 12 } },
-  { id: 'ranger_2', name: 'Охотник II', emoji: '🏹', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_radius_bonus: 2 }, requires: 'ranger_1', unlocks: ['ranger_3'], position: { col: 4, row: 13 } },
-  { id: 'ranger_3', name: 'Охотник III', emoji: '🏹', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_radius_bonus: 2 }, requires: 'ranger_2', unlocks: [], position: { col: 4, row: 14 }, dead_end: true },
-
-  // Разрушитель I-V (от vitality_5)
-  { id: 'destroyer_1', name: 'Разрушитель I', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'vitality_5', unlocks: ['destroyer_2'], position: { col: 8, row: 14 } },
-  { id: 'destroyer_2', name: 'Разрушитель II', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_1', unlocks: ['destroyer_3'], position: { col: 8, row: 15 } },
-  { id: 'destroyer_3', name: 'Разрушитель III', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_2', unlocks: ['destroyer_4'], position: { col: 8, row: 16 } },
-  { id: 'destroyer_4', name: 'Разрушитель IV', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_3', unlocks: ['destroyer_5'], position: { col: 8, row: 17 } },
-  { id: 'destroyer_5', name: 'Разрушитель V', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_4', unlocks: ['marauder_1'], position: { col: 8, row: 18 } },
-
-  // Мародёр I-V (от destroyer_5) — только pvp_loot
-  { id: 'marauder_1', name: 'Мародёр I', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'destroyer_5', unlocks: ['marauder_2'], position: { col: 8, row: 19 } },
-  { id: 'marauder_2', name: 'Мародёр II', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_1', unlocks: ['marauder_3'], position: { col: 8, row: 20 } },
-  { id: 'marauder_3', name: 'Мародёр III', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_2', unlocks: ['marauder_4'], position: { col: 8, row: 21 } },
-  { id: 'marauder_4', name: 'Мародёр IV', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_3', unlocks: ['marauder_5'], position: { col: 8, row: 22 } },
-  { id: 'marauder_5', name: 'Мародёр V', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_4', unlocks: [], position: { col: 8, row: 23 }, dead_end: true },
+  // ═══ DEAD ENDS ═══
+  { id: 'damage_3', name: 'Урон III', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_2', unlocks: ['damage_4'], position: { col: 9, row: 2 } },
+  { id: 'damage_4', name: 'Урон IV', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_3', unlocks: ['damage_5'], position: { col: 10, row: 3 } },
+  { id: 'damage_5', name: 'Урон V', emoji: '⚔️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { weapon_damage_bonus: 0.008 }, requires: 'damage_4', unlocks: [], position: { col: 11, row: 4 }, dead_end: true },
+  { id: 'crit_5', name: 'Крит V', emoji: '🎯', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { crit_chance_bonus: 0.004 }, requires: 'crit_4', unlocks: ['sniper'], position: { col: 9, row: 6 } },
+  { id: 'sniper', name: 'Снайпер', emoji: '🎯', maxLevel: 5, cost: 1, type: 'ability', tree: 'raider', effect: { sniper_ability: true }, description: 'Первый удар по новой цели — всегда крит', requires: 'crit_5', unlocks: [], position: { col: 10, row: 7 }, dead_end: true },
+  { id: 'speed_4', name: 'Скорость IV', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_3', unlocks: ['speed_5'], position: { col: 3, row: 9 } },
+  { id: 'speed_5', name: 'Скорость V', emoji: '💨', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_speed_bonus: 0.01 }, requires: 'speed_4', unlocks: [], position: { col: 2, row: 10 }, dead_end: true },
+  { id: 'ranger_1', name: 'Охотник I', emoji: '🏹', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_radius_bonus: 2 }, requires: 'vitality_3', unlocks: ['ranger_2'], position: { col: 9, row: 12 } },
+  { id: 'ranger_2', name: 'Охотник II', emoji: '🏹', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_radius_bonus: 2 }, requires: 'ranger_1', unlocks: ['ranger_3'], position: { col: 10, row: 13 } },
+  { id: 'ranger_3', name: 'Охотник III', emoji: '🏹', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { attack_radius_bonus: 2 }, requires: 'ranger_2', unlocks: [], position: { col: 11, row: 14 }, dead_end: true },
+  { id: 'destroyer_1', name: 'Разрушитель I', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'vitality_5', unlocks: ['destroyer_2'], position: { col: 9, row: 14 } },
+  { id: 'destroyer_2', name: 'Разрушитель II', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_1', unlocks: ['destroyer_3'], position: { col: 10, row: 15 } },
+  { id: 'destroyer_3', name: 'Разрушитель III', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_2', unlocks: ['destroyer_4'], position: { col: 9, row: 16 } },
+  { id: 'destroyer_4', name: 'Разрушитель IV', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_3', unlocks: ['destroyer_5'], position: { col: 10, row: 17 } },
+  { id: 'destroyer_5', name: 'Разрушитель V', emoji: '🏛️', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pve_damage_bonus: 0.008 }, requires: 'destroyer_4', unlocks: ['marauder_1'], position: { col: 9, row: 18 } },
+  { id: 'marauder_1', name: 'Мародёр I', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'destroyer_5', unlocks: ['marauder_2'], position: { col: 10, row: 19 } },
+  { id: 'marauder_2', name: 'Мародёр II', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_1', unlocks: ['marauder_3'], position: { col: 9, row: 20 } },
+  { id: 'marauder_3', name: 'Мародёр III', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_2', unlocks: ['marauder_4'], position: { col: 10, row: 21 } },
+  { id: 'marauder_4', name: 'Мародёр IV', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_3', unlocks: ['marauder_5'], position: { col: 11, row: 22 } },
+  { id: 'marauder_5', name: 'Мародёр V', emoji: '💀', maxLevel: 5, cost: 1, type: 'stat', tree: 'raider', effect: { pvp_loot_bonus: 0.01 }, requires: 'marauder_4', unlocks: [], position: { col: 10, row: 23 }, dead_end: true },
 ];
 
 // ── FARMER TREE ──
 export const FARMER_TREE = [
-  // ═══ MAIN PATH (20 blocks = 100 pts to Landlord) ═══
+  // ═══ MAIN PATH — zigzag to Landlord (20 blocks = 100 pts) ═══
+  { id: 'income_1', name: 'Доход I', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: null, unlocks: ['income_2'], position: { col: 7, row: 0 } },
+  { id: 'income_2', name: 'Доход II', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_1', unlocks: ['income_3', 'capacity_1'], position: { col: 5, row: 1 } },
+  { id: 'capacity_1', name: 'Вместимость I', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'income_2', unlocks: ['capacity_2'], position: { col: 7, row: 2 } },
+  { id: 'capacity_2', name: 'Вместимость II', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_1', unlocks: ['capacity_3'], position: { col: 5, row: 3 } },
+  { id: 'capacity_3', name: 'Вместимость III', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_2', unlocks: ['capacity_4'], position: { col: 7, row: 4 } },
+  { id: 'capacity_4', name: 'Вместимость IV', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_3', unlocks: ['durability_1', 'capacity_5'], position: { col: 5, row: 5 } },
+  { id: 'durability_1', name: 'Прочность I', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'capacity_4', unlocks: ['durability_2'], position: { col: 7, row: 6 } },
+  { id: 'durability_2', name: 'Прочность II', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_1', unlocks: ['durability_3'], position: { col: 5, row: 7 } },
+  { id: 'durability_3', name: 'Прочность III', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_2', unlocks: ['durability_4', 'regen_1'], position: { col: 7, row: 8 } },
+  { id: 'regen_1', name: 'Реген I', emoji: '♻️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_regen_bonus: 0.01 }, requires: 'durability_3', unlocks: ['regen_2'], position: { col: 5, row: 9 } },
+  { id: 'regen_2', name: 'Реген II', emoji: '♻️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_regen_bonus: 0.01 }, requires: 'regen_1', unlocks: ['regen_3'], position: { col: 7, row: 10 } },
+  { id: 'regen_3', name: 'Реген III', emoji: '♻️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_regen_bonus: 0.01 }, requires: 'regen_2', unlocks: ['defender_1', 'gatherer_1', 'teleport_1'], position: { col: 5, row: 11 } },
+  { id: 'defender_1', name: 'Защитник I', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'regen_3', unlocks: ['defender_2'], position: { col: 7, row: 12 } },
+  { id: 'defender_2', name: 'Защитник II', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_1', unlocks: ['defender_3'], position: { col: 5, row: 13 } },
+  { id: 'defender_3', name: 'Защитник III', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_2', unlocks: ['territory_1', 'defender_4'], position: { col: 7, row: 14 } },
+  { id: 'territory_1', name: 'Территория I', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'defender_3', unlocks: ['territory_2'], position: { col: 5, row: 15 } },
+  { id: 'territory_2', name: 'Территория II', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'territory_1', unlocks: ['territory_3'], position: { col: 7, row: 16 } },
+  { id: 'territory_3', name: 'Территория III', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'territory_2', unlocks: ['territory_4'], position: { col: 5, row: 17 } },
+  { id: 'territory_4', name: 'Территория IV', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'territory_3', unlocks: ['landlord'], position: { col: 7, row: 18 } },
+  { id: 'landlord', name: 'Землевладелец', emoji: '👑', maxLevel: 5, cost: 1, type: 'ability', tree: 'farmer', effect: { landlord_bonus: true }, description: 'Шахты в 200м от тебя дают +15% дохода пока онлайн', requires: 'territory_4', unlocks: [], position: { col: 5, row: 19 }, dead_end: true },
 
-  // ДОХОД (ствол)
-  { id: 'income_1', name: 'Доход I', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: null, unlocks: ['income_2'], position: { col: 6, row: 0 } },
-  { id: 'income_2', name: 'Доход II', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_1', unlocks: ['income_3', 'capacity_1'], position: { col: 6, row: 1 } },
-
-  // ВМЕСТИМОСТЬ (основной)
-  { id: 'capacity_1', name: 'Вместимость I', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'income_2', unlocks: ['capacity_2'], position: { col: 6, row: 2 } },
-  { id: 'capacity_2', name: 'Вместимость II', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_1', unlocks: ['capacity_3'], position: { col: 6, row: 3 } },
-  { id: 'capacity_3', name: 'Вместимость III', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_2', unlocks: ['capacity_4'], position: { col: 6, row: 4 } },
-  { id: 'capacity_4', name: 'Вместимость IV', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_3', unlocks: ['durability_1', 'capacity_5'], position: { col: 6, row: 5 } },
-
-  // ПРОЧНОСТЬ (основной)
-  { id: 'durability_1', name: 'Прочность I', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'capacity_4', unlocks: ['durability_2'], position: { col: 6, row: 6 } },
-  { id: 'durability_2', name: 'Прочность II', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_1', unlocks: ['durability_3'], position: { col: 6, row: 7 } },
-  { id: 'durability_3', name: 'Прочность III', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_2', unlocks: ['durability_4', 'regen_1'], position: { col: 6, row: 8 } },
-
-  // РЕГЕН (основной)
-  { id: 'regen_1', name: 'Реген I', emoji: '♻️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_regen_bonus: 0.01 }, requires: 'durability_3', unlocks: ['regen_2'], position: { col: 6, row: 9 } },
-  { id: 'regen_2', name: 'Реген II', emoji: '♻️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_regen_bonus: 0.01 }, requires: 'regen_1', unlocks: ['regen_3'], position: { col: 6, row: 10 } },
-  { id: 'regen_3', name: 'Реген III', emoji: '♻️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_regen_bonus: 0.01 }, requires: 'regen_2', unlocks: ['defender_1', 'gatherer_1', 'teleport_1'], position: { col: 6, row: 11 } },
-
-  // ЗАЩИТНИК (основной)
-  { id: 'defender_1', name: 'Защитник I', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'regen_3', unlocks: ['defender_2'], position: { col: 6, row: 12 } },
-  { id: 'defender_2', name: 'Защитник II', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_1', unlocks: ['defender_3'], position: { col: 6, row: 13 } },
-  { id: 'defender_3', name: 'Защитник III', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_2', unlocks: ['territory_1', 'defender_4'], position: { col: 6, row: 14 } },
-
-  // ТЕРРИТОРИЯ (основной)
-  { id: 'territory_1', name: 'Территория I', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'defender_3', unlocks: ['territory_2'], position: { col: 6, row: 15 } },
-  { id: 'territory_2', name: 'Территория II', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'territory_1', unlocks: ['territory_3'], position: { col: 6, row: 16 } },
-  { id: 'territory_3', name: 'Территория III', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'territory_2', unlocks: ['territory_4'], position: { col: 6, row: 17 } },
-  { id: 'territory_4', name: 'Территория IV', emoji: '🌍', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { radius_bonus: 1 }, requires: 'territory_3', unlocks: ['landlord'], position: { col: 6, row: 18 } },
-
-  // ЗЕМЛЕВЛАДЕЛЕЦ (ульт)
-  { id: 'landlord', name: 'Землевладелец', emoji: '👑', maxLevel: 5, cost: 1, type: 'ability', tree: 'farmer', effect: { landlord_bonus: true }, description: 'Шахты в 200м от тебя дают +15% дохода пока онлайн', requires: 'territory_4', unlocks: [], position: { col: 6, row: 19 }, dead_end: true },
-
-  // ═══ DEAD ENDS (20 blocks) ═══
-
-  // Доход III-V (от income_2)
-  { id: 'income_3', name: 'Доход III', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_2', unlocks: ['income_4'], position: { col: 4, row: 2 } },
-  { id: 'income_4', name: 'Доход IV', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_3', unlocks: ['income_5'], position: { col: 4, row: 3 } },
-  { id: 'income_5', name: 'Доход V', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_4', unlocks: [], position: { col: 4, row: 4 }, dead_end: true },
-
-  // Вместимость V (от capacity_4)
-  { id: 'capacity_5', name: 'Вместимость V', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_4', unlocks: [], position: { col: 8, row: 6 }, dead_end: true },
-
-  // Прочность IV-V (от durability_3)
-  { id: 'durability_4', name: 'Прочность IV', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_3', unlocks: ['durability_5'], position: { col: 4, row: 9 } },
-  { id: 'durability_5', name: 'Прочность V', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_4', unlocks: [], position: { col: 4, row: 10 }, dead_end: true },
-
-  // Добытчик I-V + Сейф (от regen_3) — тупик с абилкой
-  { id: 'gatherer_1', name: 'Добытчик I', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'regen_3', unlocks: ['gatherer_2'], position: { col: 4, row: 12 } },
-  { id: 'gatherer_2', name: 'Добытчик II', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_1', unlocks: ['gatherer_3'], position: { col: 4, row: 13 } },
-  { id: 'gatherer_3', name: 'Добытчик III', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_2', unlocks: ['gatherer_4'], position: { col: 4, row: 14 } },
-  { id: 'gatherer_4', name: 'Добытчик IV', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_3', unlocks: ['gatherer_5'], position: { col: 4, row: 15 } },
-  { id: 'gatherer_5', name: 'Добытчик V', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_4', unlocks: ['safe'], position: { col: 4, row: 16 } },
-  { id: 'safe', name: 'Сейф', emoji: '🔐', maxLevel: 5, cost: 1, type: 'ability', tree: 'farmer', effect: { safe_pvp_loss: true }, description: 'При смерти в PvP теряешь 5% монет вместо 10%', requires: 'gatherer_5', unlocks: [], position: { col: 4, row: 17 }, dead_end: true },
-
-  // Охват I-V + Телепортация (от regen_3) — тупик с абилкой
-  { id: 'teleport_1', name: 'Охват I', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'regen_3', unlocks: ['teleport_2'], position: { col: 8, row: 12 } },
-  { id: 'teleport_2', name: 'Охват II', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'teleport_1', unlocks: ['teleport_3'], position: { col: 8, row: 13 } },
-  { id: 'teleport_3', name: 'Охват III', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'teleport_2', unlocks: ['teleport_4'], position: { col: 8, row: 14 } },
-  { id: 'teleport_4', name: 'Охват IV', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'teleport_3', unlocks: ['teleport_5'], position: { col: 8, row: 15 } },
-  { id: 'teleport_5', name: 'Охват V', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.02 }, requires: 'teleport_4', unlocks: ['teleport_ability'], position: { col: 8, row: 16 } },
-  { id: 'teleport_ability', name: 'Телепортация', emoji: '⚙️', maxLevel: 5, cost: 1, type: 'ability', tree: 'farmer', effect: { instant_collector: true }, description: 'Монеты со сборщика зачисляются мгновенно без курьера', requires: 'teleport_5', unlocks: [], position: { col: 8, row: 17 }, dead_end: true },
-
-  // Защитник IV-V (от defender_3)
-  { id: 'defender_4', name: 'Защитник IV', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_3', unlocks: ['defender_5'], position: { col: 4, row: 15 } },
-  { id: 'defender_5', name: 'Защитник V', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_4', unlocks: [], position: { col: 4, row: 16 }, dead_end: true },
+  // ═══ DEAD ENDS ═══
+  { id: 'income_3', name: 'Доход III', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_2', unlocks: ['income_4'], position: { col: 3, row: 2 } },
+  { id: 'income_4', name: 'Доход IV', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_3', unlocks: ['income_5'], position: { col: 2, row: 3 } },
+  { id: 'income_5', name: 'Доход V', emoji: '💰', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_income_bonus: 0.01 }, requires: 'income_4', unlocks: [], position: { col: 1, row: 4 }, dead_end: true },
+  { id: 'capacity_5', name: 'Вместимость V', emoji: '📦', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_capacity_bonus: 0.01 }, requires: 'capacity_4', unlocks: [], position: { col: 3, row: 6 }, dead_end: true },
+  { id: 'durability_4', name: 'Прочность IV', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_3', unlocks: ['durability_5'], position: { col: 9, row: 9 } },
+  { id: 'durability_5', name: 'Прочность V', emoji: '❤️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_hp_bonus: 0.01 }, requires: 'durability_4', unlocks: [], position: { col: 10, row: 10 }, dead_end: true },
+  { id: 'gatherer_1', name: 'Добытчик I', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'regen_3', unlocks: ['gatherer_2'], position: { col: 3, row: 12 } },
+  { id: 'gatherer_2', name: 'Добытчик II', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_1', unlocks: ['gatherer_3'], position: { col: 2, row: 13 } },
+  { id: 'gatherer_3', name: 'Добытчик III', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_2', unlocks: ['gatherer_4'], position: { col: 3, row: 14 } },
+  { id: 'gatherer_4', name: 'Добытчик IV', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_3', unlocks: ['gatherer_5'], position: { col: 2, row: 15 } },
+  { id: 'gatherer_5', name: 'Добытчик V', emoji: '✨', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { ore_bonus: 0.01 }, requires: 'gatherer_4', unlocks: ['safe'], position: { col: 3, row: 16 } },
+  { id: 'safe', name: 'Сейф', emoji: '🔐', maxLevel: 5, cost: 1, type: 'ability', tree: 'farmer', effect: { safe_pvp_loss: true }, description: 'При смерти в PvP теряешь 5% монет вместо 10%', requires: 'gatherer_5', unlocks: [], position: { col: 2, row: 17 }, dead_end: true },
+  { id: 'teleport_1', name: 'Охват I', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'regen_3', unlocks: ['teleport_2'], position: { col: 9, row: 12 } },
+  { id: 'teleport_2', name: 'Охват II', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'teleport_1', unlocks: ['teleport_3'], position: { col: 10, row: 13 } },
+  { id: 'teleport_3', name: 'Охват III', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'teleport_2', unlocks: ['teleport_4'], position: { col: 9, row: 14 } },
+  { id: 'teleport_4', name: 'Охват IV', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.01 }, requires: 'teleport_3', unlocks: ['teleport_5'], position: { col: 10, row: 15 } },
+  { id: 'teleport_5', name: 'Охват V', emoji: '📡', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { collector_radius_bonus: 0.02 }, requires: 'teleport_4', unlocks: ['teleport_ability'], position: { col: 9, row: 16 } },
+  { id: 'teleport_ability', name: 'Телепортация', emoji: '⚙️', maxLevel: 5, cost: 1, type: 'ability', tree: 'farmer', effect: { instant_collector: true }, description: 'Монеты со сборщика зачисляются мгновенно без курьера', requires: 'teleport_5', unlocks: [], position: { col: 10, row: 17 }, dead_end: true },
+  { id: 'defender_4', name: 'Защитник IV', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_3', unlocks: ['defender_5'], position: { col: 9, row: 15 } },
+  { id: 'defender_5', name: 'Защитник V', emoji: '🛡️', maxLevel: 5, cost: 1, type: 'stat', tree: 'farmer', effect: { mine_damage_reduction: 0.0067 }, requires: 'defender_4', unlocks: [], position: { col: 10, row: 16 }, dead_end: true },
 ];
 
 // ── Helper functions ──
@@ -161,7 +111,7 @@ export function isBlockUnlocked(blockId, playerSkills, tree) {
   if (!reqBlock) return false;
 
   const currentLevel = playerSkills[block.requires] || 0;
-  return currentLevel >= (reqBlock.maxLevel || 5);
+  return currentLevel >= 1;
 }
 
 export function getSkillEffects(playerSkills, tree) {

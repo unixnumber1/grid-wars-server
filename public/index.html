@@ -8544,7 +8544,7 @@ function isBlockUnlockedClient(blockDef, playerSkills, treeName) {
   const blocks = _skillTrees[treeName] || [];
   const reqBlock = blocks.find(b => b.id === blockDef.requires);
   if (!reqBlock) return false;
-  return (playerSkills[blockDef.requires] || 0) >= (reqBlock.maxLevel || 5);
+  return (playerSkills[blockDef.requires] || 0) >= 1;
 }
 
 function getEffectDesc(key) {
