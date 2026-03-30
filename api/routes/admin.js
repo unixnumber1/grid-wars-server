@@ -692,6 +692,19 @@ adminRouter.post('/', async (req, res) => {
     return res.json({ success: true, deleted: item_id });
   }
 
+  // ── remove-core: delete core from player ──
+  if (action === 'remove-core') {
+    const { core_id } = req.body;
+    if (!core_id) return res.status(400).json({ error: 'core_id required' });
+
+    const core = gameState.cores.get(core_id);
+    if (!core) return res.status(404).json({ error: 'Core not found' });
+
+    gameState.cores.delete(core_id);
+    await supabase.from('cores').delete().eq('id', core_id);
+    return res.json({ success: true, deleted: core_id });
+  }
+
   // ── deduct: remove currency from player ──
   if (action === 'deduct') {
     const { player_id, currency, amount } = req.body;

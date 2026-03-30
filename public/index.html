@@ -11674,8 +11674,34 @@ function apmShowPlayer() {
   else if (_apmActiveTab === 'referrals') apmRenderReferrals(body);
 }
 
-// ── Inventory tab ──
+// ── Inventory tab (sub-tabs: Items / Cores) ──
+let _apmInvSubTab = 'items';
+const CORE_META = [
+  { key:'income', emoji:'✴️', name:'Доход' },
+  { key:'capacity', emoji:'✳️', name:'Вместимость' },
+  { key:'hp', emoji:'❤️', name:'Здоровье' },
+  { key:'regen', emoji:'♻️', name:'Регенерация' },
+];
+
 function apmRenderInventory(body) {
+  // Sub-tabs
+  let html = `<div style="display:flex;gap:4px;margin-bottom:10px;">
+    <div class="apm-tab${_apmInvSubTab==='items'?' active':''}" data-subtab="items" style="flex:1;text-align:center;padding:8px;font-size:13px;cursor:pointer;">Предметы</div>
+    <div class="apm-tab${_apmInvSubTab==='cores'?' active':''}" data-subtab="cores" style="flex:1;text-align:center;padding:8px;font-size:13px;cursor:pointer;">Ядра</div>
+  </div>`;
+  html += '<div id="apm-inv-content"></div>';
+  body.innerHTML = html;
+
+  body.querySelectorAll('[data-subtab]').forEach(el => {
+    el.addEventListener('click', () => { _apmInvSubTab = el.dataset.subtab; apmRenderInventory(body); });
+  });
+
+  const content = document.getElementById('apm-inv-content');
+  if (_apmInvSubTab === 'items') apmRenderItems(content);
+  else apmRenderCores(content);
+}
+
+function apmRenderItems(el) {
   const items = _apmPlayer.items || [];
   let html = '<div class="apm-section">';
   if (!items.length) html += '<div style="color:#666;text-align:center;padding:10px;">Пусто</div>';
@@ -11693,38 +11719,33 @@ function apmRenderInventory(body) {
     </div>`;
   });
   html += '</div>';
+  el.innerHTML = html;
+}
 
-  // Give item form
-  html += `<div class="apm-section">
-    <div style="font-size:13px;color:#ccc;margin-bottom:8px;font-weight:600;">Выдать предмет</div>
-    <div style="margin-bottom:6px;font-size:12px;color:#888;">Тип:</div>
-    <div id="apm-give-type">
-      ${['sword','axe','shield'].map(t => `<span class="apm-chip${t==='sword'?' active':''}" data-val="${t}">${ITEM_EMOJI[t]} ${t}</span>`).join('')}
-    </div>
-    <div style="margin:6px 0;font-size:12px;color:#888;">Редкость:</div>
-    <div id="apm-give-rarity">
-      ${['common','uncommon','rare','epic','mythic','legendary'].map(r =>
-        `<span class="apm-chip${r==='legendary'?' active':''}" data-val="${r}" style="color:${RARITY_COLORS[r]}">${r}</span>`
-      ).join('')}
-    </div>
-    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-      <span style="font-size:12px;color:#888;">Ур.апгрейда:</span>
-      <input type="number" id="apm-give-level" value="0" min="0" max="100" class="apm-input-sm" style="width:70px;">
-    </div>
-    <button class="apm-btn apm-btn-green apm-btn-lg" style="margin-top:10px;" onclick="apmGiveItem()">Создать и выдать</button>
-  </div>`;
-
-  body.innerHTML = html;
-
-  // Chip toggle logic
-  body.querySelectorAll('#apm-give-type .apm-chip').forEach(c => c.addEventListener('click', () => {
-    body.querySelectorAll('#apm-give-type .apm-chip').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-  }));
-  body.querySelectorAll('#apm-give-rarity .apm-chip').forEach(c => c.addEventListener('click', () => {
-    body.querySelectorAll('#apm-give-rarity .apm-chip').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-  }));
+function apmRenderCores(el) {
+  const cores = _apmPlayer.cores || [];
+  let html = '';
+  for (const meta of CORE_META) {
+    const group = cores.filter(c => c.core_type === meta.key);
+    html += `<div class="apm-section">
+      <div style="font-size:13px;color:#ccc;margin-bottom:6px;font-weight:600;">${meta.emoji} ${meta.name} (${group.length})</div>`;
+    if (!group.length) {
+      html += '<div style="color:#555;font-size:12px;padding:4px 0;">—</div>';
+    } else {
+      group.forEach(c => {
+        const installed = c.mine_cell_id ? `<span style="color:#4fc3f7;font-size:11px;margin-left:6px;">⛏ в шахте</span>` : '';
+        html += `<div class="apm-item-row">
+          <div class="apm-item-icon" style="font-size:20px;">${meta.emoji}</div>
+          <div class="apm-item-info">
+            <div class="apm-item-name" style="color:#ccc;">Ур. ${c.level}${installed}</div>
+          </div>
+          <button class="apm-btn apm-btn-danger" onclick="apmRemoveCore('${c.id}')">Забрать</button>
+        </div>`;
+      });
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
 }
 
 async function apmGiveItem() {
@@ -11739,7 +11760,6 @@ async function apmGiveItem() {
     showToast(`✅ Выдан ${rarity} ${type} Ур.${level}`);
     if (res.item) {
       _apmPlayer.items.push({ id:res.item.id, type, rarity, attack:res.item.attack||0, defense:res.item.defense||0, crit_chance:res.item.crit_chance||0, block_chance:res.item.block_chance||0, upgrade_level:level, equipped:false });
-      apmRenderInventory(document.getElementById('apm-tab-body'));
     }
   } catch (err) { showToast('❌ ' + err.message); }
 }
@@ -11751,6 +11771,17 @@ async function apmRemoveItem(itemId) {
     })});
     showToast('✅ Предмет забран');
     _apmPlayer.items = _apmPlayer.items.filter(i => i.id !== itemId);
+    apmRenderInventory(document.getElementById('apm-tab-body'));
+  } catch (err) { showToast('❌ ' + err.message); }
+}
+
+async function apmRemoveCore(coreId) {
+  try {
+    await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
+      action:'remove-core', core_id: coreId
+    })});
+    showToast('✅ Ядро забрано');
+    _apmPlayer.cores = (_apmPlayer.cores || []).filter(c => c.id !== coreId);
     apmRenderInventory(document.getElementById('apm-tab-body'));
   } catch (err) { showToast('❌ ' + err.message); }
 }
@@ -11822,18 +11853,32 @@ function apmRenderResources(body) {
   });
   html += '</div>';
 
+  // Give item form
+  html += `<div class="apm-section">
+    <div style="font-size:13px;color:#ccc;margin-bottom:8px;font-weight:600;">Выдать предмет</div>
+    <div style="margin-bottom:6px;font-size:12px;color:#888;">Тип:</div>
+    <div id="apm-give-type">
+      ${['sword','axe','shield'].map(t => `<span class="apm-chip${t==='sword'?' active':''}" data-val="${t}">${ITEM_EMOJI[t]} ${t}</span>`).join('')}
+    </div>
+    <div style="margin:6px 0;font-size:12px;color:#888;">Редкость:</div>
+    <div id="apm-give-rarity">
+      ${['common','uncommon','rare','epic','mythic','legendary'].map(r =>
+        `<span class="apm-chip${r==='legendary'?' active':''}" data-val="${r}" style="color:${RARITY_COLORS[r]}">${r}</span>`
+      ).join('')}
+    </div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#888;">Ур.апгрейда:</span>
+      <input type="number" id="apm-give-level" value="0" min="0" max="100" class="apm-input-sm" style="width:70px;">
+    </div>
+    <button class="apm-btn apm-btn-green apm-btn-lg" style="margin-top:10px;" onclick="apmGiveItem()">Создать и выдать</button>
+  </div>`;
+
   // Give core form
-  const coreTypes = [
-    { key:'income', emoji:'✴️', name:'Доход' },
-    { key:'capacity', emoji:'✳️', name:'Вместимость' },
-    { key:'hp', emoji:'❤️', name:'Здоровье' },
-    { key:'regen', emoji:'♻️', name:'Регенерация' },
-  ];
   html += `<div class="apm-section">
     <div style="font-size:13px;color:#ccc;margin-bottom:8px;font-weight:600;">Выдать ядро</div>
     <div style="margin-bottom:6px;font-size:12px;color:#888;">Тип:</div>
     <div id="apm-give-core-type">
-      ${coreTypes.map((ct,i) => `<span class="apm-chip${i===0?' active':''}" data-val="${ct.key}">${ct.emoji} ${ct.name}</span>`).join('')}
+      ${CORE_META.map((ct,i) => `<span class="apm-chip${i===0?' active':''}" data-val="${ct.key}">${ct.emoji} ${ct.name}</span>`).join('')}
     </div>
     <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
       <span style="font-size:12px;color:#888;">Уровень:</span>
@@ -11844,7 +11889,15 @@ function apmRenderResources(body) {
 
   body.innerHTML = html;
 
-  // Core type chip toggle
+  // Chip toggle logic
+  body.querySelectorAll('#apm-give-type .apm-chip').forEach(c => c.addEventListener('click', () => {
+    body.querySelectorAll('#apm-give-type .apm-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
+  body.querySelectorAll('#apm-give-rarity .apm-chip').forEach(c => c.addEventListener('click', () => {
+    body.querySelectorAll('#apm-give-rarity .apm-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
   body.querySelectorAll('#apm-give-core-type .apm-chip').forEach(c => c.addEventListener('click', () => {
     body.querySelectorAll('#apm-give-core-type .apm-chip').forEach(x => x.classList.remove('active'));
     c.classList.add('active');
