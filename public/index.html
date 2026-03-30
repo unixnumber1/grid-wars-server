@@ -2076,12 +2076,8 @@
     }
     .drop-marker { }
 
-    /* Delivery box pulse (gold glow) */
-    @keyframes deliveryPulse {
-      0%,100% { transform: scale(1); filter: drop-shadow(0 0 8px #FFD700); }
-      50%     { transform: scale(1.15); filter: drop-shadow(0 0 16px #FFD700); }
-    }
-    .delivery-marker { animation: deliveryPulse 1.2s ease-in-out infinite; }
+    /* Delivery box — subtle static glow, no animation */
+    .delivery-marker { filter: drop-shadow(0 0 4px rgba(255,215,0,0.4)); }
 
     /* Box odds popup */
     #box-odds-popup {
@@ -2750,7 +2746,7 @@
     .defender-hp-bar { width:36px; height:4px; background:#333; border-radius:2px; overflow:hidden; }
     .defender-hp-bar div { height:100%; background:#ff6600; transition:width 0.3s; }
     .loot-box-marker { display:flex; flex-direction:column; align-items:center; cursor:pointer; }
-    .loot-box-marker.mine { filter: drop-shadow(0 0 8px gold); }
+    .loot-box-marker.mine { filter: drop-shadow(0 0 4px rgba(255,215,0,0.4)); }
     .loot-box-label { font-size:10px; color:white; text-shadow:0 0 4px black; white-space:nowrap; }
     .loot-box-sublabel { font-size:9px; color:#aaa; text-shadow:0 0 4px black; white-space:nowrap; }
     /* HQ & Collector popup cards */
