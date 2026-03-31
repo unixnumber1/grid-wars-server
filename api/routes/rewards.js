@@ -132,7 +132,7 @@ async function handleClaimAll(res, player, tgId) {
 }
 
 // ── Grant reward helper ────────────────────────────────────────
-async function grantReward(player, tgId, reward) {
+export async function grantReward(player, tgId, reward) {
   const result = { diamonds: 0, shards: 0, ether: 0, items: [], cores: [] };
 
   // Grant currencies — fresh DB read, immediate write

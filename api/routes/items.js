@@ -6,6 +6,8 @@ import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
+import { STREAK_POOLS, STREAK_POOL_COUNT } from '../../config/streakRewards.js';
+import { grantReward } from './rewards.js';
 
 export const itemsRouter = Router();
 
@@ -215,6 +217,113 @@ async function handleDailyDiamonds(req, res) {
   return res.json({ success: true, diamonds: newDiamonds, gained: 5 });
 }
 
+// ── Weekly Login Streak ──────────────────────────────────────
+
+function _getStreakState(player) {
+  const nowMskDate = getMskDate(new Date());
+  const lastClaim = player.streak_claimed_at;
+  const day = player.streak_day ?? 0;
+  const week = player.streak_week ?? 0;
+
+  if (!lastClaim) return { canClaim: true, currentDay: 0, week };
+
+  const lastMskDate = getMskDate(lastClaim);
+  if (lastMskDate === nowMskDate) {
+    // Already claimed today
+    const nowMs = Date.now();
+    const mskNow = new Date(nowMs + 3 * 60 * 60 * 1000);
+    const mskMidnight = new Date(mskNow);
+    mskMidnight.setUTCHours(0, 0, 0, 0);
+    mskMidnight.setUTCDate(mskMidnight.getUTCDate() + 1);
+    return { canClaim: false, currentDay: day, week, nextClaimIn: mskMidnight.getTime() - mskNow.getTime() };
+  }
+
+  // Check if yesterday (consecutive)
+  const yesterday = getMskDate(new Date(Date.now() - 86400000));
+  if (lastMskDate === yesterday) return { canClaim: true, currentDay: day, week };
+
+  // Missed a day — reset streak, keep same week pool
+  return { canClaim: true, currentDay: 0, week };
+}
+
+async function handleStreakCheck(req, res) {
+  const { telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+
+  const { player, error } = await getPlayerByTelegramId(
+    telegram_id, 'id,streak_day,streak_week,streak_claimed_at'
+  );
+  if (error) return res.status(500).json({ error });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const state = _getStreakState(player);
+  const pool = STREAK_POOLS[state.week % STREAK_POOL_COUNT];
+  return res.json({ ...state, rewards: pool });
+}
+
+async function handleStreakClaim(req, res) {
+  const { telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+
+  return withPlayerLock(telegram_id, async () => {
+    const { player, error } = await getPlayerByTelegramId(
+      telegram_id, 'id,telegram_id,diamonds,crystals,ether,streak_day,streak_week,streak_claimed_at'
+    );
+    if (error) return res.status(500).json({ error });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    const state = _getStreakState(player);
+    if (!state.canClaim) {
+      return res.status(400).json({ error: 'Already claimed today', nextClaimIn: state.nextClaimIn });
+    }
+
+    const newDay = state.currentDay + 1; // 1-7
+    const pool = STREAK_POOLS[state.week % STREAK_POOL_COUNT];
+    const rewardDef = { ...pool[newDay - 1] };
+
+    // Day 7 core chance
+    if (rewardDef.coreChance && Math.random() < rewardDef.coreChance) {
+      rewardDef.cores = [{ level: 0 }];
+    }
+    delete rewardDef.coreChance;
+
+    // Grant reward using shared function from rewards.js
+    const granted = await grantReward(player, telegram_id, rewardDef);
+
+    // Update streak state
+    let nextDay = newDay;
+    let nextWeek = state.week;
+    if (newDay >= 7) {
+      nextDay = 0;
+      nextWeek = (state.week + 1) % STREAK_POOL_COUNT;
+    }
+
+    await supabase.from('players').update({
+      streak_day: nextDay,
+      streak_week: nextWeek,
+      streak_claimed_at: new Date().toISOString(),
+    }).eq('id', player.id);
+
+    if (gameState.loaded) {
+      const p = gameState.getPlayerById(player.id);
+      if (p) {
+        p.streak_day = nextDay;
+        p.streak_week = nextWeek;
+        p.streak_claimed_at = new Date().toISOString();
+        gameState.markDirty('players', p.id);
+      }
+    }
+
+    return res.json({
+      success: true,
+      day: newDay,
+      week: nextWeek,
+      reward: granted,
+      streakComplete: newDay >= 7,
+    });
+  });
+}
+
 // STAR_PACKS imported from config/constants.js via ITEM_TYPES import line
 
 async function handleStarsInvoice(req, res) {
@@ -332,6 +441,8 @@ itemsRouter.post('/', async (req, res) => {
   if (action === 'daily-check')    return handleDailyCheck(req, res);
   if (action === 'daily-diamonds') return handleDailyDiamonds(req, res);
   if (action === 'stars-invoice')  return handleStarsInvoice(req, res);
+  if (action === 'streak-check')   return handleStreakCheck(req, res);
+  if (action === 'streak-claim')   return handleStreakClaim(req, res);
 
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
   return withPlayerLock(telegram_id, async () => {

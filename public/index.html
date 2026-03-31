@@ -859,6 +859,51 @@
     }
     #session-kicked-screen.open { display: flex; }
 
+    /* Streak overlay */
+    #streak-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 5200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #streak-overlay.open { display: flex; }
+    #streak-panel {
+      background: #1a1a2e;
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 32px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .streak-day {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+    .streak-circle {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      border: 2px solid #333;
+      color: #555;
+      background: #111;
+      transition: all 0.3s;
+    }
+    .streak-circle.claimed { background: #2e7d32; border-color: #4caf50; color: #fff; }
+    .streak-circle.current { border-color: #FFD700; color: #FFD700; animation: streakPulse 1.5s infinite; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
+    .streak-circle.day7 { border-color: #e040fb; }
+    .streak-circle.day7.current { border-color: #FFD700; }
+    .streak-day-label { font-size: 10px; color: #666; }
+    @keyframes streakPulse { 0%,100% { box-shadow: 0 0 6px rgba(255,215,0,0.3); } 50% { box-shadow: 0 0 14px rgba(255,215,0,0.6); } }
+
     #maintenance-avatar {
       display: flex;
       align-items: center;
@@ -3201,6 +3246,7 @@
 <div id="hud-right-panel">
   <button class="hud-right-btn" id="btn-teleport" data-i18n-title="hud.pin_title">📌</button>
   <button class="hud-right-btn" id="btn-shop-hud" data-i18n-title="hud.shop_title">🛒</button>
+  <button class="hud-right-btn" id="btn-streak-hud" title="Streak">🔥<span class="notif-badge" id="streak-badge" style="display:none">!</span></button>
   <button class="hud-right-btn" id="btn-market-hud" data-i18n-title="hud.market_title">🎪</button>
   <button class="hud-right-btn" id="btn-leaderboard" data-i18n-title="hud.lb_title">🏆</button>
   <button class="hud-right-btn" id="btn-settings" data-i18n-title="hud.settings_title">⚙️<span class="notif-badge" id="settings-badge"></span></button>
@@ -3264,6 +3310,20 @@
 
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<!-- Streak overlay -->
+<div id="streak-overlay">
+  <div id="streak-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:18px;font-weight:700;color:#fff;" data-i18n="streak.title">Недельный бонус</div>
+      <button onclick="document.getElementById('streak-overlay').classList.remove('open')" style="background:none;border:none;color:#888;font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div id="streak-days" style="display:flex;gap:6px;justify-content:center;margin-bottom:14px;"></div>
+    <div id="streak-reward-preview" style="text-align:center;font-size:14px;color:#ccc;margin-bottom:10px;"></div>
+    <div id="streak-timer" style="text-align:center;font-size:12px;color:#888;margin-bottom:12px;"></div>
+    <button id="btn-streak-claim" onclick="claimStreak()" style="width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:#FFD700;color:#000;" data-i18n="streak.btn">Забрать награду</button>
+  </div>
+</div>
 
 <!-- Shop modal (fullscreen) -->
 <div id="shop-modal">
@@ -3808,6 +3868,14 @@ const I18N = {
     'toast.mine_survived': '🛡️ Шахта устояла ({remaining}/{max} HP)',
     'toast.mine_extinguished': '🧯 Потушено! HP: {restored}/{max}',
     'toast.daily_diamonds': '💎 +5 алмазов!',
+    'streak.title': '🔥 Недельный бонус',
+    'streak.btn': 'Забрать награду',
+    'streak.claimed': 'Получено ✓',
+    'streak.reset': 'Стрик сброшен — начинай сначала!',
+    'streak.day': 'День',
+    'streak.complete': '🎉 Неделя завершена! Новый цикл наград!',
+    'toast.streak_day': '🔥 День {day} — награда получена!',
+    'toast.streak_core': '✨ Бонус: случайное ядро!',
     'toast.payment_success': '💎 Оплата прошла! Алмазы будут начислены.',
     'toast.payment_cancelled': 'Оплата отменена',
     'toast.items_sold_crystals': 'Продано {count} предметов за {crystals} ✨',
@@ -4981,6 +5049,14 @@ const I18N = {
     'toast.mine_survived': '🛡️ Mine survived ({remaining}/{max} HP)',
     'toast.mine_extinguished': '🧯 Extinguished! HP: {restored}/{max}',
     'toast.daily_diamonds': '💎 +5 diamonds!',
+    'streak.title': '🔥 Weekly Bonus',
+    'streak.btn': 'Claim reward',
+    'streak.claimed': 'Claimed ✓',
+    'streak.reset': 'Streak reset — start over!',
+    'streak.day': 'Day',
+    'streak.complete': '🎉 Week complete! New reward cycle!',
+    'toast.streak_day': '🔥 Day {day} — reward collected!',
+    'toast.streak_core': '✨ Bonus: random core!',
     'toast.payment_success': '💎 Payment successful! Diamonds will be credited.',
     'toast.payment_cancelled': 'Payment cancelled',
     'toast.items_sold_crystals': 'Sold {count} items for {crystals} ✨',
@@ -12358,6 +12434,7 @@ async function boot() {
   initSocket();
   startUnifiedTick();
   startBotAnimation();
+  _initStreakBadge();
 
   setLoadingText('Getting GPS...');
   document.getElementById('loading').style.display = '';
@@ -16393,6 +16470,131 @@ async function claimDailyDiamonds() {
     if (btn) { btn.disabled = false; btn.textContent = t('shop.daily_btn'); }
   }
 }
+
+// ── Weekly Login Streak ──────────────────────────────────────
+let _streakData = null;
+let _streakTimerInterval = null;
+
+function _rewardEmoji(r) {
+  if (r.diamonds) return r.diamonds + '💎';
+  if (r.shards) return r.shards + '✨';
+  if (r.ether) return r.ether + '🌀';
+  if (r.boxes) return r.boxes[0] === 'rare' ? '📦 Rare' : '📦';
+  return '🎁';
+}
+
+async function openStreakPanel() {
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'streak-check' }),
+    });
+    _streakData = data;
+    _renderStreakPanel(data);
+    document.getElementById('streak-overlay').classList.add('open');
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+function _renderStreakPanel(data) {
+  const container = document.getElementById('streak-days');
+  const rewards = data.rewards || [];
+  const current = data.currentDay || 0;
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const dayNum = i + 1;
+    const isClaimed = dayNum <= current;
+    const isCurrent = dayNum === current + 1 && data.canClaim;
+    const isDay7 = dayNum === 7;
+    let cls = 'streak-circle';
+    if (isClaimed) cls += ' claimed';
+    else if (isCurrent) cls += ' current';
+    if (isDay7) cls += ' day7';
+    const inner = isClaimed ? '✓' : (isDay7 ? '🎁' : dayNum);
+    const reward = rewards[i] ? _rewardEmoji(rewards[i]) : '';
+    html += `<div class="streak-day"><div class="${cls}">${inner}</div><div class="streak-day-label">${reward}</div></div>`;
+  }
+  container.innerHTML = html;
+
+  // Preview
+  const preview = document.getElementById('streak-reward-preview');
+  if (data.canClaim && rewards[current]) {
+    const r = rewards[current];
+    let desc = _rewardEmoji(r);
+    if (r.coreChance) desc += ` + ${Math.round(r.coreChance * 100)}% ядро`;
+    preview.innerHTML = `${t('streak.day')} ${current + 1}: <span style="color:#FFD700;font-weight:700">${desc}</span>`;
+  } else if (!data.canClaim) {
+    preview.textContent = t('streak.claimed');
+  }
+
+  // Button
+  const btn = document.getElementById('btn-streak-claim');
+  btn.disabled = !data.canClaim;
+  btn.textContent = data.canClaim ? t('streak.btn') : t('streak.claimed');
+
+  // Timer
+  if (_streakTimerInterval) { clearInterval(_streakTimerInterval); _streakTimerInterval = null; }
+  if (!data.canClaim && data.nextClaimIn > 0) {
+    const timerEl = document.getElementById('streak-timer');
+    const endMs = Date.now() + data.nextClaimIn;
+    function tickTimer() {
+      const left = Math.max(0, endMs - Date.now());
+      const h = Math.floor(left / 3600000);
+      const m = Math.floor((left % 3600000) / 60000);
+      const s = Math.floor((left % 60000) / 1000);
+      timerEl.textContent = `⏰ ${h}ч ${m}м ${s}с`;
+      if (left <= 0) { clearInterval(_streakTimerInterval); _streakTimerInterval = null; }
+    }
+    tickTimer();
+    _streakTimerInterval = setInterval(tickTimer, 1000);
+  } else {
+    document.getElementById('streak-timer').textContent = '';
+  }
+}
+
+async function claimStreak() {
+  const btn = document.getElementById('btn-streak-claim');
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'streak-claim' }),
+    });
+    const msg = t('toast.streak_day').replace('{day}', data.day);
+    showToast(msg);
+    if (data.reward?.cores?.length > 0) showToast(t('toast.streak_core'));
+    if (data.streakComplete) showToast(t('streak.complete'));
+    if (data.reward?.diamonds) { state.player.diamonds = (state.player.diamonds || 0) + data.reward.diamonds; updateDiamondDisplay(); }
+    // Refresh panel
+    const check = await apiFetch('/api/items', { method: 'POST', body: JSON.stringify({ action: 'streak-check' }) });
+    _streakData = check;
+    _renderStreakPanel(check);
+    updateStreakBadge(false);
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+    btn.disabled = false;
+    btn.textContent = t('streak.btn');
+  }
+}
+
+function updateStreakBadge(canClaim) {
+  const badge = document.getElementById('streak-badge');
+  if (badge) badge.style.display = canClaim ? '' : 'none';
+}
+
+// Check streak on init (after socket connects)
+async function _initStreakBadge() {
+  try {
+    const data = await apiFetch('/api/items', { method: 'POST', body: JSON.stringify({ action: 'streak-check' }) });
+    _streakData = data;
+    updateStreakBadge(data.canClaim);
+  } catch (_) {}
+}
+
+document.getElementById('btn-streak-hud').addEventListener('click', openStreakPanel);
+document.getElementById('streak-overlay').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
 
 async function buyStars(diamonds = 100, stars = 15) {
   try {

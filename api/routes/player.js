@@ -534,7 +534,7 @@ playerRouter.post('/init', async (req, res) => {
   const withTimeout = (promise) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 5000))]);
   let player;
   try {
-    const { data, error: playerError } = await withTimeout(supabase.from('players').upsert({ telegram_id: tgId, username: username || null }, { onConflict: 'telegram_id', ignoreDuplicates: false }).select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role,daily_diamonds_claimed_at,last_lat,last_lng,last_seen,is_banned,ban_reason,ban_until,active_badge,created_at').single());
+    const { data, error: playerError } = await withTimeout(supabase.from('players').upsert({ telegram_id: tgId, username: username || null }, { onConflict: 'telegram_id', ignoreDuplicates: false }).select('id,telegram_id,username,game_username,username_changes,avatar,level,xp,hp,max_hp,bonus_attack,bonus_hp,bonus_crit,kills,deaths,diamonds,coins,equipped_sword,equipped_shield,respawn_until,starting_bonus_claimed,last_hp_regen,shield_until,clan_id,clan_role,daily_diamonds_claimed_at,streak_day,streak_week,streak_claimed_at,last_lat,last_lng,last_seen,is_banned,ban_reason,ban_until,active_badge,created_at').single());
     if (playerError) throw new Error(playerError.message);
     player = data;
   } catch (err) { return res.status(503).json({ error: 'DB unavailable', message: 'Сервер временно недоступен, попробуй через минуту' }); }
