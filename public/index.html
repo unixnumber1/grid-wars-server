@@ -9457,7 +9457,7 @@ function showItemRevealPromise(item) {
 // ── Core reveal (promise-based) ──
 function showCoreRevealPromise(core) {
   return new Promise(resolve => {
-    const ct = CORE_TYPES[core.core_type] || { emoji: '⚙️', name: core.core_type };
+    const ct = CORE_TYPES[core.core_type] || { emoji: '🔮', name: core.core_type };
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;animation:fadeIn 0.3s ease;';
     ov.innerHTML = `
@@ -9488,7 +9488,7 @@ function showClaimAllSummary(levels, granted) {
     if (granted.shards > 0) lines += `<div style="font-size:20px;margin:4px 0;">✨ +${granted.shards}</div>`;
     if (granted.ether > 0) lines += `<div style="font-size:20px;margin:4px 0;">🌀 +${granted.ether}</div>`;
     if (granted.items && granted.items.length) lines += `<div style="font-size:20px;margin:4px 0;">🎁 ${t('rewards.items_count', {n: granted.items.length})}</div>`;
-    if (granted.cores && granted.cores.length) lines += `<div style="font-size:20px;margin:4px 0;">⚙️ ${t('rewards.cores_count', {n: granted.cores.length})}</div>`;
+    if (granted.cores && granted.cores.length) lines += `<div style="font-size:20px;margin:4px 0;">🔮 ${t('rewards.cores_count', {n: granted.cores.length})}</div>`;
 
     ov.innerHTML = `
       <div style="text-align:center;">
@@ -16614,7 +16614,7 @@ function _renderStreakPanel(data) {
     else if (isCurrent) cls += ' current';
     if (isDay7) cls += ' day7';
     const r = rewards[i] ? _rewardEmoji(rewards[i]) : { emoji: '?', val: '' };
-    const coreHint = (isDay7 && rewards[i]?.coreChance) ? `<div style="font-size:9px;color:#e040fb;margin-top:2px;">+${Math.round(rewards[i].coreChance*100)}% ⚙️</div>` : '';
+    const coreHint = (isDay7 && rewards[i]?.coreChance) ? `<div style="font-size:9px;color:#e040fb;margin-top:2px;">+${Math.round(rewards[i].coreChance*100)}% 🔮</div>` : '';
     if (isDay7) {
       html += `<div class="${cls}">
         <div class="streak-card-day">${t('streak.day')} ${dayNum}</div>
