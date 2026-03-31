@@ -12,7 +12,7 @@ export const BADGES = {
     description_en: 'One of the first Overthrow players',
     color: '#FFD700',
     rarity: 'legendary',
-    condition: (player) => player.created_at && new Date(player.created_at) < new Date('2026-04-01'),
+    condition: (player) => player.created_at && new Date(player.created_at) < new Date('2026-03-31T21:01:00Z'),
   },
 };
 
