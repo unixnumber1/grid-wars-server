@@ -13247,16 +13247,18 @@ function _showBoxInfo(boxType) {
 
 function showCoreOrbInfo() {
   const cores = [
-    { emoji: '✴️', name: 'Ядро дохода', color: '#FFD700', pct: 25 },
-    { emoji: '✳️', name: 'Ядро вместимости', color: '#4caf50', pct: 25 },
-    { emoji: '❤️', name: 'Ядро здоровья', color: '#f44336', pct: 25 },
-    { emoji: '♻️', name: 'Ядро регенерации', color: '#7DF9FF', pct: 25 },
+    { emoji: '✴️', name: 'Ядро дохода', pct: 25 },
+    { emoji: '✳️', name: 'Ядро вместимости', pct: 25 },
+    { emoji: '❤️', name: 'Ядро здоровья', pct: 25 },
+    { emoji: '♻️', name: 'Ядро регенерации', pct: 25 },
   ];
   document.getElementById('box-odds-title').textContent = '🔮 Магический шар — содержимое';
   const container = document.getElementById('box-odds-rows');
   container.innerHTML = cores.map(c =>
-    `<div class="odds-row"><div class="odds-bar" style="background:${c.color}"></div><span class="odds-name">${c.emoji} ${c.name}</span><span class="odds-pct">${c.pct}%</span></div>`
+    `<div class="odds-row"><span class="odds-name">${c.emoji} ${c.name}</span><span class="odds-pct">${c.pct}%</span></div>`
   ).join('');
+  const footer = document.querySelector('.odds-footer');
+  if (footer) footer.style.display = 'none';
   document.getElementById('box-odds-popup').classList.add('open');
 }
 
@@ -13312,6 +13314,8 @@ function showBoxOdds(boxType) {
   const odds = SHOP_BOX_ODDS[boxType];
   const title = boxType === 'rare' ? '📦 Редкий бокс — содержимое' : '🎁 Эпический бокс — содержимое';
   document.getElementById('box-odds-title').textContent = title;
+  const footer = document.querySelector('.odds-footer');
+  if (footer) footer.style.display = '';
   const container = document.getElementById('box-odds-rows');
   container.innerHTML = '';
   for (const [rarity, pct] of Object.entries(odds)) {
