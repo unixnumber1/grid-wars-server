@@ -13496,17 +13496,19 @@ function _renderCorePacks() {
   const grid = document.getElementById('shop-cores-grid');
   if (!grid) return;
   const CORE_PACKS = [
-    { label: '🔮 x3 + 500🌀', cores: 3, core_level: 0, ether: 500, price: 500 },
-    { label: '🔮 x5 + 1500🌀', cores: 5, core_level: 0, ether: 1500, price: 800 },
-    { label: '🔮 x10 + 5000🌀', cores: 10, core_level: 0, ether: 5000, price: 1500, badge: 'ВЫГОДА' },
+    { label: '🔮 Малый', cores: 3, core_level: 0, ether: 500, price: 400 },
+    { label: '🔮 Средний', cores: 5, core_level: 0, ether: 1500, price: 650 },
+    { label: '🔮 Большой', cores: 10, core_level: 0, ether: 4000, price: 1100 },
+    { label: '🔮 Мега', cores: 20, core_level: 0, ether: 10000, price: 1800, badge: '-40%' },
   ];
   grid.innerHTML = CORE_PACKS.map((p, i) => {
     const badgeHtml = p.badge ? `<div style="position:absolute;top:-6px;right:-6px;background:#ff6d00;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:8px;">${p.badge}</div>` : '';
+    const perCore = Math.round(p.price / p.cores);
     return `<div style="position:relative;background:#0d1a2e;border:1px solid #1e3a5f;border-radius:var(--card-radius);padding:14px;cursor:pointer;" onclick="buyCorePack(${i})">
       ${badgeHtml}
       <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;">${p.label}</div>
       <div style="font-size:12px;color:var(--text-secondary);">${p.cores} ядер + ${p.ether}🌀 эфира</div>
-      <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Случайный тип</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">${perCore}💎/шт</div>
       <div style="margin-top:8px;">
         <span style="font-size:14px;font-weight:700;color:#64B5F6;">💎 ${p.price}</span>
       </div>
@@ -13517,9 +13519,10 @@ function _renderCorePacks() {
 async function buyCorePack(packIndex) {
   if (!confirm(t('shop.core_pack_buy'))) return;
   const CORE_PACKS = [
-    { label: '🔮 x3 + 500🌀', cores: 3, core_level: 0, ether: 500, price: 500 },
-    { label: '🔮 x5 + 1500🌀', cores: 5, core_level: 0, ether: 1500, price: 800 },
-    { label: '🔮 x10 + 5000🌀', cores: 10, core_level: 0, ether: 5000, price: 1500, badge: 'ВЫГОДА' },
+    { label: '🔮 Малый', cores: 3, core_level: 0, ether: 500, price: 400 },
+    { label: '🔮 Средний', cores: 5, core_level: 0, ether: 1500, price: 650 },
+    { label: '🔮 Большой', cores: 10, core_level: 0, ether: 4000, price: 1100 },
+    { label: '🔮 Мега', cores: 20, core_level: 0, ether: 10000, price: 1800, badge: '-40%' },
   ];
   try {
     const data = await apiFetch('/api/items', {
