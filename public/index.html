@@ -3441,6 +3441,15 @@
           <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;" data-i18n="shop.open">Открыть</button>
         </div>
       </div>
+      <div style="margin-top:12px;">
+        <div class="shop-box-card" id="core-orb-card" style="border-color:rgba(156,39,176,0.5);background:linear-gradient(135deg,#1a1030,#2a1540);box-shadow:0 0 20px rgba(156,39,176,0.15);position:relative;">
+          <div class="shop-box-icon" style="font-size:56px;">🔮</div>
+          <div class="shop-box-name">Магический шар</div>
+          <div style="font-size:11px;color:#ce93d8;margin:4px 0;">Случайное ядро</div>
+          <div class="shop-box-price">💎 300</div>
+          <button class="shop-box-open-btn" id="btn-core-orb" onclick="doOpenCoreOrb()" style="background:linear-gradient(135deg,rgba(156,39,176,0.35),rgba(156,39,176,0.12));border-color:rgba(156,39,176,0.5);color:#ce93d8;" data-i18n="shop.open">Открыть</button>
+        </div>
+      </div>
     </div>
     <!-- Items tab (mythic gear + core packs) -->
     <div id="shop-tab-items" class="shop-tab-content">
@@ -13215,6 +13224,14 @@ function _updateShopButtons() {
     btn.style.opacity = canAfford ? '1' : '0.5';
     btn.style.cursor = canAfford ? 'pointer' : 'not-allowed';
   });
+  // Core orb button
+  const orbBtn = document.getElementById('btn-core-orb');
+  if (orbBtn) {
+    const canOrb = diamonds >= 300;
+    orbBtn.disabled = !canOrb;
+    orbBtn.style.opacity = canOrb ? '1' : '0.5';
+    orbBtn.style.cursor = canOrb ? 'pointer' : 'not-allowed';
+  }
 }
 
 function rarityName(r) { return t('rarity.' + r); }
@@ -13363,6 +13380,71 @@ function _animateBoxOpen(boxType, item) {
       overlay.innerHTML = '';
       showItemReveal(item, 'box');
       resolve();
+    }, 1200);
+  });
+}
+
+async function doOpenCoreOrb() {
+  const diamonds = state.player?.diamonds ?? 0;
+  if (diamonds < 300) { showToast(t('toast.not_enough_diamonds')); return; }
+
+  const btn = document.getElementById('btn-core-orb');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const data = await apiFetch('/api/items', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'open-core-orb' }),
+    });
+
+    if (state.player) state.player.diamonds = data.diamondsLeft;
+    updateDiamondDisplay();
+    document.getElementById('shop-diamonds').textContent = data.diamondsLeft;
+    _updateShopButtons();
+
+    // Animate: same box open animation but with 🔮 then core reveal
+    await _animateCoreOrb(data.core);
+
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+    _updateShopButtons();
+  }
+}
+
+function _animateCoreOrb(core) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('box-open-overlay');
+
+    // Phase 1: Show orb
+    overlay.innerHTML = `<div class="box-anim-icon">🔮</div>`;
+    overlay.classList.add('open');
+
+    // Phase 2: Shake
+    setTimeout(() => {
+      const icon = overlay.querySelector('.box-anim-icon');
+      if (icon) icon.style.animation = 'boxShake 0.4s ease-in-out';
+    }, 500);
+
+    // Phase 3: Purple flash
+    setTimeout(() => {
+      const flash = document.createElement('div');
+      flash.className = 'box-flash';
+      flash.style.background = '#9c27b0';
+      flash.style.opacity = '0.8';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 300);
+    }, 900);
+
+    // Phase 4: Core reveal
+    setTimeout(() => {
+      overlay.classList.remove('open');
+      overlay.innerHTML = '';
+      showCoreRevealPromise(core).then(resolve);
     }, 1200);
   });
 }

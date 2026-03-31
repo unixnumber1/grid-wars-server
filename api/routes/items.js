@@ -13,6 +13,7 @@ export const itemsRouter = Router();
 
 // ── Shop box constants ────────────────────────────────────────
 const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
+const CORE_ORB_PRICE = 300;
 
 async function recalcBonuses(playerId, level) {
   const { data: equipped } = await supabase
@@ -608,6 +609,30 @@ itemsRouter.post('/', async (req, res) => {
     }
 
     return res.json({ success: true, items: createdItems, diamondsLeft: newDiamonds });
+  }
+
+  if (action === 'open-core-orb') {
+    const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
+    if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
+    const diamonds = p.diamonds ?? 0;
+    if (diamonds < CORE_ORB_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: CORE_ORB_PRICE }) });
+
+    const newDiamonds = diamonds - CORE_ORB_PRICE;
+    const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
+    if (!diamOk) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
+
+    const { randomCoreType } = await import('../../game/mechanics/cores.js');
+    const coreData = { owner_id: Number(telegram_id), core_type: randomCoreType(), level: 0, mine_cell_id: null, slot_index: null };
+    const { data: core, error: cErr } = await supabase.from('cores').insert(coreData).select().single();
+    if (cErr) return res.status(500).json({ error: 'Failed to create core' });
+    if (gameState.loaded) gameState.cores.set(core.id, core);
+
+    if (gameState.loaded) {
+      const gp = gameState.getPlayerById(p.id);
+      if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); }
+    }
+
+    return res.json({ success: true, core, diamondsLeft: newDiamonds });
   }
 
   if (action === 'buy-core-pack') {
