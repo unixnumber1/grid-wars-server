@@ -525,7 +525,7 @@ playerRouter.post('/init', async (req, res) => {
   if (tgId !== ADMIN_TG_ID) {
     if (gameState.loaded) {
       const mSetting = gameState.appSettings?.get('maintenance_mode');
-      if (mSetting?.value === 'true') return res.status(503).json({ maintenance: true });
+      if (mSetting === 'true') return res.status(503).json({ maintenance: true });
     } else {
       const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'maintenance_mode').single();
       if (setting?.value === 'true') return res.status(503).json({ maintenance: true });

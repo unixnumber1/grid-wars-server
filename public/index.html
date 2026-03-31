@@ -10423,6 +10423,11 @@ function initSocket() {
       document.getElementById('session-kicked-screen').classList.add('open');
     });
 
+    _socket.on('maintenance:started', () => {
+      showMaintenanceScreen();
+      _maintenanceMode = true;
+    });
+
     _socket.on('tick', (data) => {
       processTickData(data);
     });

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import os from 'os';
 import { supabase, sendTelegramNotification } from '../../lib/supabase.js';
 import { gameState } from '../../lib/gameState.js';
-import { connectedPlayers } from '../../server.js';
+import { connectedPlayers, io } from '../../server.js';
 import { log } from '../../lib/log.js';
 import { getCellCenter, getCellId } from '../../lib/grid.js';
 import { haversine } from '../../lib/haversine.js';
@@ -937,10 +937,22 @@ adminRouter.post('/', async (req, res) => {
       .upsert({ key: 'maintenance_mode', value: 'true' }, { onConflict: 'key' });
     if (setErr) return res.status(500).json({ error: setErr.message });
 
+    // Update in-memory cache
+    gameState.appSettings.set('maintenance_mode', 'true');
+
+    // Notify all connected clients via socket and disconnect non-admins
+    io.emit('maintenance:started');
+    let disconnected = 0;
+    for (const [socketId, info] of connectedPlayers) {
+      if (Number(info.telegram_id) === ADMIN_TG_ID) continue;
+      const s = io.sockets.sockets.get(socketId);
+      if (s) { s.disconnect(true); disconnected++; }
+    }
+
     const text = message
       || '🔧 Начались технические работы. Игра временно недоступна. Следите за обновлениями!';
     const sent = await _notifyAllPlayers(text);
-    return res.status(200).json({ success: true, maintenance: true, notified: sent });
+    return res.status(200).json({ success: true, maintenance: true, notified: sent, disconnected });
   }
 
   // ── maintenance-end: disable maintenance + notify all players ──
@@ -950,6 +962,11 @@ adminRouter.post('/', async (req, res) => {
       .from('app_settings')
       .upsert({ key: 'maintenance_mode', value: 'false' }, { onConflict: 'key' });
     if (setErr) return res.status(500).json({ error: setErr.message });
+
+    // Update in-memory cache
+    gameState.appSettings.set('maintenance_mode', 'false');
+
+    io.emit('maintenance:ended');
 
     const text = message
       || '✅ Технические работы завершены! Игра снова доступна. Удачной охоты! ⚔️';
