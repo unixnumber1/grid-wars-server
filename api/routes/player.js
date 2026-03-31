@@ -16,8 +16,7 @@ import { BADGES, checkAndAwardBadges } from '../../config/badges.js';
 
 export const playerRouter = Router();
 
-const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
-const RENAME_COST_DIAMONDS = 50;
+const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_ ]+$/;
 
 async function handleSetUsername(req, res) {
   const { telegram_id, username } = req.body || {};
@@ -33,15 +32,16 @@ async function handleSetUsername(req, res) {
   if (!player) return res.status(404).json({ error: 'Player not found' });
   const { data: existing } = await supabase.from('players').select('id').ilike('game_username', trimmed).neq('id', player.id).maybeSingle();
   if (existing) return res.status(400).json({ error: 'Этот ник уже занят' });
+  const isFirstSetup = !player.game_username;
   const changes = player.username_changes ?? 0;
   let newDiamonds = player.diamonds ?? 0;
-  if (changes > 0) {
-    if (newDiamonds < RENAME_COST_DIAMONDS)
-      return res.status(400).json({ error: `Недостаточно алмазов (нужно ${RENAME_COST_DIAMONDS} 💎)` });
-    newDiamonds -= RENAME_COST_DIAMONDS;
+  if (!isFirstSetup && changes > 0) {
+    if (newDiamonds < COSMETIC_PRICES.rename_player)
+      return res.status(400).json({ error: `Недостаточно алмазов (нужно ${COSMETIC_PRICES.rename_player} 💎)` });
+    newDiamonds -= COSMETIC_PRICES.rename_player;
   }
   const updateObj = { game_username: trimmed, username_changes: changes + 1 };
-  if (changes > 0) updateObj.diamonds = newDiamonds;
+  if (!isFirstSetup && changes > 0) updateObj.diamonds = newDiamonds;
   const { error: updateErr } = await supabase.from('players').update(updateObj).eq('id', player.id);
   if (updateErr) return res.status(500).json({ error: updateErr.message });
   if (gameState.loaded) {
@@ -76,11 +76,12 @@ async function handleAvatar(req, res) {
   const { telegram_id, avatar } = req.body;
   if (!telegram_id || !avatar) return res.status(400).json({ error: 'telegram_id and avatar are required' });
   if (!ALLOWED_AVATARS.includes(avatar)) return res.status(400).json({ error: 'Invalid avatar' });
-  const { player, error: findError } = await getPlayerByTelegramId(telegram_id, 'id,telegram_id,username,avatar,diamonds');
+  const { player, error: findError } = await getPlayerByTelegramId(telegram_id, 'id,telegram_id,username,game_username,avatar,diamonds');
   if (findError) return res.status(500).json({ error: findError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
   const cost = COSMETIC_PRICES.reavatar_player;
-  const isChange = !!player.avatar;
+  // Don't charge during initial registration (no game_username yet) or when setting the same avatar
+  const isChange = !!player.avatar && player.avatar !== avatar && !!player.game_username;
   let newDiamonds = player.diamonds ?? 0;
   if (isChange) {
     if (newDiamonds < cost)
