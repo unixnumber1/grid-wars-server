@@ -80,13 +80,14 @@
     .hud-sep { color: rgba(255,255,255,0.2); font-size: 12px; }
 
     /* Right vertical panel */
-    #hud-right-panel {
+    /* Top-right buttons (pin + shadow) */
+    #hud-top-right {
       position: fixed;
       right: 12px;
       top: calc(env(safe-area-inset-top, 0px) + 8px);
       z-index: 1000;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 6px;
     }
     .hud-right-btn {
@@ -110,6 +111,44 @@
     .hud-right-btn:active {
       background: rgba(255,215,0,0.12);
       border-color: rgba(255,215,0,0.3);
+    }
+
+    /* Burger menu */
+    #hud-burger-wrap {
+      position: fixed;
+      right: 12px;
+      top: calc(env(safe-area-inset-top, 0px) + 54px);
+      z-index: 1000;
+    }
+    #burger-menu {
+      display: none;
+      margin-top: 6px;
+      gap: 4px;
+      background: rgba(8,8,18,0.94);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 8px;
+    }
+    #burger-menu.open { display: flex; }
+    .burger-col { display: flex; flex-direction: column; gap: 4px; }
+    .burger-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      color: #ddd;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+    }
+    .burger-item:active { background: rgba(255,215,0,0.12); color: #FFD700;
     }
     .hud-right-btn .notif-badge {
       position: absolute;
@@ -3242,14 +3281,26 @@
   </div>
 </div>
 
-<!-- Right vertical panel -->
-<div id="hud-right-panel">
+<!-- Top-right action buttons (pin + shadow) -->
+<div id="hud-top-right">
+  <button class="hud-right-btn" id="btn-shadow-map" style="display:none;" title="Shadow">🎭</button>
   <button class="hud-right-btn" id="btn-teleport" data-i18n-title="hud.pin_title">📌</button>
-  <button class="hud-right-btn" id="btn-shop-hud" data-i18n-title="hud.shop_title">🛒</button>
-  <button class="hud-right-btn" id="btn-streak-hud" title="Streak">🔥<span class="notif-badge" id="streak-badge" style="display:none">!</span></button>
-  <button class="hud-right-btn" id="btn-market-hud" data-i18n-title="hud.market_title">🎪</button>
-  <button class="hud-right-btn" id="btn-leaderboard" data-i18n-title="hud.lb_title">🏆</button>
-  <button class="hud-right-btn" id="btn-settings" data-i18n-title="hud.settings_title">⚙️<span class="notif-badge" id="settings-badge"></span></button>
+</div>
+
+<!-- Burger menu -->
+<div id="hud-burger-wrap">
+  <button class="hud-right-btn" id="btn-burger" onclick="toggleBurgerMenu()">☰<span class="notif-badge" id="burger-badge" style="display:none">!</span></button>
+  <div id="burger-menu">
+    <div class="burger-col">
+      <button class="burger-item" id="btn-settings" data-i18n-title="hud.settings_title">⚙️ <span data-i18n="hud.settings_short">Настройки</span><span class="notif-badge" id="settings-badge"></span></button>
+      <button class="burger-item" id="btn-leaderboard" data-i18n-title="hud.lb_title">🏆 <span data-i18n="hud.lb_short">Рейтинг</span></button>
+    </div>
+    <div class="burger-col">
+      <button class="burger-item" id="btn-shop-hud" data-i18n-title="hud.shop_title">🛒 <span data-i18n="hud.shop_short">Магазин</span></button>
+      <button class="burger-item" id="btn-market-hud" data-i18n-title="hud.market_title">🎪 <span data-i18n="hud.market_short">Рынок</span></button>
+      <button class="burger-item" id="btn-streak-hud" title="Streak">🔥 <span data-i18n="hud.streak_short">Бонус</span><span class="notif-badge" id="streak-badge" style="display:none">!</span></button>
+    </div>
+  </div>
 </div>
 
 <!-- Map -->
@@ -3868,6 +3919,11 @@ const I18N = {
     'toast.mine_survived': '🛡️ Шахта устояла ({remaining}/{max} HP)',
     'toast.mine_extinguished': '🧯 Потушено! HP: {restored}/{max}',
     'toast.daily_diamonds': '💎 +5 алмазов!',
+    'hud.settings_short': 'Настройки',
+    'hud.lb_short': 'Рейтинг',
+    'hud.shop_short': 'Магазин',
+    'hud.market_short': 'Рынок',
+    'hud.streak_short': 'Бонус',
     'streak.title': '🔥 Недельный бонус',
     'streak.btn': 'Забрать награду',
     'streak.claimed': 'Получено ✓',
@@ -5049,6 +5105,11 @@ const I18N = {
     'toast.mine_survived': '🛡️ Mine survived ({remaining}/{max} HP)',
     'toast.mine_extinguished': '🧯 Extinguished! HP: {restored}/{max}',
     'toast.daily_diamonds': '💎 +5 diamonds!',
+    'hud.settings_short': 'Settings',
+    'hud.lb_short': 'Ranking',
+    'hud.shop_short': 'Shop',
+    'hud.market_short': 'Market',
+    'hud.streak_short': 'Bonus',
     'streak.title': '🔥 Weekly Bonus',
     'streak.btn': 'Claim reward',
     'streak.claimed': 'Claimed ✓',
@@ -8996,10 +9057,12 @@ function toggleShadowAbility() {
 
 function updateShadowButton() {
   const btn = document.getElementById('btn-shadow-inv');
+  const mapBtn = document.getElementById('btn-shadow-map');
   if (!btn) return;
   const hasAbility = state.skill_effects?.shadow_ability;
-  if (!hasAbility) { btn.style.display = 'none'; return; }
+  if (!hasAbility) { btn.style.display = 'none'; if (mapBtn) mapBtn.style.display = 'none'; return; }
   btn.style.display = 'flex';
+  if (mapBtn) mapBtn.style.display = 'flex';
   const active = state.shadow_active;
   const cdLeft = state.shadow_cooldown ? Math.max(0, state.shadow_cooldown - Date.now()) : 0;
   if (active) {
@@ -12588,6 +12651,30 @@ async function selectAvatar(avatar) {
 }
 
 document.getElementById('btn-teleport').addEventListener('click', doTeleportToHq);
+
+// ── Burger menu ──
+function toggleBurgerMenu() {
+  const menu = document.getElementById('burger-menu');
+  menu.classList.toggle('open');
+}
+// Close burger when any item is clicked
+document.querySelectorAll('.burger-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('burger-menu').classList.remove('open');
+  });
+});
+// Close burger on outside tap
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('hud-burger-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('burger-menu').classList.remove('open');
+  }
+});
+
+// Shadow ability button on map (mirrors btn-shadow-inv from inventory)
+document.getElementById('btn-shadow-map').addEventListener('click', () => {
+  if (typeof toggleShadowAbility === 'function') toggleShadowAbility();
+});
 
 document.getElementById('btn-settings').addEventListener('click', () => {
   if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
