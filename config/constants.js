@@ -322,6 +322,27 @@ export function getZombieBossLoot() {
 export const ZOMBIE_HORDE_TIMEOUT = 300000; // 5 minutes
 
 // ═══════════════════════════════════════════════════════
+//  Walking rewards
+// ═══════════════════════════════════════════════════════
+export const WALK_SPEED_LIMIT_KMH = 25;
+export const WALK_MIN_DISTANCE_M = 5;
+export const WALK_MAX_DISTANCE_M = 2000;
+export const WALK_DAILY_THRESHOLDS = [1000, 3000, 7000]; // meters
+export const WALK_WEEKLY_THRESHOLDS = [15000, 30000, 50000]; // meters
+
+export const WALK_DAILY_REWARD_POOLS = [
+  { type: 'diamonds', values: [1, 2, 3] },
+  { type: 'shards',   values: [50, 100, 150] },
+  { type: 'ether',    values: [50, 100, 150] },
+];
+
+export const WALK_WEEKLY_REWARDS = [
+  { diamonds: 5, shards: 200 },
+  { diamonds: 8, ether: 300 },
+  { boxes: ['rare'], cores: [{ level: 0 }] },
+];
+
+// ═══════════════════════════════════════════════════════
 //  Antispoof
 // ═══════════════════════════════════════════════════════
 export const ANTISPOOF = {

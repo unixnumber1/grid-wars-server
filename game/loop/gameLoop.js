@@ -608,6 +608,25 @@ async function periodicCleanup(nowMs, nowISO) {
       if (n.read) gameState.notifications.delete(id);
     }
 
+    // ── Walk distance daily/weekly reset (MSK midnight / Monday) ──
+    {
+      const mskNow = new Date(nowMs + 3 * 3600000);
+      const mskDate = mskNow.toISOString().split('T')[0];
+      for (const [id, p] of gameState.players) {
+        if (p.walk_reset_date !== mskDate) {
+          p.walk_daily_m = 0;
+          p.walk_daily_claimed = 0;
+          p.walk_reset_date = mskDate;
+          if (mskNow.getUTCDay() === 1 && p.walk_week_reset !== mskDate) {
+            p.walk_weekly_m = 0;
+            p.walk_weekly_claimed = 0;
+            p.walk_week_reset = mskDate;
+          }
+          gameState.markDirty('players', id);
+        }
+      }
+    }
+
     // DB cleanup
     await Promise.all([
       supabase.from('bots').delete().lt('expires_at', nowISO),

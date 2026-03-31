@@ -957,6 +957,138 @@
     .streak-card.current .streak-card-val { color: #FFD700; }
     @keyframes streakPulse { 0%,100% { box-shadow: 0 0 6px rgba(255,215,0,0.15); } 50% { box-shadow: 0 0 16px rgba(255,215,0,0.35); } }
 
+    /* Walk tab bar */
+    .streak-tabs {
+      display: flex;
+      gap: 4px;
+      background: #252538;
+      border-radius: 10px;
+      padding: 3px;
+      margin-bottom: 14px;
+    }
+    .streak-tab-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: transparent;
+      color: #888;
+      transition: all 0.2s;
+    }
+    .streak-tab-btn.active {
+      background: #FFD700;
+      color: #000;
+    }
+    .streak-tab-content { display: none; }
+    .streak-tab-content.active { display: block; }
+
+    /* Walk progress bars */
+    .walk-section {
+      margin-bottom: 18px;
+    }
+    .walk-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .walk-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .walk-section-dist {
+      font-size: 13px;
+      color: #FFD700;
+      font-weight: 600;
+    }
+    .walk-bar-track {
+      position: relative;
+      height: 8px;
+      background: #252538;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      overflow: visible;
+    }
+    .walk-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #FFD700, #FFA000);
+      transition: width 0.5s ease;
+      min-width: 0;
+    }
+    .walk-bar-fill.weekly {
+      background: linear-gradient(90deg, #00E676, #00B0FF);
+    }
+    .walk-milestones {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+    }
+    .walk-milestone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      gap: 4px;
+    }
+    .walk-ms-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #444;
+      border: 2px solid #333;
+      margin-top: -13px;
+      z-index: 1;
+      transition: all 0.3s;
+    }
+    .walk-ms-dot.reached {
+      background: #4caf50;
+      border-color: #66bb6a;
+      box-shadow: 0 0 6px rgba(76,175,80,0.4);
+    }
+    .walk-ms-label {
+      font-size: 11px;
+      color: #888;
+      font-weight: 600;
+    }
+    .walk-ms-reward {
+      font-size: 11px;
+      color: #ccc;
+      text-align: center;
+      min-height: 16px;
+    }
+    .walk-ms-btn {
+      padding: 3px 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #FFD700;
+      color: #000;
+      margin-top: 2px;
+      transition: opacity 0.2s;
+    }
+    .walk-ms-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .walk-ms-btn.claimed {
+      background: rgba(76,175,80,0.3);
+      color: #4caf50;
+      cursor: default;
+    }
+    .walk-reset-timer {
+      text-align: center;
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+
     #maintenance-avatar {
       display: flex;
       align-items: center;
@@ -3379,13 +3511,25 @@
 <!-- Streak overlay -->
 <div id="streak-overlay">
   <div id="streak-panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div style="font-size:18px;font-weight:700;color:#fff;" data-i18n="streak.title">🔥 Недельный бонус</div>
       <button onclick="document.getElementById('streak-overlay').classList.remove('open')" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;">✕</button>
     </div>
-    <div id="streak-days" class="streak-grid"></div>
-    <div id="streak-timer" style="text-align:center;font-size:12px;color:#888;margin-bottom:12px;"></div>
-    <button id="btn-streak-claim" onclick="claimStreak()" style="width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:#FFD700;color:#000;" data-i18n="streak.btn">Забрать награду</button>
+    <!-- Tab bar -->
+    <div class="streak-tabs">
+      <button class="streak-tab-btn active" onclick="switchStreakTab('streak')" data-i18n="walk.tab_streak">🔥 Стрик</button>
+      <button class="streak-tab-btn" onclick="switchStreakTab('walk')" id="walk-tab-btn" data-i18n="walk.tab_walk">🚶 Прогулки</button>
+    </div>
+    <!-- Tab: Streak -->
+    <div id="streak-tab-streak" class="streak-tab-content active">
+      <div id="streak-days" class="streak-grid"></div>
+      <div id="streak-timer" style="text-align:center;font-size:12px;color:#888;margin-bottom:12px;"></div>
+      <button id="btn-streak-claim" onclick="claimStreak()" style="width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:#FFD700;color:#000;" data-i18n="streak.btn">Забрать награду</button>
+    </div>
+    <!-- Tab: Walking -->
+    <div id="streak-tab-walk" class="streak-tab-content">
+      <div id="walk-content"></div>
+    </div>
   </div>
 </div>
 
@@ -3954,6 +4098,15 @@ const I18N = {
     'streak.complete': '🎉 Неделя завершена! Новый цикл наград!',
     'toast.streak_day': '🔥 День {day} — награда получена!',
     'toast.streak_core': '✨ Бонус: случайное ядро!',
+    'walk.tab_streak': '🔥 Стрик',
+    'walk.tab_walk': '🚶 Прогулки',
+    'walk.daily_title': 'Сегодня',
+    'walk.weekly_title': 'Неделя',
+    'walk.claim': 'Забрать',
+    'walk.claimed': '✓',
+    'walk.locked': '🔒',
+    'walk.reset_in': 'Сброс через {time}',
+    'toast.walk_claimed': '🚶 Награда за прогулку получена!',
     'toast.payment_success': '💎 Оплата прошла! Алмазы будут начислены.',
     'toast.payment_cancelled': 'Оплата отменена',
     'toast.items_sold_crystals': 'Продано {count} предметов за {crystals} ✨',
@@ -5140,6 +5293,15 @@ const I18N = {
     'streak.complete': '🎉 Week complete! New reward cycle!',
     'toast.streak_day': '🔥 Day {day} — reward collected!',
     'toast.streak_core': '✨ Bonus: random core!',
+    'walk.tab_streak': '🔥 Streak',
+    'walk.tab_walk': '🚶 Walking',
+    'walk.daily_title': 'Today',
+    'walk.weekly_title': 'Week',
+    'walk.claim': 'Claim',
+    'walk.claimed': '✓',
+    'walk.locked': '🔒',
+    'walk.reset_in': 'Resets in {time}',
+    'toast.walk_claimed': '🚶 Walking reward claimed!',
     'toast.payment_success': '💎 Payment successful! Diamonds will be credited.',
     'toast.payment_cancelled': 'Payment cancelled',
     'toast.items_sold_crystals': 'Sold {count} items for {crystals} ✨',
@@ -16796,6 +16958,162 @@ document.getElementById('btn-streak-hud').addEventListener('click', openStreakPa
 document.getElementById('streak-overlay').addEventListener('click', function(e) {
   if (e.target === this) this.classList.remove('open');
 });
+
+// ─────────────────────────────────────────────
+//  Walking Rewards Tab
+// ─────────────────────────────────────────────
+let _walkData = null;
+
+function switchStreakTab(tab) {
+  document.querySelectorAll('.streak-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.streak-tab-content').forEach(c => c.classList.remove('active'));
+  if (tab === 'walk') {
+    document.getElementById('walk-tab-btn').classList.add('active');
+    document.getElementById('streak-tab-walk').classList.add('active');
+    _loadWalkTab();
+  } else {
+    document.querySelector('.streak-tab-btn:first-child').classList.add('active');
+    document.getElementById('streak-tab-streak').classList.add('active');
+  }
+}
+
+async function _loadWalkTab() {
+  const container = document.getElementById('walk-content');
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">...</div>';
+  try {
+    const data = await apiFetch('/api/walking', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'check' }),
+    });
+    _walkData = data;
+    _renderWalkTab(data);
+  } catch (err) {
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:#f44;">❌ ${err.message}</div>`;
+  }
+}
+
+function _walkRewardLabel(pool, tier) {
+  const type = pool.type;
+  const val = pool.values[tier];
+  if (type === 'diamonds') return val + '💎';
+  if (type === 'shards') return val + '✨';
+  if (type === 'ether') return val + '🌀';
+  return val;
+}
+
+function _weeklyRewardLabel(reward) {
+  const parts = [];
+  if (reward.diamonds) parts.push(reward.diamonds + '💎');
+  if (reward.shards) parts.push(reward.shards + '✨');
+  if (reward.ether) parts.push(reward.ether + '🌀');
+  if (reward.boxes) parts.push('🎁');
+  if (reward.cores) parts.push('🔮');
+  return parts.join('+');
+}
+
+function _renderWalkTab(data) {
+  const container = document.getElementById('walk-content');
+  const dailyM = data.daily_m || 0;
+  const weeklyM = data.weekly_m || 0;
+  const dailyClaimed = data.daily_claimed || 0;
+  const weeklyClaimed = data.weekly_claimed || 0;
+  const dailyPool = data.daily_rewards;
+  const dt = data.daily_thresholds;
+  const wt = data.weekly_thresholds;
+  const wr = data.weekly_rewards;
+
+  const dailyPct = Math.min(100, (dailyM / dt[dt.length - 1]) * 100);
+  const weeklyPct = Math.min(100, (weeklyM / wt[wt.length - 1]) * 100);
+
+  let html = '';
+
+  // ── Daily section ──
+  html += `<div class="walk-section">`;
+  html += `<div class="walk-section-header">
+    <div class="walk-section-title">${t('walk.daily_title')}</div>
+    <div class="walk-section-dist">${(dailyM / 1000).toFixed(1)} км</div>
+  </div>`;
+  html += `<div class="walk-bar-track"><div class="walk-bar-fill" style="width:${dailyPct}%"></div></div>`;
+  html += `<div class="walk-milestones">`;
+  for (let i = 0; i < dt.length; i++) {
+    const reached = dailyM >= dt[i];
+    const claimed = !!(dailyClaimed & (1 << i));
+    html += `<div class="walk-milestone">
+      <div class="walk-ms-dot ${reached ? 'reached' : ''}"></div>
+      <div class="walk-ms-label">${dt[i] >= 1000 ? (dt[i] / 1000) + ' км' : dt[i] + ' м'}</div>
+      <div class="walk-ms-reward">${_walkRewardLabel(dailyPool, i)}</div>`;
+    if (claimed) {
+      html += `<div class="walk-ms-btn claimed">${t('walk.claimed')}</div>`;
+    } else if (reached) {
+      html += `<button class="walk-ms-btn" onclick="claimWalkReward('daily',${i})">${t('walk.claim')}</button>`;
+    } else {
+      html += `<div class="walk-ms-reward" style="color:#555">${t('walk.locked')}</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div></div>`;
+
+  // ── Weekly section ──
+  html += `<div class="walk-section">`;
+  html += `<div class="walk-section-header">
+    <div class="walk-section-title">${t('walk.weekly_title')}</div>
+    <div class="walk-section-dist">${(weeklyM / 1000).toFixed(1)} км</div>
+  </div>`;
+  html += `<div class="walk-bar-track"><div class="walk-bar-fill weekly" style="width:${weeklyPct}%"></div></div>`;
+  html += `<div class="walk-milestones">`;
+  for (let i = 0; i < wt.length; i++) {
+    const reached = weeklyM >= wt[i];
+    const claimed = !!(weeklyClaimed & (1 << i));
+    html += `<div class="walk-milestone">
+      <div class="walk-ms-dot ${reached ? 'reached' : ''}"></div>
+      <div class="walk-ms-label">${wt[i] >= 1000 ? (wt[i] / 1000) + ' км' : wt[i] + ' м'}</div>
+      <div class="walk-ms-reward">${_weeklyRewardLabel(wr[i])}</div>`;
+    if (claimed) {
+      html += `<div class="walk-ms-btn claimed">${t('walk.claimed')}</div>`;
+    } else if (reached) {
+      html += `<button class="walk-ms-btn" onclick="claimWalkReward('weekly',${i})">${t('walk.claim')}</button>`;
+    } else {
+      html += `<div class="walk-ms-reward" style="color:#555">${t('walk.locked')}</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  // Reset timer
+  if (data.week_reset_in > 0) {
+    const d = Math.floor(data.week_reset_in / 86400000);
+    const h = Math.floor((data.week_reset_in % 86400000) / 3600000);
+    html += `<div class="walk-reset-timer">${t('walk.reset_in').replace('{time}', d + 'д ' + h + 'ч')}</div>`;
+  }
+  html += `</div>`;
+
+  container.innerHTML = html;
+}
+
+async function claimWalkReward(type, tier) {
+  const action = type === 'daily' ? 'claim-daily' : 'claim-weekly';
+  try {
+    const data = await apiFetch('/api/walking', {
+      method: 'POST',
+      body: JSON.stringify({ action, tier }),
+    });
+    showToast(t('toast.walk_claimed'));
+    if (data.reward?.diamonds) { state.player.diamonds = (state.player.diamonds || 0) + data.reward.diamonds; updateDiamondDisplay(); }
+    if (data.reward?.shards) {
+      state.player.crystals = (state.player.crystals || 0) + data.reward.shards;
+      const crEl = document.getElementById('crystal-display');
+      if (crEl) crEl.textContent = `✨ ${state.player.crystals}`;
+    }
+    if (data.reward?.ether) {
+      state.player.ether = (state.player.ether || 0) + data.reward.ether;
+      const etherEl = document.getElementById('ether-display');
+      if (etherEl) etherEl.textContent = `🌀 ${state.player.ether}`;
+    }
+    _loadWalkTab();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
 
 async function buyStars(diamonds = 100, stars = 15) {
   try {

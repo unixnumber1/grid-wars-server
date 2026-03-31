@@ -27,6 +27,7 @@ import { fireTrucksRouter } from './routes/fireTrucks.js';
 import { coresRouter } from './routes/cores.js';
 import { rewardsRouter } from './routes/rewards.js';
 import { skillsRouter } from './routes/skills.js';
+import { walkingRouter } from './routes/walking.js';
 import { startGameLoop } from './socket/gameLoop.js';
 
 import { log } from './lib/log.js';
@@ -112,6 +113,7 @@ app.use('/api/monuments', rateLimitMw('attack'));
 app.use('/api/cores', rateLimitMw('default'));
 app.use('/api/items', rateLimitMw('default'));
 app.use('/api/clan', rateLimitMw('default'));
+app.use('/api/walking', rateLimitMw('default'));
 
 // Serve static frontend files (no cache for index.html to ensure updates)
 app.use(express.static(join(__dirname, 'public'), {
@@ -412,6 +414,7 @@ app.use('/api/fire-trucks', fireTrucksRouter);
 app.use('/api/cores', coresRouter);
 app.use('/api/rewards', rewardsRouter);
 app.use('/api/skills', skillsRouter);
+app.use('/api/walking', walkingRouter);
 
 // Catch unhandled route errors
 app.use((err, req, res, next) => {
@@ -567,6 +570,25 @@ io.on('connection', (socket) => {
     // Validate position through antispoof
     const validation = validatePosition(verifiedTgId, data.lat, data.lng, false, data.accuracy || null);
     if (!validation.valid) return;
+
+    // ── Walking distance tracking ──
+    const prev = player._walkPrevPos;
+    if (prev) {
+      const dt = Date.now() - prev.t;
+      if (dt > 0) {
+        const dist = haversine(prev.lat, prev.lng, data.lat, data.lng);
+        const speedKmh = (dist / dt) * 3600; // m/ms → km/h
+        if (speedKmh <= 25 && dist >= 5 && dist <= 2000) {
+          const gsP = gameState.loaded ? gameState.getPlayerByTgId(verifiedTgId) : null;
+          if (gsP) {
+            gsP.walk_daily_m = (gsP.walk_daily_m || 0) + dist;
+            gsP.walk_weekly_m = (gsP.walk_weekly_m || 0) + dist;
+            gameState.markDirty('players', gsP.id);
+          }
+        }
+      }
+    }
+    player._walkPrevPos = { lat: data.lat, lng: data.lng, t: Date.now() };
 
     player.lat = data.lat;
     player.lng = data.lng;
