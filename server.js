@@ -442,6 +442,9 @@ app.get('*', (req, res) => {
 // Connected players map
 export const connectedPlayers = new Map();
 
+// Single-session enforcement: telegram_id → socketId (only one active session per player)
+const playerSessions = new Map();
+
 // Pending referrals: telegram_id of new player -> telegram_id of referrer
 export const pendingReferrals = new Map();
 
@@ -489,6 +492,21 @@ io.on('connection', (socket) => {
       return;
     }
     const verifiedTgId = result.user.id;
+
+    // ── Single-session enforcement: kick previous session ──
+    const existingSocketId = playerSessions.get(verifiedTgId);
+    if (existingSocketId && existingSocketId !== socket.id) {
+      const oldSocket = io.sockets.sockets.get(existingSocketId);
+      if (oldSocket) {
+        oldSocket.emit('session:kicked', { reason: 'new_session' });
+        // Remove from connectedPlayers BEFORE disconnect to avoid marking offline
+        connectedPlayers.delete(existingSocketId);
+        playerSessions.delete(verifiedTgId);
+        oldSocket.disconnect(true);
+        console.log(`[session] Kicked old session ${existingSocketId} for player ${verifiedTgId}`);
+      }
+    }
+    playerSessions.set(verifiedTgId, socket.id);
 
     let playerDbId = null;
     if (verifiedTgId && gameState.loaded) {
@@ -590,16 +608,15 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const player = connectedPlayers.get(socket.id);
-    if (player?.telegram_id && gameState.loaded) {
-      const p = gameState.getPlayerByTgId(player.telegram_id);
-      if (p) {
-        // Set last_seen to now so "online" check (5min window) expires naturally,
-        // but also check if this is the LAST socket for this player
-        const stillConnected = [...connectedPlayers.entries()].some(
-          ([sid, info]) => sid !== socket.id && String(info.telegram_id) === String(player.telegram_id)
-        );
-        if (!stillConnected) {
-          // Mark as offline immediately — set last_seen to 6 min ago
+    if (player?.telegram_id) {
+      // Clean up session map only if THIS socket is the current session
+      if (playerSessions.get(player.telegram_id) === socket.id) {
+        playerSessions.delete(player.telegram_id);
+      }
+      if (gameState.loaded) {
+        const p = gameState.getPlayerByTgId(player.telegram_id);
+        if (p) {
+          // Mark as offline — no need to check for other sockets (single-session enforced)
           p.last_seen = new Date(Date.now() - 6 * 60 * 1000).toISOString();
           gameState.markDirty('players', p.id);
         }

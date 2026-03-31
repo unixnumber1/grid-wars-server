@@ -845,6 +845,20 @@
     }
     #maintenance-screen.open { display: flex; }
 
+    #session-kicked-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #0d0d1a;
+      z-index: 100000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 32px;
+    }
+    #session-kicked-screen.open { display: flex; }
+
     #maintenance-avatar {
       display: flex;
       align-items: center;
@@ -2934,6 +2948,15 @@
   </div>
 </div>
 
+<!-- Session kicked screen -->
+<div id="session-kicked-screen">
+  <div style="font-size:64px;margin-bottom:16px">📱</div>
+  <div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:2px;margin-bottom:8px">OVERTHROW</div>
+  <div style="color:#ff6b6b;font-size:16px;font-weight:600;margin-bottom:12px" id="session-kicked-title" data-i18n="session.kicked_title">Игра открыта на другом устройстве</div>
+  <div style="color:#888;font-size:13px;max-width:280px;line-height:1.5" id="session-kicked-sub" data-i18n="session.kicked_sub">Одновременно может быть активна только одна сессия. Закройте игру на другом устройстве и попробуйте снова.</div>
+  <button onclick="location.reload()" style="margin-top:24px;background:#FFD700;color:#000;border:none;padding:14px 32px;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer" data-i18n="session.reconnect">Переподключиться</button>
+</div>
+
 <!-- HQ placement prompt -->
 <div id="hq-prompt">
   <div style="font-size:48px">&#x1F3DB;&#xFE0F;</div>
@@ -3861,6 +3884,9 @@ const I18N = {
     'ban.title': 'Вы заблокированы',
     'ban.forever': 'Навсегда',
     'ban.reason': 'Причина:',
+    'session.kicked_title': 'Игра открыта на другом устройстве',
+    'session.kicked_sub': 'Одновременно может быть активна только одна сессия. Закройте игру на другом устройстве и попробуйте снова.',
+    'session.reconnect': 'Переподключиться',
 
     // === Shop extras ===
     'shop.box.common': 'Обычный бокс',
@@ -5031,6 +5057,9 @@ const I18N = {
     'ban.title': 'You are blocked',
     'ban.forever': 'Permanently',
     'ban.reason': 'Reason:',
+    'session.kicked_title': 'Game is open on another device',
+    'session.kicked_sub': 'Only one active session is allowed at a time. Close the game on the other device and try again.',
+    'session.reconnect': 'Reconnect',
 
     // === Shop extras ===
     'shop.box.common': 'Common Box',
@@ -10061,6 +10090,13 @@ function initSocket() {
 
     _socket.on('connect_error', (err) => {
       console.warn('[socket] Error:', err.message);
+    });
+
+    _socket.on('session:kicked', () => {
+      console.warn('[socket] Session kicked — game opened on another device');
+      _socket.disconnect();
+      _socket.io.opts.reconnection = false;
+      document.getElementById('session-kicked-screen').classList.add('open');
     });
 
     _socket.on('tick', (data) => {
