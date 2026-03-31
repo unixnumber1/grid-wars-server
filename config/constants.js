@@ -215,10 +215,9 @@ export const STAR_PACKS = [
 
 // ── Core packs ──
 export const CORE_PACKS = [
-  { label: '🌀 Стартовый', label_en: '🌀 Starter', cores: 3, core_level: 0, ether: 0, price: 300 },
-  { label: '🌀 Боевой', label_en: '🌀 Combat', cores: 5, core_level: 0, ether: 500, price: 750 },
-  { label: '🌀 Продвинутый', label_en: '🌀 Advanced', cores: 3, core_level: 5, ether: 2000, price: 1500 },
-  { label: '🌀 Элитный', label_en: '🌀 Elite', cores: 5, core_level: 10, ether: 5000, price: 3000, badge: 'ТОП', badge_en: 'TOP' },
+  { label: '🔮 x3 + 500🌀', label_en: '🔮 x3 + 500🌀', cores: 3, core_level: 0, ether: 500, price: 500 },
+  { label: '🔮 x5 + 1500🌀', label_en: '🔮 x5 + 1500🌀', cores: 5, core_level: 0, ether: 1500, price: 800 },
+  { label: '🔮 x10 + 5000🌀', label_en: '🔮 x10 + 5000🌀', cores: 10, core_level: 0, ether: 5000, price: 1500, badge: 'ВЫГОДА', badge_en: 'BEST' },
 ];
 
 // ── Cosmetic prices ──
