@@ -161,15 +161,6 @@ class GameState {
     for (const h of (zHordes || []))   this.zombieHordes.set(h.id, h);
     for (const z of (zZombies || []))  this.zombies.set(z.id, z);
     for (const s of (pSkills || [])) {
-      // v3 tree rebalance: reset all skills (short-segment branching)
-      if (s.skill_points_used > 0) {
-        console.log(`[skills] Auto-reset skills for player ${s.player_id} (had ${s.skill_points_used} pts)`);
-        s.farmer = {};
-        s.raider = {};
-        s.skill_points_used = 0;
-        // Persist reset to DB
-        supabase.from('player_skills').update({ farmer: {}, raider: {}, skill_points_used: 0 }).eq('player_id', s.player_id).then(() => {}).catch(() => {});
-      }
       this.playerSkills.set(Number(s.player_id), s);
     }
     // Restore shadow ability state from persisted skill rows

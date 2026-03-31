@@ -7143,12 +7143,14 @@ let _deferredMapClick = null;
 })();
 
 // Handle ?focus=lat,lng param from Telegram notification buttons
+// Deferred: applied after first GPS fix so it isn't overwritten
+let _pendingFocus = null;
 (function() {
   const params = new URLSearchParams(window.location.search);
   const focus = params.get('focus');
   if (focus) {
     const [lat, lng] = focus.split(',').map(Number);
-    if (lat && lng) map.setView([lat, lng], 17, { animate: false });
+    if (lat && lng) _pendingFocus = { lat, lng };
   }
 })();
 
@@ -7720,6 +7722,7 @@ function _makePopupBtn(btn) {
 function openPopup(title, subtitle, stats, actions) {
   // Build custom card HTML in the new style
   const card = document.getElementById('popup-card');
+  card.style.pointerEvents = '';
 
   // Header with close button
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -7857,6 +7860,10 @@ function closePopup() {
 function closePopupKeepHold() {
   const wasHolding = combatState.isHolding;
   stopPopupCombat(wasHolding);
+  // Reset pointer-events that startHold() sets to 'none' — stopHold() may never fire
+  // because closePopupKeepHold nulls touchId, so touchend won't match
+  const _cpkhCard = document.getElementById('popup-card');
+  if (_cpkhCard) _cpkhCard.style.pointerEvents = '';
   document.getElementById('popup-overlay').classList.remove('open', 'combat-mode');
   if (_upgradeCountdownTimer) { clearInterval(_upgradeCountdownTimer); _upgradeCountdownTimer = null; }
   if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
@@ -8170,12 +8177,14 @@ function showMinePopup(mine, isOwn, canCapture) {
           label: upgradeLabel,
           cls: 'yellow',
           disabled: !canUpgrade,
+          noClose: true,
           action: () => doUpgrade(mine.id, mine.level + 1),
         }] : []),
         ...(bulkLabel ? [{
           label: bulkLabel,
           cls: 'yellow',
           disabled: !canBulk,
+          noClose: true,
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
         [
@@ -8346,6 +8355,7 @@ async function doUpgrade(mineId, targetLevel) {
   if (!pos || pos.lat == null || pos.lng == null) {
     _upgradeInProgress = false;
     showToast(t('toast.no_gps_wait'));
+    closePopup();
     return;
   }
   try {
@@ -10744,6 +10754,11 @@ function onPosition(pos) {
     if (!pinMode) {
       state.playerPos = { lat, lng };
       map.setView([lat, lng], 16);
+      // Apply deferred focus from ?focus= param (Telegram notification button)
+      if (_pendingFocus) {
+        map.setView([_pendingFocus.lat, _pendingFocus.lng], 17, { animate: false });
+        _pendingFocus = null;
+      }
     }
   } else {
     const hasShieldNow = state.player?.shield_until && new Date(state.player.shield_until) > new Date();
@@ -11070,14 +11085,10 @@ function startBotAnimation() {
 
 function renderBots(bots) {
   const activeIds = new Set(bots.map(b => b.id));
-  const _botBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(botMarkers)) {
     if (!activeIds.has(id)) {
-      const pos = botMarkers[id].marker.getLatLng();
-      if (!_botBounds.contains(pos)) {
-        botLayer.removeLayer(botMarkers[id].marker);
-        delete botMarkers[id]; delete botData[id];
-      }
+      botLayer.removeLayer(botMarkers[id].marker);
+      delete botMarkers[id]; delete botData[id];
     }
   }
   for (const bot of bots) {
@@ -16054,6 +16065,7 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
 
   const card = document.getElementById('popup-card');
+  card.style.pointerEvents = '';
   const hpBarHtml = opts.hideTargetHp ? '' : `
     <div class="popup-hp-live" style="margin-bottom:8px">
       <span style="color:#aaa;font-size:12px;min-width:20px">HP</span>
