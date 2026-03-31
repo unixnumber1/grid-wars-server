@@ -384,11 +384,6 @@ async function handleAttackFinish(req, res) {
       const gm = gameState.getMineById(mine_id);
       if (gm) { Object.assign(gm, { status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null, pending_level: null, upgrade_finish_at: null }); gameState.markDirty('mines', mine_id); }
     }
-    const burnOwnerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
-    const burnMsg = ts(burnOwnerLang, 'notif.mine_burning', { level: mine.level });
-    await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_burning', message: burnMsg, data: { mine_id: mine.id } });
-    const { data: burnOwner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
-    if (burnOwner?.telegram_id) sendTelegramNotification(burnOwner.telegram_id, burnMsg, buildAttackButton(mine.lat, mine.lng));
     return res.json({ success: true, result: 'burning' });
   } else {
     const hpUpdateTime = new Date().toISOString();
@@ -717,17 +712,6 @@ async function handleMineHit(req, res) {
       if (attackerPlayer) { attackerPlayer.coins = newCoins; gameState.markDirty('players', player.id); }
       logPlayer(player.telegram_id, 'action', `Разрушил шахту lv${mine.level}, украл ${stolenCoins.toLocaleString('ru')} монет`, { mine_id, stolenCoins });
     }
-
-    // Notify owner
-    const hitBurnLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
-    const hitBurnMsg = ts(hitBurnLang, 'notif.mine_burning', { level: mine.level });
-    supabase.from('notifications').insert({
-      player_id: mine.owner_id, type: 'mine_burning', message: hitBurnMsg,
-      data: { mine_id: mine.id },
-    }).then(() => {}).catch(e => console.error('[buildings] DB error:', e.message));
-
-    const owner = gameState.getPlayerById(mine.owner_id);
-    if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, hitBurnMsg, buildAttackButton(mine.lat, mine.lng));
 
     // XP: 10% chance, 1% of stolen coins (same mechanic as own mine collection)
     const { getCollectXp } = await import('../../game/mechanics/xp.js');

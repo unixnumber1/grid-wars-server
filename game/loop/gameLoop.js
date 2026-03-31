@@ -705,18 +705,6 @@ async function periodicCleanup(nowMs, nowISO) {
         };
         gameState.addNotification(notif);
         supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
-      } else if (burnedMs > 64800000 && burnedMs < 65400000) {
-        const warnLang = gameState.getPlayerById(m.owner_id)?.language || 'en';
-        const notif = {
-          id: globalThis.crypto.randomUUID(),
-          player_id: m.owner_id,
-          type: 'mine_burning_warning',
-          message: ts(warnLang, 'notif.mine_burn_warning', { level: m.level }),
-          read: false,
-          created_at: nowISO,
-        };
-        gameState.addNotification(notif);
-        supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
       }
     }
 
