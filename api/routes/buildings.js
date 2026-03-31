@@ -283,16 +283,20 @@ async function handleMineCollect(req, res) {
   let totalXpGained = 0;
   const lastXpTime = lastCollectXpTime.get(String(telegram_id)) || 0;
   const xpCooldownOk = Date.now() - lastXpTime >= 60000;
+  console.log(`[XP-DEBUG] tg=${telegram_id} coins=${collectedAmount} mineCount=${mines.length} cdOk=${xpCooldownOk} lastXp=${lastXpTime} perMine=[${mines.map(m => mineCoinsMap.get(m.id) || 0).slice(0,5).join(',')}]`);
   if (xpCooldownOk) {
     const { getCollectXp } = await import('../../game/mechanics/xp.js');
+    const rolls = [];
     for (const mine of mines) {
       const mineCoins = mineCoinsMap.get(mine.id) || 0;
       const xp = getCollectXp(mineCoins);
+      rolls.push(`${mineCoins}→${xp}`);
       if (xp > 0) {
         totalXpGained += xp;
         xpEvents.push({ xp, lat: mine.lat, lng: mine.lng, cell_id: mine.cell_id });
       }
     }
+    console.log(`[XP-DEBUG] tg=${telegram_id} rolls=[${rolls.slice(0,8).join(',')}] totalXp=${totalXpGained}`);
     if (totalXpGained > 0) lastCollectXpTime.set(String(telegram_id), Date.now());
   }
   let xpResult = null;
