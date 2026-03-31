@@ -136,15 +136,15 @@
     .burger-item {
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 10px 14px;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
       border: none;
       border-radius: 10px;
       background: rgba(255,255,255,0.04);
       color: #ddd;
-      font-size: 14px;
+      font-size: 20px;
       cursor: pointer;
-      white-space: nowrap;
       -webkit-tap-highlight-color: transparent;
       position: relative;
     }
@@ -3292,13 +3292,13 @@
   <button class="hud-right-btn" id="btn-burger" onclick="toggleBurgerMenu()">☰<span class="notif-badge" id="burger-badge" style="display:none">!</span></button>
   <div id="burger-menu">
     <div class="burger-col">
-      <button class="burger-item" id="btn-settings" data-i18n-title="hud.settings_title">⚙️ <span data-i18n="hud.settings_short">Настройки</span><span class="notif-badge" id="settings-badge"></span></button>
-      <button class="burger-item" id="btn-leaderboard" data-i18n-title="hud.lb_title">🏆 <span data-i18n="hud.lb_short">Рейтинг</span></button>
+      <button class="burger-item" id="btn-settings" title="Settings">⚙️<span class="notif-badge" id="settings-badge"></span></button>
+      <button class="burger-item" id="btn-leaderboard" title="Leaderboard">🏆</button>
     </div>
     <div class="burger-col">
-      <button class="burger-item" id="btn-shop-hud" data-i18n-title="hud.shop_title">🛒 <span data-i18n="hud.shop_short">Магазин</span></button>
-      <button class="burger-item" id="btn-market-hud" data-i18n-title="hud.market_title">🎪 <span data-i18n="hud.market_short">Рынок</span></button>
-      <button class="burger-item" id="btn-streak-hud" title="Streak">🔥 <span data-i18n="hud.streak_short">Бонус</span><span class="notif-badge" id="streak-badge" style="display:none">!</span></button>
+      <button class="burger-item" id="btn-shop-hud" title="Shop">🛒</button>
+      <button class="burger-item" id="btn-market-hud" title="Market">🎪</button>
+      <button class="burger-item" id="btn-streak-hud" title="Streak">🔥<span class="notif-badge" id="streak-badge" style="display:none">!</span></button>
     </div>
   </div>
 </div>
