@@ -13,7 +13,7 @@ export const itemsRouter = Router();
 
 // ── Shop box constants ────────────────────────────────────────
 const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
-const CORE_ORB_PRICE = 300;
+const CORE_ORB_PRICE = 150;
 
 async function recalcBonuses(playerId, level) {
   const { data: equipped } = await supabase

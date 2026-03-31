@@ -3446,7 +3446,7 @@
           <button class="shop-box-info-btn" onclick="event.stopPropagation();showCoreOrbInfo()">i</button>
           <div class="shop-box-icon">🔮</div>
           <div class="shop-box-name">Магический шар</div>
-          <div class="shop-box-price">💎 300</div>
+          <div class="shop-box-price">💎 150</div>
           <button class="shop-box-open-btn" id="btn-core-orb" onclick="doOpenCoreOrb()" style="background:linear-gradient(135deg,rgba(156,39,176,0.35),rgba(156,39,176,0.12));border-color:rgba(156,39,176,0.5);color:#ce93d8;" data-i18n="shop.open">Открыть</button>
         </div>
       </div>
@@ -13227,7 +13227,7 @@ function _updateShopButtons() {
   // Core orb button
   const orbBtn = document.getElementById('btn-core-orb');
   if (orbBtn) {
-    const canOrb = diamonds >= 300;
+    const canOrb = diamonds >= 150;
     orbBtn.disabled = !canOrb;
     orbBtn.style.opacity = canOrb ? '1' : '0.5';
     orbBtn.style.cursor = canOrb ? 'pointer' : 'not-allowed';
@@ -13396,7 +13396,7 @@ function _animateBoxOpen(boxType, item) {
 
 async function doOpenCoreOrb() {
   const diamonds = state.player?.diamonds ?? 0;
-  if (diamonds < 300) { showToast(t('toast.not_enough_diamonds')); return; }
+  if (diamonds < 150) { showToast(t('toast.not_enough_diamonds')); return; }
 
   const btn = document.getElementById('btn-core-orb');
   const origText = btn.textContent;
