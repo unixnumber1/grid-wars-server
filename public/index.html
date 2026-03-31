@@ -54,11 +54,11 @@
       top: calc(env(safe-area-inset-top, 0px) + 8px);
       left: 12px;
       z-index: 1000;
-      background: rgba(40,40,50,0.65);
-      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(20,20,28,0.55);
+      border: 1px solid rgba(255,255,255,0.10);
       border-radius: 14px;
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
       padding: 8px 12px;
       white-space: nowrap;
     }
@@ -94,10 +94,10 @@
       width: 38px;
       height: 38px;
       border-radius: 12px;
-      background: rgba(40,40,50,0.65);
-      border: 1px solid rgba(255,255,255,0.12);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
+      background: rgba(20,20,28,0.55);
+      border: 1px solid rgba(255,255,255,0.10);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -121,19 +121,24 @@
       z-index: 1000;
     }
     #burger-menu {
-      display: none;
       position: absolute;
       top: 44px;
       right: 0;
       gap: 4px;
-      background: rgba(40,40,50,0.75);
-      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(20,20,28,0.7);
+      border: 1px solid rgba(255,255,255,0.10);
       border-radius: 14px;
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
       padding: 8px;
+      transform-origin: top right;
+      transform: scale(0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.18s ease;
+      display: flex;
     }
-    #burger-menu.open { display: flex; }
+    #burger-menu.open { transform: scale(1); opacity: 1; pointer-events: auto; }
     .burger-col { display: flex; flex-direction: column; gap: 4px; }
     .burger-item {
       display: flex;
@@ -143,7 +148,7 @@
       height: 42px;
       border: none;
       border-radius: 10px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.06);
       color: #ddd;
       font-size: 20px;
       cursor: pointer;
@@ -905,45 +910,52 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.6);
       z-index: 5200;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
+      padding: 20px;
     }
     #streak-overlay.open { display: flex; }
     #streak-panel {
       background: #1a1a2e;
-      border-radius: 20px 20px 0 0;
-      padding: 24px 20px 32px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      padding: 24px 20px;
       width: 100%;
-      max-width: 420px;
+      max-width: 360px;
+      animation: streakCardIn 0.25s ease-out;
     }
-    .streak-day {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      flex: 1;
+    @keyframes streakCardIn {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
-    .streak-circle {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      font-weight: 700;
-      border: 2px solid #333;
-      color: #555;
-      background: #111;
-      transition: all 0.3s;
+    .streak-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
     }
-    .streak-circle.claimed { background: #2e7d32; border-color: #4caf50; color: #fff; }
-    .streak-circle.current { border-color: #FFD700; color: #FFD700; animation: streakPulse 1.5s infinite; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
-    .streak-circle.day7 { border-color: #e040fb; }
-    .streak-circle.day7.current { border-color: #FFD700; }
-    .streak-day-label { font-size: 10px; color: #666; }
-    @keyframes streakPulse { 0%,100% { box-shadow: 0 0 6px rgba(255,215,0,0.3); } 50% { box-shadow: 0 0 14px rgba(255,215,0,0.6); } }
+    .streak-card {
+      background: #252538;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 10px 4px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .streak-card.claimed { background: rgba(46,125,50,0.25); border-color: rgba(76,175,80,0.4); }
+    .streak-card.current { border-color: rgba(255,215,0,0.5); box-shadow: 0 0 12px rgba(255,215,0,0.2); animation: streakPulse 1.5s infinite; }
+    .streak-card.day7 { grid-column: span 4; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 16px; background: #2a1a3e; border-color: rgba(224,64,251,0.3); }
+    .streak-card.day7.claimed { background: rgba(46,125,50,0.25); border-color: rgba(76,175,80,0.4); }
+    .streak-card.day7.current { border-color: rgba(255,215,0,0.5); background: #2a1a3e; box-shadow: 0 0 16px rgba(255,215,0,0.15); }
+    .streak-card-day { font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; }
+    .streak-card-emoji { font-size: 22px; margin: 4px 0; }
+    .streak-card-val { font-size: 12px; color: #ccc; font-weight: 600; }
+    .streak-card.claimed .streak-card-emoji::after { content: ' ✓'; font-size: 14px; color: #4caf50; }
+    .streak-card.current .streak-card-val { color: #FFD700; }
+    @keyframes streakPulse { 0%,100% { box-shadow: 0 0 6px rgba(255,215,0,0.15); } 50% { box-shadow: 0 0 16px rgba(255,215,0,0.35); } }
 
     #maintenance-avatar {
       display: flex;
@@ -3368,11 +3380,10 @@
 <div id="streak-overlay">
   <div id="streak-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div style="font-size:18px;font-weight:700;color:#fff;" data-i18n="streak.title">Недельный бонус</div>
-      <button onclick="document.getElementById('streak-overlay').classList.remove('open')" style="background:none;border:none;color:#888;font-size:22px;cursor:pointer;">✕</button>
+      <div style="font-size:18px;font-weight:700;color:#fff;" data-i18n="streak.title">🔥 Недельный бонус</div>
+      <button onclick="document.getElementById('streak-overlay').classList.remove('open')" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;">✕</button>
     </div>
-    <div id="streak-days" style="display:flex;gap:6px;justify-content:center;margin-bottom:14px;"></div>
-    <div id="streak-reward-preview" style="text-align:center;font-size:14px;color:#ccc;margin-bottom:10px;"></div>
+    <div id="streak-days" class="streak-grid"></div>
     <div id="streak-timer" style="text-align:center;font-size:12px;color:#888;margin-bottom:12px;"></div>
     <button id="btn-streak-claim" onclick="claimStreak()" style="width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:#FFD700;color:#000;" data-i18n="streak.btn">Забрать награду</button>
   </div>
@@ -16565,11 +16576,15 @@ let _streakData = null;
 let _streakTimerInterval = null;
 
 function _rewardEmoji(r) {
-  if (r.diamonds) return r.diamonds + '💎';
-  if (r.shards) return r.shards + '✨';
-  if (r.ether) return r.ether + '🌀';
-  if (r.boxes) return r.boxes[0] === 'rare' ? '📦 Rare' : '📦';
-  return '🎁';
+  if (r.diamonds) return { emoji: '💎', val: '+' + r.diamonds };
+  if (r.shards) return { emoji: '✨', val: '+' + r.shards };
+  if (r.ether) return { emoji: '🌀', val: '+' + r.ether };
+  if (r.boxes) return { emoji: '🎁', val: r.boxes[0] === 'rare' ? 'Rare box' : 'Box' };
+  return { emoji: '🎁', val: '???' };
+}
+function _rewardEmojiFlat(r) {
+  const d = _rewardEmoji(r);
+  return d.emoji + ' ' + d.val;
 }
 
 async function openStreakPanel() {
@@ -16594,26 +16609,27 @@ function _renderStreakPanel(data) {
     const isClaimed = dayNum <= current;
     const isCurrent = dayNum === current + 1 && data.canClaim;
     const isDay7 = dayNum === 7;
-    let cls = 'streak-circle';
+    let cls = 'streak-card';
     if (isClaimed) cls += ' claimed';
     else if (isCurrent) cls += ' current';
     if (isDay7) cls += ' day7';
-    const inner = isClaimed ? '✓' : (isDay7 ? '🎁' : dayNum);
-    const reward = rewards[i] ? _rewardEmoji(rewards[i]) : '';
-    html += `<div class="streak-day"><div class="${cls}">${inner}</div><div class="streak-day-label">${reward}</div></div>`;
+    const r = rewards[i] ? _rewardEmoji(rewards[i]) : { emoji: '?', val: '' };
+    const coreHint = (isDay7 && rewards[i]?.coreChance) ? `<div style="font-size:9px;color:#e040fb;margin-top:2px;">+${Math.round(rewards[i].coreChance*100)}% ⚙️</div>` : '';
+    if (isDay7) {
+      html += `<div class="${cls}">
+        <div class="streak-card-day">${t('streak.day')} ${dayNum}</div>
+        <div class="streak-card-emoji" style="font-size:28px">${r.emoji}</div>
+        <div><div class="streak-card-val" style="font-size:14px">${r.val}</div>${coreHint}</div>
+      </div>`;
+    } else {
+      html += `<div class="${cls}">
+        <div class="streak-card-day">${t('streak.day')} ${dayNum}</div>
+        <div class="streak-card-emoji">${r.emoji}</div>
+        <div class="streak-card-val">${r.val}</div>
+      </div>`;
+    }
   }
   container.innerHTML = html;
-
-  // Preview
-  const preview = document.getElementById('streak-reward-preview');
-  if (data.canClaim && rewards[current]) {
-    const r = rewards[current];
-    let desc = _rewardEmoji(r);
-    if (r.coreChance) desc += ` + ${Math.round(r.coreChance * 100)}% ядро`;
-    preview.innerHTML = `${t('streak.day')} ${current + 1}: <span style="color:#FFD700;font-weight:700">${desc}</span>`;
-  } else if (!data.canClaim) {
-    preview.textContent = t('streak.claimed');
-  }
 
   // Button
   const btn = document.getElementById('btn-streak-claim');
