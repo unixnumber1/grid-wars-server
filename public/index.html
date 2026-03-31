@@ -3441,11 +3441,11 @@
           <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;" data-i18n="shop.open">Открыть</button>
         </div>
       </div>
-      <div style="margin-top:12px;">
+      <div class="shop-boxes-row" style="grid-template-columns:1fr;margin-top:12px;">
         <div class="shop-box-card" id="core-orb-card" style="border-color:rgba(156,39,176,0.5);background:linear-gradient(135deg,#1a1030,#2a1540);box-shadow:0 0 20px rgba(156,39,176,0.15);position:relative;">
-          <div class="shop-box-icon" style="font-size:56px;">🔮</div>
+          <button class="shop-box-info-btn" onclick="event.stopPropagation();showCoreOrbInfo()">i</button>
+          <div class="shop-box-icon">🔮</div>
           <div class="shop-box-name">Магический шар</div>
-          <div style="font-size:11px;color:#ce93d8;margin:4px 0;">Случайное ядро</div>
           <div class="shop-box-price">💎 300</div>
           <button class="shop-box-open-btn" id="btn-core-orb" onclick="doOpenCoreOrb()" style="background:linear-gradient(135deg,rgba(156,39,176,0.35),rgba(156,39,176,0.12));border-color:rgba(156,39,176,0.5);color:#ce93d8;" data-i18n="shop.open">Открыть</button>
         </div>
@@ -13243,6 +13243,16 @@ function _showBoxInfo(boxType) {
   const stats = Object.entries(odds).map(([r, pct]) => [rarityName(r), `${pct}%`]);
   stats.unshift(['Содержимое', '⚔️ Меч · 🪓 Топор · 🛡️ Щит']);
   openPopup(title, t('shop.box_random'), stats, [{ label: t('misc.ok'), isClose: true }]);
+}
+
+function showCoreOrbInfo() {
+  openPopup('🔮 Магический шар', 'Случайное ядро lv.0', [
+    ['Содержимое', '1 случайное ядро'],
+    ['✴️ Ядро дохода', '25%'],
+    ['✳️ Ядро вместимости', '25%'],
+    ['❤️ Ядро здоровья', '25%'],
+    ['♻️ Ядро регенерации', '25%'],
+  ], [{ label: t('misc.ok'), isClose: true }]);
 }
 
 function showMythicInfo(type) {
