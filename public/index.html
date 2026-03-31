@@ -13312,10 +13312,16 @@ async function buyMythic(weaponType) {
 
 function showBoxOdds(boxType) {
   const odds = SHOP_BOX_ODDS[boxType];
-  const title = boxType === 'rare' ? '📦 Редкий бокс — содержимое' : '🎁 Эпический бокс — содержимое';
-  document.getElementById('box-odds-title').textContent = title;
+  const titles = { common: '📦 Обычный бокс', rare: '📦 Редкий бокс', epic: '🎁 Эпический бокс', mythic: '🏆 Мифический бокс' };
+  document.getElementById('box-odds-title').textContent = (titles[boxType] || '📦 Бокс') + ' — содержимое';
   const footer = document.querySelector('.odds-footer');
-  if (footer) footer.style.display = '';
+  if (footer) {
+    footer.style.display = '';
+    const hasLegendary = !!odds.legendary;
+    footer.textContent = hasLegendary
+      ? 'Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты'
+      : 'Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты\nЛегендарные: недоступны';
+  }
   const container = document.getElementById('box-odds-rows');
   container.innerHTML = '';
   for (const [rarity, pct] of Object.entries(odds)) {
