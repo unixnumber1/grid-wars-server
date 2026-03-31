@@ -13246,13 +13246,18 @@ function _showBoxInfo(boxType) {
 }
 
 function showCoreOrbInfo() {
-  openPopup('🔮 Магический шар', 'Случайное ядро lv.0', [
-    ['Содержимое', '1 случайное ядро'],
-    ['✴️ Ядро дохода', '25%'],
-    ['✳️ Ядро вместимости', '25%'],
-    ['❤️ Ядро здоровья', '25%'],
-    ['♻️ Ядро регенерации', '25%'],
-  ], [{ label: t('misc.ok'), isClose: true }]);
+  const cores = [
+    { emoji: '✴️', name: 'Ядро дохода', color: '#FFD700', pct: 25 },
+    { emoji: '✳️', name: 'Ядро вместимости', color: '#4caf50', pct: 25 },
+    { emoji: '❤️', name: 'Ядро здоровья', color: '#f44336', pct: 25 },
+    { emoji: '♻️', name: 'Ядро регенерации', color: '#7DF9FF', pct: 25 },
+  ];
+  document.getElementById('box-odds-title').textContent = '🔮 Магический шар — содержимое';
+  const container = document.getElementById('box-odds-rows');
+  container.innerHTML = cores.map(c =>
+    `<div class="odds-row"><div class="odds-bar" style="background:${c.color}"></div><span class="odds-name">${c.emoji} ${c.name}</span><span class="odds-pct">${c.pct}%</span></div>`
+  ).join('');
+  document.getElementById('box-odds-popup').classList.add('open');
 }
 
 function showMythicInfo(type) {
