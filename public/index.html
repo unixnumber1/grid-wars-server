@@ -933,7 +933,7 @@
     }
     .streak-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 6px;
       margin-bottom: 14px;
     }
@@ -947,9 +947,9 @@
     }
     .streak-card.claimed { background: rgba(46,125,50,0.25); border-color: rgba(76,175,80,0.4); }
     .streak-card.current { border-color: rgba(255,215,0,0.5); box-shadow: 0 0 12px rgba(255,215,0,0.2); animation: streakPulse 1.5s infinite; }
-    .streak-card.day7 { grid-column: span 4; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 16px; background: #2a1a3e; border-color: rgba(224,64,251,0.3); }
+    .streak-card.day7 { background: #2a1a3e; border-color: rgba(224,64,251,0.3); }
     .streak-card.day7.claimed { background: rgba(46,125,50,0.25); border-color: rgba(76,175,80,0.4); }
-    .streak-card.day7.current { border-color: rgba(255,215,0,0.5); background: #2a1a3e; box-shadow: 0 0 16px rgba(255,215,0,0.15); }
+    .streak-card.day7.current { border-color: rgba(255,215,0,0.5); background: #2a1a3e; }
     .streak-card-day { font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; }
     .streak-card-emoji { font-size: 22px; margin: 4px 0; }
     .streak-card-val { font-size: 12px; color: #ccc; font-weight: 600; }
@@ -16721,20 +16721,11 @@ function _renderStreakPanel(data) {
     else if (isCurrent) cls += ' current';
     if (isDay7) cls += ' day7';
     const r = rewards[i] ? _rewardEmoji(rewards[i]) : { emoji: '?', val: '' };
-    const coreHint = (isDay7 && rewards[i]?.coreChance) ? `<div style="font-size:9px;color:#e040fb;margin-top:2px;">+${Math.round(rewards[i].coreChance*100)}% 🔮</div>` : '';
-    if (isDay7) {
-      html += `<div class="${cls}">
-        <div class="streak-card-day">${t('streak.day')} ${dayNum}</div>
-        <div class="streak-card-emoji" style="font-size:28px">${r.emoji}</div>
-        <div><div class="streak-card-val" style="font-size:14px">${r.val}</div>${coreHint}</div>
-      </div>`;
-    } else {
-      html += `<div class="${cls}">
-        <div class="streak-card-day">${t('streak.day')} ${dayNum}</div>
-        <div class="streak-card-emoji">${r.emoji}</div>
-        <div class="streak-card-val">${r.val}</div>
-      </div>`;
-    }
+    html += `<div class="${cls}">
+      <div class="streak-card-day">${t('streak.day')} ${dayNum}</div>
+      <div class="streak-card-emoji">${r.emoji}</div>
+      <div class="streak-card-val">${r.val}</div>
+    </div>`;
   }
   container.innerHTML = html;
 

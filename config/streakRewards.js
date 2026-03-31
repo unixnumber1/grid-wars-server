@@ -10,7 +10,7 @@ export const STREAK_POOLS = [
     { ether: 75 },
     { diamonds: 5 },
     { shards: 150 },
-    { boxes: ['common'], coreChance: 0.15 },
+    { boxes: ['common'], },
   ],
   // ── Week 1: Crystal focus ──
   [
@@ -20,7 +20,7 @@ export const STREAK_POOLS = [
     { diamonds: 3 },
     { shards: 300 },
     { ether: 150 },
-    { boxes: ['common'], coreChance: 0.15 },
+    { boxes: ['common'], },
   ],
   // ── Week 2: Ether focus ──
   [
@@ -30,7 +30,7 @@ export const STREAK_POOLS = [
     { ether: 225 },
     { ether: 150 },
     { diamonds: 5 },
-    { boxes: ['common'], coreChance: 0.15 },
+    { boxes: ['common'], },
   ],
   // ── Week 3: Mixed + rare box on day 7 ──
   [
@@ -40,7 +40,7 @@ export const STREAK_POOLS = [
     { diamonds: 3 },
     { ether: 150 },
     { diamonds: 5 },
-    { boxes: ['rare'], coreChance: 0.15 },
+    { boxes: ['rare'], },
   ],
 ];
 
