@@ -225,7 +225,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
         await fetch(`https://api.telegram.org/bot${BOT}/pinChatMessage`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, message_id: sentMsg.result.message_id, disable_notification: true }),
-        }).catch(() => {});
+        }).catch(e => console.error('[server] error:', e.message));
       }
     } catch (e) { console.error('[webhook] /start error:', e.message); }
     return;
@@ -245,13 +245,13 @@ app.post('/api/telegram-webhook', async (req, res) => {
       fetch(`https://api.telegram.org/bot${BOT}/answerCallbackQuery`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ callback_query_id: cb.id, text }),
-      }).catch(() => {});
+      }).catch(e => console.error('[server] error:', e.message));
 
     const editMessage = (text) =>
       fetch(`https://api.telegram.org/bot${BOT}/editMessageText`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, message_id: msgId, text }),
-      }).catch(() => {});
+      }).catch(e => console.error('[server] error:', e.message));
 
     if (data === 'get_referral_link') {
       const tgId = cb.from?.id;
@@ -349,7 +349,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
           // Notify building owner
           const ownerPlayer = gameState.getPlayerById(ownerId);
           if (ownerPlayer) {
-            notify(ownerPlayer.telegram_id, `⚠️ Ваша постройка снесена для размещения монумента ${mreq.emoji} ${mreq.name}. Ядра возвращены в инвентарь.`).catch(() => {});
+            notify(ownerPlayer.telegram_id, `⚠️ Ваша постройка снесена для размещения монумента ${mreq.emoji} ${mreq.name}. Ядра возвращены в инвентарь.`).catch(e => console.error('[server] error:', e.message));
           }
           console.log(`[MONUMENTS] Displaced ${displaced.type} (${displaced.obj.id}) on cell ${cell_id} for monument #${reqId}`);
         }
@@ -370,7 +370,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
       await sb.from('monument_requests').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', reqId);
       const { ts: _ts2, getLang: _gl2 } = await import('./config/i18n.js');
       const _pLang = _gl2(gameState, mreq.player_id);
-      notify(mreq.player_id, _ts2(_pLang, 'monreq.approved', { id: reqId, emoji: mreq.emoji, name: mreq.name, level: mreq.level })).catch(() => {});
+      notify(mreq.player_id, _ts2(_pLang, 'monreq.approved', { id: reqId, emoji: mreq.emoji, name: mreq.name, level: mreq.level })).catch(e => console.error('[server] error:', e.message));
       await editMessage(`✅ ОДОБРЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name} lv${mreq.level}\nМонумент создан!`);
       await answerCallback('✅ Монумент создан!');
       console.log(`[MONUMENTS] Request #${reqId} approved, monument created`);
@@ -384,7 +384,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
       await sb.from('monument_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', reqId);
       const { ts: _ts3, getLang: _gl3 } = await import('./config/i18n.js');
       const _rLang = _gl3(gameState, mreq.player_id);
-      notify(mreq.player_id, _ts3(_rLang, 'monreq.rejected', { id: reqId, emoji: mreq.emoji, name: mreq.name })).catch(() => {});
+      notify(mreq.player_id, _ts3(_rLang, 'monreq.rejected', { id: reqId, emoji: mreq.emoji, name: mreq.name })).catch(e => console.error('[server] error:', e.message));
       await editMessage(`❌ ОТКЛОНЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name}`);
       await answerCallback('❌ Заявка отклонена');
     }
@@ -466,7 +466,7 @@ export function recordAttack(telegramId, now) {
     if (p?.shield_until && new Date(p.shield_until) > new Date()) {
       p.shield_until = null;
       gameState.markDirty('players', p.id);
-      supabase.from('players').update({ shield_until: null }).eq('id', p.id).then(() => {}).catch(() => {});
+      supabase.from('players').update({ shield_until: null }).eq('id', p.id).then(() => {}).catch(e => console.error('[server] DB error:', e.message));
     }
   }
 }
@@ -533,8 +533,8 @@ io.on('connection', (socket) => {
     // Update player city cache for city-based spawning
     if (verifiedTgId && data.lat && data.lng) {
       import('./lib/geocity.js').then(({ updatePlayerCity }) => {
-        updatePlayerCity(verifiedTgId, data.lat, data.lng).catch(() => {});
-      }).catch(() => {});
+        updatePlayerCity(verifiedTgId, data.lat, data.lng).catch(e => console.error('[server] error:', e.message));
+      }).catch(e => console.error('[server] error:', e.message));
     }
   });
 
@@ -556,8 +556,8 @@ io.on('connection', (socket) => {
     // Update city cache (rate-limited internally to 1h)
     if (verifiedTgId) {
       import('./lib/geocity.js').then(({ updatePlayerCity }) => {
-        updatePlayerCity(verifiedTgId, data.lat, data.lng).catch(() => {});
-      }).catch(() => {});
+        updatePlayerCity(verifiedTgId, data.lat, data.lng).catch(e => console.error('[server] error:', e.message));
+      }).catch(e => console.error('[server] error:', e.message));
     }
 
     // Broadcast to nearby players (2km) with player info for instant marker creation

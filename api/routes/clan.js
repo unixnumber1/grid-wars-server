@@ -312,7 +312,7 @@ async function handleJoin(req, res) {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
       return { player_id: m.player_id, type: 'clan_join', message: ts(mLang, 'notif.clan_join', { name: pName }) };
     });
-    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
+    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
   }
 
   return res.json({ success: true });
@@ -400,7 +400,7 @@ async function handleDonate(req, res) {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
       return { player_id: m.player_id, type: 'clan_donate', message: ts(mLang, 'notif.clan_donate', { name: dName, amount: donateAmount }) };
     });
-    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
+    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
   }
 
   return res.json({ success: true, treasury: newTreasury, player_diamonds: newDiamonds });
@@ -439,7 +439,7 @@ async function handleUpgrade(req, res) {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
       return { player_id: m.player_id, type: 'clan_upgrade', message: ts(mLang, 'notif.clan_upgrade', { level: newLevel }) };
     });
-    supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
+    supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
   }
 
   return res.json({ success: true, clan: { ...clan, level: newLevel, treasury: newTreasury }, config: nextConfig });
@@ -499,7 +499,7 @@ async function handleKick(req, res) {
     supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', target.id),
   ]);
   const kickedLang = gameState.getPlayerById(target.id)?.language || 'en';
-  supabase.from('notifications').insert({ player_id: target.id, type: 'clan_kick', message: ts(kickedLang, 'notif.clan_kick') }).catch(() => {});
+  supabase.from('notifications').insert({ player_id: target.id, type: 'clan_kick', message: ts(kickedLang, 'notif.clan_kick') }).catch(e => console.error('[clan] DB error:', e.message));
 
   // Update gameState
   if (gameState.loaded) {
@@ -742,7 +742,7 @@ async function handleDisband(req, res) {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
       return { player_id: m.player_id, type: 'clan_disband', message: ts(mLang, 'notif.clan_disband') };
     });
-    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(() => {});
+    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
   }
 
   // Update gameState

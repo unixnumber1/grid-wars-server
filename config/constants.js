@@ -22,8 +22,6 @@ export const HQ_COIN_LIMIT = 1_000_000;
 
 // ── Weapon cooldowns (ms) ──
 export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
-export const ATTACK_COOLDOWN_SWORD = 500;
-export const ATTACK_COOLDOWN_AXE = 700;
 
 // ── Player base stats ──
 export const BASE_PLAYER_ATTACK = 10;

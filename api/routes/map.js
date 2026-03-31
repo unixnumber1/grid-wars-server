@@ -150,7 +150,7 @@ async function handleTick(req, res) {
     supabase.from('players')
       .update({ last_lat: pLat, last_lng: pLng, last_seen: nowISO })
       .eq('id', currentPlayerId)
-      .then(() => {}).catch(() => {});
+      .then(() => {}).catch(e => console.error('[map] DB error:', e.message));
   }
 
   // ── 2. Bot spawn (with global cap) ──────────────────────
@@ -442,7 +442,7 @@ async function handleTick(req, res) {
       if (notifications.length > 0) {
         const ids = notifications.map(n => n.id);
         gameState.markNotificationsRead(ids);
-        supabase.from('notifications').update({ read: true }).in('id', ids).then(() => {}).catch(() => {});
+        supabase.from('notifications').update({ read: true }).in('id', ids).then(() => {}).catch(e => console.error('[map] DB error:', e.message));
       }
     } else {
       const { data: notifs } = await supabase
@@ -452,7 +452,7 @@ async function handleTick(req, res) {
       if (notifs?.length) {
         notifications = notifs;
         supabase.from('notifications').update({ read: true })
-          .in('id', notifs.map(n => n.id)).then(() => {}).catch(() => {});
+          .in('id', notifs.map(n => n.id)).then(() => {}).catch(e => console.error('[map] DB error:', e.message));
       }
     }
   } catch (_) {}

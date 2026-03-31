@@ -673,7 +673,7 @@ adminRouter.post('/', async (req, res) => {
     if (insertError) return res.status(500).json({ error: 'Failed to place headquarters: ' + insertError.message });
 
     if (gameState.loaded) gameState.upsertHq(hq);
-    try { await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
+    try { await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) { console.error('[xp] addXp error:', e.message); }
 
     logPlayer(player.telegram_id, 'action', `Admin placed HQ at ${hqLat},${hqLng}`);
     return res.json({ success: true, hq });
@@ -783,7 +783,7 @@ adminRouter.post('/', async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: player.telegram_id, text }),
-      }).catch(() => {});
+      }).catch(e => console.error('[admin] TG error:', e.message));
     }
 
     return res.status(200).json({ success: true, player_id: player.id, currency, newBalance });

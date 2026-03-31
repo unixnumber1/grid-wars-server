@@ -433,7 +433,7 @@ async function handlePvpAttack(req, res) {
     supabase.from('notifications').insert({
       player_id: defender.id, type: 'pvp_kill', message: killMsg,
       data: { attacker_id: _killShadow ? null : attacker.id, damage, coins_lost: coinsLost },
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}).catch(e => console.error('[player] DB error:', e.message));
     sendTelegramNotification(defender.telegram_id, killMsg, buildAttackButton(defLat, defLng));
 
     // XP for kill
@@ -543,7 +543,7 @@ playerRouter.post('/init', async (req, res) => {
     const bannedUntil = player.ban_until ? new Date(player.ban_until) : null;
     const stillBanned = bannedForever || bannedUntil > new Date();
     if (stillBanned) return res.status(403).json({ banned: true, reason: player.ban_reason, until: player.ban_until, avatar: player.avatar });
-    else supabase.from('players').update({ is_banned: false, ban_reason: null, ban_until: null }).eq('id', player.id).then(() => {}).catch(() => {});
+    else supabase.from('players').update({ is_banned: false, ban_reason: null, ban_until: null }).eq('id', player.id).then(() => {}).catch(e => console.error('[player] DB error:', e.message));
   }
   let headquarters, mines, inventory, notifications;
   try {
@@ -648,10 +648,10 @@ playerRouter.post('/init', async (req, res) => {
   const totalIncome = (mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
   const needUsername = !player.game_username;
   const unreadNotifs = notifications || [];
-  if (unreadNotifs.length > 0) { supabase.from('notifications').update({ read: true }).in('id', unreadNotifs.map(n => n.id)).then(() => {}).catch(() => {}); }
+  if (unreadNotifs.length > 0) { supabase.from('notifications').update({ read: true }).in('id', unreadNotifs.map(n => n.id)).then(() => {}).catch(e => console.error('[player] DB error:', e.message)); }
   // Fire-and-forget: ensure market near player's HQ (or position)
   if (player.last_lat && player.last_lng) {
-    ensureMarketNearPlayer(player.last_lat, player.last_lng, player.id).catch(() => {});
+    ensureMarketNearPlayer(player.last_lat, player.last_lng, player.id).catch(e => console.error('[player] market spawn error:', e.message));
   }
   logActivity(player.game_username || player.username, 'вошёл в игру');
   logPlayer(tgId, 'login', 'Вошёл в игру');

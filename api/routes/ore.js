@@ -212,7 +212,7 @@ oreRouter.post('/', async (req, res) => {
             read: false, created_at: new Date().toISOString(),
           };
           gameState.addNotification(notif);
-          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+          supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[ore] DB error:', e.message));
         }
       }
 

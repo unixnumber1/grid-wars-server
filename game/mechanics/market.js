@@ -108,7 +108,7 @@ function _replaceMineInCell(cellId) {
   const mine = gameState.getMineByCellId(cellId);
   if (!mine) return;
   gameState.removeMine(mine.id);
-  supabase.from('mines').delete().eq('id', mine.id).then(() => {}).catch(() => {});
+  supabase.from('mines').delete().eq('id', mine.id).then(() => {}).catch(e => console.error('[market] DB error:', e.message));
   if (mine.owner_id) {
     const notif = {
       id: globalThis.crypto.randomUUID(),
@@ -119,7 +119,7 @@ function _replaceMineInCell(cellId) {
       created_at: new Date().toISOString(),
     };
     gameState.addNotification(notif);
-    supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+    supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[market] DB error:', e.message));
   }
   console.log(`[markets] Replaced mine lv${mine.level} in cell ${cellId}`);
 }

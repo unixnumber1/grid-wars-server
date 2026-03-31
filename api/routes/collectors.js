@@ -380,7 +380,7 @@ async function handleHit(req, res) {
         created_at: nowISO,
       };
       gameState.addNotification(notif);
-      supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+      supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[collectors] DB error:', e.message));
       if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg, buildAttackButton(collector.lat, collector.lng));
     }
 

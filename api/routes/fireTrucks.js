@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { getCellId } from '../../lib/grid.js';
-import { getMineHp } from '../../config/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
@@ -259,7 +258,7 @@ async function handleHit(req, res) {
         created_at: nowISO,
       };
       gameState.addNotification(notif);
-      supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+      supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[fireTrucks] error:', e.message));
       if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg, buildAttackButton(truck.lat, truck.lng));
     }
 

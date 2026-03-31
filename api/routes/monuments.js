@@ -470,7 +470,7 @@ async function handleAttackDefender(req, res) {
     defender.alive = false;
 
     // Persist defender death
-    supabase.from('monument_defenders').update({ alive: false, hp: 0 }).eq('id', defender.id).then(() => {}).catch(() => {});
+    supabase.from('monument_defenders').update({ alive: false, hp: 0 }).eq('id', defender.id).then(() => {}).catch(e => console.error('[monuments] DB error:', e.message));
 
     emitToNearbyPlayers(defender.lat, defender.lng, 1000, 'monument:defender_killed', {
       defender_id: defender.id,

@@ -177,7 +177,7 @@ async function handleCron(req, res) {
         chat_id: p.telegram_id,
         text: ts(getLang(gameState, p.telegram_id), 'notif.vases_spawned'),
       }),
-    }).catch(() => {});
+    }).catch(e => console.error('[vases] error:', e.message));
   }
 
   return res.json({ success: true, spawned });

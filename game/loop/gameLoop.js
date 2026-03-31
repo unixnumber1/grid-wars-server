@@ -297,8 +297,8 @@ async function moveCouriers(nowMs, nowISO) {
             if (item) { item.held_by_courier = null; item.held_by_market = dc.to_market_id || null; gameState.markDirty('items', item.id); }
           }
           // Write side-effects to DB
-          supabase.from('market_listings').update({ status: 'active' }).eq('id', dc.listing_id).eq('status', 'pending').then(() => {}).catch(() => {});
-          if (dc.item_id) supabase.from('items').update({ held_by_courier: null, held_by_market: dc.to_market_id || null }).eq('id', dc.item_id).then(() => {}).catch(() => {});
+          supabase.from('market_listings').update({ status: 'active' }).eq('id', dc.listing_id).eq('status', 'pending').then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+          if (dc.item_id) supabase.from('items').update({ held_by_courier: null, held_by_market: dc.to_market_id || null }).eq('id', dc.item_id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         } else if (dc.type === 'delivery' && (dc._coins > 0 || dc.coins > 0)) {
           // Collector coin delivery — create a coin drop on the ground
           const courierCoins = dc._coins || dc.coins || 0;
@@ -337,7 +337,7 @@ async function moveCouriers(nowMs, nowISO) {
             created_at: nowISO,
           };
           gameState.addNotification(notif);
-          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+          supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         } else if (dc.type === 'delivery') {
           const buyer = gameState.getPlayerById(dc.owner_id);
           const dropLat = (buyer?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
@@ -366,7 +366,7 @@ async function moveCouriers(nowMs, nowISO) {
           if (dc.item_id) {
             const item = gameState.getItemById(dc.item_id);
             if (item) { item.held_by_courier = null; item.held_by_market = null; gameState.markDirty('items', item.id); }
-            supabase.from('items').update({ held_by_courier: null, held_by_market: null }).eq('id', dc.item_id).then(() => {}).catch(() => {});
+            supabase.from('items').update({ held_by_courier: null, held_by_market: null }).eq('id', dc.item_id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
           }
           const delLang = gameState.getPlayerById(dc.owner_id)?.language || 'en';
           const notif = {
@@ -378,7 +378,7 @@ async function moveCouriers(nowMs, nowISO) {
             created_at: nowISO,
           };
           gameState.addNotification(notif);
-          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+          supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         }
       } catch (e) { console.error('[gameLoop] courier delivery error:', e.message); }
 
@@ -452,7 +452,7 @@ function extinguishBuilding(ff) {
       mine.hp = restoredHp;
       mine.last_hp_update = nowISO;
       gameState.markDirty('mines', mine.id);
-      supabase.from('mines').update({ status: 'normal', burning_started_at: null, hp: restoredHp, last_hp_update: nowISO }).eq('id', mine.id).then(() => {}).catch(() => {});
+      supabase.from('mines').update({ status: 'normal', burning_started_at: null, hp: restoredHp, last_hp_update: nowISO }).eq('id', mine.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
   } else if (ff.target_type === 'collector') {
     const coll = gameState.collectors.get(ff.target_id);
@@ -463,7 +463,7 @@ function extinguishBuilding(ff) {
       coll.burning_started_at = null;
       coll.hp = restoredHp;
       gameState.markDirty('collectors', coll.id);
-      supabase.from('collectors').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', coll.id).then(() => {}).catch(() => {});
+      supabase.from('collectors').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', coll.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
   } else if (ff.target_type === 'fire_truck') {
     const truck = gameState.fireTrucks.get(ff.target_id);
@@ -474,7 +474,7 @@ function extinguishBuilding(ff) {
       truck.burning_started_at = null;
       truck.hp = restoredHp;
       gameState.markDirty('fireTrucks', truck.id);
-      supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', truck.id).then(() => {}).catch(() => {});
+      supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', truck.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
   }
 }
@@ -631,7 +631,7 @@ async function periodicCleanup(nowMs, nowISO) {
         } else if (listing.item_id) {
           await supabase.from('items').update({ on_market: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
         }
-        supabase.from('couriers').update({ status: 'cancelled' }).eq('listing_id', listing.id).eq('status', 'moving').then(() => {}).catch(() => {});
+        supabase.from('couriers').update({ status: 'cancelled' }).eq('listing_id', listing.id).eq('status', 'moving').then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
       }
     }
 
@@ -683,7 +683,7 @@ async function periodicCleanup(nowMs, nowISO) {
       if (burnedMs > 86400000) {
         m.status = 'destroyed';
         gameState.markDirty('mines', m.id);
-        supabase.from('mines').update({ status: 'destroyed' }).eq('id', m.id).then(() => {}).catch(() => {});
+        supabase.from('mines').update({ status: 'destroyed' }).eq('id', m.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         // Destroy installed cores
         if (m.cell_id) {
           const cores = gameState.getCoresForMine(m.cell_id);
@@ -691,7 +691,7 @@ async function periodicCleanup(nowMs, nowISO) {
             gameState.cores.delete(c.id);
           }
           if (cores.length > 0) {
-            supabase.from('cores').delete().eq('mine_cell_id', m.cell_id).then(() => {}).catch(() => {});
+            supabase.from('cores').delete().eq('mine_cell_id', m.cell_id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
           }
         }
         const destroyLang = gameState.getPlayerById(m.owner_id)?.language || 'en';
@@ -704,7 +704,7 @@ async function periodicCleanup(nowMs, nowISO) {
           created_at: nowISO,
         };
         gameState.addNotification(notif);
-        supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+        supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
       } else if (burnedMs > 64800000 && burnedMs < 65400000) {
         const warnLang = gameState.getPlayerById(m.owner_id)?.language || 'en';
         const notif = {
@@ -716,7 +716,7 @@ async function periodicCleanup(nowMs, nowISO) {
           created_at: nowISO,
         };
         gameState.addNotification(notif);
-        supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+        supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
       }
     }
 
@@ -726,7 +726,7 @@ async function periodicCleanup(nowMs, nowISO) {
       const burnedMs = nowMs - new Date(c.burning_started_at).getTime();
       if (burnedMs > 86400000) {
         gameState.collectors.delete(c.id);
-        supabase.from('collectors').delete().eq('id', c.id).then(() => {}).catch(() => {});
+        supabase.from('collectors').delete().eq('id', c.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         const owner = gameState.getPlayerById(c.owner_id);
         if (owner) {
           const cLang = owner.language || 'en';
@@ -737,7 +737,7 @@ async function periodicCleanup(nowMs, nowISO) {
             read: false, created_at: nowISO,
           };
           gameState.addNotification(notif);
-          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+          supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         }
       }
     }
@@ -752,7 +752,7 @@ async function periodicCleanup(nowMs, nowISO) {
           if (ff.truck_id === ft.id) gameState.firefighters.delete(ffId);
         }
         gameState.fireTrucks.delete(ft.id);
-        supabase.from('fire_trucks').delete().eq('id', ft.id).then(() => {}).catch(() => {});
+        supabase.from('fire_trucks').delete().eq('id', ft.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         const owner = gameState.getPlayerById(ft.owner_id);
         if (owner) {
           const ftLang = owner.language || 'en';
@@ -763,7 +763,7 @@ async function periodicCleanup(nowMs, nowISO) {
             read: false, created_at: nowISO,
           };
           gameState.addNotification(notif);
-          supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+          supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         }
       }
     }
@@ -804,7 +804,7 @@ async function periodicCleanup(nowMs, nowISO) {
         // Expire old ore nodes
         if (new Date(ore.expires_at).getTime() <= oreNow) {
           gameState.oreNodes.delete(id);
-          supabase.from('ore_nodes').delete().eq('id', id).then(() => {}).catch(() => {});
+          supabase.from('ore_nodes').delete().eq('id', id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
           continue;
         }
 
@@ -831,7 +831,7 @@ async function periodicCleanup(nowMs, nowISO) {
             ore.hp = ore.max_hp;
             delete ore._claimed_at;
             gameState.markDirty('oreNodes', id);
-            supabase.from('ore_nodes').update({ owner_id: null, hp: ore.max_hp }).eq('id', id).then(() => {}).catch(() => {});
+            supabase.from('ore_nodes').update({ owner_id: null, hp: ore.max_hp }).eq('id', id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
 
             // Notify owner
             if (eruptedOwner) {
@@ -844,7 +844,7 @@ async function periodicCleanup(nowMs, nowISO) {
                 read: false, created_at: new Date().toISOString(),
               };
               gameState.addNotification(notif);
-              supabase.from('notifications').insert(notif).then(() => {}).catch(() => {});
+              supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
             }
 
             // Emit eruption event for animation

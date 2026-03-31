@@ -314,7 +314,7 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     });
   }
   if (damageRows.length) {
-    supabase.from('monument_raid_damage').insert(damageRows).then(() => {}).catch(() => {});
+    supabase.from('monument_raid_damage').insert(damageRows).then(() => {}).catch(e => console.error('[monuments] DB error:', e.message));
   }
 
   // Emit defeat only to raid participants
@@ -395,7 +395,7 @@ async function addCoresToLootBoxes(monument, participants, totalDamage, lootBoxe
     remaining -= count;
 
     // Update the already-inserted DB row
-    supabase.from('monument_loot_boxes').update({ items: box.items }).eq('id', box.id).then(() => {}).catch(() => {});
+    supabase.from('monument_loot_boxes').update({ items: box.items }).eq('id', box.id).then(() => {}).catch(e => console.error('[monuments] DB error:', e.message));
   }
 
   // Remaining cores go to top player
@@ -407,7 +407,7 @@ async function addCoresToLootBoxes(monument, participants, totalDamage, lootBoxe
       items.push({ _type: 'core', core_type: coreType, level: 0, emoji: CORE_TYPES[coreType].emoji, name: CORE_TYPES[coreType].name });
     }
     topBox.items = JSON.stringify(items);
-    supabase.from('monument_loot_boxes').update({ items: topBox.items }).eq('id', topBox.id).then(() => {}).catch(() => {});
+    supabase.from('monument_loot_boxes').update({ items: topBox.items }).eq('id', topBox.id).then(() => {}).catch(e => console.error('[monuments] DB error:', e.message));
   }
 
   console.log(`[CORES] Монумент lv${monument.level} — ${totalCores} ядер добавлены в лут-боксы`);

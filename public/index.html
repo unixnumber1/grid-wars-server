@@ -6214,11 +6214,6 @@ function xpForLevel(level) {
   return xp;
 }
 
-// Inline mirrors of lib/formulas.js (frontend has no imports)
-function _calcMaxHp(_level)      { return 1000; }
-function _calcAttack(_level)     { return 10; }
-function _calcBuildRadius(_lvl)  { return SMALL_RADIUS; }
-
 function _spawnLevelUpParticles(x, y) {
   for (let i = 0; i < 6; i++) {
     const p = document.createElement('div');
@@ -10221,9 +10216,6 @@ function initSocket() {
         state.player.hp = data.hp_left;
         updatePlayerDisplay();
       }
-      if (!data.killed) {
-        // shake removed
-      }
       // Death is handled by pvp:kill event
     });
 
@@ -10328,10 +10320,6 @@ function initSocket() {
       }
     });
 
-    _socket.on('monument:loot_dropped', (data) => {
-      // No extra toast — defeat toast is enough
-    });
-
     _socket.on('core:dropped', (data) => {
       showCoreDropAnimation(data.emoji, data.name, data.monument_level);
     });
@@ -10363,8 +10351,6 @@ function initSocket() {
       if (m) {
         m.shield_hp = data.shield_hp;
         m.max_shield_hp = data.max_shield_hp;
-        if (data.current_dps != null) m._current_dps = data.current_dps;
-        if (data.required_dps != null) m.dps_threshold = data.required_dps;
         updateMonumentMarkerIcon(data.monument_id, true);
       }
       if (combatState.currentTarget?.type === 'monument_shield' && combatState.currentTarget.id === data.monument_id)

@@ -66,7 +66,7 @@ async function handleHqPlace(player, body, res) {
     gameState.upsertHq(hq);
   }
   let xpResult = null;
-  try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) {}
+  try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) { console.error('[xp] addXp error:', e.message); }
 
   // Process pending referral reward — player proved engagement by placing HQ
   try {
@@ -130,7 +130,7 @@ async function handleHqUpgrade(player, res) {
     if (p) { p.coins = newBalance; gameState.markDirty('players', p.id); }
   }
   let xpResult = null;
-  try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_HQ); } catch (e) {}
+  try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_HQ); } catch (e) { console.error('[xp] addXp error:', e.message); }
   return res.status(200).json({ headquarters: updatedHq, player_coins: newBalance, xp: xpResult });
 }
 
@@ -195,7 +195,7 @@ async function handleMineBuild(req, res) {
   logActivity(pName || 'player', 'построил шахту');
   logPlayer(telegram_id, 'action', 'Построил шахту', { cell_id: targetCell, lat: cellCenterLat, lng: cellCenterLng });
   let xpResult = null;
-  try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_MINE); } catch (e) {}
+  try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_MINE); } catch (e) { console.error('[xp] addXp error:', e.message); }
   return res.status(201).json({ mine, xp: xpResult });
 }
 
@@ -296,7 +296,7 @@ async function handleMineCollect(req, res) {
     if (totalXpGained > 0) lastCollectXpTime.set(String(telegram_id), Date.now());
   }
   let xpResult = null;
-  if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) {} }
+  if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) { console.error('[xp] addXp error:', e.message); } }
   const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
   return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, xp_events: xpEvents, totalIncome, collected_mine_ids: mines.map(m => m.id) });
 }
@@ -507,7 +507,7 @@ async function handleUpgradeGet(req, res) {
       }
     }
     let xpResult = null;
-    try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(mine.pending_level)); } catch (e) {}
+    try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(mine.pending_level)); } catch (e) { console.error('[xp] addXp error:', e.message); }
     completed.push({ ...updated, xp: xpResult });
   }
   return res.json({ completed });
@@ -724,7 +724,7 @@ async function handleMineHit(req, res) {
     supabase.from('notifications').insert({
       player_id: mine.owner_id, type: 'mine_burning', message: hitBurnMsg,
       data: { mine_id: mine.id },
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}).catch(e => console.error('[buildings] DB error:', e.message));
 
     const owner = gameState.getPlayerById(mine.owner_id);
     if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, hitBurnMsg, buildAttackButton(mine.lat, mine.lng));
@@ -748,7 +748,7 @@ async function handleMineHit(req, res) {
       supabase.from('notifications').insert({
         player_id: mine.owner_id, type: 'mine_attacked', message: hitAtkMsg,
         data: { mine_id: mine.id },
-      }).then(() => {}).catch(() => {});
+      }).then(() => {}).catch(e => console.error('[buildings] DB error:', e.message));
 
       const hitOwner = gameState.getPlayerById(mine.owner_id);
       if (hitOwner?.telegram_id) sendTelegramNotification(hitOwner.telegram_id, hitAtkMsg, buildAttackButton(mine.lat, mine.lng));
