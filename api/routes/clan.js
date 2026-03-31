@@ -60,25 +60,8 @@ async function handleBuildHq(req, res) {
   const { data: coinsOk } = await supabase.from('players').update({ coins: newBalance }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle();
   if (!coinsOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
 
-  // clan_id is NOT NULL + FK in DB — create a placeholder clan entry for FK satisfaction
-  // Player does NOT get linked to it — they stay clanless until they create/join a real clan
-  let clanIdForHq = player.clan_id;
-  if (!clanIdForHq) {
-    const placeholderName = `_placeholder_${player.id.slice(0, 8)}_${Date.now()}`;
-    const { data: placeholder, error: phErr } = await supabase.from('clans').insert({
-      name: placeholderName, symbol: '🏗️', color: '#607D8B',
-      description: '', min_level: 999, leader_id: player.id,
-    }).select('id').single();
-    if (phErr) {
-      await supabase.from('players').update({ coins: balance }).eq('id', player.id);
-      return res.status(500).json({ error: ts(lang, 'err.failed_create_hq') });
-    }
-    clanIdForHq = placeholder.id;
-    if (gameState.loaded) {
-      gameState.upsertClan({ id: placeholder.id, name: placeholderName, symbol: '🏗️', color: '#607D8B', level: 1, min_level: 999, leader_id: player.id });
-    }
-    // Player is NOT linked to this placeholder clan — stays clan_id=null
-  }
+  // clan_id is nullable — HQ can exist without a clan (inactive state)
+  const clanIdForHq = player.clan_id || null;
   const insertData = { player_id: player.id, lat: tapLat, lng: tapLng, cell_id, clan_id: clanIdForHq };
   const { data: hq, error: insertErr } = await supabase.from('clan_headquarters').insert(insertData).select().single();
 
@@ -122,10 +105,7 @@ async function handleCreate(req, res) {
 
   // Check if player already in a real clan
   if (player.clan_id) {
-    const { data: existing } = await supabase.from('clans').select('id, name').eq('id', player.clan_id).maybeSingle();
-    if (existing && !existing.name.startsWith('_placeholder_')) {
-      return res.status(400).json({ error: ts(lang, 'err.already_in_clan') });
-    }
+    return res.status(400).json({ error: ts(lang, 'err.already_in_clan') });
   }
 
   const { data: clanHq } = await supabase.from('clan_headquarters').select('id, clan_id').eq('player_id', player.id).maybeSingle();
@@ -134,40 +114,17 @@ async function handleCreate(req, res) {
   const { data: dup } = await supabase.from('clans').select('id').eq('name', trimName).maybeSingle();
   if (dup) return res.status(409).json({ error: ts(lang, 'err.clan_name_taken') });
 
-  // Find placeholder clan on the HQ (created during build-hq)
-  let placeholderClanId = null;
-  if (clanHq.clan_id) {
-    const { data: phClan } = await supabase.from('clans').select('id, name').eq('id', clanHq.clan_id).maybeSingle();
-    if (phClan?.name?.startsWith('_placeholder_')) placeholderClanId = phClan.id;
-  }
-
-  let clan;
-  if (placeholderClanId) {
-    // Update placeholder with real clan data
-    const validPolicy = ['open','closed','request'].includes(join_policy) ? join_policy : 'open';
-    const { data: updated, error: updateErr } = await supabase.from('clans').update({
-      name: trimName, symbol, color,
-      description: (description || '').slice(0, 100),
-      min_level: Math.max(1, parseInt(min_level) || 1),
-      leader_id: player.id,
-      join_policy: validPolicy,
-    }).eq('id', placeholderClanId).select().single();
-    if (updateErr) return res.status(500).json({ error: updateErr.message });
-    clan = updated;
-  } else {
-    // No placeholder — create new clan + link HQ
-    const validPolicy2 = ['open','closed','request'].includes(join_policy) ? join_policy : 'open';
-    const { data: newClan, error: clanErr } = await supabase.from('clans').insert({
-      name: trimName, symbol, color,
-      description: (description || '').slice(0, 100),
-      min_level: Math.max(1, parseInt(min_level) || 1),
-      leader_id: player.id,
-      join_policy: validPolicy2,
-    }).select().single();
-    if (clanErr) return res.status(500).json({ error: clanErr.message });
-    clan = newClan;
-    await supabase.from('clan_headquarters').update({ clan_id: clan.id }).eq('player_id', player.id);
-  }
+  // Create new clan + link HQ
+  const validPolicy = ['open','closed','request'].includes(join_policy) ? join_policy : 'open';
+  const { data: clan, error: clanErr } = await supabase.from('clans').insert({
+    name: trimName, symbol, color,
+    description: (description || '').slice(0, 100),
+    min_level: Math.max(1, parseInt(min_level) || 1),
+    leader_id: player.id,
+    join_policy: validPolicy,
+  }).select().single();
+  if (clanErr) return res.status(500).json({ error: clanErr.message });
+  await supabase.from('clan_headquarters').update({ clan_id: clan.id }).eq('player_id', player.id);
 
   // Link player to clan + create membership
   const [{ data: memberRow }] = await Promise.all([

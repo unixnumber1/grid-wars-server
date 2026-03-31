@@ -17242,9 +17242,9 @@ function _renderHqTab(body) {
       <div class="cs-stat-card"><div class="cs-stat-val">📍 ${config.radius}м</div><div class="cs-stat-label">Зона</div></div>
       <div class="cs-stat-card"><div class="cs-stat-val">⚡ +${config.income}%</div><div class="cs-stat-label">Доход</div></div>
       <div class="cs-stat-card"><div class="cs-stat-val">🛡️ +${config.defense}%</div><div class="cs-stat-label">Защита</div></div>
-      <div class="cs-stat-card"><div class="cs-stat-val" style="${boostActive ? 'color:#00ff88' : 'color:#666'}">🚀 ${boostLabel}</div><div class="cs-stat-label">Буст</div></div>
+      ${isOwn ? `<div class="cs-stat-card"><div class="cs-stat-val" style="${boostActive ? 'color:#00ff88' : 'color:#666'}">🚀 ${boostLabel}</div><div class="cs-stat-label">Буст</div></div>` : ''}
     </div>
-    ${treasuryHtml}
+    ${isOwn ? treasuryHtml : ''}
     ${isOwn ? `<div class="cs-actions" id="cs-hq-actions"></div>` : ''}
     ${!isOwn && !state.player?.clan_id ? `<div class="cs-actions" id="cs-hq-actions"></div>` : ''}
     ${isOwn ? `<div class="cs-danger-zone" id="cs-danger"></div>` : ''}
@@ -17315,8 +17315,9 @@ async function _renderMembersTab(body) {
     return;
   }
   const members = _clanScreenData.members;
-  const isLeader = state.player?.clan_role === 'leader';
-  const isOfficer = state.player?.clan_role === 'officer';
+  const isOwnClan = _clanScreenId === state.player?.clan_id;
+  const isLeader = isOwnClan && state.player?.clan_role === 'leader';
+  const isOfficer = isOwnClan && state.player?.clan_role === 'officer';
 
   const ONLINE_MS = 5 * 60 * 1000;
   const nowMs = Date.now();
@@ -17362,7 +17363,7 @@ async function _renderMembersTab(body) {
         <div class="cs-member-avatar">${avatar}</div>
         <div class="cs-member-info">
           <div class="cs-member-name" style="display:flex;align-items:center;">${onlineDot}${name}</div>
-          <div class="cs-member-meta">Ур.${p.level || 1} · 💎 ${m.donated_month || 0}</div>
+          <div class="cs-member-meta">Ур.${p.level || 1}${isOwnClan ? ` · 💎 ${m.donated_month || 0}` : ''}</div>
         </div>
         <div class="cs-member-role">${roleIcon} ${roleLabel}</div>
         ${canManage ? `<button style="font-size:18px;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;cursor:pointer;line-height:1;" onclick="event.stopPropagation();_showMemberActions('${p.telegram_id}','${m.role}','${escapedName}')">⋯</button>` : ''}
@@ -17426,7 +17427,7 @@ function _filterAndRenderClans(query) {
       btnHtml = `<span style="color:#666;font-size:11px;">${t('clan.cant')}</span>`;
     }
     return `
-      <div class="cs-clan-card">
+      <div class="cs-clan-card" onclick="openClanScreen('${c.id}', 'hq')" style="cursor:pointer;">
         <div class="cs-clan-card-head">
           <span class="cs-clan-card-name">${c.symbol || '🏰'} ${c.name} ${policyIcon}</span>
           <span class="cs-clan-card-lvl">Ур. ${c.level}</span>
@@ -17438,7 +17439,7 @@ function _filterAndRenderClans(query) {
           <span>🛡️ +${c.defense_bonus}%</span>
           ${c.min_level > 1 ? `<span>Мин. ур. ${c.min_level}</span>` : ''}
         </div>
-        <div style="text-align:right;">${btnHtml}</div>
+        <div style="text-align:right;" onclick="event.stopPropagation()">${btnHtml}</div>
       </div>`;
   }).join('');
 }
