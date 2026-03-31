@@ -8476,9 +8476,10 @@ async function pollCompleteUpgrades() {
 async function doSellMine(mineId) {
   if (String(mineId).startsWith('_opt_')) return;
   try {
-    // Optimistic: remove marker immediately
+    // Optimistic: remove marker + floating upgrade timer immediately
     const key = `mine_${mineId}`;
     if (buildingMarkers[key]) { map.removeLayer(buildingMarkers[key]); delete buildingMarkers[key]; }
+    _removeFloatingTimer(mineId);
     state.mapBuildings.mines = (state.mapBuildings.mines || []).filter(m => m.id !== mineId);
     closePopup();
 
