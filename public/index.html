@@ -4957,6 +4957,7 @@ const I18N = {
     'inv.sub_rewards': 'Награды',
     'inv.sub_skills': 'Навыки',
     'inv.sub_badges': 'Бейджи',
+    'inv.sub_other': '📦 Другое',
     'badge.none': 'Нет бейджей',
     'skills.level_n': '{n}/{max} уровень',
     'shadow.activated': '🎭 Тень активирована на 30 мин!',
@@ -6191,6 +6192,7 @@ const I18N = {
     'inv.sub_rewards': 'Rewards',
     'inv.sub_skills': 'Skills',
     'inv.sub_badges': 'Badges',
+    'inv.sub_other': '📦 Other',
     'badge.none': 'No badges',
     'skills.level_n': '{n}/{max} level',
     'shadow.activated': '🎭 Shadow activated for 30 min!',
@@ -8938,7 +8940,8 @@ function switchMainTab(mainTab) {
   if (mainTab === 'inventory') {
     subRow.innerHTML = `
       <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">${t('profile.tab.equip')}</button>
-      <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">${t('profile.tab.cores')}</button>`;
+      <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">${t('profile.tab.cores')}</button>
+      <button class="profile-inv-tab" id="inv-tab-other" onclick="switchInvTab('other')">${t('inv.sub_other') || 'Другое'}</button>`;
     if (actionsRow) actionsRow.style.display = 'flex';
     switchInvTab('equip');
   } else {
@@ -8953,7 +8956,7 @@ function switchMainTab(mainTab) {
 
 function switchInvTab(tab) {
   // Hide all panels
-  const panels = ['inv-panel-equip', 'inv-panel-cores', 'inv-panel-rewards', 'inv-panel-skills', 'inv-panel-badges'];
+  const panels = ['inv-panel-equip', 'inv-panel-cores', 'inv-panel-rewards', 'inv-panel-skills', 'inv-panel-badges', 'inv-panel-other'];
   for (const id of panels) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -8981,6 +8984,12 @@ function switchInvTab(tab) {
     document.getElementById('inv-tab-badges')?.classList.add('active');
     document.getElementById('inv-panel-badges').style.display = '';
     renderBadgesTab();
+  } else if (tab === 'other') {
+    document.getElementById('inv-tab-other')?.classList.add('active');
+    document.getElementById('inv-panel-other').style.display = '';
+    const actionsRow = document.getElementById('inv-equip-actions');
+    if (actionsRow) actionsRow.style.display = 'none';
+    renderOtherTab();
   }
 }
 
@@ -17670,8 +17679,8 @@ function showOrePopup(oreId) {
     actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
   }
 
-  // Send scout button for broken (uncaptured) ores — works at any distance up to 20km
-  if (isBroken && !isOwned) {
+  // Send scout button for uncaptured ores — works at any distance up to 20km
+  if (!isOwned) {
     const distKm = dist != null ? dist / 1000 : null;
     if (distKm !== null && distKm <= 20) {
       actions.push({ label: t('barracks.send_scout'), cls: 'primary', noClose: true, action: async () => {
@@ -20403,6 +20412,36 @@ function attackScout(sc) {
   openCombatPopup('🤠 ' + (_lang === 'ru' ? 'Скаут' : 'Scout') + ` Lv.${sc.level || 1}`, sc.id, 'scout', sc);
 }
 
+async function renderOtherTab() {
+  const el = document.getElementById('other-content');
+  if (!el) return;
+  el.innerHTML = `<div style="text-align:center;padding:20px;color:#888">${_lang === 'ru' ? 'Загрузка...' : 'Loading...'}</div>`;
+  const status = await fetchBarracksStatus();
+  const bag = status?.bag || [];
+  if (bag.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:30px;color:#888;font-size:13px">${_lang === 'ru' ? 'Нет юнитов. Тренируйте скаутов в казарме ⛺' : 'No units. Train scouts in barracks ⛺'}</div>`;
+    return;
+  }
+  // Group by type+level
+  const groups = {};
+  for (const u of bag) {
+    const key = `${u.unit_type}_${u.unit_level}`;
+    if (!groups[key]) groups[key] = { ...u, count: 0 };
+    groups[key].count++;
+  }
+  let html = '<div class="inventory-grid" style="margin-top:8px">';
+  for (const g of Object.values(groups)) {
+    const emoji = g.unit_type === 'scout' ? '🤠' : '👤';
+    html += `<div class="inv-item" style="position:relative;display:flex;flex-direction:column;align-items:center;padding:8px 4px">
+      <span style="font-size:28px">${emoji}</span>
+      <span style="font-size:10px;color:#ccc;margin-top:2px">Lv.${g.unit_level}</span>
+      <span style="position:absolute;top:2px;right:4px;font-size:10px;color:#FFD700;font-weight:bold">×${g.count}</span>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
 async function fetchBarracksStatus() {
   try {
     const data = await apiFetch('/api/barracks', {
@@ -20476,67 +20515,67 @@ async function showBarracksPopup(barracksId, tab) {
 
   if (_barracksPopupTab === 'train') {
     // ─── Info card ───
-    html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:#ccc">
-        <span>🤠 ${t('barracks.scout_level', {level: scoutLevel})}</span>
-        <span>${t('barracks.ore_access')}: ${oreAccess}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:4px">
-        <span>${t('barracks.scout_bag', {count: bagCount})}</span>
-        <span>${t('barracks.slots')}: ${activeCount}/${maxSlots}</span>
-      </div>
+    html += `<div class="hq-stat-card" style="margin-bottom:8px">
+      <span>🤠 ${t('barracks.scout_level', {level: scoutLevel})} · ${oreAccess}</span>
+      <span class="val">${t('barracks.scout_bag', {count: bagCount})} · ${activeCount}/${maxSlots}</span>
     </div>`;
 
     // ─── Queue cards ───
     for (const q of queue) {
       if (q.ready) {
-        html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:20px">🤠</span>
-            <div><div style="font-size:13px;color:#fff;font-weight:500">Lv.${q.unit_level}</div><div style="font-size:11px;color:#4caf50">${t('barracks.ready')}</div></div>
-          </div>
-          <span style="font-size:18px">✅</span>
+        html += `<div class="hq-stat-card" style="margin-bottom:6px">
+          <span>🤠 Lv.${q.unit_level} — <span style="color:#4caf50">${t('barracks.ready')}</span></span>
+          <span style="font-size:16px">✅</span>
         </div>`;
       } else {
+        const startedAt = new Date(q.started_at).getTime();
         const finishAt = new Date(q.finish_at).getTime();
         const now = Date.now();
+        const notStarted = now < startedAt;
         const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
         const mins = Math.floor(secsLeft / 60);
         const secs = secsLeft % 60;
-        const totalTime = barracks.train_time_ms / 1000;
-        const elapsed = totalTime - secsLeft;
-        const pct = Math.min(100, Math.round(elapsed / totalTime * 100));
         const boostCost = Math.max(1, Math.ceil(secsLeft / 60));
-        html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:6px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:20px">🤠</span>
-              <div><div style="font-size:13px;color:#fff;font-weight:500">Lv.${q.unit_level}</div><div style="font-size:11px;color:#888">${mins}:${String(secs).padStart(2, '0')}</div></div>
+
+        if (notStarted) {
+          html += `<div class="hq-stat-card" style="margin-bottom:6px">
+            <span>🤠 Lv.${q.unit_level} — <span style="color:#888">${_lang === 'ru' ? 'В очереди' : 'Queued'}</span></span>
+            <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" class="hq-coll-btn active" style="width:auto;margin:0;padding:4px 10px;font-size:11px">${t('barracks.boost')} ${boostCost} 💎</button>
+          </div>`;
+        } else {
+          const totalTime = finishAt - startedAt;
+          const elapsed = now - startedAt;
+          const pct = Math.min(100, Math.max(0, Math.round(elapsed / totalTime * 100)));
+          html += `<div class="hq-collector-card" style="margin-bottom:6px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:13px;color:#ccc">🤠 Lv.${q.unit_level} — ${mins}:${String(secs).padStart(2, '0')}</span>
+              <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" class="hq-coll-btn active" style="width:auto;margin:0;padding:4px 10px;font-size:11px">${t('barracks.boost')} ${boostCost} 💎</button>
             </div>
-            <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" style="background:linear-gradient(135deg,#7c4dff,#536dfe);border:none;border-radius:8px;padding:4px 10px;font-size:11px;color:#fff;cursor:pointer;font-weight:600">${t('barracks.boost')} ${boostCost} 💎</button>
-          </div>
-          <div style="background:#1a1a2e;border-radius:4px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7c4dff,#536dfe);border-radius:4px;transition:width .3s"></div></div>
-        </div>`;
+            <div style="background:#1a1a2e;border-radius:4px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4caf50;border-radius:4px;transition:width .3s"></div></div>
+          </div>`;
+        }
       }
     }
 
     // ─── Collect button ───
     if (readyCount > 0) {
-      html += `<button onclick="doCollectScouts('${barracksId}')" style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;margin-bottom:6px">${t('barracks.collect', {count: readyCount})}</button>`;
+      html += `<button class="hq-coll-btn active" style="background:#4caf50;margin-bottom:6px" onclick="doCollectScouts('${barracksId}')">${t('barracks.collect', {count: readyCount})}</button>`;
     }
 
     // ─── Train button ───
     const canTrain = activeCount < maxSlots;
     const hasShards = (state.player?.crystals || 0) >= trainCost;
-    html += `<button onclick="doTrainScout('${barracksId}')" ${canTrain && hasShards ? '' : 'disabled'} style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${canTrain && hasShards ? 'background:linear-gradient(135deg,#FFD700,#FFA000);color:#1a1a2e' : 'background:#333;color:#666;cursor:not-allowed'}">
-      ${canTrain ? t('barracks.train_scout') + ` — ${trainCost} ✨ · ${trainTimeMin} ${_lang === 'ru' ? 'мин' : 'min'}` : t('barracks.queue_full')}
-    </button>`;
+    if (canTrain && hasShards) {
+      html += `<button class="hq-coll-btn active" onclick="doTrainScout('${barracksId}')">${t('barracks.train_scout')} — ${trainCost} ✨ · ${trainTimeMin} ${_lang === 'ru' ? 'мин' : 'min'}</button>`;
+    } else if (!canTrain) {
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.queue_full')}</button>`;
+    } else {
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.train_scout')} — ${trainCost} ✨</button>`;
+    }
 
   } else {
     // ─── Upgrades tab ───
-
-    // Scout upgrade card
-    html += `<div style="background:#252538;border-radius:10px;padding:12px;margin-bottom:8px">
+    html += `<div class="hq-collector-card" style="margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <span style="font-size:28px">🤠</span>
         <div style="flex:1">
@@ -20546,23 +20585,23 @@ async function showBarracksPopup(barracksId, tab) {
       </div>`;
 
     if (scoutLevel >= 10) {
-      html += `<div style="text-align:center;padding:8px;color:#888;font-size:12px">${t('barracks.scout_max')}</div>`;
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.scout_max')}</button>`;
     } else if (scoutLevel + 1 > maxUnitLevel) {
-      html += `<div style="text-align:center;padding:8px;color:#ff9800;font-size:12px">${t('barracks.scout_needs_barracks', {level: scoutLevel + 1})}</div>`;
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.scout_needs_barracks', {level: scoutLevel + 1})}</button>`;
     } else {
       const hasEther = (state.player?.ether || 0) >= scoutUpgradeCost;
-      html += `<button onclick="doUpgradeScout('${barracksId}')" ${hasEther ? '' : 'disabled'} style="width:100%;padding:8px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;${hasEther ? 'background:linear-gradient(135deg,#00bcd4,#0097a7);color:#fff' : 'background:#333;color:#666;cursor:not-allowed'}">${t('barracks.scout_upgrade', {level: scoutLevel + 1})} — ${formatNumber(scoutUpgradeCost)} ⚗️</button>`;
+      html += `<button class="hq-coll-btn ${hasEther ? 'active' : ''}" ${hasEther ? '' : 'disabled'} onclick="doUpgradeScout('${barracksId}')">${t('barracks.scout_upgrade', {level: scoutLevel + 1})} — ${formatNumber(scoutUpgradeCost)} ⚗️</button>`;
     }
     html += `</div>`;
   }
 
   // ─── Bottom: upgrade barracks & sell ───
-  html += `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;display:flex;flex-direction:column;gap:6px">`;
+  html += `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;display:flex;flex-direction:column;gap:6px">`;
   if (barracks.level < 10 && barracks.upgrade_cost != null) {
     const hasUpgD = (state.player?.diamonds || 0) >= barracks.upgrade_cost;
-    html += `<button onclick="doUpgradeBarracks('${barracksId}')" ${hasUpgD ? '' : 'disabled'} style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${hasUpgD ? 'background:linear-gradient(135deg,#2196f3,#1565c0);color:#fff' : 'background:#333;color:#666;cursor:not-allowed'}">${t('barracks.upgrade')} Lv.${barracks.level + 1} — ${barracks.upgrade_cost} 💎</button>`;
+    html += `<button class="hq-btn blue" ${hasUpgD ? '' : 'disabled'} onclick="doUpgradeBarracks('${barracksId}')">${t('barracks.upgrade')} Lv.${barracks.level + 1} — ${barracks.upgrade_cost} 💎</button>`;
   }
-  html += `<button onclick="doSellBarracks('${barracksId}')" style="width:100%;padding:8px;border:none;border-radius:10px;font-size:12px;cursor:pointer;background:transparent;color:#f44336;border:1px solid rgba(244,67,54,0.3)">${t('barracks.sell')}</button>`;
+  html += `<button class="hq-coll-btn" style="background:#f44336;color:#fff" onclick="doSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
   html += `</div>`;
 
   card.innerHTML = html;
@@ -20864,6 +20903,9 @@ async function spawnZombieScout() {
     </div>
     <div id="inv-panel-badges" style="display:none;margin-top:0;">
       <div id="badges-content"></div>
+    </div>
+    <div id="inv-panel-other" style="display:none;margin-top:0;">
+      <div id="other-content"></div>
     </div>
   </div>
   </div><!-- /profile-modal-body -->

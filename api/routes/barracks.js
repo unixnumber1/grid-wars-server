@@ -509,6 +509,7 @@ async function handleStatus(req, res) {
       id: q.id,
       unit_type: q.unit_type,
       unit_level: q.unit_level,
+      started_at: q.started_at,
       finish_at: q.finish_at,
       ready: new Date(q.finish_at).getTime() <= Date.now(),
     })),
