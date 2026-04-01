@@ -498,6 +498,7 @@ class GameState {
         barracksArr.push({
           id: b.id, lat: b.lat, lng: b.lng, level: b.level,
           hp: b.hp, max_hp: b.max_hp, status: b.status,
+          cell_id: b.cell_id,
           is_mine: b.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,

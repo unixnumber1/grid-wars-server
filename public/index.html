@@ -20232,24 +20232,19 @@ let _playerBarracksStatus = null;
 let _barracksPopupTab = 'train';
 
 function barracksIcon(b) {
-  const size = 32 + (b.level || 1) * 2;
-  const hpPct = b.max_hp > 0 ? Math.round(b.hp / b.max_hp * 100) : 100;
-  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
-  const border = b.is_mine ? '2px solid #4caf50' : '2px solid rgba(255,255,255,0.2)';
+  const size = 36;
   return L.divIcon({
     className: '',
-    html: `<div class="barracks-marker" style="border-radius:8px;padding:2px;">
-      <span class="barracks-emoji" style="font-size:${size}px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">⛺</span>
-      <span class="barracks-level" style="${b.is_mine ? 'background:#2e7d32' : ''}">${b.level}</span>
-      <div class="barracks-hp-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>
+    html: `<div style="display:flex;align-items:center;justify-content:center">
+      <span style="font-size:${size}px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">⛺</span>
     </div>`,
-    iconSize: [size + 10, size + 20],
-    iconAnchor: [(size + 10) / 2, (size + 20) / 2],
+    iconSize: [size + 6, size + 6],
+    iconAnchor: [(size + 6) / 2, (size + 6) / 2],
   });
 }
 
 function renderBarracks(list) {
-  if (!list || !list.length) return;
+  if (!list) list = [];
   const activeIds = new Set(list.map(b => b.id));
   const bounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(barracksMarkers)) {
@@ -20405,29 +20400,32 @@ async function showBarracksPopup(barracksId, tab) {
   const bk = barracksData[barracksId];
   if (!bk) return;
 
-  // Fetch full status from server
+  const isMine = bk.is_mine;
+
+  if (!isMine) {
+    // Enemy barracks — simple info popup from tick data
+    const hpPct = bk.max_hp > 0 ? Math.round(bk.hp / bk.max_hp * 100) : 100;
+    const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+    const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(bk.hp)}/${formatNumber(bk.max_hp)}</span></div>`;
+    const stats = [
+      [t('barracks.level'), bk.level],
+      ['❤️ HP', hpHtml],
+    ];
+    if (bk.owner_name) stats.push([_lang === 'ru' ? 'Владелец' : 'Owner', (bk.owner_avatar || '') + ' ' + bk.owner_name]);
+    openPopup(t('barracks.title'), `Lv.${bk.level}`, stats, []);
+    return;
+  }
+
+  // Fetch full status from server (own barracks only)
   const status = await fetchBarracksStatus();
   if (!status || !status.barracks) {
     showToast(t('barracks.no_barracks'));
     return;
   }
 
-  const isMine = bk.is_mine;
   const barracks = status.barracks;
   const hpPct = barracks.max_hp > 0 ? Math.round(barracks.hp / barracks.max_hp * 100) : 100;
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
-
-  if (!isMine) {
-    // Enemy barracks — simple info popup
-    const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(bk.hp)}/${formatNumber(bk.max_hp)}</span></div>`;
-    const stats = [
-      ['__dual__', [[t('barracks.level'), barracks.level], ['❤️ HP', '']]],
-      ['❤️ HP', hpHtml],
-    ];
-    if (bk.owner_name) stats.push([_lang === 'ru' ? 'Владелец' : 'Owner', (bk.owner_avatar || '') + ' ' + bk.owner_name]);
-    openPopup(t('barracks.title'), `Lv.${barracks.level}`, stats, []);
-    return;
-  }
 
   // Own barracks — full popup with tabs
   const card = document.getElementById('popup-card');

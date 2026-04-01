@@ -12,8 +12,10 @@ import {
 // ── Barracks helpers ──
 
 export function getPlayerBarracks(telegramId) {
+  const player = gameState.getPlayerByTgId(telegramId);
+  if (!player) return null;
   for (const b of gameState.barracks.values()) {
-    if (Number(b.owner_id) === Number(telegramId)) return b;
+    if (b.owner_id === player.id) return b;
   }
   return null;
 }
