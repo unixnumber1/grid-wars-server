@@ -1,12 +1,13 @@
 import { gameState } from '../state/GameState.js';
 import { haversine } from '../../lib/haversine.js';
-import { getMineIncome, getMineUpgradeCost, getMineHp, getMineCapacity } from '../../config/formulas.js';
+import { getMineIncome, getMineUpgradeCost, getMineHp, getMineCapacity, getMineCountBoost } from '../../config/formulas.js';
 import { supabase } from '../../lib/supabase.js';
 import {
   COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
-  COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST,
+  COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST, MINE_BOOST_RADIUS,
 } from '../../config/constants.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getCoresTotalBoost } from './cores.js';
 
 // Re-export for backward compat (lib/collectors.js re-exports this file)
 export { COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS, COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_EXTINGUISH_COST };
@@ -41,7 +42,11 @@ export const COLLECTOR_LEVELS = {
  */
 export function getCollectorCapacity(collector) {
   const mines = getCollectorMines(collector);
-  return mines.reduce((sum, m) => sum + getMineCapacity(m.level), 0);
+  return mines.reduce((sum, m) => {
+    const cores = m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+    const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+    return sum + Math.round(getMineCapacity(m.level) * capBoost);
+  }, 0);
 }
 
 /**
@@ -78,12 +83,23 @@ export function autoCollect(collector) {
   const elapsedSec = Math.max(0, (now - lastAutoCollect) / 1000);
   if (elapsedSec <= 0) return 0;
 
+  // Mine count boost (same as manual collect)
+  const allOwnerMines = [...gameState.mines.values()].filter(m => m.owner_id === collector.owner_id && m.status !== 'destroyed');
+  const player = gameState.getPlayerById(collector.owner_id);
+  const pLat = player?.last_lat ?? collector.lat;
+  const pLng = player?.last_lng ?? collector.lng;
+  const boostMineCount = allOwnerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS).length;
+  const mineCountBoost = getMineCountBoost(boostMineCount);
+
   let totalCollected = 0;
 
   for (const mine of minesInRange) {
-    const income = getMineIncome(mine.level);
-    // Cap per mine to its capacity to prevent burst on first collect
-    const accumulated = Math.min(Math.floor(income * elapsedSec), getMineCapacity(mine.level));
+    const cores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+    const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineCountBoost;
+    const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+    const income = getMineIncome(mine.level) * incBoost;
+    // Cap per mine to its boosted capacity to prevent burst on first collect
+    const accumulated = Math.min(Math.floor(income * elapsedSec), Math.round(getMineCapacity(mine.level) * capBoost));
     if (accumulated <= 0) continue;
 
     const room = capacity - collector.stored_coins - totalCollected;
