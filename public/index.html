@@ -3513,7 +3513,7 @@
   <div id="streak-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div style="font-size:18px;font-weight:700;color:#fff;" data-i18n="streak.title">🔥 Недельный бонус</div>
-      <button onclick="document.getElementById('streak-overlay').classList.remove('open')" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;">✕</button>
+      <button onclick="document.getElementById('streak-overlay').classList.remove('open'); if(_walkRefreshTimer){clearInterval(_walkRefreshTimer);_walkRefreshTimer=null;}" style="background:none;border:none;color:#666;font-size:20px;cursor:pointer;">✕</button>
     </div>
     <!-- Tab bar -->
     <div class="streak-tabs">
@@ -16961,21 +16961,27 @@ async function _initStreakBadge() {
 
 document.getElementById('btn-streak-hud').addEventListener('click', openStreakPanel);
 document.getElementById('streak-overlay').addEventListener('click', function(e) {
-  if (e.target === this) this.classList.remove('open');
+  if (e.target === this) {
+    this.classList.remove('open');
+    if (_walkRefreshTimer) { clearInterval(_walkRefreshTimer); _walkRefreshTimer = null; }
+  }
 });
 
 // ─────────────────────────────────────────────
 //  Walking Rewards Tab
 // ─────────────────────────────────────────────
 let _walkData = null;
+let _walkRefreshTimer = null;
 
 function switchStreakTab(tab) {
   document.querySelectorAll('.streak-tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.streak-tab-content').forEach(c => c.classList.remove('active'));
+  if (_walkRefreshTimer) { clearInterval(_walkRefreshTimer); _walkRefreshTimer = null; }
   if (tab === 'walk') {
     document.getElementById('walk-tab-btn').classList.add('active');
     document.getElementById('streak-tab-walk').classList.add('active');
     _loadWalkTab();
+    _walkRefreshTimer = setInterval(_loadWalkTab, 60000);
   } else {
     document.querySelector('.streak-tab-btn:first-child').classList.add('active');
     document.getElementById('streak-tab-streak').classList.add('active');
