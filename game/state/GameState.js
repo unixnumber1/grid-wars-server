@@ -154,6 +154,11 @@ class GameState {
       // Strip runtime fields that leaked into older rows
       delete m.wave_started_at;
       delete m.wave_shield_hp;
+      // Fix orphaned defeated monuments missing respawn_at
+      if (m.phase === 'defeated' && !m.respawn_at) {
+        m.respawn_at = new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(); // 7 days
+        this._dirty.monuments.add(m.id);
+      }
       this.monuments.set(m.id, m);
     }
     for (const d of (monumentDefs || []))this.monumentDefenders.set(d.id, d);

@@ -8522,14 +8522,12 @@ function showMinePopup(mine, isOwn, canCapture) {
           label: upgradeLabel,
           cls: 'yellow',
           disabled: !canUpgrade,
-          noClose: true,
           action: () => doUpgrade(mine.id, mine.level + 1),
         }] : []),
         ...(bulkLabel ? [{
           label: bulkLabel,
           cls: 'yellow',
           disabled: !canBulk,
-          noClose: true,
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
         [
@@ -10677,6 +10675,8 @@ function initSocket() {
     _socket.on('monument:defeated', (data) => {
       showToast(t('toast.monument_defeated', {name: data.name, level: data.level, winner: data.winner_name}), 4000);
       updateMonumentPhase(data.monument_id, 'defeated');
+      const _mDef = monumentData[data.monument_id];
+      if (_mDef) { _mDef.respawn_at = new Date(Date.now() + 7*24*60*60*1000).toISOString(); }
       if (data.loot_boxes) {
         for (const box of data.loot_boxes) addLootBoxMarkerImmediate(box);
       }
@@ -18809,9 +18809,13 @@ function showMonumentPopup(monumentId) {
     if (hasDefenders) {
       stats.push([t('mon.defenders'), t('mon.defenders_alive', {n: defenders.length})]);
     }
-  } else if (m.phase === 'defeated' && m.respawn_at) {
-    const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
-    stats.push([t('mon.respawn'), t('mon.respawn_time', {h: Math.floor(left/60), m: left%60})]);
+  } else if (m.phase === 'defeated') {
+    if (m.respawn_at) {
+      const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
+      stats.push([t('mon.respawn'), t('mon.respawn_time', {h: Math.floor(left/60), m: left%60})]);
+    } else {
+      stats.push([t('mon.respawn'), '⏳']);
+    }
   }
 
   const actions = [];
