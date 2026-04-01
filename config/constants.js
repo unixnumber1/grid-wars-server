@@ -91,6 +91,36 @@ export const COLLECTOR_RADIUS = 200;               // meters
 export const COLLECTOR_DELIVERY_COMMISSION = 0;      // 0% (commission disabled)
 export const COLLECTOR_EXTINGUISH_COST = 5;          // diamonds to extinguish
 
+// ── Barracks ──
+export const BARRACKS_BUILD_COST = 100;              // diamonds
+export const BARRACKS_MIN_HQ_LEVEL = 4;
+export const BARRACKS_BASE_TRAIN_TIME_MS = 30 * 60 * 1000; // 30 min
+
+export const BARRACKS_LEVELS = {
+  1:  { hp: 3000,  upgradeCost: 0,   slots: 1, trainSpeedMul: 1.0, maxUnitLevel: 1 },
+  2:  { hp: 4500,  upgradeCost: 150, slots: 1, trainSpeedMul: 0.9, maxUnitLevel: 2 },
+  3:  { hp: 6500,  upgradeCost: 200, slots: 2, trainSpeedMul: 0.8, maxUnitLevel: 3 },
+  4:  { hp: 9000,  upgradeCost: 250, slots: 2, trainSpeedMul: 0.7, maxUnitLevel: 4 },
+  5:  { hp: 12000, upgradeCost: 300, slots: 3, trainSpeedMul: 0.6, maxUnitLevel: 5 },
+  6:  { hp: 16000, upgradeCost: 350, slots: 3, trainSpeedMul: 0.5, maxUnitLevel: 6 },
+  7:  { hp: 21000, upgradeCost: 400, slots: 4, trainSpeedMul: 0.4, maxUnitLevel: 7 },
+  8:  { hp: 27000, upgradeCost: 450, slots: 4, trainSpeedMul: 0.3, maxUnitLevel: 8 },
+  9:  { hp: 34000, upgradeCost: 500, slots: 5, trainSpeedMul: 0.2, maxUnitLevel: 9 },
+  10: { hp: 42000, upgradeCost: 500, slots: 5, trainSpeedMul: 0.1, maxUnitLevel: 10 },
+};
+
+// Scout unit
+export const SCOUT_TRAIN_COST =   [0, 500, 600, 800, 1000, 1300, 1600, 2000, 2300, 2600, 3000]; // crystals by level
+export const SCOUT_UPGRADE_COST = [0, 0, 5000, 12000, 25000, 50000, 80000, 150000, 250000, 350000, 500000]; // ether by level
+export const SCOUT_SPEED_KMH =    [0, 20, 22, 25, 28, 32, 36, 40, 45, 50, 55];
+export const SCOUT_CAPTURE_MIN =   [0, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2]; // minutes
+export const SCOUT_HP =            [0, 200, 350, 550, 800, 1100, 1500, 2000, 2700, 3500, 5000];
+export const SCOUT_MAX_RANGE_KM = 20;
+export const SCOUT_KILL_REWARD_CRYSTALS = 50;
+
+// Scout ore access: min level required per ore type
+export const SCOUT_ORE_ACCESS = { hill: 1, mountain: 3, peak: 7, volcano: 10 };
+
 // ── Monuments ──
 export const MONUMENT_ATTACK_RADIUS = 500;
 export const SHIELD_RESPAWN_HOURS = 168;            // 7 days (legacy fallback)

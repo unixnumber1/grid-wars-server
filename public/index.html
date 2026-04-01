@@ -3016,6 +3016,28 @@
     @keyframes raid-pulse { 0%,100% { filter: drop-shadow(0 0 10px #ff4444); } 50% { filter: drop-shadow(0 0 20px #ff4444); } }
     @keyframes box-pulse { 0%,100% { filter: drop-shadow(0 0 12px gold); } 50% { filter: drop-shadow(0 0 24px gold); } }
 
+    /* Barracks markers */
+    .barracks-marker { display:flex; flex-direction:column; align-items:center; position:relative; cursor:pointer; }
+    .barracks-marker .barracks-emoji { line-height:1; }
+    .barracks-marker .barracks-level { font-size:9px; font-weight:bold; color:#fff; background:#333; border-radius:6px; padding:1px 4px; margin-top:1px; }
+    .barracks-marker .barracks-hp-bar { width:80%; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; margin-top:1px; }
+    .barracks-marker .barracks-hp-bar div { height:100%; border-radius:2px; transition:width 0.3s; }
+
+    /* Scout markers */
+    .scout-marker { display:flex; flex-direction:column; align-items:center; position:relative; cursor:pointer; }
+    .scout-marker .scout-emoji { line-height:1; }
+    .scout-marker .scout-hp-bar { width:80%; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; margin-top:1px; }
+    .scout-marker .scout-hp-bar div { height:100%; border-radius:2px; transition:width 0.3s; }
+    .scout-marker .scout-level { font-size:8px; font-weight:bold; color:#FFD700; }
+
+    /* Barracks popup tabs */
+    .barracks-tab { flex:1; padding:8px; border-radius:10px; font-size:13px; font-weight:600; border:1px solid; cursor:pointer; }
+    .barracks-tab.active { background:#333; color:#fff; border-color:rgba(255,255,255,0.15); }
+    .barracks-tab.inactive { background:transparent; color:#888; border-color:transparent; }
+    .barracks-queue-item { display:flex; align-items:center; gap:8px; background:#252538; border-radius:10px; padding:8px 12px; }
+    .barracks-queue-item .queue-progress { flex:1; height:6px; background:#222; border-radius:3px; overflow:hidden; }
+    .barracks-queue-item .queue-progress div { height:100%; border-radius:3px; background:#4caf50; transition:width 0.3s; }
+
     /* Zombie markers — simple, no animations */
     .zombie-marker { text-align: center; line-height: 1; pointer-events: auto !important; cursor: pointer; }
     .zombie-boss { filter: drop-shadow(0 0 8px rgba(0,255,0,0.8)); }
@@ -4365,6 +4387,34 @@ const I18N = {
     'build.firetruck': 'Пожарная машина',
     'build.firetruck_desc': 'Тушит горящие постройки в радиусе',
     'build.firetruck_btn': 'Построить машину',
+    'build.barracks': '⛺ Казарма',
+    'build.barracks_desc': 'Тренирует скаутов для захвата рудников',
+    'build.barracks_btn': '⛺ Построить казарму',
+    'barracks.title': '⛺ Казарма',
+    'barracks.level': 'Уровень',
+    'barracks.upgrade': '⬆️ Улучшить',
+    'barracks.upgrade_cost': 'Улучшение: {cost} 💎',
+    'barracks.sell': '🗑️ Продать',
+    'barracks.sell_confirm': 'Продать казарму за {refund} 💎?',
+    'barracks.tab_train': '⚔️ Тренировка',
+    'barracks.tab_upgrades': '🔬 Улучшения',
+    'barracks.train_scout': '🤠 Нанять скаута',
+    'barracks.train_cost': '{cost} осколков',
+    'barracks.train_time': '⏱️ {min} мин',
+    'barracks.queue_full': 'Очередь заполнена',
+    'barracks.queue': 'Очередь: {current}/{max}',
+    'barracks.collect': '📦 Забрать ({count})',
+    'barracks.scout_level': '🤠 Скаут Lv.{level}',
+    'barracks.scout_upgrade': '⬆️ Улучшить до Lv.{level}',
+    'barracks.scout_upgrade_cost': '{cost} эфира',
+    'barracks.scout_max': 'Максимальный уровень',
+    'barracks.scout_needs_barracks': 'Улучшите казарму до Lv.{level}',
+    'barracks.no_barracks': 'Постройте казарму (HQ Lv.4+)',
+    'barracks.scout_bag': '🎒 В сумке: {count}',
+    'barracks.send_scout': '🤠 Отправить скаута',
+    'barracks.scout_cant_capture': 'Скаут Lv.{level} не может захватить {type}',
+    'barracks.scout_too_far': 'Слишком далеко (макс 20 км)',
+    'barracks.scout_ore_taken': 'Рудник уже занят',
     'build.clan_hq': '🏰 Штаб Клана',
     'build.clan_hq_desc': 'Зона клана · Бусты для участников',
     'build.clan_hq_btn': '🏰 Построить штаб клана',
@@ -5560,6 +5610,34 @@ const I18N = {
     'build.firetruck': 'Fire Truck',
     'build.firetruck_desc': 'Extinguishes burning buildings in radius',
     'build.firetruck_btn': 'Build fire truck',
+    'build.barracks': '⛺ Barracks',
+    'build.barracks_desc': 'Trains scouts to capture ore nodes',
+    'build.barracks_btn': '⛺ Build barracks',
+    'barracks.title': '⛺ Barracks',
+    'barracks.level': 'Level',
+    'barracks.upgrade': '⬆️ Upgrade',
+    'barracks.upgrade_cost': 'Upgrade: {cost} 💎',
+    'barracks.sell': '🗑️ Sell',
+    'barracks.sell_confirm': 'Sell barracks for {refund} 💎?',
+    'barracks.tab_train': '⚔️ Training',
+    'barracks.tab_upgrades': '🔬 Upgrades',
+    'barracks.train_scout': '🤠 Hire scout',
+    'barracks.train_cost': '{cost} shards',
+    'barracks.train_time': '⏱️ {min} min',
+    'barracks.queue_full': 'Queue is full',
+    'barracks.queue': 'Queue: {current}/{max}',
+    'barracks.collect': '📦 Collect ({count})',
+    'barracks.scout_level': '🤠 Scout Lv.{level}',
+    'barracks.scout_upgrade': '⬆️ Upgrade to Lv.{level}',
+    'barracks.scout_upgrade_cost': '{cost} ether',
+    'barracks.scout_max': 'Max level',
+    'barracks.scout_needs_barracks': 'Upgrade barracks to Lv.{level}',
+    'barracks.no_barracks': 'Build barracks (HQ Lv.4+)',
+    'barracks.scout_bag': '🎒 In bag: {count}',
+    'barracks.send_scout': '🤠 Send scout',
+    'barracks.scout_cant_capture': 'Scout Lv.{level} cannot capture {type}',
+    'barracks.scout_too_far': 'Too far (max 20 km)',
+    'barracks.scout_ore_taken': 'Ore node already owned',
     'build.clan_hq': '🏰 Clan HQ',
     'build.clan_hq_desc': 'Clan zone · Boosts for members',
     'build.clan_hq_btn': '🏰 Build clan HQ',
@@ -6540,6 +6618,8 @@ function getBuildingInCell(cellId) {
   if (collector) return { ...collector, type: 'collector' };
   const firetruck = Object.values(firetruckData).find(ft => ft.cell_id === cellId && ft.status !== 'destroyed');
   if (firetruck) return { ...firetruck, type: 'fire_truck' };
+  const bk = Object.values(barracksData).find(b => b.cell_id === cellId);
+  if (bk) return { ...bk, type: 'barracks' };
   return null;
 }
 
@@ -7840,11 +7920,16 @@ function showBuildMenu(cellLat, cellLng, tab) {
   const currentFT = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed').length;
   const canBuildFT = maxFT > 0 && currentFT < maxFT;
 
+  // Barracks limits — 1 per player, HQ lv4+
+  const hasBarracks = Object.values(barracksData).some(b => b.is_mine);
+  const canBuildBarracks = hqLvl >= 4 && !hasBarracks;
+
   // Count available "other" items
   const otherItems = [];
   if (!hasHq) otherItems.push('hq');
   if (canBuildColl) otherItems.push('collector');
   if (canBuildFT) otherItems.push('firetruck');
+  if (canBuildBarracks) otherItems.push('barracks');
   if (!hasClanHq) otherItems.push('clanhq');
 
   const card = document.getElementById('popup-card');
@@ -7893,6 +7978,15 @@ function showBuildMenu(cellLat, cellLng, tab) {
       </div>`;
     }
 
+    if (canBuildBarracks) {
+      const hasBkDiamonds = diamonds >= 100;
+      html += `<div class="hq-collector-card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.barracks')}</span><span style="font-size:11px;color:#64B5F6">100 💎</span></div>
+        <div style="font-size:12px;color:#888;margin:4px 0">${t('build.barracks_desc')}</div>
+        <button class="hq-coll-btn ${hasBkDiamonds ? 'active' : ''}" ${hasBkDiamonds ? '' : 'disabled'} onclick="closePopup();doBuildBarracks(${cellLat},${cellLng})">${t('build.barracks_btn')}</button>
+      </div>`;
+    }
+
     if (!hasClanHq) {
       html += `<div class="hq-collector-card">
         <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#fff">${t('build.clan_hq')}</span><span style="font-size:11px;color:#FFD700">${formatCoins(CLAN_HQ_COST)}</span></div>
@@ -7935,6 +8029,8 @@ function handleHexClick(cellId, tapLat, tapLng) {
     showHqPopup(building, isOwn);
   } else if (building.type === 'fire_truck') {
     showFireTruckPopup(building.id);
+  } else if (building.type === 'barracks') {
+    showBarracksPopup(building.id);
   }
 }
 
@@ -10054,6 +10150,22 @@ async function doBuildFireTruck(lat, lng) {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
+async function doBuildBarracks(lat, lng) {
+  const pos = state.playerPos;
+  if (!pos) return showToast(t('toast.no_gps'));
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
+    });
+    if (data.ok) {
+      showToast('⛺ ' + t('barracks.title') + '!');
+      if (state.player) { state.player.diamonds = (state.player.diamonds || 0) - 100; updateDiamondDisplay(); }
+      loadVisibleBuildings();
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
 async function doBuildMine(lat, lng) {
   const pos = state.playerPos;
   if (!pos || pos.lat == null || pos.lng == null) {
@@ -10817,6 +10929,35 @@ function initSocket() {
       removeFirefighterMarker(data.id);
     });
 
+    // ── Scout socket events ──
+    _socket.on('scout:spawned', (data) => {
+      if (data.id && data.lat != null) {
+        scoutData[data.id] = { id: data.id, owner_id: data.owner_id, lat: data.lat, lng: data.lng, hp: data.hp, max_hp: data.max_hp, level: data.level, status: 'moving', target_ore_id: data.target_ore_id };
+        addScoutMarker(scoutData[data.id]);
+      }
+    });
+    _socket.on('scout:capturing', (data) => {
+      const sc = scoutData[data.scout_id || data.id];
+      if (sc) { sc.status = 'capturing'; updateScoutMarker(data.scout_id || data.id); }
+    });
+    _socket.on('scout:captured', (data) => {
+      const scId = data.scout_id || data.id;
+      showToast('🤠 ' + (_lang === 'ru' ? 'Скаут захватил рудник!' : 'Scout captured ore node!'));
+      removeScoutMarker(scId);
+    });
+    _socket.on('scout:killed', (data) => {
+      const scId = data.scout_id || data.id;
+      showToast('💀 ' + (_lang === 'ru' ? 'Скаут убит!' : 'Scout killed!'));
+      removeScoutMarker(scId);
+      if (combatState.currentTarget?.type === 'scout' && combatState.currentTarget.id === scId) closePopupKeepHold();
+    });
+    _socket.on('scout:hp_update', (data) => {
+      const scId = data.scout_id || data.id;
+      const sc = scoutData[scId];
+      if (sc) { sc.hp = data.hp; sc.max_hp = data.max_hp; updateScoutMarker(scId); }
+      if (combatState.currentTarget?.type === 'scout' && combatState.currentTarget.id === scId) updatePopupHp(data.hp, data.max_hp);
+    });
+
     // ── Zombie horde socket events ──
     _socket.on('zombie:scout_spawned', (data) => {
       addZombieMarker({ id: data.zombie_id, type: 'scout', emoji: data.emoji, lat: data.lat, lng: data.lng });
@@ -10942,6 +11083,8 @@ function processTickData(data) {
     for (const ft of data.fire_trucks) { if (ft.is_mine) _myFireTrucksCache[ft.id] = ft; }
   }
   renderFirefighters(data.firefighters || []);
+  renderBarracks(data.barracks || []);
+  renderActiveScouts(data.active_scouts || []);
   renderLootBoxes(data.loot_boxes || []);
   updateCoinDisplay();
   updatePlayerDisplay();
@@ -16435,6 +16578,7 @@ function bindAttackButton(targetType, target) {
     else if (t.type === 'fire_truck') doFireTruckHit(t.data);
     else if (t.type === 'firefighter') doFirefighterHit(t.data);
     else if (t.type === 'zombie') doZombieHit(t.data);
+    else if (t.type === 'scout') doScoutHit(t.data);
   }
 
   function startHold(touchIdentifier) {
@@ -16622,6 +16766,14 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
       // Zombies
       for (const [id, m] of zombieMarkers) {
         if (m?._icon === markerEl) { showZombiePopup(id); return; }
+      }
+      // Barracks
+      for (const [id, m] of Object.entries(barracksMarkers)) {
+        if (m?._icon === markerEl) { showBarracksPopup(id); return; }
+      }
+      // Scouts
+      for (const [id, m] of Object.entries(scoutMarkers)) {
+        if (m?._icon === markerEl) { showScoutClickPopup(id); return; }
       }
     }
   }, { passive: true });
@@ -17507,6 +17659,21 @@ function showOrePopup(oreId) {
     actions.push({ label: t('ore.attack'), cls: 'danger', action: () => attackOreNode(ore) });
   } else {
     actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
+  }
+
+  // Send scout button for broken (uncaptured) ores — works at any distance up to 20km
+  if (isBroken && !isOwned) {
+    const distKm = dist != null ? dist / 1000 : null;
+    if (distKm !== null && distKm <= 20) {
+      actions.push({ label: t('barracks.send_scout'), cls: 'primary', noClose: true, action: async () => {
+        // Fetch barracks status if needed
+        if (!_playerBarracksStatus) await fetchBarracksStatus();
+        const bs = _playerBarracksStatus;
+        if (!bs || !bs.barracks) return showToast(t('barracks.no_barracks'));
+        if (!bs.bag || bs.bag.length === 0) return showToast(t('barracks.scout_bag', {count: 0}));
+        doSendScoutToOre(oreId);
+      }});
+    }
   }
 
   openPopup(`${oreEmoji} ${oreTypeName} ${t('ore.level_short', {level: ore.level})}`, '', stats, actions);
@@ -19814,6 +19981,33 @@ async function doFirefighterHit(target) {
   }
 }
 
+async function doScoutHit(target) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
+  const pos = state.playerPos;
+  if (!pos) return;
+  const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
+  if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'attack-scout', telegram_id: TG_ID, scout_id: target.id, lat: pos.lat, lng: pos.lng }),
+    });
+    const sc = scoutData[target.id];
+    if (sc) { sc.hp = data.hp; sc.max_hp = data.max_hp; updateScoutMarker(target.id); }
+    if (data.killed) {
+      stopCombat(); closePopupKeepHold();
+      removeScoutMarker(target.id);
+      showToast('💀 ' + (_lang === 'ru' ? 'Скаут убит!' : 'Scout killed!'));
+    }
+  } catch (err) {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
+  }
+}
+
 // ── Firefighter markers + animation ──
 function firefighterIcon(ff) {
   const hpPct = Math.max(0, Math.round((ff.hp / ff.max_hp) * 100));
@@ -20038,6 +20232,425 @@ function _playExtinguishAnimation(lat, lng) {
     document.body.appendChild(drop);
     setTimeout(() => drop.remove(), 2000);
   }
+}
+
+// ═══════════════════════════════════════════════════
+//  Barracks & Scout System
+// ═══════════════════════════════════════════════════
+const barracksMarkers = {};
+const barracksData = {};
+const scoutMarkers = {};
+const scoutData = {};
+let _playerBarracksStatus = null;
+let _barracksPopupTab = 'train';
+
+function barracksIcon(b) {
+  const size = 32 + (b.level || 1) * 2;
+  const hpPct = b.max_hp > 0 ? Math.round(b.hp / b.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+  const border = b.is_mine ? '2px solid #4caf50' : '2px solid rgba(255,255,255,0.2)';
+  return L.divIcon({
+    className: '',
+    html: `<div class="barracks-marker" style="border-radius:8px;padding:2px;">
+      <span class="barracks-emoji" style="font-size:${size}px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">⛺</span>
+      <span class="barracks-level" style="${b.is_mine ? 'background:#2e7d32' : ''}">${b.level}</span>
+      <div class="barracks-hp-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>
+    </div>`,
+    iconSize: [size + 10, size + 20],
+    iconAnchor: [(size + 10) / 2, (size + 20) / 2],
+  });
+}
+
+function renderBarracks(list) {
+  if (!list || !list.length) return;
+  const activeIds = new Set(list.map(b => b.id));
+  const bounds = map.getBounds().pad(0.5);
+  for (const id of Object.keys(barracksMarkers)) {
+    if (!activeIds.has(id)) {
+      const pos = barracksMarkers[id].getLatLng();
+      if (!bounds.contains(pos)) {
+        map.removeLayer(barracksMarkers[id]);
+        delete barracksMarkers[id];
+        delete barracksData[id];
+      }
+    }
+  }
+  for (const b of list) {
+    barracksData[b.id] = b;
+    if (barracksMarkers[b.id]) {
+      const mk = barracksMarkers[b.id];
+      const key = `${b.status}_${b.hp}_${b.level}`;
+      if (mk._gw_key !== key) {
+        mk._gw_key = key;
+        mk.setIcon(barracksIcon(b));
+      }
+    } else {
+      const marker = L.marker([b.lat, b.lng], { icon: barracksIcon(b), zIndexOffset: 1500 });
+      marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showBarracksPopup(b.id); });
+      marker.addTo(map);
+      barracksMarkers[b.id] = marker;
+    }
+  }
+}
+
+function scoutIcon(sc) {
+  const hpPct = sc.max_hp > 0 ? Math.round(sc.hp / sc.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+  const isMine = Number(sc.owner_id) === Number(TG_ID);
+  const glow = isMine ? 'drop-shadow(0 0 6px rgba(76,175,80,0.6))' : 'drop-shadow(0 0 6px rgba(244,67,54,0.6))';
+  return L.divIcon({
+    className: '',
+    html: `<div class="scout-marker">
+      <span class="scout-emoji" style="font-size:28px;filter:${glow}">🤠</span>
+      <span class="scout-level">Lv.${sc.level || 1}</span>
+      <div class="scout-hp-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>
+    </div>`,
+    iconSize: [36, 44],
+    iconAnchor: [18, 22],
+  });
+}
+
+function addScoutMarker(sc) {
+  if (scoutMarkers[sc.id]) {
+    scoutMarkers[sc.id].setLatLng([sc.lat, sc.lng]);
+    scoutMarkers[sc.id].setIcon(scoutIcon(sc));
+    return;
+  }
+  const marker = L.marker([sc.lat, sc.lng], { icon: scoutIcon(sc), zIndexOffset: 4000 });
+  marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showScoutClickPopup(sc.id); });
+  marker.addTo(map);
+  scoutMarkers[sc.id] = marker;
+}
+
+function updateScoutMarker(scId) {
+  const sc = scoutData[scId];
+  if (sc && scoutMarkers[scId]) {
+    scoutMarkers[scId].setIcon(scoutIcon(sc));
+    if (sc.lat != null) scoutMarkers[scId].setLatLng([sc.lat, sc.lng]);
+  }
+}
+
+function removeScoutMarker(scId) {
+  if (scoutMarkers[scId]) {
+    map.removeLayer(scoutMarkers[scId]);
+    delete scoutMarkers[scId];
+  }
+  delete scoutData[scId];
+}
+
+function renderActiveScouts(list) {
+  if (!list || !list.length) {
+    // Clean up all scouts not in list
+    for (const id of Object.keys(scoutMarkers)) {
+      map.removeLayer(scoutMarkers[id]);
+      delete scoutMarkers[id];
+      delete scoutData[id];
+    }
+    return;
+  }
+  const activeIds = new Set(list.map(s => s.id));
+  for (const id of Object.keys(scoutMarkers)) {
+    if (!activeIds.has(id)) { removeScoutMarker(id); }
+  }
+  for (const sc of list) {
+    scoutData[sc.id] = sc;
+    if (scoutMarkers[sc.id]) {
+      scoutMarkers[sc.id].setLatLng([sc.lat, sc.lng]);
+      const key = `${sc.status}_${sc.hp}_${sc.level}`;
+      if (scoutMarkers[sc.id]._gw_key !== key) {
+        scoutMarkers[sc.id]._gw_key = key;
+        scoutMarkers[sc.id].setIcon(scoutIcon(sc));
+      }
+    } else {
+      addScoutMarker(sc);
+    }
+  }
+}
+
+function showScoutClickPopup(scoutId) {
+  const sc = scoutData[scoutId];
+  if (!sc) return;
+  const isMine = Number(sc.owner_id) === Number(TG_ID);
+  const hpPct = sc.max_hp > 0 ? Math.round(sc.hp / sc.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+  const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${sc.hp}/${sc.max_hp}</span></div>`;
+
+  const statusText = sc.status === 'capturing' ? (_lang === 'ru' ? '⚡ Захватывает' : '⚡ Capturing') : (_lang === 'ru' ? '🚶 В пути' : '🚶 Moving');
+  const stats = [
+    [t('barracks.scout_level', {level: sc.level || 1}), ''],
+    ['❤️ HP', hpHtml],
+    [_lang === 'ru' ? 'Статус' : 'Status', statusText],
+  ];
+  const actions = [];
+  if (!isMine) {
+    const pos = state.playerPos;
+    const dist = pos ? haversine(pos.lat, pos.lng, sc.lat, sc.lng) : 9999;
+    if (dist <= LARGE_RADIUS) {
+      actions.push({ label: _lang === 'ru' ? '⚔️ Атаковать скаута' : '⚔️ Attack scout', cls: 'danger', action: () => attackScout(sc) });
+    } else {
+      actions.push({ label: t('ore.come_closer'), cls: '', disabled: true });
+    }
+  }
+  openPopup('🤠 ' + (isMine ? (_lang === 'ru' ? 'Мой скаут' : 'My scout') : (_lang === 'ru' ? 'Вражеский скаут' : 'Enemy scout')), '', stats, actions);
+}
+
+function attackScout(sc) {
+  closePopup();
+  openCombatPopup('🤠 ' + (_lang === 'ru' ? 'Скаут' : 'Scout') + ` Lv.${sc.level || 1}`, sc.id, 'scout', sc);
+}
+
+async function fetchBarracksStatus() {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'status', telegram_id: TG_ID }),
+    });
+    _playerBarracksStatus = data;
+    return data;
+  } catch (e) {
+    _playerBarracksStatus = null;
+    return null;
+  }
+}
+
+async function showBarracksPopup(barracksId, tab) {
+  if (tab) _barracksPopupTab = tab;
+  const bk = barracksData[barracksId];
+  if (!bk) return;
+
+  // Fetch full status from server
+  const status = await fetchBarracksStatus();
+  if (!status || !status.barracks) {
+    showToast(t('barracks.no_barracks'));
+    return;
+  }
+
+  const isMine = bk.is_mine;
+  const barracks = status.barracks;
+  const hpPct = barracks.max_hp > 0 ? Math.round(barracks.hp / barracks.max_hp * 100) : 100;
+  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
+
+  if (!isMine) {
+    // Enemy barracks — simple info popup
+    const hpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(bk.hp)}/${formatNumber(bk.max_hp)}</span></div>`;
+    const stats = [
+      ['__dual__', [[t('barracks.level'), barracks.level], ['❤️ HP', '']]],
+      ['❤️ HP', hpHtml],
+    ];
+    if (bk.owner_name) stats.push([_lang === 'ru' ? 'Владелец' : 'Owner', (bk.owner_avatar || '') + ' ' + bk.owner_name]);
+    openPopup(t('barracks.title'), `Lv.${barracks.level}`, stats, []);
+    return;
+  }
+
+  // Own barracks — full popup with tabs
+  const card = document.getElementById('popup-card');
+  const tabActive = 'background:#333;color:#fff;border-color:rgba(255,255,255,0.15)';
+  const tabInactive = 'background:transparent;color:#888;border-color:transparent';
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div>
+      <div style="font-size:16px;font-weight:600;color:#fff">${t('barracks.title')} Lv.${barracks.level}</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">HP: ${formatNumber(barracks.hp)}/${formatNumber(barracks.max_hp)}</div>
+    </div>
+    <button onclick="closePopup()" class="popup-close">✕</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px">
+    <button onclick="showBarracksPopup('${barracksId}','train')" class="barracks-tab ${_barracksPopupTab === 'train' ? 'active' : 'inactive'}">${t('barracks.tab_train')}</button>
+    <button onclick="showBarracksPopup('${barracksId}','upgrades')" class="barracks-tab ${_barracksPopupTab === 'upgrades' ? 'active' : 'inactive'}">${t('barracks.tab_upgrades')}</button>
+  </div>`;
+
+  if (_barracksPopupTab === 'train') {
+    // Training tab
+    const queue = status.queue || [];
+    const readyCount = queue.filter(q => q.ready).length;
+    const activeCount = queue.filter(q => !q.ready).length;
+    const maxSlots = barracks.slots || 1;
+    const trainCost = status.scout_train_cost || 0;
+    const trainTimeMin = Math.round((barracks.train_time_ms || 1800000) / 60000);
+    const bagCount = (status.bag || []).length;
+
+    html += `<div style="display:flex;flex-direction:column;gap:8px">`;
+
+    // Bag info
+    html += `<div class="hq-stat-card"><span>${t('barracks.scout_bag', {count: bagCount})}</span><span class="val">${t('barracks.scout_level', {level: status.scout_level || 1})}</span></div>`;
+
+    // Queue
+    html += `<div class="hq-stat-card"><span>${t('barracks.queue', {current: activeCount, max: maxSlots})}</span></div>`;
+
+    // Queue items
+    if (queue.length > 0) {
+      for (const q of queue) {
+        if (q.ready) {
+          html += `<div class="barracks-queue-item"><span>🤠 Lv.${q.unit_level}</span><span style="color:#4caf50;font-weight:bold;margin-left:auto">✅</span></div>`;
+        } else {
+          const finishAt = new Date(q.finish_at).getTime();
+          const now = Date.now();
+          const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
+          const mins = Math.floor(secsLeft / 60);
+          const secs = secsLeft % 60;
+          const totalTime = barracks.train_time_ms / 1000;
+          const elapsed = totalTime - secsLeft;
+          const pct = Math.min(100, Math.round(elapsed / totalTime * 100));
+          html += `<div class="barracks-queue-item">
+            <span>🤠 Lv.${q.unit_level}</span>
+            <div class="queue-progress" style="flex:1;margin:0 8px"><div style="width:${pct}%"></div></div>
+            <span style="font-size:11px;color:#888">${mins}:${String(secs).padStart(2, '0')}</span>
+          </div>`;
+        }
+      }
+    }
+
+    // Actions
+    html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">`;
+
+    // Train button
+    const canTrain = activeCount < maxSlots;
+    const hasShards = (state.player?.crystals || 0) >= trainCost;
+    if (canTrain && hasShards) {
+      html += `<button class="hq-coll-btn active" onclick="doTrainScout('${barracksId}')">${t('barracks.train_scout')} (${trainCost} ✨, ${t('barracks.train_time', {min: trainTimeMin})})</button>`;
+    } else if (!canTrain) {
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.queue_full')}</button>`;
+    } else {
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.train_scout')} (${trainCost} ✨)</button>`;
+    }
+
+    // Collect button
+    if (readyCount > 0) {
+      html += `<button class="hq-coll-btn active" style="background:#4caf50" onclick="doCollectScouts('${barracksId}')">${t('barracks.collect', {count: readyCount})}</button>`;
+    }
+
+    html += `</div></div>`;
+  } else {
+    // Upgrades tab
+    const scoutLevel = status.scout_level || 1;
+    const scoutUpgradeCost = status.scout_upgrade_cost;
+    const maxUnitLevel = barracks.max_unit_level || 1;
+
+    html += `<div style="display:flex;flex-direction:column;gap:8px">`;
+
+    // Scout level info
+    html += `<div class="hq-stat-card"><span>${t('barracks.scout_level', {level: scoutLevel})}</span></div>`;
+
+    // Scout upgrade button
+    if (scoutLevel >= 10) {
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.scout_max')}</button>`;
+    } else if (scoutLevel + 1 > maxUnitLevel) {
+      html += `<button class="hq-coll-btn" disabled>${t('barracks.scout_needs_barracks', {level: scoutLevel + 1})}</button>`;
+    } else {
+      const hasEther = (state.player?.ether || 0) >= scoutUpgradeCost;
+      html += `<button class="hq-coll-btn ${hasEther ? 'active' : ''}" ${hasEther ? '' : 'disabled'} onclick="doUpgradeScout('${barracksId}')">${t('barracks.scout_upgrade', {level: scoutLevel + 1})} (${t('barracks.scout_upgrade_cost', {cost: formatNumber(scoutUpgradeCost)})})</button>`;
+    }
+
+    html += `</div>`;
+  }
+
+  // Bottom actions — upgrade barracks & sell
+  html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:12px">`;
+
+  if (barracks.level < 10 && barracks.upgrade_cost != null) {
+    const hasUpgradeDiamonds = (state.player?.diamonds || 0) >= barracks.upgrade_cost;
+    html += `<button class="hq-coll-btn ${hasUpgradeDiamonds ? 'active' : ''}" ${hasUpgradeDiamonds ? '' : 'disabled'} onclick="doUpgradeBarracks('${barracksId}')">${t('barracks.upgrade')} (${t('barracks.upgrade_cost', {cost: barracks.upgrade_cost})})</button>`;
+  }
+
+  html += `<button class="hq-coll-btn" style="background:#f44336;color:#fff" onclick="doSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
+  html += `</div>`;
+
+  card.innerHTML = html;
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+async function doTrainScout(barracksId) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'train', telegram_id: TG_ID, unit_type: 'scout' }),
+    });
+    if (data.ok) {
+      showToast('🤠 ' + t('barracks.train_scout') + '!');
+      if (state.player) { state.player.crystals = (state.player.crystals || 0) - (_playerBarracksStatus?.scout_train_cost || 0); }
+      showBarracksPopup(barracksId, 'train');
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doCollectScouts(barracksId) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'collect', telegram_id: TG_ID }),
+    });
+    if (data.ok) {
+      showToast('📦 ' + (_lang === 'ru' ? `Забрано скаутов: ${data.collected}` : `Collected scouts: ${data.collected}`));
+      showBarracksPopup(barracksId, 'train');
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doUpgradeScout(barracksId) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade-unit', telegram_id: TG_ID, unit_type: 'scout' }),
+    });
+    if (data.ok) {
+      showToast('⬆️ ' + t('barracks.scout_level', {level: data.level}));
+      if (state.player && data.cost) { state.player.ether = (state.player.ether || 0) - data.cost; }
+      showBarracksPopup(barracksId, 'upgrades');
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doUpgradeBarracks(barracksId) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID }),
+    });
+    if (data.ok) {
+      showToast('⬆️ ' + t('barracks.title') + ` Lv.${data.level}`);
+      if (state.player) { state.player.diamonds = (state.player.diamonds || 0); updateDiamondDisplay(); }
+      loadVisibleBuildings();
+      showBarracksPopup(barracksId);
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doSellBarracks(barracksId) {
+  // Fetch refund amount
+  const bk = barracksData[barracksId];
+  if (!bk) return;
+  const refundPct = 50;
+  if (!confirm(t('barracks.sell_confirm', {refund: '~' + refundPct + '%'}))) return;
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell', telegram_id: TG_ID }),
+    });
+    if (data.ok) {
+      showToast('🗑️ ' + (_lang === 'ru' ? `Казарма продана! +${data.refund} 💎` : `Barracks sold! +${data.refund} 💎`));
+      if (state.player) { state.player.diamonds = (state.player.diamonds || 0) + (data.refund || 0); updateDiamondDisplay(); }
+      closePopup();
+      // Remove marker
+      if (barracksMarkers[barracksId]) { map.removeLayer(barracksMarkers[barracksId]); delete barracksMarkers[barracksId]; }
+      delete barracksData[barracksId];
+      _playerBarracksStatus = null;
+      loadVisibleBuildings();
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doSendScoutToOre(oreId) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'send-scout', telegram_id: TG_ID, ore_id: oreId }),
+    });
+    if (data.ok) {
+      showToast('🤠 ' + (_lang === 'ru' ? 'Скаут отправлен!' : 'Scout sent!'));
+      _playerBarracksStatus = null; // refresh next time
+      closePopup();
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
 // ═══════════════════════════════════════════════════

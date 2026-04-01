@@ -32,6 +32,11 @@ class GameState {
     this.zombieHordes = new Map();   // id -> full row
     this.zombies = new Map();        // id -> full row
     this.activeWaves = new Map();    // monument_id -> { wave_number, last_wave_at, last_attack_at }
+    this.barracks = new Map();       // id -> full row
+    this.trainingQueue = new Map();  // id -> full row
+    this.unitBag = new Map();        // id -> full row
+    this.unitUpgrades = new Map();   // "tgId_unitType" -> { owner_id, unit_type, level }
+    this.activeScouts = new Map();   // id -> full row
     this.appSettings = new Map();   // key -> value (string)
     this.pvpCooldowns = [];         // array of {attacker_id, defender_id, expires_at}
     this.pvpLog = new Map();        // id -> full row
@@ -60,6 +65,11 @@ class GameState {
       cores: new Set(),
       zombieHordes: new Set(),
       zombies: new Set(),
+      barracks: new Set(),
+      trainingQueue: new Set(),
+      unitBag: new Set(),
+      unitUpgrades: new Set(),
+      activeScouts: new Set(),
     };
   }
 
@@ -89,7 +99,7 @@ class GameState {
     const t0 = Date.now();
 
     // Load all tables in parallel (paginated for large tables)
-    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies, pSkills, fireTrucks] = await Promise.all([
+    const [players, hqs, mines, bots, vases, items, markets, listings, couriers, drops, notifications, clans, members, clanHqs, settings, pvpCd, pvpLog, oreNodes, collectors, monuments, monumentDefs, cores, zHordes, zZombies, pSkills, fireTrucks, barracksRows, trainingRows, unitBagRows, unitUpgradeRows, activeScoutRows] = await Promise.all([
       this._loadAll('players'),
       this._loadAll('headquarters'),
       this._loadAll('mines'),
@@ -116,6 +126,11 @@ class GameState {
       this._loadAll('zombies', q => q.eq('alive', true)),
       this._loadAll('player_skills'),
       this._loadAll('fire_trucks'),
+      this._loadAll('barracks'),
+      this._loadAll('training_queue', q => q.eq('collected', false)),
+      this._loadAll('unit_bag'),
+      this._loadAll('unit_upgrades'),
+      this._loadAll('active_scouts'),
     ]);
 
     // Index players
@@ -186,6 +201,11 @@ class GameState {
       }
     }
     for (const ft of (fireTrucks || [])) this.fireTrucks.set(ft.id, ft);
+    for (const b of (barracksRows || [])) this.barracks.set(b.id, b);
+    for (const t of (trainingRows || [])) this.trainingQueue.set(t.id, t);
+    for (const u of (unitBagRows || [])) this.unitBag.set(u.id, u);
+    for (const u of (unitUpgradeRows || [])) this.unitUpgrades.set(`${u.owner_id}_${u.unit_type}`, u);
+    for (const s of (activeScoutRows || [])) this.activeScouts.set(s.id, s);
 
     this._loaded = true;
     console.log('[gameState] Loaded in', Date.now() - t0, 'ms:', this.stats());
@@ -210,6 +230,7 @@ class GameState {
       fireTrucks: this.fireTrucks.size,
       monuments: this.monuments.size,
       cores: this.cores.size,
+      barracks: this.barracks.size,
     };
   }
 
@@ -469,7 +490,36 @@ class GameState {
       }
     }
 
-    return { headquarters, mines, bots, vases, online_players, couriers, courier_drops, markets: marketsArr, clan_hqs, ore_nodes, collectors: collectorsArr, monuments: monumentsArr, monument_defenders: monumentDefendersArr, fire_trucks: fireTrucksArr, firefighters: firefightersArr };
+    // Barracks in bbox
+    const barracksArr = [];
+    for (const b of this.barracks.values()) {
+      if (b.lat >= s && b.lat <= n && b.lng >= w && b.lng <= e) {
+        const owner = this.players.get(b.owner_id);
+        barracksArr.push({
+          id: b.id, lat: b.lat, lng: b.lng, level: b.level,
+          hp: b.hp, max_hp: b.max_hp, status: b.status,
+          is_mine: b.owner_id === currentPlayerId,
+          owner_name: owner?.game_username || owner?.username || null,
+          owner_avatar: owner?.avatar || null,
+        });
+      }
+    }
+
+    // Active scouts in bbox
+    const activeScoutsArr = [];
+    for (const s2 of this.activeScouts.values()) {
+      const lat = s2.current_lat;
+      const lng = s2.current_lng;
+      if (lat >= s && lat <= n && lng >= w && lng <= e) {
+        activeScoutsArr.push({
+          id: s2.id, owner_id: s2.owner_id, lat, lng,
+          hp: s2.hp, max_hp: s2.max_hp, level: s2.unit_level,
+          status: s2.status, target_ore_id: s2.target_ore_id,
+        });
+      }
+    }
+
+    return { headquarters, mines, bots, vases, online_players, couriers, courier_drops, markets: marketsArr, clan_hqs, ore_nodes, collectors: collectorsArr, monuments: monumentsArr, monument_defenders: monumentDefendersArr, fire_trucks: fireTrucksArr, firefighters: firefightersArr, barracks: barracksArr, active_scouts: activeScoutsArr };
   }
 
   // -- Player lookups --

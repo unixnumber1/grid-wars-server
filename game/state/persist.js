@@ -47,6 +47,11 @@ async function batchPersist() {
     monuments: 'monuments',
     cores: 'cores',
     zombieHordes: 'zombie_hordes',
+    barracks: 'barracks',
+    trainingQueue: 'training_queue',
+    unitBag: 'unit_bag',
+    unitUpgrades: 'unit_upgrades',
+    activeScouts: 'active_scouts',
     // zombies: positions are temporary, persisted on create/death only
   };
 
@@ -71,6 +76,11 @@ async function batchPersist() {
     monuments: gameState.monuments,
     cores: gameState.cores,
     zombieHordes: gameState.zombieHordes,
+    barracks: gameState.barracks,
+    trainingQueue: gameState.trainingQueue,
+    unitBag: gameState.unitBag,
+    unitUpgrades: gameState.unitUpgrades,
+    activeScouts: gameState.activeScouts,
   };
 
   for (const key of keys) {

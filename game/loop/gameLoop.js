@@ -58,6 +58,9 @@ export function startGameLoop(io, connectedPlayers) {
       // ── 3c. Move firefighters ────────────────────────────
       moveFirefighters(nowMs);
 
+      // ── 3e. Move scouts + check training queue ────────────
+      moveScouts(nowMs);
+
       // ── 3d. Move monument defenders toward aggroed players ─
       moveDefenders();
 
@@ -389,6 +392,62 @@ async function moveCouriers(nowMs, nowISO) {
     }
   } catch (e) {
     console.error('[gameLoop] courier move error:', e.message);
+  }
+}
+
+// ── Move scouts (moving → capturing → captured) ──
+function moveScouts(nowMs) {
+  const TICK_S = 5; // 5 second tick
+  for (const [id, scout] of gameState.activeScouts) {
+    try {
+      if (scout.status === 'moving') {
+        // Move toward target
+        const speedMs = (scout.speed * 1000) / 3600; // km/h → m/s
+        const moveM = speedMs * TICK_S;
+        const dist = haversine(scout.current_lat, scout.current_lng, scout.target_lat, scout.target_lng);
+
+        if (dist <= moveM) {
+          // Arrived — start capturing
+          scout.current_lat = scout.target_lat;
+          scout.current_lng = scout.target_lng;
+          scout.status = 'capturing';
+          scout.capture_started_at = new Date().toISOString();
+          gameState.markDirty('activeScouts', id);
+          if (_io) _io.emit('scout:capturing', { id, lat: scout.current_lat, lng: scout.current_lng, owner_id: scout.owner_id });
+        } else {
+          // Interpolate position
+          const ratio = moveM / dist;
+          const dLat = (scout.target_lat - scout.current_lat) * ratio;
+          const dLng = (scout.target_lng - scout.current_lng) * ratio;
+          scout.current_lat += dLat;
+          scout.current_lng += dLng;
+          gameState.markDirty('activeScouts', id);
+        }
+      } else if (scout.status === 'capturing') {
+        // Check if capture is done
+        const capStart = new Date(scout.capture_started_at).getTime();
+        const capDuration = scout.capture_duration * 1000;
+        if (nowMs >= capStart + capDuration) {
+          // Capture complete — assign ore to player
+          const ore = gameState.oreNodes.get(scout.target_ore_id);
+          if (ore && !ore.owner_id) {
+            ore.owner_id = scout.owner_id;
+            ore.captured_at = new Date().toISOString();
+            gameState.markDirty('oreNodes', ore.id);
+            if (_io) _io.emit('scout:captured', {
+              id, ore_id: ore.id, owner_id: scout.owner_id,
+              ore_type: ore.ore_type, ore_level: ore.level,
+            });
+            console.log(`[SCOUTS] Scout lv${scout.unit_level} captured ${ore.ore_type} for player ${scout.owner_id}`);
+          }
+          // Scout dies (consumable)
+          gameState.activeScouts.delete(id);
+          supabase.from('active_scouts').delete().eq('id', id).then(() => {}).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.error('[gameLoop] scout move error:', e.message);
+    }
   }
 }
 
