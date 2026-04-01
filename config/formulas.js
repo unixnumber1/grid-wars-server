@@ -25,20 +25,7 @@ export function getMineCapacity(level) {
   if (level <= 0) return 0;
   // Use per-hour income for capacity calculation
   const incomePerHour = Math.floor(50 * Math.pow(level, 2.0));
-  let hours;
-  if (level < 50)       hours = 6;
-  else if (level < 100) hours = 168;
-  else if (level < 110) hours = 240;
-  else if (level < 120) hours = 264;
-  else if (level < 130) hours = 288;
-  else if (level < 140) hours = 312;
-  else if (level < 150) hours = 336;
-  else if (level < 160) hours = 360;
-  else if (level < 170) hours = 384;
-  else if (level < 180) hours = 408;
-  else if (level < 190) hours = 432;
-  else if (level < 200) hours = 456;
-  else                  hours = 480;
+  const hours = level < 100 ? 168 : 336;
   return Math.floor(incomePerHour * hours);
 }
 

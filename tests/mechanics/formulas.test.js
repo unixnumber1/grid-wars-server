@@ -85,16 +85,16 @@ describe('getMineUpgradeCost', () => {
 });
 
 describe('getMineCapacity', () => {
-  it('low level = 6h capacity', () => {
+  it('low level = 168h capacity', () => {
     const income = Math.floor(50 * Math.pow(10, 2.0));
     const cap = getMineCapacity(10);
-    assert.strictEqual(cap, Math.floor(income * 6));
+    assert.strictEqual(cap, Math.floor(income * 168));
   });
 
-  it('lv50+ = 168h capacity', () => {
-    const income = Math.floor(50 * Math.pow(60, 2.0));
-    const cap = getMineCapacity(60);
-    assert.strictEqual(cap, Math.floor(income * 168));
+  it('lv100+ = 336h capacity', () => {
+    const income = Math.floor(50 * Math.pow(120, 2.0));
+    const cap = getMineCapacity(120);
+    assert.strictEqual(cap, Math.floor(income * 336));
   });
 });
 
