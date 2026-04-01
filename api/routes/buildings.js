@@ -17,7 +17,8 @@ import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const buildingsRouter = Router();
 
-const lastCollectXpTime = new Map(); // telegram_id → timestamp (XP cooldown 60s)
+const mineXpDrops = new Map(); // mine_id → { hits, hour }
+const XP_CHANCE_TIERS = [0.10, 0.075, 0.05, 0.025];
 
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
@@ -278,26 +279,26 @@ async function handleMineCollect(req, res) {
   }
   const collectedAmount = Math.round(totalCoins);
   if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
-  // Per-mine XP: 10% chance, 1% of coins — cooldown 60s to prevent autoclicker abuse
+  // Per-mine XP: diminishing chance per mine, resets each hour at XX:00
   const xpEvents = [];
   let totalXpGained = 0;
-  const lastXpTime = lastCollectXpTime.get(String(telegram_id)) || 0;
-  const xpCooldownOk = Date.now() - lastXpTime >= 60000;
-  console.log(`[XP-DEBUG] tg=${telegram_id} coins=${collectedAmount} mineCount=${mines.length} cdOk=${xpCooldownOk} lastXp=${lastXpTime} perMine=[${mines.map(m => mineCoinsMap.get(m.id) || 0).slice(0,5).join(',')}]`);
-  if (xpCooldownOk) {
+  const currentHour = Math.floor(Date.now() / 3600000);
+  {
     const { getCollectXp } = await import('../../game/mechanics/xp.js');
-    const rolls = [];
     for (const mine of mines) {
       const mineCoins = mineCoinsMap.get(mine.id) || 0;
-      const xp = getCollectXp(mineCoins);
-      rolls.push(`${mineCoins}→${xp}`);
+      const rec = mineXpDrops.get(mine.id);
+      const hits = (rec && rec.hour === currentHour) ? rec.hits : 0;
+      const chance = XP_CHANCE_TIERS[Math.min(hits, XP_CHANCE_TIERS.length - 1)];
+      const xp = getCollectXp(mineCoins, chance);
       if (xp > 0) {
         totalXpGained += xp;
         xpEvents.push({ xp, lat: mine.lat, lng: mine.lng, cell_id: mine.cell_id });
+        mineXpDrops.set(mine.id, { hits: hits + 1, hour: currentHour });
+      } else if (!rec || rec.hour !== currentHour) {
+        mineXpDrops.set(mine.id, { hits: 0, hour: currentHour });
       }
     }
-    console.log(`[XP-DEBUG] tg=${telegram_id} rolls=[${rolls.slice(0,8).join(',')}] totalXp=${totalXpGained}`);
-    if (totalXpGained > 0) lastCollectXpTime.set(String(telegram_id), Date.now());
   }
   let xpResult = null;
   if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) { console.error('[xp] addXp error:', e.message); } }

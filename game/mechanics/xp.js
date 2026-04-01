@@ -14,9 +14,9 @@ export const XP_REWARDS = {
 
 // ─── New XP source functions ─────────────────────────────────────────────────
 
-// 10% chance on collect, 0.1–1% of coins
-export function getCollectXp(coinsCollected) {
-  if (Math.random() > 0.10) return 0;
+// Drop chance on collect, 0.1–1% of coins
+export function getCollectXp(coinsCollected, dropChance = 0.10) {
+  if (Math.random() > dropChance) return 0;
   const pct = 0.001 + Math.random() * 0.009; // 0.1% – 1%
   return Math.floor(coinsCollected * pct);
 }
