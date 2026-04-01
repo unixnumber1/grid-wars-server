@@ -16867,6 +16867,12 @@ async function openStreakPanel() {
     });
     _streakData = data;
     _renderStreakPanel(data);
+    // Reset to streak tab, clear walk refresh
+    if (_walkRefreshTimer) { clearInterval(_walkRefreshTimer); _walkRefreshTimer = null; }
+    document.querySelectorAll('.streak-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.streak-tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('.streak-tab-btn:first-child').classList.add('active');
+    document.getElementById('streak-tab-streak').classList.add('active');
     document.getElementById('streak-overlay').classList.add('open');
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
