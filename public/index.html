@@ -4415,6 +4415,17 @@ const I18N = {
     'barracks.scout_cant_capture': 'Скаут Lv.{level} не может захватить {type}',
     'barracks.scout_too_far': 'Слишком далеко (макс 20 км)',
     'barracks.scout_ore_taken': 'Рудник уже занят',
+    'barracks.boost': '⚡ Ускорить',
+    'barracks.boost_cost': '{cost} 💎',
+    'barracks.boost_all': '⚡ Ускорить всё',
+    'barracks.ready': 'Готов!',
+    'barracks.training': 'Тренируется...',
+    'barracks.slots': 'Слоты',
+    'barracks.ore_access': 'Доступно',
+    'barracks.ore_hill': '⛰ Холм',
+    'barracks.ore_mountain': '🏔 Гора',
+    'barracks.ore_peak': '🗻 Пик',
+    'barracks.ore_volcano': '🌋 Вулкан',
     'build.clan_hq': '🏰 Штаб Клана',
     'build.clan_hq_desc': 'Зона клана · Бусты для участников',
     'build.clan_hq_btn': '🏰 Построить штаб клана',
@@ -5638,6 +5649,17 @@ const I18N = {
     'barracks.scout_cant_capture': 'Scout Lv.{level} cannot capture {type}',
     'barracks.scout_too_far': 'Too far (max 20 km)',
     'barracks.scout_ore_taken': 'Ore node already owned',
+    'barracks.boost': '⚡ Boost',
+    'barracks.boost_cost': '{cost} 💎',
+    'barracks.boost_all': '⚡ Boost all',
+    'barracks.ready': 'Ready!',
+    'barracks.training': 'Training...',
+    'barracks.slots': 'Slots',
+    'barracks.ore_access': 'Access',
+    'barracks.ore_hill': '⛰ Hill',
+    'barracks.ore_mountain': '🏔 Mountain',
+    'barracks.ore_peak': '🗻 Peak',
+    'barracks.ore_volcano': '🌋 Volcano',
     'build.clan_hq': '🏰 Clan HQ',
     'build.clan_hq_desc': 'Clan zone · Boosts for members',
     'build.clan_hq_btn': '🏰 Build clan HQ',
@@ -20429,115 +20451,118 @@ async function showBarracksPopup(barracksId, tab) {
 
   // Own barracks — full popup with tabs
   const card = document.getElementById('popup-card');
-  const tabActive = 'background:#333;color:#fff;border-color:rgba(255,255,255,0.15)';
-  const tabInactive = 'background:transparent;color:#888;border-color:transparent';
+  const queue = status.queue || [];
+  const readyCount = queue.filter(q => q.ready).length;
+  const activeCount = queue.filter(q => !q.ready).length;
+  const maxSlots = barracks.slots || 1;
+  const trainCost = status.scout_train_cost || 0;
+  const trainTimeMin = Math.round((barracks.train_time_ms || 1800000) / 60000);
+  const bagCount = (status.bag || []).length;
+  const scoutLevel = status.scout_level || 1;
+  const scoutUpgradeCost = status.scout_upgrade_cost;
+  const maxUnitLevel = barracks.max_unit_level || 1;
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div>
-      <div style="font-size:16px;font-weight:600;color:#fff">${t('barracks.title')} Lv.${barracks.level}</div>
-      <div style="font-size:12px;color:#888;margin-top:2px">HP: ${formatNumber(barracks.hp)}/${formatNumber(barracks.max_hp)}</div>
-    </div>
-    <button onclick="closePopup()" class="popup-close">✕</button>
+  // Ore access by scout level
+  const oreAccess = scoutLevel >= 10 ? t('barracks.ore_volcano') : scoutLevel >= 7 ? t('barracks.ore_peak') : scoutLevel >= 3 ? t('barracks.ore_mountain') : t('barracks.ore_hill');
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-size:16px;font-weight:600;color:#fff">${t('barracks.title')} Lv.${barracks.level}</div>
+    <button onclick="closePopup()" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;padding:4px">✕</button>
   </div>
-  <div style="display:flex;gap:6px;margin-bottom:10px">
+  <div style="display:flex;gap:6px;margin-bottom:12px">
     <button onclick="showBarracksPopup('${barracksId}','train')" class="barracks-tab ${_barracksPopupTab === 'train' ? 'active' : 'inactive'}">${t('barracks.tab_train')}</button>
     <button onclick="showBarracksPopup('${barracksId}','upgrades')" class="barracks-tab ${_barracksPopupTab === 'upgrades' ? 'active' : 'inactive'}">${t('barracks.tab_upgrades')}</button>
   </div>`;
 
   if (_barracksPopupTab === 'train') {
-    // Training tab
-    const queue = status.queue || [];
-    const readyCount = queue.filter(q => q.ready).length;
-    const activeCount = queue.filter(q => !q.ready).length;
-    const maxSlots = barracks.slots || 1;
-    const trainCost = status.scout_train_cost || 0;
-    const trainTimeMin = Math.round((barracks.train_time_ms || 1800000) / 60000);
-    const bagCount = (status.bag || []).length;
+    // ─── Info card ───
+    html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:#ccc">
+        <span>🤠 ${t('barracks.scout_level', {level: scoutLevel})}</span>
+        <span>${t('barracks.ore_access')}: ${oreAccess}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:4px">
+        <span>${t('barracks.scout_bag', {count: bagCount})}</span>
+        <span>${t('barracks.slots')}: ${activeCount}/${maxSlots}</span>
+      </div>
+    </div>`;
 
-    html += `<div style="display:flex;flex-direction:column;gap:8px">`;
-
-    // Bag info
-    html += `<div class="hq-stat-card"><span>${t('barracks.scout_bag', {count: bagCount})}</span><span class="val">${t('barracks.scout_level', {level: status.scout_level || 1})}</span></div>`;
-
-    // Queue
-    html += `<div class="hq-stat-card"><span>${t('barracks.queue', {current: activeCount, max: maxSlots})}</span></div>`;
-
-    // Queue items
-    if (queue.length > 0) {
-      for (const q of queue) {
-        if (q.ready) {
-          html += `<div class="barracks-queue-item"><span>🤠 Lv.${q.unit_level}</span><span style="color:#4caf50;font-weight:bold;margin-left:auto">✅</span></div>`;
-        } else {
-          const finishAt = new Date(q.finish_at).getTime();
-          const now = Date.now();
-          const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
-          const mins = Math.floor(secsLeft / 60);
-          const secs = secsLeft % 60;
-          const totalTime = barracks.train_time_ms / 1000;
-          const elapsed = totalTime - secsLeft;
-          const pct = Math.min(100, Math.round(elapsed / totalTime * 100));
-          html += `<div class="barracks-queue-item">
-            <span>🤠 Lv.${q.unit_level}</span>
-            <div class="queue-progress" style="flex:1;margin:0 8px"><div style="width:${pct}%"></div></div>
-            <span style="font-size:11px;color:#888">${mins}:${String(secs).padStart(2, '0')}</span>
-          </div>`;
-        }
+    // ─── Queue cards ───
+    for (const q of queue) {
+      if (q.ready) {
+        html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">🤠</span>
+            <div><div style="font-size:13px;color:#fff;font-weight:500">Lv.${q.unit_level}</div><div style="font-size:11px;color:#4caf50">${t('barracks.ready')}</div></div>
+          </div>
+          <span style="font-size:18px">✅</span>
+        </div>`;
+      } else {
+        const finishAt = new Date(q.finish_at).getTime();
+        const now = Date.now();
+        const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
+        const mins = Math.floor(secsLeft / 60);
+        const secs = secsLeft % 60;
+        const totalTime = barracks.train_time_ms / 1000;
+        const elapsed = totalTime - secsLeft;
+        const pct = Math.min(100, Math.round(elapsed / totalTime * 100));
+        const boostCost = Math.max(1, Math.ceil(secsLeft / 60));
+        html += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">🤠</span>
+              <div><div style="font-size:13px;color:#fff;font-weight:500">Lv.${q.unit_level}</div><div style="font-size:11px;color:#888">${mins}:${String(secs).padStart(2, '0')}</div></div>
+            </div>
+            <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" style="background:linear-gradient(135deg,#7c4dff,#536dfe);border:none;border-radius:8px;padding:4px 10px;font-size:11px;color:#fff;cursor:pointer;font-weight:600">${t('barracks.boost')} ${boostCost} 💎</button>
+          </div>
+          <div style="background:#1a1a2e;border-radius:4px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7c4dff,#536dfe);border-radius:4px;transition:width .3s"></div></div>
+        </div>`;
       }
     }
 
-    // Actions
-    html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">`;
+    // ─── Collect button ───
+    if (readyCount > 0) {
+      html += `<button onclick="doCollectScouts('${barracksId}')" style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;margin-bottom:6px">${t('barracks.collect', {count: readyCount})}</button>`;
+    }
 
-    // Train button
+    // ─── Train button ───
     const canTrain = activeCount < maxSlots;
     const hasShards = (state.player?.crystals || 0) >= trainCost;
-    if (canTrain && hasShards) {
-      html += `<button class="hq-coll-btn active" onclick="doTrainScout('${barracksId}')">${t('barracks.train_scout')} (${trainCost} ✨, ${t('barracks.train_time', {min: trainTimeMin})})</button>`;
-    } else if (!canTrain) {
-      html += `<button class="hq-coll-btn" disabled>${t('barracks.queue_full')}</button>`;
-    } else {
-      html += `<button class="hq-coll-btn" disabled>${t('barracks.train_scout')} (${trainCost} ✨)</button>`;
-    }
+    html += `<button onclick="doTrainScout('${barracksId}')" ${canTrain && hasShards ? '' : 'disabled'} style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${canTrain && hasShards ? 'background:linear-gradient(135deg,#FFD700,#FFA000);color:#1a1a2e' : 'background:#333;color:#666;cursor:not-allowed'}">
+      ${canTrain ? t('barracks.train_scout') + ` — ${trainCost} ✨ · ${trainTimeMin} ${_lang === 'ru' ? 'мин' : 'min'}` : t('barracks.queue_full')}
+    </button>`;
 
-    // Collect button
-    if (readyCount > 0) {
-      html += `<button class="hq-coll-btn active" style="background:#4caf50" onclick="doCollectScouts('${barracksId}')">${t('barracks.collect', {count: readyCount})}</button>`;
-    }
-
-    html += `</div></div>`;
   } else {
-    // Upgrades tab
-    const scoutLevel = status.scout_level || 1;
-    const scoutUpgradeCost = status.scout_upgrade_cost;
-    const maxUnitLevel = barracks.max_unit_level || 1;
+    // ─── Upgrades tab ───
 
-    html += `<div style="display:flex;flex-direction:column;gap:8px">`;
+    // Scout upgrade card
+    html += `<div style="background:#252538;border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:28px">🤠</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#fff">${t('barracks.scout_level', {level: scoutLevel})}</div>
+          <div style="font-size:11px;color:#888">${t('barracks.ore_access')}: ${oreAccess}</div>
+        </div>
+      </div>`;
 
-    // Scout level info
-    html += `<div class="hq-stat-card"><span>${t('barracks.scout_level', {level: scoutLevel})}</span></div>`;
-
-    // Scout upgrade button
     if (scoutLevel >= 10) {
-      html += `<button class="hq-coll-btn" disabled>${t('barracks.scout_max')}</button>`;
+      html += `<div style="text-align:center;padding:8px;color:#888;font-size:12px">${t('barracks.scout_max')}</div>`;
     } else if (scoutLevel + 1 > maxUnitLevel) {
-      html += `<button class="hq-coll-btn" disabled>${t('barracks.scout_needs_barracks', {level: scoutLevel + 1})}</button>`;
+      html += `<div style="text-align:center;padding:8px;color:#ff9800;font-size:12px">${t('barracks.scout_needs_barracks', {level: scoutLevel + 1})}</div>`;
     } else {
       const hasEther = (state.player?.ether || 0) >= scoutUpgradeCost;
-      html += `<button class="hq-coll-btn ${hasEther ? 'active' : ''}" ${hasEther ? '' : 'disabled'} onclick="doUpgradeScout('${barracksId}')">${t('barracks.scout_upgrade', {level: scoutLevel + 1})} (${t('barracks.scout_upgrade_cost', {cost: formatNumber(scoutUpgradeCost)})})</button>`;
+      html += `<button onclick="doUpgradeScout('${barracksId}')" ${hasEther ? '' : 'disabled'} style="width:100%;padding:8px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;${hasEther ? 'background:linear-gradient(135deg,#00bcd4,#0097a7);color:#fff' : 'background:#333;color:#666;cursor:not-allowed'}">${t('barracks.scout_upgrade', {level: scoutLevel + 1})} — ${formatNumber(scoutUpgradeCost)} ⚗️</button>`;
     }
-
     html += `</div>`;
   }
 
-  // Bottom actions — upgrade barracks & sell
-  html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:12px">`;
-
+  // ─── Bottom: upgrade barracks & sell ───
+  html += `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;display:flex;flex-direction:column;gap:6px">`;
   if (barracks.level < 10 && barracks.upgrade_cost != null) {
-    const hasUpgradeDiamonds = (state.player?.diamonds || 0) >= barracks.upgrade_cost;
-    html += `<button class="hq-coll-btn ${hasUpgradeDiamonds ? 'active' : ''}" ${hasUpgradeDiamonds ? '' : 'disabled'} onclick="doUpgradeBarracks('${barracksId}')">${t('barracks.upgrade')} (${t('barracks.upgrade_cost', {cost: barracks.upgrade_cost})})</button>`;
+    const hasUpgD = (state.player?.diamonds || 0) >= barracks.upgrade_cost;
+    html += `<button onclick="doUpgradeBarracks('${barracksId}')" ${hasUpgD ? '' : 'disabled'} style="width:100%;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${hasUpgD ? 'background:linear-gradient(135deg,#2196f3,#1565c0);color:#fff' : 'background:#333;color:#666;cursor:not-allowed'}">${t('barracks.upgrade')} Lv.${barracks.level + 1} — ${barracks.upgrade_cost} 💎</button>`;
   }
-
-  html += `<button class="hq-coll-btn" style="background:#f44336;color:#fff" onclick="doSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
+  html += `<button onclick="doSellBarracks('${barracksId}')" style="width:100%;padding:8px;border:none;border-radius:10px;font-size:12px;cursor:pointer;background:transparent;color:#f44336;border:1px solid rgba(244,67,54,0.3)">${t('barracks.sell')}</button>`;
   html += `</div>`;
 
   card.innerHTML = html;
@@ -20566,6 +20591,20 @@ async function doCollectScouts(barracksId) {
     });
     if (data.ok) {
       showToast('📦 ' + (_lang === 'ru' ? `Забрано скаутов: ${data.collected}` : `Collected scouts: ${data.collected}`));
+      showBarracksPopup(barracksId, 'train');
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function doBoostTraining(barracksId, entryId, cost) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'boost', telegram_id: TG_ID, entry_id: entryId }),
+    });
+    if (data.ok) {
+      showToast(`⚡ ${_lang === 'ru' ? 'Ускорено' : 'Boosted'}! -${data.cost} 💎`);
+      if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
       showBarracksPopup(barracksId, 'train');
     }
   } catch (err) { showToast(`❌ ${err.message}`); }

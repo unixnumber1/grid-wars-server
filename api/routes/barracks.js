@@ -42,6 +42,7 @@ barracksRouter.post('/', async (req, res) => {
   if (action === 'upgrade-unit') return handleUpgradeUnit(req, res);
   if (action === 'send-scout') return handleSendScout(req, res);
   if (action === 'attack-scout') return handleAttackScout(req, res);
+  if (action === 'boost') return handleBoost(req, res);
   if (action === 'status') return handleStatus(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
@@ -265,6 +266,47 @@ async function handleCollect(req, res) {
 
   const totalInBag = getPlayerScoutCount(telegram_id);
   res.json({ ok: true, collected, total_in_bag: totalInBag });
+}
+
+// ── BOOST — instant finish for diamonds (1💎 per minute remaining) ──
+async function handleBoost(req, res) {
+  const { telegram_id, entry_id } = req.body || {};
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const barracks = getPlayerBarracks(telegram_id);
+  if (!barracks) return res.status(404).json({ error: 'Казарма не найдена' });
+
+  // If entry_id specified, boost single entry; otherwise boost all
+  const queue = getTrainingQueue(barracks.id);
+  const toBoost = entry_id
+    ? queue.filter(q => q.id === entry_id && !q.ready)
+    : queue.filter(q => !q.ready);
+
+  if (toBoost.length === 0) return res.status(400).json({ error: 'Нечего ускорять' });
+
+  // Calculate total cost: 1 diamond per minute remaining (minimum 1)
+  const now = Date.now();
+  let totalCost = 0;
+  for (const entry of toBoost) {
+    const msLeft = Math.max(0, new Date(entry.finish_at).getTime() - now);
+    totalCost += Math.max(1, Math.ceil(msLeft / 60000));
+  }
+
+  if ((player.diamonds || 0) < totalCost) return res.status(400).json({ error: `Нужно ${totalCost} 💎` });
+
+  // Deduct diamonds
+  player.diamonds = (player.diamonds || 0) - totalCost;
+  await persistNow('players', { id: player.id, diamonds: player.diamonds });
+
+  // Set finish_at to now for all boosted entries
+  for (const entry of toBoost) {
+    entry.finish_at = new Date(now).toISOString();
+    gameState.markDirty('trainingQueue', entry.id);
+  }
+
+  logActivity(telegram_id, 'barracks_boost', { count: toBoost.length, cost: totalCost });
+  res.json({ ok: true, boosted: toBoost.length, cost: totalCost, diamonds: player.diamonds });
 }
 
 // ── UPGRADE UNIT TYPE ──
