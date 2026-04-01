@@ -685,13 +685,20 @@ function startMonumentLoop() {
 
     for (const [id, monument] of gameState.monuments) {
       try {
-        // Respawn shield after 7d
+        // Respawn with level progression
         if (monument.phase === 'defeated' && monument.respawn_at) {
           if (new Date() > new Date(monument.respawn_at)) {
+            // Apply pending level (lv1→lv2, ..., lv10→lv1)
+            if (monument._pending_level) {
+              monument.level = monument._pending_level;
+              delete monument._pending_level;
+            }
             const cfg = MONUMENT_LEVELS[monument.level];
             monument.phase = 'shield';
-            monument.shield_hp = cfg.max_shield_hp;
             monument.hp = cfg.hp;
+            monument.max_hp = cfg.hp;
+            monument.shield_hp = cfg.max_shield_hp;
+            monument.max_shield_hp = cfg.max_shield_hp;
             monument.raid_started_at = null;
             monument.shield_broken_at = null;
             monument.respawn_at = null;
@@ -699,10 +706,29 @@ function startMonumentLoop() {
             monument.invulnerable = false;
             gameState.markDirty('monuments', id);
             gameState.monumentDamage.delete(id);
-            io.emit('monument:shield_restored', { monument_id: id });
-            console.log(`[MONUMENTS] Shield restored for lv${monument.level} "${monument.name}"`);
+            io.emit('monument:shield_restored', { monument_id: id, level: monument.level });
+            console.log(`[MONUMENTS] Respawned as lv${monument.level} "${monument.name}"`);
           }
           continue;
+        }
+
+        // Decay: 7 days in shield phase without being defeated → reset to lv1
+        if (monument.phase === 'shield' && monument.level > 1) {
+          const lastActivity = monument.last_defeated_at
+            ? new Date(monument.last_defeated_at).getTime()
+            : (monument.created_at ? new Date(monument.created_at).getTime() : 0);
+          if (lastActivity && (now - lastActivity > 7 * 24 * 60 * 60 * 1000)) {
+            const oldLevel = monument.level;
+            monument.level = 1;
+            const cfg = MONUMENT_LEVELS[1];
+            monument.hp = cfg.hp;
+            monument.max_hp = cfg.hp;
+            monument.shield_hp = cfg.max_shield_hp;
+            monument.max_shield_hp = cfg.max_shield_hp;
+            gameState.markDirty('monuments', id);
+            io.emit('monument:shield_restored', { monument_id: id, level: 1 });
+            console.log(`[MONUMENTS] Decay: lv${oldLevel} → lv1 "${monument.name}" (7d idle)`);
+          }
         }
 
         // Shield regen is now handled by processMonumentShieldRegen() in gameLoop.js

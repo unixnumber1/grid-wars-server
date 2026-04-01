@@ -154,10 +154,16 @@ class GameState {
       // Strip runtime fields that leaked into older rows
       delete m.wave_started_at;
       delete m.wave_shield_hp;
-      // Fix orphaned defeated monuments missing respawn_at
-      if (m.phase === 'defeated' && !m.respawn_at) {
-        m.respawn_at = new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(); // 7 days
-        this._dirty.monuments.add(m.id);
+      // Restore pending level for defeated monuments (runtime-only, lost on restart)
+      if (m.phase === 'defeated') {
+        m._pending_level = m.level >= 10 ? 1 : m.level + 1;
+        // Fix orphaned defeated monuments missing respawn_at
+        if (!m.respawn_at) {
+          const RESPAWN_H = [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 24];
+          const hours = RESPAWN_H[m.level] || 168;
+          m.respawn_at = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+          this._dirty.monuments.add(m.id);
+        }
       }
       this.monuments.set(m.id, m);
     }
@@ -423,6 +429,7 @@ class GameState {
           wave_shield_hp: m._wave_shield_hp || 0,
           phase: m.phase, raid_started_at: m.raid_started_at,
           respawn_at: m.respawn_at,
+          next_level: m._pending_level || null,
         });
       }
     }

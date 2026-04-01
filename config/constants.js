@@ -93,9 +93,15 @@ export const COLLECTOR_EXTINGUISH_COST = 5;          // diamonds to extinguish
 
 // ── Monuments ──
 export const MONUMENT_ATTACK_RADIUS = 500;
-export const SHIELD_RESPAWN_HOURS = 168;            // 7 days
+export const SHIELD_RESPAWN_HOURS = 168;            // 7 days (legacy fallback)
 export const OPEN_PHASE_TIMEOUT_HOURS = 4;
 export const WAVE_INTERVAL_SECONDS = 60;
+
+// Dynamic respawn: index = current level, value = hours until respawn
+// lv10 defeated → resets to lv1 with 24h respawn
+export const MONUMENT_RESPAWN_HOURS_PER_LEVEL = [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 24];
+// Days of inactivity (shield phase, not defeated) before monument decays to lv1
+export const MONUMENT_DECAY_DAYS = 7;
 
 // Monument HP/Shield arrays by level (index 0 unused)
 export const MONUMENT_HP = [

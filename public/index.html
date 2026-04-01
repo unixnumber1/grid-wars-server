@@ -18807,7 +18807,9 @@ function showMonumentPopup(monumentId) {
   } else if (m.phase === 'defeated') {
     if (m.respawn_at) {
       const left = Math.max(0, Math.ceil((new Date(m.respawn_at).getTime() - Date.now()) / 60000));
-      stats.push([t('mon.respawn'), t('mon.respawn_time', {h: Math.floor(left/60), m: left%60})]);
+      const respawnText = t('mon.respawn_time', {h: Math.floor(left/60), m: left%60});
+      const nextLvl = m.next_level || (m.level >= 10 ? 1 : m.level + 1);
+      stats.push([t('mon.respawn'), `${respawnText} → Lv.${nextLvl}`]);
     } else {
       stats.push([t('mon.respawn'), '⏳']);
     }

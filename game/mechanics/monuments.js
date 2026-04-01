@@ -10,6 +10,7 @@ import {
   MONUMENT_DEFENDER_SPEED, MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_WAVE_TRIGGERS,
   MONUMENT_DEFENDER_ATTACK_CD, WAVE_EMOJIS,
   MONUMENT_GEMS_LOOT, MONUMENT_ITEMS_LOOT,
+  MONUMENT_RESPAWN_HOURS_PER_LEVEL,
 } from '../../config/constants.js';
 
 // ── Emojis for defenders ──
@@ -179,7 +180,15 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
 export async function defeatMonument(monument, io, connectedPlayers) {
   monument.phase = 'defeated';
   monument.hp = 0;
-  monument.respawn_at = new Date(Date.now() + SHIELD_RESPAWN_HOURS * 60 * 60 * 1000).toISOString();
+
+  // Dynamic respawn: hours = current level (lv10 resets to 24h)
+  const respawnHours = MONUMENT_RESPAWN_HOURS_PER_LEVEL[monument.level] || 168;
+  monument.respawn_at = new Date(Date.now() + respawnHours * 60 * 60 * 1000).toISOString();
+  monument.last_defeated_at = new Date().toISOString();
+
+  // Next level: lv1→lv2, ..., lv9→lv10, lv10→lv1
+  monument._pending_level = monument.level >= 10 ? 1 : monument.level + 1;
+
   gameState.markDirty('monuments', monument.id);
 
   // Get all participants and their damage
@@ -355,7 +364,7 @@ export async function defeatMonument(monument, io, connectedPlayers) {
 
   gameState.monumentDamage.delete(monument.id);
 
-  console.log(`[MONUMENTS] Monument lv${monument.level} "${monument.name}" defeated! ${participants.length} participants`);
+  console.log(`[MONUMENTS] Monument lv${monument.level} "${monument.name}" defeated! ${participants.length} participants. Respawn in ${respawnHours}h as lv${monument._pending_level}`);
 }
 
 // ── Add cores into loot boxes (created when box is opened) ──
