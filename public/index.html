@@ -10468,6 +10468,11 @@ async function loadVisibleBuildings(force = false) {
     renderOreNodes(data.ore_nodes || []);
     renderMonuments(data.monuments || []);
     renderMonumentDefenders(data.monument_defenders || []);
+    renderCollectors(data.collectors || []);
+    renderFireTrucks(data.fire_trucks || []);
+    renderFirefighters(data.firefighters || []);
+    renderBarracks(data.barracks || []);
+    renderActiveScouts(data.active_scouts || []);
   } catch (err) {
     console.error('[map] fetch error:', err);
   } finally {
