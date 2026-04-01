@@ -43,6 +43,8 @@ barracksRouter.post('/', async (req, res) => {
   if (action === 'send-scout') return handleSendScout(req, res);
   if (action === 'attack-scout') return handleAttackScout(req, res);
   if (action === 'boost') return handleBoost(req, res);
+  if (action === 'sell-scout') return handleSellScout(req, res);
+  if (action === 'mass-sell-scouts') return handleMassSellScouts(req, res);
   if (action === 'status') return handleStatus(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
@@ -366,17 +368,18 @@ async function handleSendScout(req, res) {
   if (!ore) return res.status(404).json({ error: 'Рудник не найден' });
   if (ore.owner_id) return res.status(400).json({ error: 'Рудник уже занят' });
 
-  // Find a scout in bag
+  // Find the best matching scout in bag (lowest level that can capture this ore type)
   const bag = getPlayerBag(telegram_id).filter(u => u.unit_type === 'scout');
   if (bag.length === 0) return res.status(400).json({ error: 'Нет скаутов в сумке' });
 
-  const scout = bag[0]; // Use first available
-
-  // Check scout level vs ore type
-  if (!canScoutCaptureOre(scout.unit_level, ore.ore_type)) {
+  const eligible = bag.filter(u => canScoutCaptureOre(u.unit_level, ore.ore_type));
+  if (eligible.length === 0) {
     const required = SCOUT_ORE_ACCESS[ore.ore_type];
     return res.status(400).json({ error: `Скаут уровня ${required}+ нужен для ${ore.ore_type}` });
   }
+  // Pick lowest level that qualifies (preserve higher-level scouts)
+  eligible.sort((a, b) => a.unit_level - b.unit_level);
+  const scout = eligible[0];
 
   // Check range (20km from player)
   const dist = haversine(player.last_lat, player.last_lng, ore.lat, ore.lng);
@@ -527,4 +530,50 @@ async function handleStatus(req, res) {
       level: s.unit_level, target_ore_id: s.target_ore_id,
     })),
   });
+}
+
+// ── SELL SCOUT ──
+async function handleSellScout(req, res) {
+  const { telegram_id, scout_id } = req.body || {};
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const unit = gameState.unitBag.get(scout_id);
+  if (!unit || Number(unit.owner_id) !== Number(telegram_id)) return res.status(404).json({ error: 'Скаут не найден' });
+
+  const trainCost = getScoutTrainCost(unit.unit_level);
+  const sellPrice = Math.floor(trainCost * 0.1);
+
+  player.crystals = (player.crystals || 0) + sellPrice;
+  gameState.markDirty('players', player.id);
+
+  gameState.unitBag.delete(scout_id);
+  supabase.from('unit_bag').delete().eq('id', scout_id).then(() => {}).catch(() => {});
+
+  res.json({ ok: true, crystals: sellPrice, total_crystals: player.crystals });
+}
+
+// ── MASS SELL SCOUTS ──
+async function handleMassSellScouts(req, res) {
+  const { telegram_id, scout_ids } = req.body || {};
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+  if (!scout_ids || !Array.isArray(scout_ids) || scout_ids.length === 0) return res.status(400).json({ error: 'Нет скаутов для продажи' });
+
+  let totalCrystals = 0;
+  let soldCount = 0;
+  for (const sid of scout_ids) {
+    const unit = gameState.unitBag.get(sid);
+    if (!unit || Number(unit.owner_id) !== Number(telegram_id)) continue;
+    const trainCost = getScoutTrainCost(unit.unit_level);
+    totalCrystals += Math.floor(trainCost * 0.1);
+    gameState.unitBag.delete(sid);
+    supabase.from('unit_bag').delete().eq('id', sid).then(() => {}).catch(() => {});
+    soldCount++;
+  }
+
+  player.crystals = (player.crystals || 0) + totalCrystals;
+  gameState.markDirty('players', player.id);
+
+  res.json({ ok: true, crystals: totalCrystals, sold_count: soldCount, total_crystals: player.crystals });
 }

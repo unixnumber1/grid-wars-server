@@ -20442,34 +20442,121 @@ function attackScout(sc) {
   openCombatPopup('🤠 ' + (_lang === 'ru' ? 'Скаут' : 'Scout') + ` Lv.${sc.level || 1}`, sc.id, 'scout', sc);
 }
 
+let _otherSellMode = false;
+const _selectedScoutIds = new Set();
+
 async function renderOtherTab() {
   const el = document.getElementById('other-content');
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:20px;color:#888">${_lang === 'ru' ? 'Загрузка...' : 'Loading...'}</div>`;
   const status = await fetchBarracksStatus();
   const bag = status?.bag || [];
+
   if (bag.length === 0) {
+    _otherSellMode = false;
     el.innerHTML = `<div style="text-align:center;padding:30px;color:#888;font-size:13px">${_lang === 'ru' ? 'Нет юнитов. Тренируйте скаутов в казарме ⛺' : 'No units. Train scouts in barracks ⛺'}</div>`;
     return;
   }
-  // Group by type+level
-  const groups = {};
+
+  // Sort by level descending
+  bag.sort((a, b) => b.unit_level - a.unit_level);
+
+  const SCOUT_ORE = { 1: '⛰', 3: '🏔', 7: '🗻', 10: '🌋' };
+  function scoutOreEmoji(lv) { return lv >= 10 ? '🌋' : lv >= 7 ? '🗻' : lv >= 3 ? '🏔' : '⛰'; }
+  function scoutBorderColor(lv) { return lv >= 10 ? '#f9a825' : lv >= 7 ? '#6a1b9a' : lv >= 3 ? '#1565c0' : '#555'; }
+  function scoutBg(lv) { return lv >= 10 ? '#2a1a00' : lv >= 7 ? '#1a0a2a' : lv >= 3 ? '#0a0a2a' : '#1a1a2e'; }
+
+  // Header with sell toggle
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="font-size:13px;color:#888">${_lang === 'ru' ? 'Юниты' : 'Units'} (${bag.length})</div>
+    <button onclick="_otherSellMode=!_otherSellMode;_selectedScoutIds.clear();renderOtherTab()" style="background:none;border:1px solid ${_otherSellMode ? '#f44336' : 'rgba(255,255,255,0.15)'};border-radius:8px;padding:4px 10px;font-size:12px;color:${_otherSellMode ? '#f44336' : '#888'};cursor:pointer">${_otherSellMode ? '✕' : '🗑️'}</button>
+  </div>`;
+
+  // Grid
+  html += '<div class="inventory-grid">';
   for (const u of bag) {
-    const key = `${u.unit_type}_${u.unit_level}`;
-    if (!groups[key]) groups[key] = { ...u, count: 0 };
-    groups[key].count++;
-  }
-  let html = '<div class="inventory-grid" style="margin-top:8px">';
-  for (const g of Object.values(groups)) {
-    const emoji = g.unit_type === 'scout' ? '🤠' : '👤';
-    html += `<div class="inv-item" style="position:relative;display:flex;flex-direction:column;align-items:center;padding:8px 4px">
-      <span style="font-size:28px">${emoji}</span>
-      <span style="font-size:10px;color:#ccc;margin-top:2px">Lv.${g.unit_level}</span>
-      <span style="position:absolute;top:2px;right:4px;font-size:10px;color:#FFD700;font-weight:bold">×${g.count}</span>
+    const bc = scoutBorderColor(u.unit_level);
+    const bg = scoutBg(u.unit_level);
+    const sel = _otherSellMode && _selectedScoutIds.has(u.id) ? ';box-shadow:0 0 0 2px #f44336' : '';
+    const onclick = _otherSellMode
+      ? `_selectedScoutIds.has('${u.id}') ? _selectedScoutIds.delete('${u.id}') : _selectedScoutIds.add('${u.id}');renderOtherTab()`
+      : `showScoutDetailPopup('${u.id}')`;
+    html += `<div class="inv-cell" style="border-color:${bc};background:${bg}${sel};cursor:pointer" onclick="${onclick}">
+      <span>🤠</span><span class="inv-lvl">Lv.${u.unit_level}</span>
     </div>`;
   }
   html += '</div>';
+
+  // Mass sell button
+  if (_otherSellMode && _selectedScoutIds.size > 0) {
+    html += `<button class="hq-coll-btn" style="background:#f44336;color:#fff;margin-top:8px" onclick="massSellScouts()">${_lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell'} (${_selectedScoutIds.size})</button>`;
+  }
+
   el.innerHTML = html;
+}
+
+function showScoutDetailPopup(scoutId) {
+  const status = _playerBarracksStatus;
+  if (!status) return;
+  const unit = (status.bag || []).find(u => u.id === scoutId);
+  if (!unit) return;
+
+  const lv = unit.unit_level;
+  const SCOUT_HP = [0, 200, 350, 550, 800, 1100, 1500, 2000, 2700, 3500, 5000];
+  const SCOUT_SPEED = [0, 20, 22, 25, 28, 32, 36, 40, 45, 50, 55];
+  const SCOUT_CAPTURE = [0, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2];
+  const SCOUT_COST = [0, 500, 600, 800, 1000, 1300, 1600, 2000, 2300, 2600, 3000];
+  const hp = SCOUT_HP[lv] || 200;
+  const speed = SCOUT_SPEED[lv] || 20;
+  const capMin = SCOUT_CAPTURE[lv] || 20;
+  const oreLabel = lv >= 10 ? '🌋 ' + t('barracks.ore_volcano') : lv >= 7 ? '🗻 ' + t('barracks.ore_peak') : lv >= 3 ? '🏔 ' + t('barracks.ore_mountain') : '⛰ ' + t('barracks.ore_hill');
+  const sellPrice = Math.floor((SCOUT_COST[lv] || 500) * 0.1);
+
+  const stats = [
+    ['❤️ HP', hp],
+    [_lang === 'ru' ? '🏃 Скорость' : '🏃 Speed', speed + ' ' + (_lang === 'ru' ? 'км/ч' : 'km/h')],
+    [_lang === 'ru' ? '⏱️ Захват' : '⏱️ Capture', capMin + ' ' + (_lang === 'ru' ? 'мин' : 'min')],
+    [_lang === 'ru' ? '⛏️ Макс рудник' : '⛏️ Max ore', oreLabel],
+  ];
+  const actions = [
+    { label: `🗑️ ${_lang === 'ru' ? 'Продать' : 'Sell'} (+${sellPrice} ✨)`, cls: 'danger', action: () => sellSingleScout(scoutId, sellPrice) },
+  ];
+  openPopup(`🤠 ${_lang === 'ru' ? 'Скаут' : 'Scout'} Lv.${lv}`, '', stats, actions);
+}
+
+async function sellSingleScout(scoutId, expectedPrice) {
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell-scout', telegram_id: TG_ID, scout_id: scoutId }),
+    });
+    if (data.ok) {
+      showToast(`🗑️ +${data.crystals} ✨`);
+      if (state.player) state.player.crystals = data.total_crystals;
+      closePopup();
+      _playerBarracksStatus = null;
+      renderOtherTab();
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function massSellScouts() {
+  const ids = [..._selectedScoutIds];
+  if (ids.length === 0) return;
+  try {
+    const data = await apiFetch('/api/barracks', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'mass-sell-scouts', telegram_id: TG_ID, scout_ids: ids }),
+    });
+    if (data.ok) {
+      showToast(`🗑️ ${_lang === 'ru' ? 'Продано' : 'Sold'}: ${data.sold_count} → +${data.crystals} ✨`);
+      if (state.player) state.player.crystals = data.total_crystals;
+      _selectedScoutIds.clear();
+      _otherSellMode = false;
+      _playerBarracksStatus = null;
+      renderOtherTab();
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
 async function fetchBarracksStatus() {
