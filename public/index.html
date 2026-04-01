@@ -17702,6 +17702,7 @@ function _renderClanTabs() {
   } else {
     tabList = [
       { id: 'hq', label: '🏰 Инфо' },
+      { id: 'members', label: `👥 Участники${_clanScreenData?.clan ? ` (${_clanScreenData.clan.member_count})` : ''}` },
       { id: 'browse', label: '🔍 Кланы' },
     ];
   }
@@ -17780,7 +17781,7 @@ function _renderHqTab(body) {
       <div class="cs-stat-card"><div class="cs-stat-val">📍 ${config.radius}м</div><div class="cs-stat-label">Зона</div></div>
       <div class="cs-stat-card"><div class="cs-stat-val">⚡ +${config.income}%</div><div class="cs-stat-label">Доход</div></div>
       <div class="cs-stat-card"><div class="cs-stat-val">🛡️ +${config.defense}%</div><div class="cs-stat-label">Защита</div></div>
-      ${isOwn ? `<div class="cs-stat-card"><div class="cs-stat-val" style="${boostActive ? 'color:#00ff88' : 'color:#666'}">🚀 ${boostLabel}</div><div class="cs-stat-label">Буст</div></div>` : ''}
+      <div class="cs-stat-card"><div class="cs-stat-val" style="${boostActive ? 'color:#00ff88' : 'color:#666'}">🚀 ${boostLabel}</div><div class="cs-stat-label">Буст</div></div>
     </div>
     ${isOwn ? treasuryHtml : ''}
     ${isOwn ? `<div class="cs-actions" id="cs-hq-actions"></div>` : ''}
@@ -17965,19 +17966,20 @@ function _filterAndRenderClans(query) {
       btnHtml = `<span style="color:#666;font-size:11px;">${t('clan.cant')}</span>`;
     }
     return `
-      <div class="cs-clan-card" onclick="openClanScreen('${c.id}', 'hq')" style="cursor:pointer;">
+      <div class="cs-clan-card">
         <div class="cs-clan-card-head">
           <span class="cs-clan-card-name">${c.symbol || '🏰'} ${c.name} ${policyIcon}</span>
-          <span class="cs-clan-card-lvl">Ур. ${c.level}</span>
+          <button onclick="event.stopPropagation();openClanScreen('${c.id}', 'hq')" style="background:#1a1a2e;border:1px solid #333;color:#aaa;border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;flex-shrink:0;">🔍</button>
         </div>
         ${c.description ? `<div class="cs-clan-card-desc">${c.description}</div>` : ''}
         <div class="cs-clan-card-stats">
           <span>👥 ${c.member_count}/${c.max_members}</span>
           <span>⚡ +${c.income_bonus}%</span>
           <span>🛡️ +${c.defense_bonus}%</span>
+          <span>Ур. ${c.level}</span>
           ${c.min_level > 1 ? `<span>Мин. ур. ${c.min_level}</span>` : ''}
         </div>
-        <div style="text-align:right;" onclick="event.stopPropagation()">${btnHtml}</div>
+        <div style="text-align:right;">${btnHtml}</div>
       </div>`;
   }).join('');
 }
