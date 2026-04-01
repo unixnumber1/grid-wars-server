@@ -2761,15 +2761,8 @@
     }
 
     /* ── Mass selection mode ── */
-    .inv-cell.selectable { cursor: pointer; }
-    .inv-cell.selected { border-color: #FFD700 !important; box-shadow: 0 0 10px rgba(255,215,0,0.4); }
-    .inv-cell .select-check {
-      display: none; position: absolute; top: 2px; right: 2px;
-      font-size: 12px; background: #FFD700; color: #000; border-radius: 50%;
-      width: 16px; height: 16px; line-height: 16px; text-align: center;
-    }
-    .inv-cell.selectable .select-check { display: none; }
-    .inv-cell.selected .select-check { display: block; }
+    .inv-cell.selected { border-color: #FFD700 !important; background: #2a2a10 !important; }
+    .inv-cell.selected::after { content:'✓'; position:absolute; top:2px; right:4px; font-size:10px; color:#FFD700; font-weight:900; }
     #selection-bar, #core-selection-bar {
       display: none; position: fixed; bottom: calc(80px + env(safe-area-inset-bottom));
       left: 8px; right: 8px; z-index: 8100;
@@ -8942,7 +8935,6 @@ function switchMainTab(mainTab) {
       <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">${t('profile.tab.equip')}</button>
       <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">${t('profile.tab.cores')}</button>
       <button class="profile-inv-tab" id="inv-tab-other" onclick="switchInvTab('other')">${t('inv.sub_other') || 'Другое'}</button>`;
-    if (actionsRow) actionsRow.style.display = 'flex';
     switchInvTab('equip');
   } else {
     subRow.innerHTML = `
@@ -8965,9 +8957,14 @@ function switchInvTab(tab) {
   // Deactivate all sub-tabs
   document.querySelectorAll('#sub-tabs-row .profile-inv-tab').forEach(t => t.classList.remove('active'));
 
+  // Show/hide action buttons per tab
+  const actionsRow = document.getElementById('inv-equip-actions');
+  if (actionsRow) actionsRow.style.display = (tab === 'equip') ? 'flex' : 'none';
+
   if (tab === 'equip') {
     document.getElementById('inv-tab-equip')?.classList.add('active');
     document.getElementById('inv-panel-equip').style.display = '';
+    if (_selectionMode) exitSelectionMode();
   } else if (tab === 'cores') {
     document.getElementById('inv-tab-cores')?.classList.add('active');
     document.getElementById('inv-panel-cores').style.display = '';
@@ -8987,8 +8984,6 @@ function switchInvTab(tab) {
   } else if (tab === 'other') {
     document.getElementById('inv-tab-other')?.classList.add('active');
     document.getElementById('inv-panel-other').style.display = '';
-    const actionsRow = document.getElementById('inv-equip-actions');
-    if (actionsRow) actionsRow.style.display = 'none';
     renderOtherTab();
   }
 }
@@ -17370,25 +17365,17 @@ function _renderInventoryGridSelectable() {
   for (const item of inv) {
     const cell = document.createElement('div');
     const canSelect = !item.equipped && !item.on_market;
-    cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}${canSelect ? ' selectable' : ''}`;
+    const sel = canSelect && _selectedItemIds.has(item.id) ? ' selected' : '';
+    cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}${sel}`;
     cell.style.position = 'relative';
-    const check = document.createElement('span');
-    check.className = 'select-check';
-    check.textContent = '✓';
-    if (!canSelect) check.style.display = 'none';
     const slvl = item.upgrade_level || 0;
     cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : t('lv') + '0'}</span>`;
-    cell.appendChild(check);
 
     if (canSelect) {
       cell.onclick = () => {
-        if (_selectedItemIds.has(item.id)) {
-          _selectedItemIds.delete(item.id);
-          cell.classList.remove('selected');
-        } else {
-          _selectedItemIds.add(item.id);
-          cell.classList.add('selected');
-        }
+        if (_selectedItemIds.has(item.id)) _selectedItemIds.delete(item.id);
+        else _selectedItemIds.add(item.id);
+        _renderInventoryGridSelectable();
         _updateSelectionBar();
       };
     }
@@ -20471,31 +20458,46 @@ async function renderOtherTab() {
   function scoutBorderColor(lv) { return lv >= 10 ? '#f9a825' : lv >= 7 ? '#6a1b9a' : lv >= 3 ? '#1565c0' : '#555'; }
   function scoutBg(lv) { return lv >= 10 ? '#2a1a00' : lv >= 7 ? '#1a0a2a' : lv >= 3 ? '#0a0a2a' : '#1a1a2e'; }
 
-  // Header with sell toggle
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <div style="font-size:13px;color:#888">${_lang === 'ru' ? 'Юниты' : 'Units'} (${bag.length})</div>
-    <button onclick="_otherSellMode=!_otherSellMode;_selectedScoutIds.clear();renderOtherTab()" style="background:none;border:1px solid ${_otherSellMode ? '#f44336' : 'rgba(255,255,255,0.15)'};border-radius:8px;padding:4px 10px;font-size:12px;color:${_otherSellMode ? '#f44336' : '#888'};cursor:pointer">${_otherSellMode ? '✕' : '🗑️'}</button>
-  </div>`;
+  // Header — like cores: count + sell toggle
+  let html = '';
+  if (_otherSellMode) {
+    const SCOUT_COST = [0, 500, 600, 800, 1000, 1300, 1600, 2000, 2300, 2600, 3000];
+    let totalPrice = 0;
+    for (const id of _selectedScoutIds) {
+      const u = bag.find(x => x.id === id);
+      if (u) totalPrice += Math.floor((SCOUT_COST[u.unit_level] || 500) * 0.1);
+    }
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:13px;color:#aaa">${_lang === 'ru' ? 'Выбрано' : 'Selected'}: <strong style="color:#FFD700">${_selectedScoutIds.size}</strong> | ✨ <strong style="color:#FFD700">${totalPrice}</strong></div>
+      <div style="display:flex;gap:6px">
+        <button onclick="massSellScouts()" ${_selectedScoutIds.size === 0 ? 'disabled' : ''} style="background:${_selectedScoutIds.size > 0 ? '#f44336' : '#333'};color:${_selectedScoutIds.size > 0 ? '#fff' : '#666'};border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">${_lang === 'ru' ? 'Продать' : 'Sell'}</button>
+        <button onclick="_otherSellMode=false;_selectedScoutIds.clear();renderOtherTab()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;color:#888;cursor:pointer">${_lang === 'ru' ? 'Отмена' : 'Cancel'}</button>
+      </div>
+    </div>`;
+  } else {
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:13px;color:#888">${_lang === 'ru' ? 'Юниты' : 'Units'} (${bag.length})</div>
+      <button onclick="_otherSellMode=true;_selectedScoutIds.clear();renderOtherTab()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;color:#888;cursor:pointer">🗑️</button>
+    </div>`;
+  }
 
-  // Grid
+  // Grid — use inv-cell with selected class (::after ✓ like cores)
   html += '<div class="inventory-grid">';
   for (const u of bag) {
     const bc = scoutBorderColor(u.unit_level);
     const bg = scoutBg(u.unit_level);
-    const sel = _otherSellMode && _selectedScoutIds.has(u.id) ? ';box-shadow:0 0 0 2px #f44336' : '';
+    const isSelected = _otherSellMode && _selectedScoutIds.has(u.id);
+    const selClass = isSelected ? ' selected' : '';
+    const selBg = isSelected ? '#2a2a10' : bg;
+    const selBorder = isSelected ? '#FFD700' : bc;
     const onclick = _otherSellMode
       ? `_selectedScoutIds.has('${u.id}') ? _selectedScoutIds.delete('${u.id}') : _selectedScoutIds.add('${u.id}');renderOtherTab()`
       : `showScoutDetailPopup('${u.id}')`;
-    html += `<div class="inv-cell" style="border-color:${bc};background:${bg}${sel};cursor:pointer" onclick="${onclick}">
+    html += `<div class="inv-cell${selClass}" style="border-color:${selBorder};background:${selBg};cursor:pointer" onclick="${onclick}">
       <span>🤠</span><span class="inv-lvl">Lv.${u.unit_level}</span>
     </div>`;
   }
   html += '</div>';
-
-  // Mass sell button
-  if (_otherSellMode && _selectedScoutIds.size > 0) {
-    html += `<button class="hq-coll-btn" style="background:#f44336;color:#fff;margin-top:8px" onclick="massSellScouts()">${_lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell'} (${_selectedScoutIds.size})</button>`;
-  }
 
   el.innerHTML = html;
 }
@@ -21000,13 +21002,14 @@ async function spawnZombieScout() {
     <button class="inv-main-tab" id="main-tab-character" onclick="switchMainTab('character')"><span>Персонаж</span></button>
   </div>
 
-  <!-- Sub-tabs row + actions -->
+  <!-- Sub-tabs row -->
   <div class="profile-inv-tabs" style="align-items:center">
     <div id="sub-tabs-row" style="display:flex;flex:1"></div>
-    <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;margin-left:auto">
-      <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
-      <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️ Крафт</button>
-    </div>
+  </div>
+  <!-- Action buttons (right-aligned below header) -->
+  <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:0 16px 6px 16px">
+    <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️</button>
+    <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
   </div>
   <div class="profile-section" style="margin-bottom:16px;margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
     <div id="inv-panel-equip">
