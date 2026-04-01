@@ -514,6 +514,8 @@ class GameState {
       if (lat >= s && lat <= n && lng >= w && lng <= e) {
         activeScoutsArr.push({
           id: s2.id, owner_id: s2.owner_id, lat, lng,
+          target_lat: s2.target_lat, target_lng: s2.target_lng,
+          speed: s2.speed,
           hp: s2.hp, max_hp: s2.max_hp, level: s2.unit_level,
           status: s2.status, target_ore_id: s2.target_ore_id,
         });

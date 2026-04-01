@@ -285,11 +285,16 @@ async function handleBoost(req, res) {
 
   if (toBoost.length === 0) return res.status(400).json({ error: 'Нечего ускорять' });
 
-  // Calculate total cost: 1 diamond per minute remaining (minimum 1)
+  // Calculate total cost: 1 diamond per minute of own training time remaining
   const now = Date.now();
   let totalCost = 0;
   for (const entry of toBoost) {
-    const msLeft = Math.max(0, new Date(entry.finish_at).getTime() - now);
+    const startedAt = new Date(entry.started_at).getTime();
+    const finishAt = new Date(entry.finish_at).getTime();
+    const ownTrainMs = finishAt - startedAt; // own training duration only
+    const notStarted = now < startedAt;
+    // If not started yet, cost = full training time; otherwise = remaining time
+    const msLeft = notStarted ? ownTrainMs : Math.max(0, finishAt - now);
     totalCost += Math.max(1, Math.ceil(msLeft / 60000));
   }
 
@@ -299,8 +304,11 @@ async function handleBoost(req, res) {
   player.diamonds = (player.diamonds || 0) - totalCost;
   await persistNow('players', { id: player.id, diamonds: player.diamonds });
 
-  // Set finish_at to now for all boosted entries
+  // Set finish_at to now for all boosted entries, adjust subsequent queue times
   for (const entry of toBoost) {
+    const oldFinish = new Date(entry.finish_at).getTime();
+    const ownDuration = oldFinish - new Date(entry.started_at).getTime();
+    entry.started_at = new Date(now - ownDuration).toISOString(); // pretend it started earlier
     entry.finish_at = new Date(now).toISOString();
     gameState.markDirty('trainingQueue', entry.id);
   }

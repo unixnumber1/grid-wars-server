@@ -20307,39 +20307,48 @@ function renderBarracks(list) {
 }
 
 function scoutIcon(sc) {
-  const hpPct = sc.max_hp > 0 ? Math.round(sc.hp / sc.max_hp * 100) : 100;
-  const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
-  const isMine = Number(sc.owner_id) === Number(TG_ID);
-  const glow = isMine ? 'drop-shadow(0 0 6px rgba(76,175,80,0.6))' : 'drop-shadow(0 0 6px rgba(244,67,54,0.6))';
   return L.divIcon({
     className: '',
-    html: `<div class="scout-marker">
-      <span class="scout-emoji" style="font-size:28px;filter:${glow}">🤠</span>
-      <span class="scout-level">Lv.${sc.level || 1}</span>
-      <div class="scout-hp-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>
+    html: `<div style="display:flex;align-items:center;justify-content:center">
+      <span style="font-size:28px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">🤠</span>
     </div>`,
-    iconSize: [36, 44],
-    iconAnchor: [18, 22],
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
   });
 }
 
+const scoutInterp = {}; // id -> { displayLat, displayLng, targetLat, targetLng, speedKmh }
+
 function addScoutMarker(sc) {
   if (scoutMarkers[sc.id]) {
-    scoutMarkers[sc.id].setLatLng([sc.lat, sc.lng]);
-    scoutMarkers[sc.id].setIcon(scoutIcon(sc));
+    // Update interp target, don't jump
+    if (scoutInterp[sc.id]) {
+      scoutInterp[sc.id].targetLat = sc.target_lat || sc.lat;
+      scoutInterp[sc.id].targetLng = sc.target_lng || sc.lng;
+      scoutInterp[sc.id].serverLat = sc.lat;
+      scoutInterp[sc.id].serverLng = sc.lng;
+    }
     return;
   }
   const marker = L.marker([sc.lat, sc.lng], { icon: scoutIcon(sc), zIndexOffset: 4000 });
   marker.on('click', (e) => { _suppressMapClick = Date.now(); L.DomEvent.stopPropagation(e); showScoutClickPopup(sc.id); });
   marker.addTo(map);
   scoutMarkers[sc.id] = marker;
+  scoutInterp[sc.id] = {
+    displayLat: sc.lat, displayLng: sc.lng,
+    targetLat: sc.target_lat || sc.lat, targetLng: sc.target_lng || sc.lng,
+    serverLat: sc.lat, serverLng: sc.lng,
+    speedKmh: sc.speed || 20,
+  };
 }
 
 function updateScoutMarker(scId) {
   const sc = scoutData[scId];
   if (sc && scoutMarkers[scId]) {
-    scoutMarkers[scId].setIcon(scoutIcon(sc));
-    if (sc.lat != null) scoutMarkers[scId].setLatLng([sc.lat, sc.lng]);
+    if (sc.lat != null && scoutInterp[scId]) {
+      scoutInterp[scId].serverLat = sc.lat;
+      scoutInterp[scId].serverLng = sc.lng;
+    }
   }
 }
 
@@ -20349,18 +20358,11 @@ function removeScoutMarker(scId) {
     delete scoutMarkers[scId];
   }
   delete scoutData[scId];
+  delete scoutInterp[scId];
 }
 
 function renderActiveScouts(list) {
-  if (!list || !list.length) {
-    // Clean up all scouts not in list
-    for (const id of Object.keys(scoutMarkers)) {
-      map.removeLayer(scoutMarkers[id]);
-      delete scoutMarkers[id];
-      delete scoutData[id];
-    }
-    return;
-  }
+  if (!list) list = [];
   const activeIds = new Set(list.map(s => s.id));
   for (const id of Object.keys(scoutMarkers)) {
     if (!activeIds.has(id)) { removeScoutMarker(id); }
@@ -20368,17 +20370,45 @@ function renderActiveScouts(list) {
   for (const sc of list) {
     scoutData[sc.id] = sc;
     if (scoutMarkers[sc.id]) {
-      scoutMarkers[sc.id].setLatLng([sc.lat, sc.lng]);
-      const key = `${sc.status}_${sc.hp}_${sc.level}`;
-      if (scoutMarkers[sc.id]._gw_key !== key) {
-        scoutMarkers[sc.id]._gw_key = key;
-        scoutMarkers[sc.id].setIcon(scoutIcon(sc));
+      // Update interp targets from server
+      if (scoutInterp[sc.id]) {
+        scoutInterp[sc.id].targetLat = sc.target_lat || sc.lat;
+        scoutInterp[sc.id].targetLng = sc.target_lng || sc.lng;
+        scoutInterp[sc.id].serverLat = sc.lat;
+        scoutInterp[sc.id].serverLng = sc.lng;
+        scoutInterp[sc.id].speedKmh = sc.speed || 20;
       }
     } else {
       addScoutMarker(sc);
     }
   }
 }
+
+// Smooth scout animation (like couriers)
+function _animateScouts(now) {
+  if (!_scoutAnimLast) _scoutAnimLast = now;
+  const dtSec = Math.min((now - _scoutAnimLast) / 1000, 0.5);
+  _scoutAnimLast = now;
+  for (const id of Object.keys(scoutInterp)) {
+    const si = scoutInterp[id];
+    const marker = scoutMarkers[id];
+    if (!marker) continue;
+    // speed in deg/s: kmh / 3600 * 1000 / 111320 ≈ kmh * 0.0000025
+    const speedDegPerSec = si.speedKmh * 0.0000025;
+    const dlat = si.targetLat - si.displayLat;
+    const dlng = si.targetLng - si.displayLng;
+    const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+    if (dist > 0.0000005) {
+      const step = Math.min(dist, speedDegPerSec * dtSec);
+      si.displayLat += (dlat / dist) * step;
+      si.displayLng += (dlng / dist) * step;
+      marker.setLatLng([si.displayLat, si.displayLng]);
+    }
+  }
+  requestAnimationFrame(_animateScouts);
+}
+let _scoutAnimLast = 0;
+requestAnimationFrame(_animateScouts);
 
 function showScoutClickPopup(scoutId) {
   const sc = scoutData[scoutId];
@@ -20532,12 +20562,11 @@ async function showBarracksPopup(barracksId, tab) {
         const finishAt = new Date(q.finish_at).getTime();
         const now = Date.now();
         const notStarted = now < startedAt;
-        const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
-        const mins = Math.floor(secsLeft / 60);
-        const secs = secsLeft % 60;
-        const boostCost = Math.max(1, Math.ceil(secsLeft / 60));
+        const ownTrainTime = finishAt - startedAt; // only this unit's training duration
+        const ownTrainMin = Math.max(1, Math.ceil(ownTrainTime / 60000));
 
         if (notStarted) {
+          const boostCost = ownTrainMin; // cost = own training time, not queue wait
           html += `<div class="hq-stat-card" style="margin-bottom:6px">
             <span>🤠 Lv.${q.unit_level} — <span style="color:#888">${_lang === 'ru' ? 'В очереди' : 'Queued'}</span></span>
             <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" class="hq-coll-btn active" style="width:auto;margin:0;padding:4px 10px;font-size:11px">${t('barracks.boost')} ${boostCost} 💎</button>
@@ -20546,6 +20575,10 @@ async function showBarracksPopup(barracksId, tab) {
           const totalTime = finishAt - startedAt;
           const elapsed = now - startedAt;
           const pct = Math.min(100, Math.max(0, Math.round(elapsed / totalTime * 100)));
+          const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
+          const mins = Math.floor(secsLeft / 60);
+          const secs = secsLeft % 60;
+          const boostCost = Math.max(1, Math.ceil(secsLeft / 60));
           html += `<div class="hq-collector-card" style="margin-bottom:6px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
               <span style="font-size:13px;color:#ccc">🤠 Lv.${q.unit_level} — ${mins}:${String(secs).padStart(2, '0')}</span>
