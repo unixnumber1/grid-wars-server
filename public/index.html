@@ -8302,6 +8302,7 @@ function showHqPopup(hq, isOwn) {
     document.getElementById('popup-overlay').classList.add('open');
   } else {
     const owner = displayName(hq.players);
+    const hqAvatar = hq.players?.avatar || '';
     let presenceText;
     const lastSeen = hq.players?.last_seen;
     const isOnline = lastSeen && (Date.now() - new Date(lastSeen).getTime()) < 3 * 60 * 1000;
@@ -8317,7 +8318,7 @@ function showHqPopup(hq, isOwn) {
       else                  presenceText = t('hq.days_ago', {n: Math.floor(mins / 1440)});
     }
     openPopup(
-      t('hq.title', {name: owner}),
+      t('hq.title', {name: hqAvatar + ' ' + owner}),
       presenceText,
       [[t('core.level'), `${hq.level ?? 1}`]],
       [{ label: t('btn.close'), isClose: true }]
@@ -8569,6 +8570,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     }
   } else {
     const owner = displayName(mine.players);
+    const ownerAvatar = mine.players?.avatar || '';
     const inCombatZone = dist !== null && dist <= LARGE_RADIUS;
     const isBurning = mine.status === 'burning';
     const isUnderAttack = mine.status === 'under_attack';
@@ -8595,7 +8597,7 @@ function showMinePopup(mine, isOwn, canCapture) {
 
     openPopup(
       `${emoji} ${name} (${t('misc.level_short', {n: mine.level})})`,
-      `${t('mine.owner', {name: owner})} ${distLabel}${statusLabel}`,
+      `${t('mine.owner', {name: ownerAvatar + ' ' + owner})} ${distLabel}${statusLabel}`,
       [],
       attackActions
     );
@@ -17495,7 +17497,7 @@ function showOrePopup(oreId) {
     ['❤️ HP', isBroken
       ? `<span style="color:#ff4444;font-weight:bold">${t('ore.broken_status')}</span>`
       : `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:60px"><div style="height:100%;width:${hpPct}%;background:${hpColor};border-radius:4px;transition:width .3s"></div></div><span>${ore.hp ?? ore.max_hp}/${ore.max_hp}</span></div>`],
-    [t('ore.owner'), isOwned ? (ore.owner_name || t('ore.owner')) : t('ore.free')],
+    [t('ore.owner'), isOwned ? ((ore.owner_avatar || '') + ' ' + (ore.owner_name || t('ore.owner'))) : t('ore.free')],
     [t('ore.expires'), expStr],
   ];
 
@@ -19589,12 +19591,13 @@ function showFireTruckPopup(ftId) {
   } else {
     // Enemy fire truck
     const ownerName = ft.owner_name || '???';
+    const ftAvatar = ft.owner_avatar || '';
     const eHpPct = ft.max_hp > 0 ? Math.round(ft.hp / ft.max_hp * 100) : 0;
     const eHpBarColor = eHpPct > 60 ? '#4caf50' : eHpPct > 30 ? '#ff9800' : '#f44336';
     const eHpHtml = `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden;min-width:40px"><div style="height:100%;width:${eHpPct}%;background:${eHpBarColor};border-radius:4px;transition:width .3s"></div></div><span>${formatNumber(ft.hp)}/${formatNumber(ft.max_hp)}</span></div>`;
     const eFtBurning = ft.status === 'burning';
     const stats = [
-      ['Владелец', ownerName],
+      ['Владелец', ftAvatar + ' ' + ownerName],
       ['❤️ HP', eHpHtml],
       ['Ур.', ft.level],
     ];
@@ -19610,7 +19613,7 @@ function showFireTruckPopup(ftId) {
         actions.push({ label: `⚔️ Слишком далеко (${Math.round(pDist)}м)`, cls: '', disabled: true });
       }
     }
-    openPopup(`🚒 Пожарная машина`, ownerName, stats, actions);
+    openPopup(`🚒 Пожарная машина`, ftAvatar + ' ' + ownerName, stats, actions);
     // Live burn countdown for enemy fire truck
     if (eFtBurning && ft.burning_started_at) {
       const burnEnd = new Date(ft.burning_started_at).getTime() + 86400000;

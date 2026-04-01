@@ -449,6 +449,7 @@ class GameState {
           ...ft,
           is_mine: ft.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
+          owner_avatar: owner?.avatar || null,
         });
       }
     }
