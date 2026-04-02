@@ -899,6 +899,9 @@ async function periodicCleanup(nowMs, nowISO) {
     try {
       const oreNow = Date.now();
       for (const [id, ore] of gameState.oreNodes) {
+        // One-time cleanup: remove non-DB field that breaks persist
+        if (ore.captured_at) { delete ore.captured_at; gameState.markDirty('oreNodes', id); }
+
         // Expire old ore nodes
         if (new Date(ore.expires_at).getTime() <= oreNow) {
           gameState.oreNodes.delete(id);

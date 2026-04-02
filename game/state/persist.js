@@ -113,6 +113,10 @@ async function batchPersist() {
         delete clean.respawn_at;
         delete clean.is_dead;
       }
+      // Strip non-existent captured_at from ore_nodes
+      if (key === 'oreNodes') {
+        delete clean.captured_at;
+      }
       // Items: ensure integer columns are integers (not floats)
       if (key === 'items') {
         for (const f of ['attack', 'crit_chance', 'defense', 'block_chance']) {
