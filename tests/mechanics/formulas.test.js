@@ -35,9 +35,9 @@ describe('getMineIncome', () => {
     assert(perHour > 400000 && perHour < 600000, `lv100 income=${perHour}`);
   });
 
-  it('lv200 income ~2M/hour', () => {
+  it('lv200 income ~1.25M/hour (half growth after 100)', () => {
     const perHour = getMineIncome(200) * 3600;
-    assert(perHour > 1500000 && perHour < 3000000, `lv200 income=${perHour}`);
+    assert(perHour > 1200000 && perHour < 1300000, `lv200 income=${perHour}`);
   });
 });
 
@@ -91,10 +91,10 @@ describe('getMineCapacity', () => {
     assert.strictEqual(cap, Math.floor(income * 168));
   });
 
-  it('lv100+ = 336h capacity', () => {
-    const income = Math.floor(50 * Math.pow(120, 2.0));
+  it('lv100+ = 336h capacity (half growth)', () => {
+    const incomePerHour = Math.floor(getMineIncome(120) * 3600);
     const cap = getMineCapacity(120);
-    assert.strictEqual(cap, Math.floor(income * 336));
+    assert.strictEqual(cap, Math.floor(incomePerHour * 336));
   });
 });
 

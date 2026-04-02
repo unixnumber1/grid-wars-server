@@ -16,15 +16,19 @@ export function getMineUpgradeCost(level) {
 
 export function getMineIncome(level) {
   if (level <= 0) return 0;
-  // Returns coins per SECOND. Per hour: 50 * level^2
-  // lv1=50/h, lv10=5K/h, lv100=500K/h, lv200=2M/h
-  return 50 * Math.pow(level, 2.0) / 3600;
+  // Returns coins per SECOND.
+  // lv1-100: 50 * level^2 /h  (lv1=50/h, lv100=500K/h)
+  // lv101+:  500K + (50*level^2 - 500K)/2 /h  (half growth after 100)
+  const base = 50 * Math.pow(level, 2.0);
+  if (level <= 100) return base / 3600;
+  const base100 = 50 * 100 * 100; // 500,000
+  return (base100 + (base - base100) / 2) / 3600;
 }
 
 export function getMineCapacity(level) {
   if (level <= 0) return 0;
-  // Use per-hour income for capacity calculation
-  const incomePerHour = Math.floor(50 * Math.pow(level, 2.0));
+  // Capacity based on actual income (with half-growth after 100)
+  const incomePerHour = Math.floor(getMineIncome(level) * 3600);
   const hours = level < 100 ? 168 : 336;
   return Math.floor(incomePerHour * hours);
 }

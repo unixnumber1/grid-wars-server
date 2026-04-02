@@ -6297,12 +6297,14 @@ function getMineUpgradeCost(level) {
 }
 function getMineIncome(level) {
   if (level <= 0) return 0;
-  // Returns coins/sec. Per hour: 50 * level^2
-  return 50 * Math.pow(level, 2.0) / 3600;
+  const base = 50 * Math.pow(level, 2.0);
+  if (level <= 100) return base / 3600;
+  const base100 = 50 * 100 * 100;
+  return (base100 + (base - base100) / 2) / 3600;
 }
 function getMineCapacity(level) {
   if (level <= 0) return 0;
-  const incomePerHour = Math.floor(50 * Math.pow(level, 2.0));
+  const incomePerHour = Math.floor(getMineIncome(level) * 3600);
   const hours = level < 100 ? 168 : 336;
   return Math.floor(incomePerHour * hours);
 }
