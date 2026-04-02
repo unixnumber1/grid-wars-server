@@ -334,20 +334,26 @@ async function handlePvpAttack(req, res) {
     // Skill weapon damage bonus
     if (_atkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _atkFx.weapon_damage_bonus));
 
-    // Sniper ability — first hit on new target = forced crit (any weapon)
+    // Sniper ability — first hit on new target
     const _sniperForced = _atkFx.sniper_ability && weapon && getSniperFirstHit(Number(telegram_id), defender.id);
 
-    // 3. Crit check (swords have innate crit chance, axes only via sniper)
-    {
-      const critChance = (weapon?.crit_chance || 0) + (_atkFx.crit_chance_bonus || 0) * 100;
+    // 3. Sword crit (innate crit chance + skill bonus, sniper forces crit)
+    if (weapon?.type === 'sword') {
+      const critChance = (weapon.crit_chance || 0) + (_atkFx.crit_chance_bonus || 0) * 100;
       if (_sniperForced || Math.random() * 100 < critChance) {
-        const wLvl = weapon?.upgrade_level || 0;
+        const wLvl = weapon.upgrade_level || 0;
         let critMul = 1.5;
-        if (weapon?.rarity === 'mythic') critMul = 1.5 + (wLvl / 90) * 0.7;
-        else if (weapon?.rarity === 'legendary') critMul = 1.5 + (wLvl / 100) * 1.5;
+        if (weapon.rarity === 'mythic') critMul = 1.5 + (wLvl / 90) * 0.7;
+        else if (weapon.rarity === 'legendary') critMul = 1.5 + (wLvl / 100) * 1.5;
         damage = Math.floor(damage * critMul);
         isCrit = true;
       }
+    }
+
+    // 3b. Axe sniper — first hit = x2 damage (axes don't have crit)
+    if (weapon?.type === 'axe' && _sniperForced) {
+      damage = Math.floor(damage * 2);
+      isCrit = true;
     }
 
     // 4. Axe execution (target < 50% HP — computed from upgrade_level + rarity)
