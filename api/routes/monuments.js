@@ -309,14 +309,12 @@ async function handleAttackMonument(req, res) {
     }
   }
 
-  if (weapon?.type === 'axe') {
-    const wLvl = weapon.upgrade_level || 0;
-    let execChance = 0;
-    if (weapon.rarity === 'mythic') execChance = 7 + (wLvl / 90) * 10;
-    else if (weapon.rarity === 'legendary') execChance = 13 + (wLvl / 100) * 7;
-    if (execChance > 0 && monument.hp < monument.max_hp * 0.1 && Math.random() * 100 < execChance) {
-      damage = monument.hp;
-      isExecution = true;
+  // Axe crit from skill tree only (no execution on monuments)
+  if (weapon?.type === 'axe' && !isCrit) {
+    const axeCritChance = (_mSkFx2.crit_chance_bonus || 0) * 100;
+    if (axeCritChance > 0 && Math.random() * 100 < axeCritChance) {
+      damage = Math.floor(damage * 2);
+      isCrit = true;
     }
   }
 
