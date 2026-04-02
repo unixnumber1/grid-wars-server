@@ -8971,7 +8971,7 @@ function switchInvTab(tab) {
     if (craftBtn) craftBtn.style.display = (tab === 'equip') ? '' : 'none';
     if (sellBtn) {
       sellBtn.style.display = isInvTab ? '' : 'none';
-      sellBtn.onclick = tab === 'equip' ? enterSelectionMode : tab === 'cores' ? toggleCoreSellMode : tab === 'other' ? () => { _otherSellMode = true; _selectedScoutIds.clear(); renderOtherTab(); } : null;
+      sellBtn.onclick = tab === 'equip' ? enterSelectionMode : tab === 'cores' ? toggleCoreSellMode : tab === 'other' ? toggleScoutSellMode : null;
     }
   }
 
@@ -8998,6 +8998,7 @@ function switchInvTab(tab) {
   } else if (tab === 'other') {
     document.getElementById('inv-tab-other')?.classList.add('active');
     document.getElementById('inv-panel-other').style.display = '';
+    _cachedScoutBag = null; // refresh on tab switch
     renderOtherTab();
   }
 }
@@ -20502,18 +20503,28 @@ function attackScout(sc) {
 
 let _otherSellMode = false;
 const _selectedScoutIds = new Set();
+let _cachedScoutBag = null;
 
+// Initial async load — fetches data then renders synchronously
 async function renderOtherTab() {
   const el = document.getElementById('other-content');
   if (!el) return;
+  if (!_cachedScoutBag) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:#888">${_lang === 'ru' ? 'Загрузка...' : 'Loading...'}</div>`;
+    const status = await fetchBarracksStatus();
+    _cachedScoutBag = status?.bag || [];
+  }
+  _renderScoutGrid();
+}
 
-  // Save scroll position before re-render
-  const scrollParent = el.closest('#profile-modal-body') || el.parentElement;
+// Synchronous re-render from cache (like cores)
+function _renderScoutGrid() {
+  const el = document.getElementById('other-content');
+  if (!el) return;
+  const scrollParent = el.closest('#profile-modal-body');
   const savedScroll = scrollParent ? scrollParent.scrollTop : 0;
 
-  el.innerHTML = `<div style="text-align:center;padding:20px;color:#888">${_lang === 'ru' ? 'Загрузка...' : 'Loading...'}</div>`;
-  const status = await fetchBarracksStatus();
-  const bag = status?.bag || [];
+  const bag = (_cachedScoutBag || []).slice();
 
   if (bag.length === 0) {
     _otherSellMode = false;
@@ -20521,8 +20532,7 @@ async function renderOtherTab() {
     return;
   }
 
-  // Sort by level descending
-  bag.sort((a, b) => b.unit_level - a.unit_level || a.id.localeCompare(b.id));
+  bag.sort((a, b) => a.unit_level - b.unit_level || a.id.localeCompare(b.id));
 
   let html = '';
   if (_otherSellMode) {
@@ -20536,20 +20546,23 @@ async function renderOtherTab() {
       <div style="font-size:13px;color:#aaa">${_lang === 'ru' ? 'Выбрано' : 'Selected'}: <strong style="color:#FFD700">${_selectedScoutIds.size}</strong> | ✨ <strong style="color:#FFD700">${totalPrice}</strong></div>
       <div style="display:flex;gap:6px">
         <button onclick="massSellScouts()" ${_selectedScoutIds.size === 0 ? 'disabled' : ''} style="background:${_selectedScoutIds.size > 0 ? '#f44336' : '#333'};color:${_selectedScoutIds.size > 0 ? '#fff' : '#666'};border:none;border-radius:8px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">${_lang === 'ru' ? 'Продать' : 'Sell'}</button>
-        <button onclick="_otherSellMode=false;_selectedScoutIds.clear();renderOtherTab()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;color:#888;cursor:pointer">${_lang === 'ru' ? 'Отмена' : 'Cancel'}</button>
+        <button onclick="_otherSellMode=false;_selectedScoutIds.clear();_renderScoutGrid()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;color:#888;cursor:pointer">${_lang === 'ru' ? 'Отмена' : 'Cancel'}</button>
       </div>
     </div>`;
   } else {
     html += `<div class="profile-section-title" style="margin-top:0;margin-bottom:8px;">${_lang === 'ru' ? 'Скауты' : 'Scouts'} (${bag.length})</div>`;
   }
 
-  // Grid — all scouts in one block
   html += '<div class="cores-grid">';
+  let lastLevel = null;
   for (const u of bag) {
-    const isSelected = _otherSellMode && _selectedScoutIds.has(u.id);
-    const sel = isSelected ? ' selected' : '';
+    if (u.unit_level !== lastLevel) {
+      html += `<div class="core-group-header">🤠 ${_lang === 'ru' ? 'Уровень' : 'Level'} ${u.unit_level}</div>`;
+      lastLevel = u.unit_level;
+    }
+    const sel = _selectedScoutIds.has(u.id) ? ' selected' : '';
     const onclick = _otherSellMode
-      ? `_selectedScoutIds.has('${u.id}') ? _selectedScoutIds.delete('${u.id}') : _selectedScoutIds.add('${u.id}');renderOtherTab()`
+      ? `handleScoutCardClick('${u.id}')`
       : `showScoutDetailPopup('${u.id}')`;
     html += `<div class="core-card${sel}" onclick="${onclick}">
       <div class="core-emoji">🤠</div>
@@ -20559,9 +20572,19 @@ async function renderOtherTab() {
   html += '</div>';
 
   el.innerHTML = html;
-
-  // Restore scroll position
   if (scrollParent) requestAnimationFrame(() => { scrollParent.scrollTop = savedScroll; });
+}
+
+function handleScoutCardClick(scoutId) {
+  if (_selectedScoutIds.has(scoutId)) _selectedScoutIds.delete(scoutId);
+  else _selectedScoutIds.add(scoutId);
+  _renderScoutGrid();
+}
+
+function toggleScoutSellMode() {
+  _otherSellMode = !_otherSellMode;
+  _selectedScoutIds.clear();
+  _renderScoutGrid();
 }
 
 function showScoutDetailPopup(scoutId) {
@@ -20623,6 +20646,7 @@ async function massSellScouts() {
       _selectedScoutIds.clear();
       _otherSellMode = false;
       _playerBarracksStatus = null;
+      _cachedScoutBag = null;
       renderOtherTab();
     }
   } catch (err) { showToast(`❌ ${err.message}`); }
