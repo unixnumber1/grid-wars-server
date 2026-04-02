@@ -10116,11 +10116,10 @@ function confirmSellHq() {
     t('hq.demolish_q'),
     t('hq.demolish_warn'),
     [],
-    [{
-      label: t('hq.demolish_yes'),
-      cls: 'danger',
-      action: () => doSellHq(),
-    }]
+    [[
+      { label: t('hq.demolish_yes'), cls: 'danger', action: () => doSellHq() },
+      { label: t('btn.close'), isClose: true },
+    ]]
   );
 }
 
@@ -19430,7 +19429,7 @@ function showCollectorPopup(collectorId) {
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>` : ''}
         ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
-        ${!isBurning ? `<button class="hq-btn red" onclick="closePopup();doCollectorSell('${collectorId}')">${t('coll.sell')}</button>` : ''}
+        ${!isBurning ? `<button class="hq-btn red" onclick="confirmSellCollector('${collectorId}')">${t('coll.sell')}</button>` : ''}
       </div>
     `;
 
@@ -19548,6 +19547,19 @@ async function doCollectorUpgrade(collectorId) {
     if (c) { c.level = data.level; c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(collectorId); }
     if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
   } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+function confirmSellCollector(collectorId) {
+  closePopup();
+  openPopup(
+    _lang === 'ru' ? '💸 Продать сборщик?' : '💸 Sell collector?',
+    _lang === 'ru' ? 'Вернётся часть алмазов' : 'Diamond refund',
+    [],
+    [
+      { label: _lang === 'ru' ? '💸 Да, продать' : '💸 Yes, sell', cls: 'danger', action: () => doCollectorSell(collectorId) },
+      { label: t('btn.cancel'), isClose: true },
+    ]
+  );
 }
 
 async function doCollectorSell(collectorId) {
@@ -19749,7 +19761,8 @@ function showFireTruckPopup(ftId) {
       }
     }
 
-    actions.push({ label: `💰 Продать (${Math.floor(getTotalFTGems(ft.level) * 0.5)} 💎)`, cls: 'danger', action: () => doFireTruckSell(ft.id) });
+    const _ftRefund = Math.floor(getTotalFTGems(ft.level) * 0.5);
+    actions.push({ label: `💰 Продать (${_ftRefund} 💎)`, cls: 'danger', action: () => confirmSellFireTruck(ft.id, _ftRefund) });
 
     openPopup(`🚒 Пожарная машина`, `Ур. ${ft.level}`, stats, actions);
     // Live burn countdown for own fire truck
@@ -19910,6 +19923,19 @@ async function doFireTruckUpgrade(ftId) {
       showFireTruckPopup(ftId);
     }
   } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+function confirmSellFireTruck(ftId, refund) {
+  closePopup();
+  openPopup(
+    _lang === 'ru' ? '💰 Продать машину?' : '💰 Sell fire truck?',
+    (_lang === 'ru' ? 'Вернётся ' : 'Refund: ') + refund + ' 💎',
+    [],
+    [
+      { label: _lang === 'ru' ? '💰 Да, продать' : '💰 Yes, sell', cls: 'danger', action: () => doFireTruckSell(ftId) },
+      { label: t('btn.cancel'), isClose: true },
+    ]
+  );
 }
 
 async function doFireTruckSell(ftId) {
@@ -20495,8 +20521,8 @@ async function renderOtherTab() {
     return;
   }
 
-  // Sort by level ascending (grouped)
-  bag.sort((a, b) => a.unit_level - b.unit_level || a.id.localeCompare(b.id));
+  // Sort by level descending
+  bag.sort((a, b) => b.unit_level - a.unit_level || a.id.localeCompare(b.id));
 
   let html = '';
   if (_otherSellMode) {
@@ -20517,14 +20543,9 @@ async function renderOtherTab() {
     html += `<div class="profile-section-title" style="margin-top:0;margin-bottom:8px;">${_lang === 'ru' ? 'Скауты' : 'Scouts'} (${bag.length})</div>`;
   }
 
-  // Grid — grouped by level like cores
+  // Grid — all scouts in one block
   html += '<div class="cores-grid">';
-  let lastLevel = null;
   for (const u of bag) {
-    if (u.unit_level !== lastLevel) {
-      html += `<div class="core-group-header">🤠 ${_lang === 'ru' ? 'Уровень' : 'Level'} ${u.unit_level}</div>`;
-      lastLevel = u.unit_level;
-    }
     const isSelected = _otherSellMode && _selectedScoutIds.has(u.id);
     const sel = isSelected ? ' selected' : '';
     const onclick = _otherSellMode
@@ -20786,7 +20807,10 @@ async function showBarracksPopup(barracksId, tab) {
     const hasUpgD = (state.player?.diamonds || 0) >= barracks.upgrade_cost;
     html += `<button class="hq-btn blue" ${hasUpgD ? '' : 'disabled'} onclick="doUpgradeBarracks('${barracksId}')">${t('barracks.upgrade')} Lv.${barracks.level + 1} — ${barracks.upgrade_cost} 💎</button>`;
   }
-  html += `<button class="hq-coll-btn" style="background:#f44336;color:#fff" onclick="doSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
+  html += `<div style="display:flex;gap:8px">`;
+  html += `<button class="hq-btn red" style="flex:1" onclick="confirmSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
+  html += `<button class="hq-btn" style="flex:1;background:#333;color:#ccc" onclick="closePopup()">${t('btn.close')}</button>`;
+  html += `</div>`;
   html += `</div>`;
 
   card.innerHTML = html;
@@ -20896,12 +20920,22 @@ async function doUpgradeBarracks(barracksId) {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
+function confirmSellBarracks(barracksId) {
+  closePopup();
+  openPopup(
+    _lang === 'ru' ? '🗑️ Снести казарму?' : '🗑️ Demolish barracks?',
+    _lang === 'ru' ? 'Вернётся ~50% алмазов' : 'Refund: ~50% diamonds',
+    [],
+    [
+      { label: _lang === 'ru' ? '🗑️ Да, снести' : '🗑️ Yes, demolish', cls: 'danger', action: () => doSellBarracks(barracksId) },
+      { label: t('btn.cancel'), isClose: true },
+    ]
+  );
+}
+
 async function doSellBarracks(barracksId) {
-  // Fetch refund amount
   const bk = barracksData[barracksId];
   if (!bk) return;
-  const refundPct = 50;
-  if (!confirm(t('barracks.sell_confirm', {refund: '~' + refundPct + '%'}))) return;
   try {
     const data = await apiFetch('/api/barracks', {
       method: 'POST',
