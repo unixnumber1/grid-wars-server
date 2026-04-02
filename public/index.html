@@ -4331,7 +4331,7 @@ const I18N = {
     'mine.stored': 'Накоплено',
     'mine.cores_n': '🔮 Ядра {n}/10',
     'mine.extinguish': '🧯 Потушить (восстановит 25% HP)',
-    'mine.demolish': '🗑️ Снести',
+    'mine.demolish': '🗑️ Продать',
     'mine.burning_warn': '🔥 Шахта горит! Потушите в течение 24ч',
     'mine.burn_timer': '🔥 Сгорит через',
     'mine.under_attack_warn': '⚔️ Шахту атакуют!',
@@ -4352,7 +4352,7 @@ const I18N = {
     'hq.coins': '💰 Монеты',
     'hq.mines': '⛏️ Шахт',
     'hq.upgrade': '⬆️ Улучшить штаб — {cost}',
-    'hq.demolish': '🗑️ Снести',
+    'hq.demolish': '🗑️ Продать',
     'hq.demolish_q': '⚠️ Снести штаб?',
     'hq.demolish_warn': 'Все монеты в штабе сгорят!',
     'hq.demolish_yes': '🗑️ Да, снести',
@@ -4443,7 +4443,7 @@ const I18N = {
     'coll.timer': '⏱️ Сбор',
     'coll.timer_min': 'через {n} мин',
     'coll.upgrade': '⬆️ Улучшить — {cost}💎',
-    'coll.sell': '💸 Продать — 37💎',
+    'coll.sell': '🗑️ Продать',
     'coll.deliver_btn': 'Доставить монеты',
     'coll.deliver_hint': 'Заказать доставку можно через штаб',
     'coll.enemy_title': '🧲 Чужой сборщик · Ур.{level}',
@@ -4766,7 +4766,7 @@ const I18N = {
     'clan.find': '🔍 Найти клан',
     'clan.view': '🔍 Посмотреть клан',
     'clan.enter_hq': '⚔️ Войти в штаб',
-    'clan.demolish': '🗑️ Снести',
+    'clan.demolish': '🗑️ Продать',
     'clan.hq_inactive_full': 'Неактивный штаб',
     'clan.edit_title': '✏️ Редактировать клан',
     'misc.back': '← Назад',
@@ -5566,7 +5566,7 @@ const I18N = {
     'mine.stored': 'Stored',
     'mine.cores_n': '🔮 Cores {n}/10',
     'mine.extinguish': '🧯 Extinguish (restores 25% HP)',
-    'mine.demolish': '🗑️ Demolish',
+    'mine.demolish': '🗑️ Sell',
     'mine.burning_warn': '🔥 Mine is burning! Extinguish within 24h',
     'mine.burn_timer': '🔥 Burns in',
     'mine.under_attack_warn': '⚔️ Mine under attack!',
@@ -5587,7 +5587,7 @@ const I18N = {
     'hq.coins': '💰 Coins',
     'hq.mines': '⛏️ Mines',
     'hq.upgrade': '⬆️ Upgrade HQ — {cost}',
-    'hq.demolish': '🗑️ Demolish',
+    'hq.demolish': '🗑️ Sell',
     'hq.demolish_q': '⚠️ Demolish HQ?',
     'hq.demolish_warn': 'All coins in HQ will be lost!',
     'hq.demolish_yes': '🗑️ Yes, demolish',
@@ -5678,7 +5678,7 @@ const I18N = {
     'coll.timer': '⏱️ Collect',
     'coll.timer_min': 'in {n} min',
     'coll.upgrade': '⬆️ Upgrade — {cost}💎',
-    'coll.sell': '💸 Sell — 37💎',
+    'coll.sell': '🗑️ Sell',
     'coll.deliver_btn': 'Deliver coins',
     'coll.deliver_hint': 'Order delivery through HQ',
     'coll.enemy_title': '🧲 Enemy collector · Lv.{level}',
@@ -6001,7 +6001,7 @@ const I18N = {
     'clan.find': '🔍 Find clan',
     'clan.view': '🔍 View clan',
     'clan.enter_hq': '⚔️ Enter HQ',
-    'clan.demolish': '🗑️ Demolish',
+    'clan.demolish': '🗑️ Sell',
     'clan.hq_inactive_full': 'Inactive HQ',
     'clan.edit_title': '✏️ Edit clan',
     'misc.back': '← Back',
@@ -7311,7 +7311,7 @@ function _refreshProfileStats() {
 function calcSellRefund(level) {
   let sum = 0;
   for (let i = 0; i < level; i++) sum += mineUpgradeCost(i);
-  return Math.floor(sum * 0.3);
+  return Math.floor(sum * 0.25);
 }
 
 function updateXpBar() {
@@ -8615,7 +8615,7 @@ function showMinePopup(mine, isOwn, canCapture) {
           action: () => doExtinguish(mine.id),
         },
         [
-          { label: t('mine.demolish'), cls: 'danger', action: () => doSellMine(mine.id), disabled: getCoresForMine(mine.cell_id).length > 0 },
+          { label: t('mine.demolish'), cls: 'danger', action: () => confirmSellMine(mine.id, mine.level), disabled: getCoresForMine(mine.cell_id).length > 0 },
           { label: t('misc.close'), isClose: true },
         ],
       ] : [
@@ -8632,7 +8632,7 @@ function showMinePopup(mine, isOwn, canCapture) {
           action: () => doUpgrade(mine.id, targetBulkLevel),
         }] : []),
         [
-          { label: t('mine.demolish'), cls: 'danger', action: () => doSellMine(mine.id), disabled: getCoresForMine(mine.cell_id).length > 0 },
+          { label: t('mine.demolish'), cls: 'danger', action: () => confirmSellMine(mine.id, mine.level), disabled: getCoresForMine(mine.cell_id).length > 0 },
           { label: t('misc.close'), isClose: true },
         ],
       ]
@@ -8892,6 +8892,20 @@ async function pollCompleteUpgrades() {
     updateCoinDisplay();
     loadVisibleBuildings(true);
   } catch (e) { /* silently ignore */ }
+}
+
+function confirmSellMine(mineId, level) {
+  const refund = calcSellRefund(level);
+  closePopup();
+  openPopup(
+    '🗑️',
+    (_lang === 'ru' ? 'Вернётся: ' : 'Refund: ') + formatCoins(refund) + ' 💰',
+    [],
+    [[
+      { label: _lang === 'ru' ? 'Да, продать' : 'Yes, sell', cls: 'danger', action: () => doSellMine(mineId) },
+      { label: t('btn.cancel'), isClose: true },
+    ]]
+  );
 }
 
 async function doSellMine(mineId) {
@@ -10113,13 +10127,17 @@ async function doBuildHq(lat, lng) {
 }
 
 function confirmSellHq() {
+  const hqLvl = state.hq?.level || 1;
+  let totalCost = 0;
+  for (let i = 1; i < hqLvl; i++) totalCost += (hqUpgradeCost(i) || 0);
+  const refund = Math.floor(totalCost * 0.25);
   openPopup(
-    t('hq.demolish_q'),
-    t('hq.demolish_warn'),
+    '🗑️',
+    (_lang === 'ru' ? 'Вернётся: ' : 'Refund: ') + formatCoins(refund) + ' 💰',
     [],
     [[
-      { label: t('hq.demolish_yes'), cls: 'danger', action: () => doSellHq() },
-      { label: t('btn.close'), isClose: true },
+      { label: _lang === 'ru' ? 'Да, продать' : 'Yes, sell', cls: 'danger', action: () => doSellHq() },
+      { label: t('btn.cancel'), isClose: true },
     ]]
   );
 }
@@ -18552,8 +18570,9 @@ async function _executeDonate(amount, prevDiamonds) {
 
 async function doSellClanHq() {
   closePopup();
-  openPopup(t('clan.sell_hq_q'), t('clan.sell_hq_refund', {n: formatCoins(CLAN_HQ_COST / 2)}), [], [
-    { label: t('inv.sell_btn'), cls: 'danger', action: async () => {
+  const clanHqRefund = Math.floor(CLAN_HQ_COST * 0.25);
+  openPopup('🗑️', (_lang === 'ru' ? 'Вернётся: ' : 'Refund: ') + formatCoins(clanHqRefund) + ' 💰', [], [[
+    { label: _lang === 'ru' ? 'Да, продать' : 'Yes, sell', cls: 'danger', action: async () => {
       closePopup();
       try {
         const data = await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'sell-hq' }) });
@@ -18570,7 +18589,7 @@ async function doSellClanHq() {
       } catch (err) { showToast(err.message); }
     }},
     { label: t('btn.cancel'), isClose: true },
-  ]);
+  ]]);
 }
 
 async function doClanUpgrade() {
@@ -19554,15 +19573,20 @@ async function doCollectorUpgrade(collectorId) {
 }
 
 function confirmSellCollector(collectorId) {
+  const c = collectorData[collectorId];
+  const collUpgCosts = [0,20,35,55,80,100,120,140,175,225];
+  let totalInvested = 50;
+  if (c) for (let i = 1; i < c.level; i++) totalInvested += (collUpgCosts[i] || 0);
+  const refund = Math.floor(totalInvested * 0.25);
   closePopup();
   openPopup(
-    _lang === 'ru' ? '💸 Продать сборщик?' : '💸 Sell collector?',
-    _lang === 'ru' ? 'Вернётся часть алмазов' : 'Diamond refund',
+    '🗑️',
+    (_lang === 'ru' ? 'Вернётся: ' : 'Refund: ') + refund + ' 💎',
     [],
-    [
-      { label: _lang === 'ru' ? '💸 Да, продать' : '💸 Yes, sell', cls: 'danger', action: () => doCollectorSell(collectorId) },
+    [[
+      { label: _lang === 'ru' ? 'Да, продать' : 'Yes, sell', cls: 'danger', action: () => doCollectorSell(collectorId) },
       { label: t('btn.cancel'), isClose: true },
-    ]
+    ]]
   );
 }
 
@@ -19765,9 +19789,9 @@ function showFireTruckPopup(ftId) {
       }
     }
 
-    const _ftRefund = Math.floor(getTotalFTGems(ft.level) * 0.5);
+    const _ftRefund = Math.floor(getTotalFTGems(ft.level) * 0.25);
     actions.push([
-      { label: `💰 Продать (${_ftRefund} 💎)`, cls: 'danger', action: () => confirmSellFireTruck(ft.id, _ftRefund) },
+      { label: _lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell', cls: 'danger', action: () => confirmSellFireTruck(ft.id, _ftRefund) },
       { label: t('btn.close'), isClose: true },
     ]);
 
@@ -19935,13 +19959,13 @@ async function doFireTruckUpgrade(ftId) {
 function confirmSellFireTruck(ftId, refund) {
   closePopup();
   openPopup(
-    _lang === 'ru' ? '💰 Продать машину?' : '💰 Sell fire truck?',
-    (_lang === 'ru' ? 'Вернётся ' : 'Refund: ') + refund + ' 💎',
+    '🗑️',
+    (_lang === 'ru' ? 'Вернётся: ' : 'Refund: ') + refund + ' 💎',
     [],
-    [
-      { label: _lang === 'ru' ? '💰 Да, продать' : '💰 Yes, sell', cls: 'danger', action: () => doFireTruckSell(ftId) },
+    [[
+      { label: _lang === 'ru' ? 'Да, продать' : 'Yes, sell', cls: 'danger', action: () => doFireTruckSell(ftId) },
       { label: t('btn.cancel'), isClose: true },
-    ]
+    ]]
   );
 }
 
@@ -20964,15 +20988,21 @@ async function doUpgradeBarracks(barracksId) {
 }
 
 function confirmSellBarracks(barracksId) {
+  const bk = barracksData[barracksId];
+  const bkLvl = bk?.level || 1;
+  const bkUpgCosts = {1:0,2:150,3:200,4:250,5:300,6:350,7:400,8:450,9:500,10:500};
+  let totalInvested = 100;
+  for (let i = 2; i <= bkLvl; i++) totalInvested += (bkUpgCosts[i] || 0);
+  const refund = Math.floor(totalInvested * 0.25);
   closePopup();
   openPopup(
-    _lang === 'ru' ? '🗑️ Снести казарму?' : '🗑️ Demolish barracks?',
-    _lang === 'ru' ? 'Вернётся ~50% алмазов' : 'Refund: ~50% diamonds',
+    '🗑️',
+    (_lang === 'ru' ? 'Вернётся: ' : 'Refund: ') + refund + ' 💎',
     [],
-    [
-      { label: _lang === 'ru' ? '🗑️ Да, снести' : '🗑️ Yes, demolish', cls: 'danger', action: () => doSellBarracks(barracksId) },
+    [[
+      { label: _lang === 'ru' ? 'Да, продать' : 'Yes, sell', cls: 'danger', action: () => doSellBarracks(barracksId) },
       { label: t('btn.cancel'), isClose: true },
-    ]
+    ]]
   );
 }
 

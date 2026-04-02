@@ -255,9 +255,12 @@ async function handleSell(req, res) {
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
 
-  // Refund diamonds — read fresh from DB
+  // Refund diamonds — 25% of total invested
+  let totalInvested = COLLECTOR_COST_DIAMONDS;
+  for (let i = 1; i < collector.level; i++) totalInvested += (COLLECTOR_UPGRADE_PRICES[i] || 0);
+  const refund = Math.floor(totalInvested * 0.25);
   const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
-  const newDiamonds = (freshP?.diamonds ?? player.diamonds ?? 0) + COLLECTOR_SELL_DIAMONDS;
+  const newDiamonds = (freshP?.diamonds ?? player.diamonds ?? 0) + refund;
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
 

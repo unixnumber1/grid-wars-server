@@ -122,5 +122,5 @@ export function getBarracksSellRefund(level) {
   for (let i = 2; i <= level; i++) {
     total += (BARRACKS_LEVELS[i]?.upgradeCost || 0);
   }
-  return Math.floor(total * 0.5);
+  return Math.floor(total * 0.25);
 }

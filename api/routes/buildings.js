@@ -139,6 +139,23 @@ async function handleHqSell(player, res) {
   const { data: hqs, error: hqError } = await supabase.from('headquarters').select('id').eq('player_id', player.id);
   if (hqError) return res.status(500).json({ error: hqError.message });
   if (!hqs || hqs.length === 0) return res.status(404).json({ error: 'Headquarters not found' });
+
+  // Calculate 25% refund of total upgrade costs
+  let hqLevel = 1;
+  if (gameState.loaded) {
+    const hqObj = gameState.headquarters.get(hqs[0].id);
+    if (hqObj) hqLevel = hqObj.level || 1;
+  }
+  let totalCost = 0;
+  for (let i = 1; i < hqLevel; i++) totalCost += (hqUpgradeCost(i) || 0);
+  const refund = Math.floor(totalCost * 0.25);
+
+  if (refund > 0) {
+    player.coins = (player.coins ?? 0) + refund;
+    await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
+    gameState.markDirty('players', player.id);
+  }
+
   const { error: delError } = await supabase.from('headquarters').delete().eq('player_id', player.id);
   if (delError) return res.status(500).json({ error: delError.message });
   // Update gameState
@@ -151,7 +168,7 @@ async function handleHqSell(player, res) {
       }
     }
   }
-  return res.status(200).json({ success: true });
+  return res.status(200).json({ success: true, refund, player_coins: player.coins });
 }
 
 // ─── Mine handlers ───────────────────────────────────────────────────
@@ -439,7 +456,7 @@ async function handleAttackExtinguish(req, res) {
 function calcSellRefund(level) {
   let sum = 0;
   for (let i = 0; i < level; i++) sum += getMineUpgradeCost(i);
-  return Math.floor(sum * 0.3);
+  return Math.floor(sum * 0.25);
 }
 
 async function handleAttackSellMine(req, res) {

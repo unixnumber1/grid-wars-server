@@ -644,7 +644,7 @@ async function handleSellHq(req, res) {
   const { data: hq } = await supabase.from('clan_headquarters').select('id').eq('player_id', player.id).maybeSingle();
   if (!hq) return res.status(404).json({ error: ts(getLang(gameState, telegram_id), 'err.clan_hq_not_found') });
 
-  const refund = Math.round(CLAN_HQ_COST / 2);
+  const refund = Math.floor(CLAN_HQ_COST * 0.25);
   const currentCoins = player.coins ?? 0;
   const newCoins = currentCoins + refund;
 
