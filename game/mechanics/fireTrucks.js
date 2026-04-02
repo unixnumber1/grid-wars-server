@@ -49,7 +49,7 @@ export function getTotalGemsCost(level) {
  * Sell refund = 50% of total gems spent.
  */
 export function getSellRefundDiamonds(level) {
-  return Math.floor(getTotalGemsCost(level) * 0.25);
+  return Math.floor(getTotalGemsCost(level) * 0.5);
 }
 
 /**

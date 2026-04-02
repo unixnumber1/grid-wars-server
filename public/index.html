@@ -19577,7 +19577,7 @@ function confirmSellCollector(collectorId) {
   const collUpgCosts = [0,20,35,55,80,100,120,140,175,225];
   let totalInvested = 50;
   if (c) for (let i = 1; i < c.level; i++) totalInvested += (collUpgCosts[i] || 0);
-  const refund = Math.floor(totalInvested * 0.25);
+  const refund = Math.floor(totalInvested * 0.5);
   closePopup();
   openPopup(
     '🗑️',
@@ -19789,7 +19789,7 @@ function showFireTruckPopup(ftId) {
       }
     }
 
-    const _ftRefund = Math.floor(getTotalFTGems(ft.level) * 0.25);
+    const _ftRefund = Math.floor(getTotalFTGems(ft.level) * 0.5);
     actions.push([
       { label: _lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell', cls: 'danger', action: () => confirmSellFireTruck(ft.id, _ftRefund) },
       { label: t('btn.close'), isClose: true },
@@ -20993,7 +20993,7 @@ function confirmSellBarracks(barracksId) {
   const bkUpgCosts = {1:0,2:150,3:200,4:250,5:300,6:350,7:400,8:450,9:500,10:500};
   let totalInvested = 100;
   for (let i = 2; i <= bkLvl; i++) totalInvested += (bkUpgCosts[i] || 0);
-  const refund = Math.floor(totalInvested * 0.25);
+  const refund = Math.floor(totalInvested * 0.5);
   closePopup();
   openPopup(
     '🗑️',

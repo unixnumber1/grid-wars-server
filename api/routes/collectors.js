@@ -258,7 +258,7 @@ async function handleSell(req, res) {
   // Refund diamonds — 25% of total invested
   let totalInvested = COLLECTOR_COST_DIAMONDS;
   for (let i = 1; i < collector.level; i++) totalInvested += (COLLECTOR_UPGRADE_PRICES[i] || 0);
-  const refund = Math.floor(totalInvested * 0.25);
+  const refund = Math.floor(totalInvested * 0.5);
   const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
   const newDiamonds = (freshP?.diamonds ?? player.diamonds ?? 0) + refund;
   player.diamonds = newDiamonds;
