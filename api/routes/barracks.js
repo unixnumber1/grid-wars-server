@@ -16,7 +16,7 @@ import {
 } from '../../config/constants.js';
 import {
   getPlayerBarracks, getBarracksLevel, getTrainTimeMs, getQueueSlots,
-  getMaxUnitLevel, getScoutTrainCost, getScoutUpgradeCost, getScoutSpeedKmh,
+  getScoutTrainCost, getScoutUpgradeCost, getScoutSpeedKmh,
   getScoutCaptureMs, getScoutHp, canScoutCaptureOre, getPlayerScoutLevel,
   getPlayerScoutCount, getTrainingQueue, getActiveQueueCount,
   getPlayerBag, getPlayerActiveScouts, getBarracksSellRefund,
@@ -208,7 +208,7 @@ async function handleTrain(req, res) {
 
   // Calculate finish time — queue items finish sequentially
   const queue = getTrainingQueue(barracks.id);
-  const trainTimeMs = getTrainTimeMs(barracks.level);
+  const trainTimeMs = getTrainTimeMs(scoutLevel);
   const lastFinish = queue.length > 0 ? new Date(queue[queue.length - 1].finish_at).getTime() : Date.now();
   const startAt = Math.max(Date.now(), lastFinish);
   const finishAt = startAt + trainTimeMs;
@@ -337,10 +337,6 @@ async function handleUpgradeUnit(req, res) {
 
   const nextLevel = upgrade.level + 1;
   if (nextLevel > 10) return res.status(400).json({ error: 'Максимальный уровень скаута' });
-
-  // Check barracks level allows this unit level
-  const maxUnitLvl = getMaxUnitLevel(barracks.level);
-  if (nextLevel > maxUnitLvl) return res.status(400).json({ error: `Улучшите казарму до уровня ${nextLevel}` });
 
   const cost = getScoutUpgradeCost(nextLevel);
   if ((player.ether || 0) < cost) return res.status(400).json({ error: `Нужно ${cost} эфира` });
@@ -508,8 +504,7 @@ async function handleStatus(req, res) {
       lat: barracks.lat,
       lng: barracks.lng,
       slots: cfg.slots,
-      train_time_ms: getTrainTimeMs(barracks.level),
-      max_unit_level: cfg.maxUnitLevel,
+      train_time_ms: getTrainTimeMs(scoutLevel),
       upgrade_cost: nextCost,
     },
     scout_level: scoutLevel,

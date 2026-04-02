@@ -20752,7 +20752,7 @@ async function showBarracksPopup(barracksId, tab) {
   const bagCount = (status.bag || []).length;
   const scoutLevel = status.scout_level || 1;
   const scoutUpgradeCost = status.scout_upgrade_cost;
-  const maxUnitLevel = barracks.max_unit_level || 1;
+  const maxUnitLevel = 10;
 
   // Ore access by scout level
   const oreAccess = scoutLevel >= 10 ? t('barracks.ore_volcano') : scoutLevel >= 7 ? t('barracks.ore_peak') : scoutLevel >= 3 ? t('barracks.ore_mountain') : t('barracks.ore_hill');
@@ -20846,11 +20846,9 @@ async function showBarracksPopup(barracksId, tab) {
 
     if (scoutLevel >= 10) {
       html += `<span style="font-size:11px;color:#4caf50;font-weight:600">MAX</span>`;
-    } else if (scoutLevel + 1 > maxUnitLevel) {
-      html += `<span style="font-size:10px;color:#888;text-align:right">${t('barracks.scout_needs_barracks', {level: scoutLevel + 1})}</span>`;
     } else {
       const hasEther = (state.player?.ether || 0) >= scoutUpgradeCost;
-      html += `<button class="hq-coll-btn ${hasEther ? 'active' : ''}" ${hasEther ? '' : 'disabled'} onclick="doUpgradeScout('${barracksId}')" style="width:auto;margin:0;padding:6px 12px;font-size:11px;white-space:nowrap">Lv.${scoutLevel + 1} · ${formatNumber(scoutUpgradeCost)} ⚗️</button>`;
+      html += `<button class="hq-coll-btn ${hasEther ? 'active' : ''}" ${hasEther ? '' : 'disabled'} onclick="doUpgradeScout('${barracksId}')" style="width:auto;margin:0;padding:6px 12px;font-size:11px;white-space:nowrap">Lv.${scoutLevel + 1} · ${formatNumber(scoutUpgradeCost)} 🌀</button>`;
     }
     html += `</div>`;
 

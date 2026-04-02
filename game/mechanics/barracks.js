@@ -3,6 +3,7 @@ import { haversine } from '../../lib/haversine.js';
 import {
   BARRACKS_BUILD_COST, BARRACKS_MIN_HQ_LEVEL, BARRACKS_BASE_TRAIN_TIME_MS,
   BARRACKS_LEVELS,
+  SCOUT_TRAIN_SPEED_MUL,
   SCOUT_TRAIN_COST, SCOUT_UPGRADE_COST, SCOUT_SPEED_KMH,
   SCOUT_CAPTURE_MIN, SCOUT_HP, SCOUT_MAX_RANGE_KM, SCOUT_ORE_ACCESS,
   SCOUT_KILL_REWARD_CRYSTALS,
@@ -24,9 +25,9 @@ export function getBarracksLevel(barracks) {
   return BARRACKS_LEVELS[barracks.level] || BARRACKS_LEVELS[1];
 }
 
-export function getTrainTimeMs(barracksLevel) {
-  const cfg = BARRACKS_LEVELS[barracksLevel] || BARRACKS_LEVELS[1];
-  return Math.round(BARRACKS_BASE_TRAIN_TIME_MS * cfg.trainSpeedMul);
+export function getTrainTimeMs(scoutLevel) {
+  const mul = SCOUT_TRAIN_SPEED_MUL[scoutLevel] || SCOUT_TRAIN_SPEED_MUL[1];
+  return Math.round(BARRACKS_BASE_TRAIN_TIME_MS * mul);
 }
 
 export function getQueueSlots(barracksLevel) {
@@ -34,9 +35,8 @@ export function getQueueSlots(barracksLevel) {
   return cfg.slots;
 }
 
-export function getMaxUnitLevel(barracksLevel) {
-  const cfg = BARRACKS_LEVELS[barracksLevel] || BARRACKS_LEVELS[1];
-  return cfg.maxUnitLevel;
+export function getMaxUnitLevel() {
+  return 10;
 }
 
 // ── Scout helpers ──
