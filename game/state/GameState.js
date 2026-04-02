@@ -204,7 +204,7 @@ class GameState {
     for (const b of (barracksRows || [])) this.barracks.set(b.id, b);
     for (const t of (trainingRows || [])) this.trainingQueue.set(t.id, t);
     for (const u of (unitBagRows || [])) this.unitBag.set(u.id, u);
-    for (const u of (unitUpgradeRows || [])) this.unitUpgrades.set(`${u.owner_id}_${u.unit_type}`, u);
+    for (const u of (unitUpgradeRows || [])) this.unitUpgrades.set(`${Number(u.owner_id)}_${u.unit_type}`, u);
     for (const s of (activeScoutRows || [])) this.activeScouts.set(s.id, s);
 
     this._loaded = true;

@@ -109,7 +109,7 @@ async function handleBuild(req, res) {
   gameState.markDirty('barracks', barracks.id);
 
   // Also create default unit_upgrade row for scout
-  const upgradeKey = `${telegram_id}_scout`;
+  const upgradeKey = `${Number(telegram_id)}_scout`;
   if (!gameState.unitUpgrades.has(upgradeKey)) {
     const upgrade = {
       id: globalThis.crypto.randomUUID(),
@@ -328,7 +328,7 @@ async function handleUpgradeUnit(req, res) {
   const barracks = getPlayerBarracks(telegram_id);
   if (!barracks) return res.status(404).json({ error: 'Казарма не найдена' });
 
-  const upgradeKey = `${telegram_id}_scout`;
+  const upgradeKey = `${Number(telegram_id)}_scout`;
   let upgrade = gameState.unitUpgrades.get(upgradeKey);
   if (!upgrade) {
     upgrade = { id: globalThis.crypto.randomUUID(), owner_id: Number(telegram_id), unit_type: 'scout', level: 1 };

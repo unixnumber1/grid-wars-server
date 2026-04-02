@@ -69,7 +69,7 @@ export function canScoutCaptureOre(scoutLevel, oreType) {
 }
 
 export function getPlayerScoutLevel(telegramId) {
-  const upgrade = gameState.unitUpgrades.get(`${telegramId}_scout`);
+  const upgrade = gameState.unitUpgrades.get(`${Number(telegramId)}_scout`);
   return upgrade ? upgrade.level : 1;
 }
 
