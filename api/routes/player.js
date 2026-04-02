@@ -334,24 +334,24 @@ async function handlePvpAttack(req, res) {
     // Skill weapon damage bonus
     if (_atkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _atkFx.weapon_damage_bonus));
 
-    // Sniper ability — first hit on new target = forced crit
-    const _sniperForced = _atkFx.sniper_ability && weapon?.type === 'sword' && getSniperFirstHit(Number(telegram_id), defender.id);
+    // Sniper ability — first hit on new target = forced crit (any weapon)
+    const _sniperForced = _atkFx.sniper_ability && weapon && getSniperFirstHit(Number(telegram_id), defender.id);
 
-    // 3. Sword crit (crit_multiplier computed from upgrade_level + rarity)
-    if (weapon?.type === 'sword') {
-      const critChance = (weapon.crit_chance || 0) + (_atkFx.crit_chance_bonus || 0) * 100;
+    // 3. Crit check (swords have innate crit chance, axes only via sniper)
+    {
+      const critChance = (weapon?.crit_chance || 0) + (_atkFx.crit_chance_bonus || 0) * 100;
       if (_sniperForced || Math.random() * 100 < critChance) {
-        const wLvl = weapon.upgrade_level || 0;
+        const wLvl = weapon?.upgrade_level || 0;
         let critMul = 1.5;
-        if (weapon.rarity === 'mythic') critMul = 1.5 + (wLvl / 90) * 0.7;
-        else if (weapon.rarity === 'legendary') critMul = 1.5 + (wLvl / 100) * 1.5;
+        if (weapon?.rarity === 'mythic') critMul = 1.5 + (wLvl / 90) * 0.7;
+        else if (weapon?.rarity === 'legendary') critMul = 1.5 + (wLvl / 100) * 1.5;
         damage = Math.floor(damage * critMul);
         isCrit = true;
       }
     }
 
     // 4. Axe execution (target < 50% HP — computed from upgrade_level + rarity)
-    if (weapon?.type === 'axe') {
+    if (weapon?.type === 'axe' && !isCrit) {
       const wLvl = weapon.upgrade_level || 0;
       let execChance = 0;
       if (weapon.rarity === 'mythic') execChance = 7 + (wLvl / 90) * 10;
