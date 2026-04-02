@@ -20347,13 +20347,15 @@ function renderBarracks(list) {
 }
 
 function scoutIcon(sc) {
+  const isCapturing = sc && sc.status === 'capturing';
   return L.divIcon({
     className: '',
-    html: `<div style="display:flex;align-items:center;justify-content:center">
+    html: `<div style="display:flex;align-items:center;justify-content:center;position:relative">
       <span style="font-size:28px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">🤠</span>
+      ${isCapturing ? '<span style="position:absolute;top:-8px;right:-10px;font-size:14px">🔍</span>' : ''}
     </div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconSize: [44, 34],
+    iconAnchor: [22, 17],
   });
 }
 
@@ -20387,6 +20389,7 @@ function addScoutMarker(sc) {
 function updateScoutMarker(scId) {
   const sc = scoutData[scId];
   if (sc && scoutMarkers[scId]) {
+    scoutMarkers[scId].setIcon(scoutIcon(sc));
     if (sc.lat != null && scoutInterp[scId]) {
       scoutInterp[scId].serverLat = sc.lat;
       scoutInterp[scId].serverLng = sc.lng;

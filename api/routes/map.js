@@ -679,6 +679,24 @@ async function handleTick(req, res) {
     }
   }
 
+  // Always include ALL own active scouts (not just viewport)
+  if (gameState.loaded) {
+    const viewportScoutIds = new Set((mapData.active_scouts || []).map(s => s.id));
+    for (const s of gameState.activeScouts.values()) {
+      if (Number(s.owner_id) === Number(player.telegram_id) && !viewportScoutIds.has(s.id)) {
+        mapData.active_scouts = mapData.active_scouts || [];
+        mapData.active_scouts.push({
+          id: s.id, owner_id: s.owner_id,
+          lat: s.current_lat, lng: s.current_lng,
+          target_lat: s.target_lat, target_lng: s.target_lng,
+          speed: s.speed, hp: s.hp, max_hp: s.max_hp,
+          level: s.unit_level, status: s.status,
+          target_ore_id: s.target_ore_id,
+        });
+      }
+    }
+  }
+
   return res.json({
     ...mapData,
     player: playerData,
