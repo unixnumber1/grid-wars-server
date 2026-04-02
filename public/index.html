@@ -1511,9 +1511,9 @@
       border-radius: 12px 12px 0 0;
     }
     .profile-inv-tab {
-      padding: 10px 0; font-size: 13px; color: #666;
+      flex: 1; padding: 10px 0; font-size: 13px; color: #666;
       background: none; border: none; border-bottom: 2px solid transparent;
-      cursor: pointer; font-weight: 600; margin-right: 16px;
+      cursor: pointer; font-weight: 600; text-align: center;
       -webkit-tap-highlight-color: transparent;
     }
     .profile-inv-tab.active { color: #FFD700; border-bottom-color: #FFD700; }
@@ -1588,8 +1588,8 @@
       -webkit-tap-highlight-color: transparent;
     }
     .inv-action-btn.craft {
-      background: linear-gradient(135deg,#f5c518,#ff8c00); color: #000;
-      border: none; font-weight: 700;
+      background: rgba(255,255,255,0.08); color: #aaa;
+      border: 1px solid rgba(255,255,255,0.1); font-weight: 600;
     }
     .inv-action-btn:active { opacity: 0.7; }
 
@@ -8961,9 +8961,19 @@ function switchInvTab(tab) {
   // Deactivate all sub-tabs
   document.querySelectorAll('#sub-tabs-row .profile-inv-tab').forEach(t => t.classList.remove('active'));
 
-  // Show/hide action buttons per tab
+  // Show action buttons on all inventory tabs with appropriate buttons
   const actionsRow = document.getElementById('inv-equip-actions');
-  if (actionsRow) actionsRow.style.display = (tab === 'equip') ? 'flex' : 'none';
+  if (actionsRow) {
+    const isInvTab = (tab === 'equip' || tab === 'cores' || tab === 'other');
+    actionsRow.style.display = isInvTab ? 'flex' : 'none';
+    const craftBtn = document.getElementById('btn-craft');
+    const sellBtn = document.getElementById('btn-mass-sell');
+    if (craftBtn) craftBtn.style.display = (tab === 'equip') ? '' : 'none';
+    if (sellBtn) {
+      sellBtn.style.display = isInvTab ? '' : 'none';
+      sellBtn.onclick = tab === 'equip' ? enterSelectionMode : tab === 'cores' ? toggleCoreSellMode : tab === 'other' ? () => { _otherSellMode = true; _selectedScoutIds.clear(); renderOtherTab(); } : null;
+    }
+  }
 
   if (tab === 'equip') {
     document.getElementById('inv-tab-equip')?.classList.add('active');
@@ -9813,6 +9823,8 @@ let _selectedCoreIds = new Set();
 function renderCoresInventory() {
   const grid = document.getElementById('cores-inv-grid');
   if (!grid) return;
+  const scrollParent = grid.closest('#profile-modal-body');
+  const savedScroll = scrollParent ? scrollParent.scrollTop : 0;
   const cores = (state._playerCores || []).filter(c => !c.mine_cell_id && !c.on_market)
     .sort((a, b) => {
       const td = (CORE_TYPE_ORDER[a.core_type] ?? 9) - (CORE_TYPE_ORDER[b.core_type] ?? 9);
@@ -9835,10 +9847,7 @@ function renderCoresInventory() {
       </div>
     </div>`;
   } else {
-    headerHtml = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-size:13px;color:#aaa;">${t('core.inventory', {n: cores.length})}</span>
-      <button onclick="toggleCoreSellMode()" style="background:rgba(255,255,255,0.08);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">🗑️</button>
-    </div>`;
+    headerHtml = `<div class="profile-section-title" style="margin-top:0;margin-bottom:8px;">${t('core.inventory', {n: cores.length})}</div>`;
   }
 
   if (cores.length === 0) {
@@ -9865,6 +9874,7 @@ function renderCoresInventory() {
   }
   html += '</div>';
   grid.innerHTML = html;
+  if (scrollParent) requestAnimationFrame(() => { scrollParent.scrollTop = savedScroll; });
 }
 
 function toggleCoreSellMode() {
@@ -17367,6 +17377,8 @@ function _renderInventoryGridSelectable() {
     return (b.upgrade_level || 0) - (a.upgrade_level || 0);
   });
   const grid = document.getElementById('inventory-grid');
+  const scrollParent = grid.closest('#profile-modal-body');
+  const savedScroll = scrollParent ? scrollParent.scrollTop : 0;
   grid.innerHTML = '';
 
   for (const item of inv) {
@@ -17388,6 +17400,8 @@ function _renderInventoryGridSelectable() {
     }
     grid.appendChild(cell);
   }
+  // Restore scroll position after re-render
+  if (scrollParent) requestAnimationFrame(() => { scrollParent.scrollTop = savedScroll; });
 }
 
 function _updateSelectionBar() {
@@ -20466,6 +20480,11 @@ const _selectedScoutIds = new Set();
 async function renderOtherTab() {
   const el = document.getElementById('other-content');
   if (!el) return;
+
+  // Save scroll position before re-render
+  const scrollParent = el.closest('#profile-modal-body') || el.parentElement;
+  const savedScroll = scrollParent ? scrollParent.scrollTop : 0;
+
   el.innerHTML = `<div style="text-align:center;padding:20px;color:#888">${_lang === 'ru' ? 'Загрузка...' : 'Loading...'}</div>`;
   const status = await fetchBarracksStatus();
   const bag = status?.bag || [];
@@ -20476,15 +20495,9 @@ async function renderOtherTab() {
     return;
   }
 
-  // Sort by level descending
-  bag.sort((a, b) => b.unit_level - a.unit_level);
+  // Sort by level ascending (grouped)
+  bag.sort((a, b) => a.unit_level - b.unit_level || a.id.localeCompare(b.id));
 
-  const SCOUT_ORE = { 1: '⛰', 3: '🏔', 7: '🗻', 10: '🌋' };
-  function scoutOreEmoji(lv) { return lv >= 10 ? '🌋' : lv >= 7 ? '🗻' : lv >= 3 ? '🏔' : '⛰'; }
-  function scoutBorderColor(lv) { return lv >= 10 ? '#f9a825' : lv >= 7 ? '#6a1b9a' : lv >= 3 ? '#1565c0' : '#555'; }
-  function scoutBg(lv) { return lv >= 10 ? '#2a1a00' : lv >= 7 ? '#1a0a2a' : lv >= 3 ? '#0a0a2a' : '#1a1a2e'; }
-
-  // Header — like cores: count + sell toggle
   let html = '';
   if (_otherSellMode) {
     const SCOUT_COST = [0, 500, 600, 800, 1000, 1300, 1600, 2000, 2300, 2600, 3000];
@@ -20501,31 +20514,33 @@ async function renderOtherTab() {
       </div>
     </div>`;
   } else {
-    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:13px;color:#888">${_lang === 'ru' ? 'Юниты' : 'Units'} (${bag.length})</div>
-      <button onclick="_otherSellMode=true;_selectedScoutIds.clear();renderOtherTab()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:12px;color:#888;cursor:pointer">🗑️</button>
-    </div>`;
+    html += `<div class="profile-section-title" style="margin-top:0;margin-bottom:8px;">${_lang === 'ru' ? 'Скауты' : 'Scouts'} (${bag.length})</div>`;
   }
 
-  // Grid — use inv-cell with selected class (::after ✓ like cores)
-  html += '<div class="inventory-grid">';
+  // Grid — grouped by level like cores
+  html += '<div class="cores-grid">';
+  let lastLevel = null;
   for (const u of bag) {
-    const bc = scoutBorderColor(u.unit_level);
-    const bg = scoutBg(u.unit_level);
+    if (u.unit_level !== lastLevel) {
+      html += `<div class="core-group-header">🤠 ${_lang === 'ru' ? 'Уровень' : 'Level'} ${u.unit_level}</div>`;
+      lastLevel = u.unit_level;
+    }
     const isSelected = _otherSellMode && _selectedScoutIds.has(u.id);
-    const selClass = isSelected ? ' selected' : '';
-    const selBg = isSelected ? '#2a2a10' : bg;
-    const selBorder = isSelected ? '#FFD700' : bc;
+    const sel = isSelected ? ' selected' : '';
     const onclick = _otherSellMode
       ? `_selectedScoutIds.has('${u.id}') ? _selectedScoutIds.delete('${u.id}') : _selectedScoutIds.add('${u.id}');renderOtherTab()`
       : `showScoutDetailPopup('${u.id}')`;
-    html += `<div class="inv-cell${selClass}" style="border-color:${selBorder};background:${selBg};cursor:pointer" onclick="${onclick}">
-      <span>🤠</span><span class="inv-lvl">Lv.${u.unit_level}</span>
+    html += `<div class="core-card${sel}" onclick="${onclick}">
+      <div class="core-emoji">🤠</div>
+      <div class="core-level">Lv.${u.unit_level}</div>
     </div>`;
   }
   html += '</div>';
 
   el.innerHTML = html;
+
+  // Restore scroll position
+  if (scrollParent) requestAnimationFrame(() => { scrollParent.scrollTop = savedScroll; });
 }
 
 function showScoutDetailPopup(scoutId) {
