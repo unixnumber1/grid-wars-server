@@ -350,10 +350,13 @@ async function handlePvpAttack(req, res) {
       }
     }
 
-    // 3b. Axe sniper — first hit = x2 damage (axes don't have crit)
-    if (weapon?.type === 'axe' && _sniperForced) {
-      damage = Math.floor(damage * 2);
-      isCrit = true;
+    // 3b. Axe crit — only from skill crit bonus or sniper, flat x2
+    if (weapon?.type === 'axe' && !isCrit) {
+      const axeCritChance = (_atkFx.crit_chance_bonus || 0) * 100;
+      if (_sniperForced || (axeCritChance > 0 && Math.random() * 100 < axeCritChance)) {
+        damage = Math.floor(damage * 2);
+        isCrit = true;
+      }
     }
 
     // 4. Axe execution (target < 50% HP — computed from upgrade_level + rarity)
