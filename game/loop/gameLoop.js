@@ -431,13 +431,45 @@ function moveScouts(nowMs) {
           // Capture complete — assign ore to player
           const ore = gameState.oreNodes.get(scout.target_ore_id);
           if (ore && !ore.owner_id) {
-            ore.owner_id = scout.owner_id;
-            ore.captured_at = new Date().toISOString();
+            // Lookup player by telegram_id to get proper player.id (UUID)
+            const capturePlayer = gameState.getPlayerByTgId(Number(scout.owner_id));
+            const playerId = capturePlayer ? capturePlayer.id : scout.owner_id;
+            const nowISO = new Date().toISOString();
+            const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+            const selectedCurrency = oreTypeCfg.dualCurrency ? 'both' : 'shards';
+
+            ore.owner_id = playerId;
+            ore.hp = ore.max_hp;
+            ore.last_collected = nowISO;
+            ore.currency = selectedCurrency;
+            ore._claimed_at = nowISO;
             gameState.markDirty('oreNodes', ore.id);
-            if (_io) _io.emit('scout:captured', {
-              id, ore_id: ore.id, owner_id: scout.owner_id,
-              ore_type: ore.ore_type, ore_level: ore.level,
-            });
+
+            // Persist immediately (money operation)
+            supabase.from('ore_nodes').update({
+              owner_id: playerId, hp: ore.max_hp,
+              last_collected: nowISO, currency: selectedCurrency,
+            }).eq('id', ore.id).then(() => {}).catch(e => console.error('[SCOUTS] DB error:', e.message));
+
+            if (_io) {
+              _io.emit('scout:captured', {
+                id, ore_id: ore.id, owner_id: scout.owner_id,
+                ore_type: ore.ore_type, ore_level: ore.level,
+              });
+              // Emit ore:captured so frontend ore marker updates immediately
+              if (_connectedPlayers) {
+                for (const [sid, info] of _connectedPlayers) {
+                  if (!info.lat || !info.lng) continue;
+                  if (haversine(info.lat, info.lng, ore.lat, ore.lng) <= 1000) {
+                    _io.to(sid).emit('ore:captured', {
+                      ore_node_id: ore.id,
+                      new_owner: playerId,
+                      new_owner_name: capturePlayer?.game_username || capturePlayer?.username || null,
+                    });
+                  }
+                }
+              }
+            }
             console.log(`[SCOUTS] Scout lv${scout.unit_level} captured ${ore.ore_type} for player ${scout.owner_id}`);
           }
           // Scout dies (consumable)

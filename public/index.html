@@ -10955,8 +10955,11 @@ function initSocket() {
       }
     });
     _socket.on('scout:capturing', (data) => {
-      const sc = scoutData[data.scout_id || data.id];
-      if (sc) { sc.status = 'capturing'; updateScoutMarker(data.scout_id || data.id); }
+      const scId = data.scout_id || data.id;
+      const sc = scoutData[scId];
+      if (sc) { sc.status = 'capturing'; updateScoutMarker(scId); }
+      const si = scoutInterp[scId];
+      if (si) { si.status = 'capturing'; si.captureStartTime = Date.now(); }
     });
     _socket.on('scout:captured', (data) => {
       const scId = data.scout_id || data.id;
@@ -20331,6 +20334,8 @@ function addScoutMarker(sc) {
     targetLat: sc.target_lat || sc.lat, targetLng: sc.target_lng || sc.lng,
     serverLat: sc.lat, serverLng: sc.lng,
     speedKmh: sc.speed || 20,
+    status: sc.status || 'moving',
+    captureStartTime: null,
   };
 }
 
@@ -20369,6 +20374,10 @@ function renderActiveScouts(list) {
         scoutInterp[sc.id].serverLat = sc.lat;
         scoutInterp[sc.id].serverLng = sc.lng;
         scoutInterp[sc.id].speedKmh = sc.speed || 20;
+        if (sc.status === 'capturing' && scoutInterp[sc.id].status !== 'capturing') {
+          scoutInterp[sc.id].captureStartTime = Date.now();
+        }
+        scoutInterp[sc.id].status = sc.status || 'moving';
       }
     } else {
       addScoutMarker(sc);
@@ -20376,7 +20385,7 @@ function renderActiveScouts(list) {
   }
 }
 
-// Smooth scout animation (like couriers)
+// Smooth scout animation (like couriers) + orbit during capture
 function _animateScouts(now) {
   if (!_scoutAnimLast) _scoutAnimLast = now;
   const dtSec = Math.min((now - _scoutAnimLast) / 1000, 0.5);
@@ -20385,16 +20394,29 @@ function _animateScouts(now) {
     const si = scoutInterp[id];
     const marker = scoutMarkers[id];
     if (!marker) continue;
-    // speed in deg/s: kmh / 3600 * 1000 / 111320 ≈ kmh * 0.0000025
-    const speedDegPerSec = si.speedKmh * 0.0000025;
-    const dlat = si.targetLat - si.displayLat;
-    const dlng = si.targetLng - si.displayLng;
-    const dist = Math.sqrt(dlat * dlat + dlng * dlng);
-    if (dist > 0.0000005) {
-      const step = Math.min(dist, speedDegPerSec * dtSec);
-      si.displayLat += (dlat / dist) * step;
-      si.displayLng += (dlng / dist) * step;
+
+    if (si.status === 'capturing') {
+      // Circular orbit around target ore node
+      if (!si.captureStartTime) si.captureStartTime = now;
+      const elapsed = (now - si.captureStartTime) / 1000;
+      const ORBIT_RADIUS = 0.00015; // ~15m in degrees
+      const ORBIT_PERIOD = 8; // seconds per full orbit
+      const angle = (elapsed / ORBIT_PERIOD) * Math.PI * 2;
+      si.displayLat = si.targetLat + Math.sin(angle) * ORBIT_RADIUS;
+      si.displayLng = si.targetLng + Math.cos(angle) * ORBIT_RADIUS;
       marker.setLatLng([si.displayLat, si.displayLng]);
+    } else {
+      // Normal movement interpolation
+      const speedDegPerSec = si.speedKmh * 0.0000025;
+      const dlat = si.targetLat - si.displayLat;
+      const dlng = si.targetLng - si.displayLng;
+      const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+      if (dist > 0.0000005) {
+        const step = Math.min(dist, speedDegPerSec * dtSec);
+        si.displayLat += (dlat / dist) * step;
+        si.displayLng += (dlng / dist) * step;
+        marker.setLatLng([si.displayLat, si.displayLng]);
+      }
     }
   }
   requestAnimationFrame(_animateScouts);
@@ -20638,67 +20660,79 @@ async function showBarracksPopup(barracksId, tab) {
   </div>`;
 
   if (_barracksPopupTab === 'train') {
-    // ─── Info card ───
-    html += `<div class="hq-stat-card" style="margin-bottom:8px">
-      <span>🤠 ${t('barracks.scout_level', {level: scoutLevel})} · ${oreAccess}</span>
-      <span class="val">${t('barracks.scout_bag', {count: bagCount})} · ${activeCount}/${maxSlots}</span>
-    </div>`;
+    // ─── Horizontal Training Queue Strip ───
+    html += `<div style="margin-bottom:12px">
+      <div style="font-size:12px;color:#888;margin-bottom:6px">${_lang === 'ru' ? 'Очередь' : 'Queue'} (${queue.length}/${maxSlots})</div>
+      <div style="display:flex;gap:8px;overflow-x:auto;padding:4px 0;min-height:72px;align-items:center">`;
 
-    // ─── Queue cards ───
+    if (queue.length === 0) {
+      html += `<div style="color:#555;font-size:12px;padding:8px">${_lang === 'ru' ? 'Очередь пуста' : 'Queue empty'}</div>`;
+    }
+
     for (const q of queue) {
       if (q.ready) {
-        html += `<div class="hq-stat-card" style="margin-bottom:6px">
-          <span>🤠 Lv.${q.unit_level} — <span style="color:#4caf50">${t('barracks.ready')}</span></span>
-          <span style="font-size:16px">✅</span>
+        html += `<div style="min-width:64px;height:64px;background:#1a2a1a;border:1px solid #4caf50;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0">
+          <span style="font-size:20px">🤠</span>
+          <span style="font-size:9px;color:#4caf50">Lv.${q.unit_level}</span>
+          <span style="font-size:14px">✅</span>
         </div>`;
       } else {
         const startedAt = new Date(q.started_at).getTime();
         const finishAt = new Date(q.finish_at).getTime();
         const now = Date.now();
         const notStarted = now < startedAt;
-        const ownTrainTime = finishAt - startedAt; // only this unit's training duration
-        const ownTrainMin = Math.max(1, Math.ceil(ownTrainTime / 60000));
+        const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
+        const mins = Math.floor(secsLeft / 60);
+        const secs = secsLeft % 60;
+        const pct = notStarted ? 0 : Math.min(100, Math.max(0, Math.round((now - startedAt) / (finishAt - startedAt) * 100)));
+        const ownTrainTime = finishAt - startedAt;
+        const boostCost = notStarted ? Math.max(1, Math.ceil(ownTrainTime / 60000)) : Math.max(1, Math.ceil(secsLeft / 60));
 
-        if (notStarted) {
-          const boostCost = ownTrainMin; // cost = own training time, not queue wait
-          html += `<div class="hq-stat-card" style="margin-bottom:6px">
-            <span>🤠 Lv.${q.unit_level} — <span style="color:#888">${_lang === 'ru' ? 'В очереди' : 'Queued'}</span></span>
-            <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" class="hq-coll-btn active" style="width:auto;margin:0;padding:4px 10px;font-size:11px">${t('barracks.boost')} ${boostCost} 💎</button>
-          </div>`;
-        } else {
-          const totalTime = finishAt - startedAt;
-          const elapsed = now - startedAt;
-          const pct = Math.min(100, Math.max(0, Math.round(elapsed / totalTime * 100)));
-          const secsLeft = Math.max(0, Math.ceil((finishAt - now) / 1000));
-          const mins = Math.floor(secsLeft / 60);
-          const secs = secsLeft % 60;
-          const boostCost = Math.max(1, Math.ceil(secsLeft / 60));
-          html += `<div class="hq-collector-card" style="margin-bottom:6px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-              <span style="font-size:13px;color:#ccc">🤠 Lv.${q.unit_level} — ${mins}:${String(secs).padStart(2, '0')}</span>
-              <button onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" class="hq-coll-btn active" style="width:auto;margin:0;padding:4px 10px;font-size:11px">${t('barracks.boost')} ${boostCost} 💎</button>
-            </div>
-            <div style="background:#1a1a2e;border-radius:4px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:#4caf50;border-radius:4px;transition:width .3s"></div></div>
-          </div>`;
-        }
+        html += `<div onclick="doBoostTraining('${barracksId}','${q.id}',${boostCost})" style="min-width:64px;height:64px;background:#1a1a2e;border:1px solid #333;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0">
+          <span style="font-size:20px">🤠</span>
+          <span style="font-size:9px;color:#ccc">Lv.${q.unit_level}</span>
+          <span style="font-size:9px;color:#888">${notStarted ? '⏳' : mins + ':' + String(secs).padStart(2, '0')}</span>
+          <div style="position:absolute;bottom:0;left:0;width:${pct}%;height:3px;background:#4caf50;border-radius:0 0 10px 10px"></div>
+        </div>`;
       }
     }
 
-    // ─── Collect button ───
+    // Collect button at end of queue strip
     if (readyCount > 0) {
-      html += `<button class="hq-coll-btn active" style="background:#4caf50;margin-bottom:6px" onclick="doCollectScouts('${barracksId}')">${t('barracks.collect', {count: readyCount})}</button>`;
+      html += `<button onclick="doCollectScouts('${barracksId}')" style="min-width:64px;height:64px;background:#4caf50;border:none;border-radius:10px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0">
+        <span style="font-size:16px">📦</span>
+        ${readyCount} ✓
+      </button>`;
     }
 
-    // ─── Train button ───
+    html += `</div></div>`;
+
+    // ─── 2×2 Unit Card Grid ───
     const canTrain = activeCount < maxSlots;
     const hasShards = (state.player?.crystals || 0) >= trainCost;
-    if (canTrain && hasShards) {
-      html += `<button class="hq-coll-btn active" onclick="doTrainScout('${barracksId}')">${t('barracks.train_scout')} — ${trainCost} ✨ · ${trainTimeMin} ${_lang === 'ru' ? 'мин' : 'min'}</button>`;
-    } else if (!canTrain) {
-      html += `<button class="hq-coll-btn" disabled>${t('barracks.queue_full')}</button>`;
-    } else {
-      html += `<button class="hq-coll-btn" disabled>${t('barracks.train_scout')} — ${trainCost} ✨</button>`;
+    const canTrainNow = canTrain && hasShards;
+
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
+
+    // Scout card (active)
+    html += `<div style="background:#1a1a2e;border:1px solid ${canTrainNow ? '#4caf50' : '#333'};border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px">
+      <span style="font-size:32px">🤠</span>
+      <div style="font-size:13px;font-weight:600;color:#fff">${_lang === 'ru' ? 'Скаут' : 'Scout'}</div>
+      <div style="font-size:11px;color:#888">Lv.${scoutLevel} · ${oreAccess}</div>
+      <div style="font-size:10px;color:#aaa">${_lang === 'ru' ? 'В сумке' : 'In bag'}: ${bagCount}</div>
+      <div style="font-size:11px;color:#ccc">${trainCost} ✨ · ${trainTimeMin} ${_lang === 'ru' ? 'мин' : 'min'}</div>
+      <button onclick="doTrainScout('${barracksId}')" class="hq-coll-btn ${canTrainNow ? 'active' : ''}" ${canTrainNow ? '' : 'disabled'} style="width:100%;margin:0;padding:6px;font-size:12px">${!canTrain ? (_lang === 'ru' ? 'Очередь полна' : 'Queue full') : (_lang === 'ru' ? 'Нанять' : 'Train')}</button>
+    </div>`;
+
+    // 3 locked unit cards
+    for (let _li = 0; _li < 3; _li++) {
+      html += `<div style="background:#111;border:1px solid #222;border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;opacity:0.5">
+        <span style="font-size:32px">🔒</span>
+        <div style="font-size:11px;color:#444">${_lang === 'ru' ? 'Скоро' : 'Coming soon'}</div>
+      </div>`;
     }
+
+    html += `</div>`;
 
   } else {
     // ─── Upgrades tab ───
