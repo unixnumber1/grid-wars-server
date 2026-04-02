@@ -20350,12 +20350,12 @@ function scoutIcon(sc) {
   const isCapturing = sc && sc.status === 'capturing';
   return L.divIcon({
     className: '',
-    html: `<div style="display:flex;align-items:center;justify-content:center;position:relative">
+    html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">
       <span style="font-size:28px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">🤠</span>
-      ${isCapturing ? '<span style="position:absolute;top:-8px;right:-10px;font-size:14px">🔍</span>' : ''}
+      ${isCapturing ? '<span style="font-size:12px;margin-top:-4px">🔍</span>' : ''}
     </div>`,
-    iconSize: [44, 34],
-    iconAnchor: [22, 17],
+    iconSize: [34, isCapturing ? 46 : 34],
+    iconAnchor: [17, isCapturing ? 23 : 17],
   });
 }
 
@@ -20444,14 +20444,29 @@ function _animateScouts(now) {
     if (!marker) continue;
 
     if (si.status === 'capturing') {
-      // Circular orbit around target ore node
+      // Chaotic wandering around target ore node
       if (!si.captureStartTime) si.captureStartTime = now;
-      const elapsed = (now - si.captureStartTime) / 1000;
-      const ORBIT_RADIUS = 0.00015; // ~15m in degrees
-      const ORBIT_PERIOD = 8; // seconds per full orbit
-      const angle = (elapsed / ORBIT_PERIOD) * Math.PI * 2;
-      si.displayLat = si.targetLat + Math.sin(angle) * ORBIT_RADIUS;
-      si.displayLng = si.targetLng + Math.cos(angle) * ORBIT_RADIUS;
+      if (!si._wanderTarget || now - (si._wanderSetAt || 0) > (si._wanderDur || 0)) {
+        // Pick a new random target point within ~18m radius
+        const R = 0.00018;
+        const a = Math.random() * Math.PI * 2;
+        const r = R * (0.3 + Math.random() * 0.7);
+        si._wanderTargetLat = si.targetLat + Math.sin(a) * r;
+        si._wanderTargetLng = si.targetLng + Math.cos(a) * r;
+        si._wanderTarget = true;
+        si._wanderSetAt = now;
+        si._wanderDur = 800 + Math.random() * 1500; // 0.8-2.3s per segment
+      }
+      // Smoothly move toward wander target
+      const wdlat = si._wanderTargetLat - si.displayLat;
+      const wdlng = si._wanderTargetLng - si.displayLng;
+      const wdist = Math.sqrt(wdlat * wdlat + wdlng * wdlng);
+      const wSpeed = 0.000004; // ~0.4m/frame at 60fps
+      if (wdist > 0.0000005) {
+        const step = Math.min(wdist, wSpeed * dtSec * 60);
+        si.displayLat += (wdlat / wdist) * step;
+        si.displayLng += (wdlng / wdist) * step;
+      }
       marker.setLatLng([si.displayLat, si.displayLng]);
     } else {
       // Normal movement interpolation
@@ -20535,7 +20550,7 @@ function _renderScoutGrid() {
     return;
   }
 
-  bag.sort((a, b) => a.unit_level - b.unit_level || a.id.localeCompare(b.id));
+  bag.sort((a, b) => b.unit_level - a.unit_level || a.id.localeCompare(b.id));
 
   let html = '';
   if (_otherSellMode) {
@@ -20557,12 +20572,7 @@ function _renderScoutGrid() {
   }
 
   html += '<div class="cores-grid">';
-  let lastLevel = null;
   for (const u of bag) {
-    if (u.unit_level !== lastLevel) {
-      html += `<div class="core-group-header">🤠 ${_lang === 'ru' ? 'Уровень' : 'Level'} ${u.unit_level}</div>`;
-      lastLevel = u.unit_level;
-    }
     const sel = _selectedScoutIds.has(u.id) ? ' selected' : '';
     const onclick = _otherSellMode
       ? `handleScoutCardClick('${u.id}')`

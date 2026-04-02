@@ -372,10 +372,9 @@ async function handleSendScout(req, res) {
   const bag = getPlayerBag(telegram_id).filter(u => u.unit_type === 'scout');
   if (bag.length === 0) return res.status(400).json({ error: 'Нет скаутов в сумке' });
 
-  const eligible = bag.filter(u => canScoutCaptureOre(u.unit_level, ore.ore_type));
+  const eligible = bag.filter(u => canScoutCaptureOre(u.unit_level, ore.ore_type, ore.level));
   if (eligible.length === 0) {
-    const required = SCOUT_ORE_ACCESS[ore.ore_type];
-    return res.status(400).json({ error: `Скаут уровня ${required}+ нужен для ${ore.ore_type}` });
+    return res.status(400).json({ error: `Скаут уровня ${ore.level}+ нужен для Ур.${ore.level} ${ore.ore_type}` });
   }
   // Pick lowest level that qualifies (preserve higher-level scouts)
   eligible.sort((a, b) => a.unit_level - b.unit_level);

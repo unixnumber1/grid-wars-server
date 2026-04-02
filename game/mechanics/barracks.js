@@ -62,10 +62,8 @@ export function getScoutHp(scoutLevel) {
   return SCOUT_HP[scoutLevel] || SCOUT_HP[1];
 }
 
-export function canScoutCaptureOre(scoutLevel, oreType) {
-  const required = SCOUT_ORE_ACCESS[oreType];
-  if (!required) return false;
-  return scoutLevel >= required;
+export function canScoutCaptureOre(scoutLevel, oreType, oreLevel) {
+  return scoutLevel >= (oreLevel || 1);
 }
 
 export function getPlayerScoutLevel(telegramId) {
