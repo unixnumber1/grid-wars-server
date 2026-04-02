@@ -20736,6 +20736,7 @@ async function showBarracksPopup(barracksId, tab) {
     <button onclick="showBarracksPopup('${barracksId}','upgrades')" class="barracks-tab ${_barracksPopupTab === 'upgrades' ? 'active' : 'inactive'}">${t('barracks.tab_upgrades')}</button>
   </div>`;
 
+  html += `<div style="min-height:320px">`;
   if (_barracksPopupTab === 'train') {
     // ─── Training Queue with dashed slots ───
     html += `<div style="font-size:12px;color:#888;margin-bottom:6px">${_lang === 'ru' ? 'Очередь' : 'Queue'} (${queue.length}/${maxSlots})</div>`;
@@ -20835,17 +20836,16 @@ async function showBarracksPopup(barracksId, tab) {
 
     html += `</div>`;
   }
+  html += `</div>`; // close min-height tab content wrapper
 
-  // ─── Bottom: upgrade barracks & sell ───
-  html += `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;display:flex;flex-direction:column;gap:6px">`;
+  // ─── Bottom: upgrade barracks & sell & close ───
+  html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">`;
   if (barracks.level < 10 && barracks.upgrade_cost != null) {
     const hasUpgD = (state.player?.diamonds || 0) >= barracks.upgrade_cost;
     html += `<button class="hq-btn blue" ${hasUpgD ? '' : 'disabled'} onclick="doUpgradeBarracks('${barracksId}')">${t('barracks.upgrade')} Lv.${barracks.level + 1} — ${barracks.upgrade_cost} 💎</button>`;
   }
-  html += `<div style="display:flex;gap:8px">`;
-  html += `<button class="hq-btn red" style="flex:1" onclick="confirmSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
-  html += `<button class="hq-btn" style="flex:1;background:#333;color:#ccc" onclick="closePopup()">${t('btn.close')}</button>`;
-  html += `</div>`;
+  html += `<button class="hq-btn red" onclick="confirmSellBarracks('${barracksId}')">${t('barracks.sell')}</button>`;
+  html += `<button class="hq-btn" style="background:#333;color:#ccc" onclick="closePopup()">${t('btn.close')}</button>`;
   html += `</div>`;
 
   card.innerHTML = html;
