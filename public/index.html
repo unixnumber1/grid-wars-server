@@ -2009,11 +2009,28 @@
     .shop-box-open-btn:active { background: rgba(255,215,0,0.25); }
     .shop-box-open-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .shop-mythic-card {
-      background:#1a0a0a; border:1px solid rgba(255,109,0,0.3);
-      border-radius:10px; padding:10px; text-align:center; cursor:pointer;
-      transition:all 0.2s; box-shadow:0 0 12px rgba(255,109,0,0.06);
+      position: relative; border-radius: 14px; overflow: hidden;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: transform 0.12s; display: flex;
     }
-    .shop-mythic-card:active { transform:scale(0.95); background:rgba(255,109,0,0.12); }
+    .shop-mythic-card:active { transform: scale(0.97); }
+    .shop-mythic-accent { width: 5px; flex-shrink: 0; }
+    .shop-mythic-accent-sword { background: linear-gradient(180deg, #ef5350, #b71c1c); }
+    .shop-mythic-accent-axe { background: linear-gradient(180deg, #ff8a50, #d84315); }
+    .shop-mythic-accent-shield { background: linear-gradient(180deg, #66bb6a, #2e7d32); }
+    .shop-mythic-accent-set { background: linear-gradient(180deg, #ff6d00, #e65100); }
+    .shop-mythic-body {
+      flex: 1; padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .shop-mythic-sword .shop-mythic-body { background: #1c1214; }
+    .shop-mythic-axe .shop-mythic-body { background: #1c1610; }
+    .shop-mythic-shield .shop-mythic-body { background: #111c14; }
+    .shop-mythic-set .shop-mythic-body { background: #1c1510; }
+    .shop-mythic-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .shop-mythic-info { flex: 1; }
+    .shop-mythic-name { font-size: 13px; font-weight: 700; color: #fff; }
+    .shop-mythic-stat { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; margin-top: 1px; }
+    .shop-mythic-price { font-size: 14px; font-weight: 800; color: #ff6d00; flex-shrink: 0; }
     .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .shop-star-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -3643,31 +3660,50 @@
     <!-- Items tab (mythic gear + core packs) -->
     <div id="shop-tab-items" class="shop-tab-content">
       <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;" data-i18n="shop.mythic_gear">🔥 Мифическое снаряжение</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-        <div class="shop-mythic-card" onclick="buyMythic('sword')" style="position:relative;background:#2a0a0a;border:1px solid #5a1a1a;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
-          <div style="font-size:32px;">🗡️</div>
-          <div style="font-size:11px;font-weight:600;color:#fff;" data-i18n="shop.sword">Меч</div>
-          <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
+      <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+        <div class="shop-mythic-card shop-mythic-sword" onclick="buyMythic('sword')">
+          <div class="shop-mythic-accent shop-mythic-accent-sword"></div>
+          <div class="shop-mythic-body">
+            <div class="shop-mythic-icon">🗡️</div>
+            <div class="shop-mythic-info">
+              <div class="shop-mythic-name" data-i18n="shop.sword">Меч</div>
+              <div class="shop-mythic-stat">ATK 380 · CRIT 16%</div>
+            </div>
+            <div class="shop-mythic-price">💎 600</div>
+          </div>
         </div>
-        <div class="shop-mythic-card" onclick="buyMythic('axe')" style="position:relative;background:#2a0a0a;border:1px solid #5a1a1a;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('axe')">i</button>
-          <div style="font-size:32px;">🪓</div>
-          <div style="font-size:11px;font-weight:600;color:#fff;" data-i18n="shop.axe">Топор</div>
-          <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
+        <div class="shop-mythic-card shop-mythic-axe" onclick="buyMythic('axe')">
+          <div class="shop-mythic-accent shop-mythic-accent-axe"></div>
+          <div class="shop-mythic-body">
+            <div class="shop-mythic-icon">🪓</div>
+            <div class="shop-mythic-info">
+              <div class="shop-mythic-name" data-i18n="shop.axe">Топор</div>
+              <div class="shop-mythic-stat">ATK 520</div>
+            </div>
+            <div class="shop-mythic-price">💎 600</div>
+          </div>
         </div>
-        <div class="shop-mythic-card" onclick="buyMythic('shield')" style="position:relative;background:#2a0a0a;border:1px solid #5a1a1a;">
-          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
-          <div style="font-size:32px;">🛡️</div>
-          <div style="font-size:11px;font-weight:600;color:#fff;" data-i18n="shop.shield">Щит</div>
-          <div style="font-size:13px;color:#ff6d00;font-weight:700;margin-top:4px;">💎 600</div>
+        <div class="shop-mythic-card shop-mythic-shield" onclick="buyMythic('shield')">
+          <div class="shop-mythic-accent shop-mythic-accent-shield"></div>
+          <div class="shop-mythic-body">
+            <div class="shop-mythic-icon">🛡️</div>
+            <div class="shop-mythic-info">
+              <div class="shop-mythic-name" data-i18n="shop.shield">Щит</div>
+              <div class="shop-mythic-stat">DEF 3800</div>
+            </div>
+            <div class="shop-mythic-price">💎 600</div>
+          </div>
         </div>
-      </div>
-      <div class="shop-mythic-card" onclick="buyMythicSet()" style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:#2a0a0a;border:1px solid #5a1a1a;">
-        <span style="font-size:24px;">🗡️🪓🛡️</span>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#fff;" data-i18n="shop.mythic_bundle">Мифический комплект</div>
-          <div style="font-size:12px;color:#ff6d00;font-weight:700;">💎 1500 <span style="color:#4caf50;font-size:11px;" data-i18n="shop.savings">(экономия 300)</span></div>
+        <div class="shop-mythic-card shop-mythic-set" onclick="buyMythicSet()">
+          <div class="shop-mythic-accent shop-mythic-accent-set"></div>
+          <div class="shop-mythic-body">
+            <div class="shop-mythic-icon">🗡️🪓🛡️</div>
+            <div class="shop-mythic-info">
+              <div class="shop-mythic-name" data-i18n="shop.mythic_bundle">Мифический комплект</div>
+              <div class="shop-mythic-stat" data-i18n="shop.savings">экономия 300</div>
+            </div>
+            <div class="shop-mythic-price">💎 1,500</div>
+          </div>
         </div>
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
