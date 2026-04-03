@@ -230,7 +230,10 @@ async function handleTick(req, res) {
       const playerMinesAll = gameState.getPlayerMines(currentPlayerId);
       for (const mine of playerMinesAll) {
         if (mine.pending_level != null && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) <= new Date(nowISO)) {
-          const newMineMaxHp = getMineHp(mine.pending_level);
+          const upgCores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+          const upgCoreHp = upgCores.length > 0 ? getCoresTotalBoost(upgCores, 'hp') : 1;
+          const upgClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+          const newMineMaxHp = Math.round(getMineHp(mine.pending_level) * upgCoreHp * upgClanDef);
           mine.level = mine.pending_level;
           mine.pending_level = null;
           mine.upgrade_finish_at = null;

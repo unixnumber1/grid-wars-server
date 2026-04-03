@@ -581,9 +581,17 @@ async function handleUpgradePost(req, res) {
   const { error: mineUpdateError } = await supabase
     .from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() })
     .eq('id', mine_id);
-  if (mineUpdateError) console.error('[upgrade] mine update error:', mineUpdateError.message);
+  if (mineUpdateError) {
+    console.error('[upgrade] mine update error, rolling back coins:', mineUpdateError.message);
+    // ROLLBACK: restore coins in DB (gameState still has old balance — not yet updated)
+    const { error: rollbackErr } = await supabase
+      .from('players').update({ coins: balance })
+      .eq('id', player.id);
+    if (rollbackErr) console.error('[upgrade] CRITICAL: coin rollback failed:', rollbackErr.message);
+    return res.status(500).json({ error: 'Ошибка при обновлении шахты, попробуйте снова' });
+  }
 
-  // Update gameState
+  // Update gameState (only reached if BOTH DB writes succeeded)
   mine.pending_level = targetLevel;
   mine.upgrade_finish_at = finishAt.toISOString();
   gameState.markDirty('mines', mine_id);

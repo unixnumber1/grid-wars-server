@@ -20,7 +20,7 @@ export function startPersistLoop() {
 }
 
 async function batchPersist() {
-  const dirty = gameState.getDirtySnapshot();
+  const dirty = gameState.getDirtyAndClear();
   const keys = Object.keys(dirty);
   if (keys.length === 0) return;
 
@@ -131,11 +131,12 @@ async function batchPersist() {
       const { error } = await supabase.from(table).upsert(rows, { onConflict: 'id' });
       if (error) {
         console.error(`[persist] ${table} upsert error:`, error.message);
-        // Dirty marks preserved — will retry next cycle
+        // Re-add dirty marks so they retry next cycle
+        for (const id of ids) gameState.markDirty(key, id);
       } else {
         totalWritten += rows.length;
-        // Only clear dirty marks AFTER successful write
-        gameState.clearDirty(key, ids);
+        // Dirty marks already cleared by getDirtyAndClear.
+        // Any objects re-dirtied since then have fresh marks for next cycle.
       }
     } catch (e) {
       console.error(`[persist] ${table} error:`, e.message);
