@@ -17,14 +17,18 @@ export function getCoreMultiplier(level) {
   return Math.round((1 + level * 0.49) * 100) / 100;
 }
 
-// Upgrade cost in ether
+// Upgrade cost in ether (500K total for lv0→100, smooth steps every 10 levels)
 export function getCoreUpgradeCost(level) {
-  if (level <= 10)  return 100;
-  if (level <= 25)  return 400;
-  if (level <= 50)  return 1500;
-  if (level <= 75)  return 5000;
-  if (level <= 90)  return 20000;
-  return 53000;
+  if (level < 10) return 100;
+  if (level < 20) return 200;
+  if (level < 30) return 400;
+  if (level < 40) return 800;
+  if (level < 50) return 1500;
+  if (level < 60) return 2500;
+  if (level < 70) return 4500;
+  if (level < 80) return 7500;
+  if (level < 90) return 12500;
+  return 20000;
 }
 
 // Sell price: lv0 = 10, otherwise 10% of invested ether

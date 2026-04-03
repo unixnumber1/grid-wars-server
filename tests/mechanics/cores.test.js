@@ -45,8 +45,8 @@ describe('getCoreUpgradeCost', () => {
     assert.strictEqual(getCoreUpgradeCost(5), 100);
   });
 
-  it('high levels cost 53000 ether', () => {
-    assert.strictEqual(getCoreUpgradeCost(95), 53000);
+  it('high levels cost 20000 ether', () => {
+    assert.strictEqual(getCoreUpgradeCost(95), 20000);
   });
 });
 
