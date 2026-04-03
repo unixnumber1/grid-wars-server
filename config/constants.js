@@ -85,28 +85,28 @@ export const ORE_PER_PLAYER = 8;
 export const MAX_ORE_PER_CITY = 150;
 
 // ── Collectors ──
-export const COLLECTOR_COST_DIAMONDS = 50;
+export const COLLECTOR_COST_DIAMONDS = 25;
 export const COLLECTOR_SELL_DIAMONDS = 37;
 export const COLLECTOR_RADIUS = 200;               // meters
 export const COLLECTOR_DELIVERY_COMMISSION = 0;      // 0% (commission disabled)
 export const COLLECTOR_EXTINGUISH_COST = 5;          // diamonds to extinguish
 
 // ── Barracks ──
-export const BARRACKS_BUILD_COST = 100;              // diamonds
+export const BARRACKS_BUILD_COST = 50;               // diamonds
 export const BARRACKS_MIN_HQ_LEVEL = 4;
 export const BARRACKS_BASE_TRAIN_TIME_MS = 30 * 60 * 1000; // 30 min
 
 export const BARRACKS_LEVELS = {
   1:  { hp: 3000,  upgradeCost: 0,   slots: 1 },
-  2:  { hp: 4500,  upgradeCost: 150, slots: 1 },
-  3:  { hp: 6500,  upgradeCost: 200, slots: 2 },
-  4:  { hp: 9000,  upgradeCost: 250, slots: 2 },
-  5:  { hp: 12000, upgradeCost: 300, slots: 3 },
-  6:  { hp: 16000, upgradeCost: 350, slots: 3 },
-  7:  { hp: 21000, upgradeCost: 400, slots: 4 },
-  8:  { hp: 27000, upgradeCost: 450, slots: 4 },
-  9:  { hp: 34000, upgradeCost: 500, slots: 5 },
-  10: { hp: 42000, upgradeCost: 500, slots: 5 },
+  2:  { hp: 4500,  upgradeCost: 80,  slots: 1 },
+  3:  { hp: 6500,  upgradeCost: 100, slots: 2 },
+  4:  { hp: 9000,  upgradeCost: 120, slots: 2 },
+  5:  { hp: 12000, upgradeCost: 140, slots: 3 },
+  6:  { hp: 16000, upgradeCost: 160, slots: 3 },
+  7:  { hp: 21000, upgradeCost: 180, slots: 4 },
+  8:  { hp: 27000, upgradeCost: 200, slots: 4 },
+  9:  { hp: 34000, upgradeCost: 220, slots: 5 },
+  10: { hp: 42000, upgradeCost: 250, slots: 5 },
 };
 
 // Scout unit
@@ -284,7 +284,7 @@ export const CLAN_MAX_MEMBERS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 export const CLAN_BOOST_PRICES = [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500];
 
 // ── Collector upgrade prices ──
-export const COLLECTOR_UPGRADE_PRICES = [0, 20, 35, 55, 80, 100, 120, 140, 175, 225];
+export const COLLECTOR_UPGRADE_PRICES = [0, 25, 30, 35, 40, 50, 55, 65, 75, 100];
 
 // ═══════════════════════════════════════════════════════
 //  Zombie Hordes
