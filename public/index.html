@@ -13908,9 +13908,9 @@ function _renderCorePacks() {
     { label: '💰 Бизнесмен', cores: [{type:'income',count:3},{type:'capacity',count:2}], ether: 5000, price: 1200, theme: 'businessman' },
     { label: '🛡️ Защитник', cores: [{type:'hp',count:3},{type:'regen',count:2}], ether: 5000, price: 900, theme: 'defender' },
   ];
-  const CORE_TYPE_NAMES = { income: '💰 доход', capacity: '📦 вместимость', hp: '❤️ HP', regen: '💚 реген' };
+  const CORE_EMOJI = { income: '✴️', capacity: '✳️', hp: '❤️', regen: '♻️' };
   grid.innerHTML = CORE_PACKS.map((p, i) => {
-    const chips = p.cores.map(c => `<span class="core-bundle-chip">${c.count}× ${CORE_TYPE_NAMES[c.type]}</span>`).join('');
+    const chips = p.cores.map(c => `<span class="core-bundle-chip">${c.count}× ${CORE_EMOJI[c.type]}</span>`).join('');
     return `<div class="core-bundle core-bundle-${p.theme}" onclick="buyCorePack(${i})">
       <div class="core-bundle-header">
         <div class="core-bundle-title">${p.label}</div>
