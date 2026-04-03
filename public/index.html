@@ -2008,29 +2008,53 @@
     }
     .shop-box-open-btn:active { background: rgba(255,215,0,0.25); }
     .shop-box-open-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .shop-mythic-card {
-      position: relative; border-radius: 14px; overflow: hidden;
+    /* ── Shop product cards ── */
+    .shop-item {
+      background: #151518; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; padding: 14px 10px 10px; text-align: center;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: transform 0.12s; display: flex;
+      transition: transform 0.12s; position: relative; overflow: hidden;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
     }
-    .shop-mythic-card:active { transform: scale(0.97); }
-    .shop-mythic-accent { width: 5px; flex-shrink: 0; }
-    .shop-mythic-accent-sword { background: linear-gradient(180deg, #ef5350, #b71c1c); }
-    .shop-mythic-accent-axe { background: linear-gradient(180deg, #ff8a50, #d84315); }
-    .shop-mythic-accent-shield { background: linear-gradient(180deg, #66bb6a, #2e7d32); }
-    .shop-mythic-accent-set { background: linear-gradient(180deg, #ff6d00, #e65100); }
-    .shop-mythic-body {
-      flex: 1; padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+    .shop-item:active { transform: scale(0.96); }
+    .shop-item-glow {
+      width: 56px; height: 56px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-size: 28px; line-height: 1;
+      position: relative; flex-shrink: 0;
     }
-    .shop-mythic-sword .shop-mythic-body { background: #1c1214; }
-    .shop-mythic-axe .shop-mythic-body { background: #1c1610; }
-    .shop-mythic-shield .shop-mythic-body { background: #111c14; }
-    .shop-mythic-set .shop-mythic-body { background: #1c1510; }
-    .shop-mythic-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
-    .shop-mythic-info { flex: 1; }
-    .shop-mythic-name { font-size: 13px; font-weight: 700; color: #fff; }
-    .shop-mythic-stat { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; margin-top: 1px; }
-    .shop-mythic-price { font-size: 14px; font-weight: 800; color: #ff6d00; flex-shrink: 0; }
+    .shop-item-glow::after {
+      content: ''; position: absolute; inset: -8px; border-radius: 50%;
+      background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
+      opacity: 0.4; z-index: 0;
+    }
+    .shop-item-name { font-size: 12px; font-weight: 700; color: #fff; }
+    .shop-item-sub { font-size: 10px; color: rgba(255,255,255,0.35); font-weight: 600; }
+    .shop-item-btn {
+      width: 100%; margin-top: 4px; padding: 7px 0; border-radius: 10px; border: none;
+      font-size: 13px; font-weight: 800; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: opacity 0.15s;
+      background: var(--btn-bg); color: var(--btn-color);
+    }
+    .shop-item-btn:active { opacity: 0.7; }
+    /* ── Wide product card (set / bundle) ── */
+    .shop-item-wide {
+      background: #151518; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; padding: 14px 16px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: transform 0.12s;
+      display: flex; align-items: center; gap: 14px; position: relative; overflow: hidden;
+    }
+    .shop-item-wide:active { transform: scale(0.97); }
+    .shop-item-wide .shop-item-glow { width: 48px; height: 48px; font-size: 22px; flex-shrink: 0; }
+    .shop-item-wide-info { flex: 1; text-align: left; }
+    .shop-item-wide-name { font-size: 14px; font-weight: 800; color: #fff; }
+    .shop-item-wide-sub { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 600; margin-top: 2px; }
+    .shop-item-wide-btn {
+      padding: 8px 18px; border-radius: 10px; border: none;
+      font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+      background: var(--btn-bg); color: var(--btn-color);
+    }
+    .shop-item-wide-btn:active { opacity: 0.7; }
     .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .shop-star-card {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -2049,36 +2073,7 @@
       color: #000; border: none; border-radius: 10px; padding: 8px; font-size: 13px; font-weight: 700;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
-    /* ── Core bundle cards ── */
-    .core-bundle {
-      position: relative; border-radius: 14px; overflow: hidden;
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: transform 0.12s; display: flex;
-    }
-    .core-bundle:active { transform: scale(0.97); }
-    .core-bundle-accent {
-      width: 5px; flex-shrink: 0;
-    }
-    .core-bundle-businessman .core-bundle-accent {
-      background: linear-gradient(180deg, #FFD700, #CC8800);
-    }
-    .core-bundle-defender .core-bundle-accent {
-      background: linear-gradient(180deg, #64B5F6, #1565C0);
-    }
-    .core-bundle-content {
-      flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
-    }
-    .core-bundle-businessman .core-bundle-content { background: #1a1710; }
-    .core-bundle-defender .core-bundle-content { background: #101820; }
-    .core-bundle-row-top { display: flex; align-items: center; justify-content: space-between; }
-    .core-bundle-title { font-size: 15px; font-weight: 800; color: #fff; }
-    .core-bundle-price { font-size: 14px; font-weight: 800; color: #64B5F6; }
-    .core-bundle-items {
-      display: flex; gap: 16px; align-items: center;
-      font-size: 13px; color: rgba(255,255,255,0.55); font-weight: 600;
-    }
-    .core-bundle-items span { display: flex; align-items: center; gap: 3px; }
-    .core-bundle-businessman .core-bundle-price { color: #FFD700; }
+    /* core bundle cards use .shop-item-wide */
     .shop-daily-card {
       background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.2);
       border-radius: 16px; padding: 20px;
@@ -3660,51 +3655,33 @@
     <!-- Items tab (mythic gear + core packs) -->
     <div id="shop-tab-items" class="shop-tab-content">
       <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;" data-i18n="shop.mythic_gear">🔥 Мифическое снаряжение</div>
-      <div style="display:grid;grid-template-columns:1fr;gap:10px;">
-        <div class="shop-mythic-card shop-mythic-sword" onclick="buyMythic('sword')">
-          <div class="shop-mythic-accent shop-mythic-accent-sword"></div>
-          <div class="shop-mythic-body">
-            <div class="shop-mythic-icon">🗡️</div>
-            <div class="shop-mythic-info">
-              <div class="shop-mythic-name" data-i18n="shop.sword">Меч</div>
-              <div class="shop-mythic-stat">ATK 380 · CRIT 16%</div>
-            </div>
-            <div class="shop-mythic-price">💎 600</div>
-          </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="shop-item" onclick="buyMythic('sword')" style="--glow:rgba(239,83,80,0.5);--btn-bg:rgba(239,83,80,0.15);--btn-color:#ef5350;">
+          <div class="shop-item-glow">🗡️</div>
+          <div class="shop-item-name" data-i18n="shop.sword">Меч</div>
+          <div class="shop-item-sub">ATK 380</div>
+          <button class="shop-item-btn">💎 600</button>
         </div>
-        <div class="shop-mythic-card shop-mythic-axe" onclick="buyMythic('axe')">
-          <div class="shop-mythic-accent shop-mythic-accent-axe"></div>
-          <div class="shop-mythic-body">
-            <div class="shop-mythic-icon">🪓</div>
-            <div class="shop-mythic-info">
-              <div class="shop-mythic-name" data-i18n="shop.axe">Топор</div>
-              <div class="shop-mythic-stat">ATK 520</div>
-            </div>
-            <div class="shop-mythic-price">💎 600</div>
-          </div>
+        <div class="shop-item" onclick="buyMythic('axe')" style="--glow:rgba(255,138,80,0.5);--btn-bg:rgba(255,138,80,0.15);--btn-color:#ff8a50;">
+          <div class="shop-item-glow">🪓</div>
+          <div class="shop-item-name" data-i18n="shop.axe">Топор</div>
+          <div class="shop-item-sub">ATK 520</div>
+          <button class="shop-item-btn">💎 600</button>
         </div>
-        <div class="shop-mythic-card shop-mythic-shield" onclick="buyMythic('shield')">
-          <div class="shop-mythic-accent shop-mythic-accent-shield"></div>
-          <div class="shop-mythic-body">
-            <div class="shop-mythic-icon">🛡️</div>
-            <div class="shop-mythic-info">
-              <div class="shop-mythic-name" data-i18n="shop.shield">Щит</div>
-              <div class="shop-mythic-stat">DEF 3800</div>
-            </div>
-            <div class="shop-mythic-price">💎 600</div>
-          </div>
+        <div class="shop-item" onclick="buyMythic('shield')" style="--glow:rgba(102,187,106,0.5);--btn-bg:rgba(102,187,106,0.15);--btn-color:#66bb6a;">
+          <div class="shop-item-glow">🛡️</div>
+          <div class="shop-item-name" data-i18n="shop.shield">Щит</div>
+          <div class="shop-item-sub">DEF 3800</div>
+          <button class="shop-item-btn">💎 600</button>
         </div>
-        <div class="shop-mythic-card shop-mythic-set" onclick="buyMythicSet()">
-          <div class="shop-mythic-accent shop-mythic-accent-set"></div>
-          <div class="shop-mythic-body">
-            <div class="shop-mythic-icon">🗡️🪓🛡️</div>
-            <div class="shop-mythic-info">
-              <div class="shop-mythic-name" data-i18n="shop.mythic_bundle">Мифический комплект</div>
-              <div class="shop-mythic-stat" data-i18n="shop.savings">экономия 300</div>
-            </div>
-            <div class="shop-mythic-price">💎 1,500</div>
-          </div>
+      </div>
+      <div class="shop-item-wide" onclick="buyMythicSet()" style="margin-top:10px;--glow:rgba(255,109,0,0.5);--btn-bg:linear-gradient(135deg,#ff6d00,#e65100);--btn-color:#fff;">
+        <div class="shop-item-glow">🗡️🪓🛡️</div>
+        <div class="shop-item-wide-info">
+          <div class="shop-item-wide-name" data-i18n="shop.mythic_bundle">Мифический комплект</div>
+          <div class="shop-item-wide-sub" data-i18n="shop.savings">экономия 300 💎</div>
         </div>
+        <button class="shop-item-wide-btn" style="background:linear-gradient(135deg,#ff6d00,#e65100);color:#fff;">💎 1,500</button>
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:15px;font-weight:700;color:#7DF9FF;margin-bottom:12px;" data-i18n="shop.core_packs_title">🔮 Паки ядер</div>
@@ -13925,17 +13902,20 @@ function _renderCorePacks() {
     { label: '🛡️ Защитник', cores: [{type:'hp',count:3},{type:'regen',count:2}], ether: 5000, price: 900, theme: 'defender' },
   ];
   const CORE_EMOJI = { income: '✴️', capacity: '✳️', hp: '❤️', regen: '♻️' };
+  const THEME = {
+    businessman: { icon: '💰', glow: 'rgba(255,215,0,0.5)', btn: 'linear-gradient(135deg,#FFD700,#CC8800)', btnColor: '#000' },
+    defender:    { icon: '🛡️', glow: 'rgba(100,180,255,0.5)', btn: 'linear-gradient(135deg,#64B5F6,#1565C0)', btnColor: '#fff' },
+  };
   grid.innerHTML = CORE_PACKS.map((p, i) => {
-    const items = p.cores.map(c => `<span>${c.count}× ${CORE_EMOJI[c.type]}</span>`).join('');
-    return `<div class="core-bundle core-bundle-${p.theme}" onclick="buyCorePack(${i})">
-      <div class="core-bundle-accent"></div>
-      <div class="core-bundle-content">
-        <div class="core-bundle-row-top">
-          <div class="core-bundle-title">${p.label}</div>
-          <div class="core-bundle-price">💎 ${p.price.toLocaleString()}</div>
-        </div>
-        <div class="core-bundle-items">${items}<span>${p.ether.toLocaleString()} 🌀</span></div>
+    const t = THEME[p.theme];
+    const desc = p.cores.map(c => `${c.count}× ${CORE_EMOJI[c.type]}`).join('  ') + `  ${p.ether.toLocaleString()} 🌀`;
+    return `<div class="shop-item-wide" onclick="buyCorePack(${i})" style="--glow:${t.glow}">
+      <div class="shop-item-glow">${t.icon}</div>
+      <div class="shop-item-wide-info">
+        <div class="shop-item-wide-name">${p.label}</div>
+        <div class="shop-item-wide-sub">${desc}</div>
       </div>
+      <button class="shop-item-wide-btn" style="background:${t.btn};color:${t.btnColor}">💎 ${p.price.toLocaleString()}</button>
     </div>`;
   }).join('');
 }
