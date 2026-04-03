@@ -651,21 +651,22 @@ itemsRouter.post('/', async (req, res) => {
     const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
     if (!diamOk) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
-    // Create cores
-    const { randomCoreType } = await import('../../game/mechanics/cores.js');
+    // Create cores — themed bundles with specific types
     const createdCores = [];
-    for (let i = 0; i < pack.cores; i++) {
-      const coreData = {
-        owner_id: Number(telegram_id),
-        core_type: randomCoreType(),
-        level: pack.core_level,
-        mine_cell_id: null,
-        slot_index: null,
-      };
-      const { data: core, error: cErr } = await supabase.from('cores').insert(coreData).select().single();
-      if (!cErr && core) {
-        createdCores.push(core);
-        if (gameState.loaded) gameState.cores.set(core.id, core);
+    for (const slot of pack.cores) {
+      for (let i = 0; i < slot.count; i++) {
+        const coreData = {
+          owner_id: Number(telegram_id),
+          core_type: slot.type,
+          level: 0,
+          mine_cell_id: null,
+          slot_index: null,
+        };
+        const { data: core, error: cErr } = await supabase.from('cores').insert(coreData).select().single();
+        if (!cErr && core) {
+          createdCores.push(core);
+          if (gameState.loaded) gameState.cores.set(core.id, core);
+        }
       }
     }
 

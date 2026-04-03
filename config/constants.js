@@ -250,10 +250,14 @@ export const STAR_PACKS = [
 
 // ── Core packs ──
 export const CORE_PACKS = [
-  { label: '🔮 Малый', label_en: '🔮 Small', cores: 3, core_level: 0, ether: 500, price: 430 },
-  { label: '🔮 Средний', label_en: '🔮 Medium', cores: 5, core_level: 0, ether: 1500, price: 680 },
-  { label: '🔮 Большой', label_en: '🔮 Large', cores: 10, core_level: 0, ether: 4000, price: 1300 },
-  { label: '🔮 Мега', label_en: '🔮 Mega', cores: 20, core_level: 0, ether: 10000, price: 2400, badge: 'ВЫГОДА', badge_en: 'BEST' },
+  { label: '💰 Бизнесмен', label_en: '💰 Businessman', cores: [
+    { type: 'income', count: 3 },
+    { type: 'capacity', count: 2 },
+  ], ether: 5000, price: 1200 },
+  { label: '🛡️ Защитник', label_en: '🛡️ Defender', cores: [
+    { type: 'hp', count: 3 },
+    { type: 'regen', count: 2 },
+  ], ether: 5000, price: 900 },
 ];
 
 // ── Cosmetic prices ──
