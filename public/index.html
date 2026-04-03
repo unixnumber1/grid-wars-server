@@ -2032,6 +2032,56 @@
       color: #000; border: none; border-radius: 10px; padding: 8px; font-size: 13px; font-weight: 700;
       cursor: pointer; -webkit-tap-highlight-color: transparent;
     }
+    /* ── Core bundle cards ── */
+    .core-bundle {
+      position: relative; border-radius: 16px; padding: 18px 16px;
+      cursor: pointer; overflow: hidden;
+      -webkit-tap-highlight-color: transparent; transition: transform 0.15s;
+    }
+    .core-bundle:active { transform: scale(0.97); }
+    .core-bundle::before {
+      content: ''; position: absolute; inset: 0; border-radius: 16px; padding: 1px;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+    }
+    .core-bundle-businessman {
+      background: linear-gradient(135deg, rgba(45,35,15,0.95) 0%, rgba(30,24,10,0.9) 50%, rgba(50,38,12,0.95) 100%);
+      box-shadow: 0 0 24px rgba(255,185,0,0.08), inset 0 1px 0 rgba(255,215,0,0.1);
+    }
+    .core-bundle-businessman::before {
+      background: linear-gradient(135deg, rgba(255,215,0,0.4), rgba(255,140,0,0.15), rgba(255,215,0,0.3));
+    }
+    .core-bundle-defender {
+      background: linear-gradient(135deg, rgba(12,25,50,0.95) 0%, rgba(8,18,38,0.9) 50%, rgba(15,30,55,0.95) 100%);
+      box-shadow: 0 0 24px rgba(100,180,255,0.08), inset 0 1px 0 rgba(100,180,255,0.1);
+    }
+    .core-bundle-defender::before {
+      background: linear-gradient(135deg, rgba(100,180,255,0.4), rgba(0,200,255,0.12), rgba(100,180,255,0.3));
+    }
+    .core-bundle-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .core-bundle-title { font-size: 16px; font-weight: 800; color: #fff; }
+    .core-bundle-price {
+      font-size: 15px; font-weight: 800; padding: 4px 12px; border-radius: 20px;
+    }
+    .core-bundle-businessman .core-bundle-price {
+      background: rgba(255,215,0,0.12); color: #FFD700; border: 1px solid rgba(255,215,0,0.25);
+    }
+    .core-bundle-defender .core-bundle-price {
+      background: rgba(100,180,255,0.12); color: #64B5F6; border: 1px solid rgba(100,180,255,0.25);
+    }
+    .core-bundle-cores { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .core-bundle-chip {
+      font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px;
+    }
+    .core-bundle-businessman .core-bundle-chip {
+      background: rgba(255,215,0,0.1); color: rgba(255,215,0,0.85); border: 1px solid rgba(255,215,0,0.15);
+    }
+    .core-bundle-defender .core-bundle-chip {
+      background: rgba(100,180,255,0.1); color: rgba(140,200,255,0.85); border: 1px solid rgba(100,180,255,0.15);
+    }
+    .core-bundle-ether {
+      font-size: 12px; font-weight: 600; color: rgba(125,249,255,0.7);
+    }
     .shop-daily-card {
       background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.2);
       border-radius: 16px; padding: 20px;
@@ -3642,7 +3692,7 @@
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:15px;font-weight:700;color:#7DF9FF;margin-bottom:12px;" data-i18n="shop.core_packs_title">🔮 Паки ядер</div>
-        <div id="shop-cores-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+        <div id="shop-cores-grid" style="display:grid;grid-template-columns:1fr;gap:14px;"></div>
       </div>
     </div>
     <!-- Diamonds tab (daily bonus + star packs) -->
@@ -13855,19 +13905,19 @@ function _renderCorePacks() {
   const grid = document.getElementById('shop-cores-grid');
   if (!grid) return;
   const CORE_PACKS = [
-    { label: '💰 Бизнесмен', cores: [{type:'income',count:3},{type:'capacity',count:2}], ether: 5000, price: 1200 },
-    { label: '🛡️ Защитник', cores: [{type:'hp',count:3},{type:'regen',count:2}], ether: 5000, price: 900 },
+    { label: '💰 Бизнесмен', cores: [{type:'income',count:3},{type:'capacity',count:2}], ether: 5000, price: 1200, theme: 'businessman' },
+    { label: '🛡️ Защитник', cores: [{type:'hp',count:3},{type:'regen',count:2}], ether: 5000, price: 900, theme: 'defender' },
   ];
   const CORE_TYPE_NAMES = { income: '💰 доход', capacity: '📦 вместимость', hp: '❤️ HP', regen: '💚 реген' };
   grid.innerHTML = CORE_PACKS.map((p, i) => {
-    const coreDesc = p.cores.map(c => `${c.count}× ${CORE_TYPE_NAMES[c.type]}`).join(', ');
-    return `<div style="position:relative;background:#0d1a2e;border:1px solid #1e3a5f;border-radius:var(--card-radius);padding:14px;cursor:pointer;" onclick="buyCorePack(${i})">
-      <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;">${p.label}</div>
-      <div style="font-size:12px;color:var(--text-secondary);">${coreDesc}</div>
-      <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">+ ${p.ether.toLocaleString()}🌀 эфира</div>
-      <div style="margin-top:8px;">
-        <span style="font-size:14px;font-weight:700;color:#64B5F6;">💎 ${p.price.toLocaleString()}</span>
+    const chips = p.cores.map(c => `<span class="core-bundle-chip">${c.count}× ${CORE_TYPE_NAMES[c.type]}</span>`).join('');
+    return `<div class="core-bundle core-bundle-${p.theme}" onclick="buyCorePack(${i})">
+      <div class="core-bundle-header">
+        <div class="core-bundle-title">${p.label}</div>
+        <div class="core-bundle-price">💎 ${p.price.toLocaleString()}</div>
       </div>
+      <div class="core-bundle-cores">${chips}</div>
+      <div class="core-bundle-ether">+ ${p.ether.toLocaleString()} 🌀 эфира</div>
     </div>`;
   }).join('');
 }
