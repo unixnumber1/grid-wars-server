@@ -3610,28 +3610,19 @@
   <div id="shop-body">
     <!-- Boxes tab -->
     <div id="shop-tab-boxes" class="shop-tab-content active">
-      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr;">
-        <div class="shop-box-card" style="border-color:rgba(136,136,136,0.35);background:#1a1a1a;position:relative;">
-          <button class="shop-box-info-btn shop-info-btn" data-box="common" onclick="event.stopPropagation()">i</button>
-          <div class="shop-box-icon">📦</div>
-          <div class="shop-box-name" data-i18n="shop.box.common">Обычный бокс</div>
-          <div class="shop-box-price">💎 3</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="common" style="background:linear-gradient(135deg,rgba(136,136,136,0.2),rgba(136,136,136,0.08));border-color:rgba(136,136,136,0.4);color:#aaa;" data-i18n="shop.open">Открыть</button>
-        </div>
-        <div class="shop-box-card" style="border-color:rgba(76,175,80,0.35);background:#1a1a1a;position:relative;">
+      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="shop-box-card" style="border-color:rgba(21,101,192,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="rare" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
           <div class="shop-box-name" data-i18n="shop.box.rare">Редкий бокс</div>
-          <div class="shop-box-price">💎 8</div>
+          <div class="shop-box-price">💎 10</div>
           <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(21,101,192,0.2),rgba(21,101,192,0.08));border-color:rgba(21,101,192,0.4);color:#42a5f5;" data-i18n="shop.open">Открыть</button>
         </div>
-      </div>
-      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr;margin-top:12px;">
         <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;position:relative;">
           <button class="shop-box-info-btn shop-info-btn" data-box="epic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🎁</div>
           <div class="shop-box-name" data-i18n="shop.box.epic">Эпический бокс</div>
-          <div class="shop-box-price">💎 35</div>
+          <div class="shop-box-price">💎 40</div>
           <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(106,27,154,0.2),rgba(106,27,154,0.08));border-color:rgba(106,27,154,0.4);color:#ce93d8;" data-i18n="shop.open">Открыть</button>
         </div>
         <div class="shop-box-card" style="border-color:rgba(230,81,0,0.6);background:#2a1500;position:relative;box-shadow:0 0 24px rgba(230,81,0,0.15);">
@@ -13579,12 +13570,11 @@ function _applyMapStyle(styleId) {
 // ─────────────────────────────────────────────
 //  Shop
 // ─────────────────────────────────────────────
-const SHOP_BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
+const SHOP_BOX_PRICES = { rare: 10, epic: 40, mythic: 150 };
 const SHOP_BOX_ODDS = {
-  common: { common: 70, uncommon: 25, rare: 5 },
-  rare: { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1 },
-  epic: { uncommon: 35, rare: 35, epic: 20, mythic: 10 },
-  mythic: { rare: 20, epic: 40, mythic: 39, legendary: 1 },
+  rare: { rare: 75, epic: 20, mythic: 5 },
+  epic: { rare: 30, epic: 50, mythic: 20 },
+  mythic: { epic: 30, mythic: 65, legendary: 5 },
 };
 
 function openShop() {

@@ -50,7 +50,7 @@ export const RENAME_COST_DIAMONDS = 10;
 export const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
 
 // ── Items ──
-export const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
+export const BOX_PRICES = { rare: 10, epic: 40, mythic: 150 };
 export const ITEM_TYPES = ['sword', 'axe', 'shield'];
 
 // ── Market ──
