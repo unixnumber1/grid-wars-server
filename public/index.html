@@ -1985,6 +1985,7 @@
     .shop-box-card {
       border-radius: 16px; border: 1px solid; padding: 14px;
       text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      min-height: 190px; box-sizing: border-box;
     }
     .shop-box-icon { font-size: 48px; line-height: 1; animation: boxFloat 3s ease-in-out infinite; }
     @keyframes boxFloat {
@@ -3610,27 +3611,27 @@
   <div id="shop-body">
     <!-- Boxes tab -->
     <div id="shop-tab-boxes" class="shop-tab-content active">
-      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr 1fr;">
-        <div class="shop-box-card" style="border-color:rgba(21,101,192,0.35);background:#1a1a1a;position:relative;">
+      <div class="shop-boxes-row" style="grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div class="shop-box-card" style="border-color:rgba(21,101,192,0.35);background:#1a1a1a;position:relative;padding:10px;">
           <button class="shop-box-info-btn shop-info-btn" data-box="rare" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">📦</div>
-          <div class="shop-box-name" data-i18n="shop.box.rare">Редкий бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.rare">Редкий</div>
           <div class="shop-box-price">💎 10</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(21,101,192,0.2),rgba(21,101,192,0.08));border-color:rgba(21,101,192,0.4);color:#42a5f5;" data-i18n="shop.open">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="rare" style="background:linear-gradient(135deg,rgba(21,101,192,0.2),rgba(21,101,192,0.08));border-color:rgba(21,101,192,0.4);color:#42a5f5;padding:8px;" data-i18n="shop.open">Открыть</button>
         </div>
-        <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;position:relative;">
+        <div class="shop-box-card" style="border-color:rgba(156,39,176,0.35);background:#1a1a1a;position:relative;padding:10px;">
           <button class="shop-box-info-btn shop-info-btn" data-box="epic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🎁</div>
-          <div class="shop-box-name" data-i18n="shop.box.epic">Эпический бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.epic">Эпический</div>
           <div class="shop-box-price">💎 40</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(106,27,154,0.2),rgba(106,27,154,0.08));border-color:rgba(106,27,154,0.4);color:#ce93d8;" data-i18n="shop.open">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="epic" style="background:linear-gradient(135deg,rgba(106,27,154,0.2),rgba(106,27,154,0.08));border-color:rgba(106,27,154,0.4);color:#ce93d8;padding:8px;" data-i18n="shop.open">Открыть</button>
         </div>
-        <div class="shop-box-card" style="border-color:rgba(230,81,0,0.6);background:#2a1500;position:relative;box-shadow:0 0 24px rgba(230,81,0,0.15);">
+        <div class="shop-box-card" style="border-color:rgba(230,81,0,0.6);background:#2a1500;position:relative;box-shadow:0 0 24px rgba(230,81,0,0.15);padding:10px;">
           <button class="shop-box-info-btn shop-info-btn" data-box="mythic" onclick="event.stopPropagation()">i</button>
           <div class="shop-box-icon">🏆</div>
-          <div class="shop-box-name" data-i18n="shop.box.mythic">Мифический бокс</div>
+          <div class="shop-box-name" data-i18n="shop.box.mythic">Мифический</div>
           <div class="shop-box-price">💎 150</div>
-          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;" data-i18n="shop.open">Открыть</button>
+          <button class="shop-box-open-btn shop-open-btn" data-box="mythic" style="background:linear-gradient(135deg,rgba(230,81,0,0.3),rgba(230,81,0,0.1));border-color:rgba(230,81,0,0.5);color:#ff8a50;padding:8px;" data-i18n="shop.open">Открыть</button>
         </div>
       </div>
       <div class="shop-boxes-row" style="grid-template-columns:1fr;margin-top:12px;">
