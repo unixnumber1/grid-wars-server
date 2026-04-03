@@ -242,12 +242,10 @@ export const GEAR_PRICES = {
 
 // ── Star packs ──
 export const STAR_PACKS = [
-  { diamonds: 100,  stars: 75,   label: 'Стартовый', label_en: 'Starter' },
-  { diamonds: 300,  stars: 200,  label: 'Базовый', label_en: 'Basic' },
-  { diamonds: 700,  stars: 400,  label: '🔥 Популярный', label_en: '🔥 Popular', badge: 'ПОПУЛЯРНЫЙ', badge_en: 'POPULAR' },
-  { diamonds: 1500, stars: 800,  label: 'Продвинутый', label_en: 'Advanced' },
-  { diamonds: 3500, stars: 1800, label: 'Премиум', label_en: 'Premium' },
-  { diamonds: 8000, stars: 4000, label: 'Кит', label_en: 'Whale', badge: 'ВЫГОДНО 👑', badge_en: 'BEST VALUE 👑' },
+  { diamonds: 100,  stars: 119,  label: 'Стартовый', label_en: 'Starter' },
+  { diamonds: 400,  stars: 459,  label: '🔥 Популярный', label_en: '🔥 Popular', badge: 'ПОПУЛЯРНЫЙ', badge_en: 'POPULAR' },
+  { diamonds: 1200, stars: 1249, label: 'Премиум', label_en: 'Premium' },
+  { diamonds: 3000, stars: 2999, label: 'Кит', label_en: 'Whale', badge: 'ВЫГОДНО 👑', badge_en: 'BEST VALUE 👑' },
 ];
 
 // ── Core packs ──
