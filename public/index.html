@@ -3657,18 +3657,21 @@
       <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;" data-i18n="shop.mythic_gear">🔥 Мифическое снаряжение</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
         <div class="shop-item" onclick="buyMythic('sword')" style="--glow:rgba(255,109,0,0.5);--btn-bg:rgba(255,109,0,0.15);--btn-color:#ff6d00;">
+          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
           <div class="shop-item-glow">🗡️</div>
           <div class="shop-item-name" data-i18n="shop.sword">Меч</div>
           <div class="shop-item-sub">ATK 380</div>
           <button class="shop-item-btn">💎 600</button>
         </div>
         <div class="shop-item" onclick="buyMythic('axe')" style="--glow:rgba(255,109,0,0.5);--btn-bg:rgba(255,109,0,0.15);--btn-color:#ff6d00;">
+          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('axe')">i</button>
           <div class="shop-item-glow">🪓</div>
           <div class="shop-item-name" data-i18n="shop.axe">Топор</div>
           <div class="shop-item-sub">ATK 520</div>
           <button class="shop-item-btn">💎 600</button>
         </div>
         <div class="shop-item" onclick="buyMythic('shield')" style="--glow:rgba(255,109,0,0.5);--btn-bg:rgba(255,109,0,0.15);--btn-color:#ff6d00;">
+          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
           <div class="shop-item-glow">🛡️</div>
           <div class="shop-item-name" data-i18n="shop.shield">Щит</div>
           <div class="shop-item-sub">DEF 3800</div>
@@ -3676,6 +3679,7 @@
         </div>
       </div>
       <div class="shop-item-wide" onclick="buyMythicSet()" style="margin-top:10px;--glow:rgba(255,109,0,0.5);--btn-bg:linear-gradient(135deg,#ff6d00,#e65100);--btn-color:#fff;">
+        <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicSetInfo()" style="top:8px;right:8px;">i</button>
         <div class="shop-item-glow">🗡️🪓🛡️</div>
         <div class="shop-item-wide-info">
           <div class="shop-item-wide-name" data-i18n="shop.mythic_bundle">Мифический комплект</div>
@@ -13694,6 +13698,43 @@ function showMythicInfo(type) {
   openPopup(i.title, t('shop.mythic_stats'), i.stats, [{ label: t('misc.ok'), isClose: true }]);
 }
 
+function showMythicSetInfo() {
+  openPopup('🗡️🪓🛡️ Мифический комплект', 'Все 3 предмета сразу', [
+    ['🗡️ Меч', 'ATK 380 · CRIT 16%'],
+    ['🪓 Топор', 'ATK 520 · Казнь'],
+    ['🛡️ Щит', 'DEF 3800 · Блок'],
+    ['💎 Цена', '1,500 (вместо 1,800)'],
+  ], [{ label: t('misc.ok'), isClose: true }]);
+}
+
+function showBundleInfo(theme) {
+  const bundles = {
+    businessman: {
+      title: '💰 Бизнесмен',
+      sub: 'Набор для максимального дохода',
+      stats: [
+        ['✴️ Ядро дохода', '×3 шт'],
+        ['✳️ Ядро вместимости', '×2 шт'],
+        ['🌀 Эфир', '5,000'],
+        ['📝 Уровень ядер', '0 (можно прокачать)'],
+      ]
+    },
+    defender: {
+      title: '🛡️ Защитник',
+      sub: 'Набор для защиты шахт',
+      stats: [
+        ['❤️ Ядро здоровья', '×3 шт'],
+        ['♻️ Ядро регенерации', '×2 шт'],
+        ['🌀 Эфир', '5,000'],
+        ['📝 Уровень ядер', '0 (можно прокачать)'],
+      ]
+    },
+  };
+  const b = bundles[theme];
+  if (!b) return;
+  openPopup(b.title, b.sub, b.stats, [{ label: t('misc.ok'), isClose: true }]);
+}
+
 async function buyMythic(weaponType) {
   if (!confirm(t('shop.buy_mythic', { type: t('item.' + weaponType) }))) return;
   try {
@@ -13910,6 +13951,7 @@ function _renderCorePacks() {
     const t = THEME[p.theme];
     const desc = p.cores.map(c => `${c.count}× ${CORE_EMOJI[c.type]}`).join('  ') + `  ${p.ether.toLocaleString()} 🌀`;
     return `<div class="shop-item-wide" onclick="buyCorePack(${i})" style="--glow:${t.glow}">
+      <button class="shop-box-info-btn" onclick="event.stopPropagation();showBundleInfo('${p.theme}')" style="top:8px;right:8px;">i</button>
       <div class="shop-item-glow">${t.icon}</div>
       <div class="shop-item-wide-info">
         <div class="shop-item-wide-name">${p.label}</div>
