@@ -2044,43 +2044,61 @@
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
     }
+    .core-bundle::after {
+      content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+      background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.03) 50%, transparent 60%);
+      animation: bundleShimmer 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes bundleShimmer {
+      0%, 100% { transform: translateX(-30%) translateY(-30%) rotate(0deg); }
+      50% { transform: translateX(30%) translateY(30%) rotate(0deg); }
+    }
+    .core-bundle-motif {
+      position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+      font-size: 64px; opacity: 0.07; pointer-events: none; line-height: 1;
+    }
     .core-bundle-businessman {
       background: linear-gradient(135deg, rgba(45,35,15,0.95) 0%, rgba(30,24,10,0.9) 50%, rgba(50,38,12,0.95) 100%);
-      box-shadow: 0 0 24px rgba(255,185,0,0.08), inset 0 1px 0 rgba(255,215,0,0.1);
+      box-shadow: 0 0 24px rgba(255,185,0,0.08), inset 0 1px 0 rgba(255,215,0,0.12);
     }
     .core-bundle-businessman::before {
-      background: linear-gradient(135deg, rgba(255,215,0,0.4), rgba(255,140,0,0.15), rgba(255,215,0,0.3));
+      background: linear-gradient(135deg, rgba(255,215,0,0.45), rgba(255,140,0,0.1), rgba(255,215,0,0.35));
     }
     .core-bundle-defender {
       background: linear-gradient(135deg, rgba(12,25,50,0.95) 0%, rgba(8,18,38,0.9) 50%, rgba(15,30,55,0.95) 100%);
-      box-shadow: 0 0 24px rgba(100,180,255,0.08), inset 0 1px 0 rgba(100,180,255,0.1);
+      box-shadow: 0 0 24px rgba(100,180,255,0.08), inset 0 1px 0 rgba(100,180,255,0.12);
     }
     .core-bundle-defender::before {
-      background: linear-gradient(135deg, rgba(100,180,255,0.4), rgba(0,200,255,0.12), rgba(100,180,255,0.3));
+      background: linear-gradient(135deg, rgba(100,180,255,0.45), rgba(0,200,255,0.08), rgba(100,180,255,0.35));
     }
-    .core-bundle-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .core-bundle-title { font-size: 16px; font-weight: 800; color: #fff; }
+    .core-bundle-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; position: relative; z-index: 1; }
+    .core-bundle-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: 0.3px; }
     .core-bundle-price {
-      font-size: 15px; font-weight: 800; padding: 4px 12px; border-radius: 20px;
+      font-size: 14px; font-weight: 800; padding: 5px 14px; border-radius: 20px;
     }
     .core-bundle-businessman .core-bundle-price {
-      background: rgba(255,215,0,0.12); color: #FFD700; border: 1px solid rgba(255,215,0,0.25);
+      background: rgba(255,215,0,0.15); color: #FFD700; border: 1px solid rgba(255,215,0,0.3);
     }
     .core-bundle-defender .core-bundle-price {
-      background: rgba(100,180,255,0.12); color: #64B5F6; border: 1px solid rgba(100,180,255,0.25);
+      background: rgba(100,180,255,0.15); color: #64B5F6; border: 1px solid rgba(100,180,255,0.3);
     }
-    .core-bundle-cores { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .core-bundle-body { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+    .core-bundle-cores { display: flex; gap: 8px; flex-wrap: wrap; }
     .core-bundle-chip {
-      font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px;
+      font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 10px;
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
     }
     .core-bundle-businessman .core-bundle-chip {
-      background: rgba(255,215,0,0.1); color: rgba(255,215,0,0.85); border: 1px solid rgba(255,215,0,0.15);
+      background: rgba(255,215,0,0.1); color: rgba(255,220,80,0.9); border: 1px solid rgba(255,215,0,0.18);
     }
     .core-bundle-defender .core-bundle-chip {
-      background: rgba(100,180,255,0.1); color: rgba(140,200,255,0.85); border: 1px solid rgba(100,180,255,0.15);
+      background: rgba(100,180,255,0.1); color: rgba(150,210,255,0.9); border: 1px solid rgba(100,180,255,0.18);
     }
     .core-bundle-ether {
-      font-size: 12px; font-weight: 600; color: rgba(125,249,255,0.7);
+      font-size: 12px; font-weight: 700; white-space: nowrap;
+      padding: 4px 10px; border-radius: 8px;
+      background: rgba(125,249,255,0.08); color: rgba(125,249,255,0.8); border: 1px solid rgba(125,249,255,0.12);
     }
     .shop-daily-card {
       background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.2);
@@ -13909,15 +13927,19 @@ function _renderCorePacks() {
     { label: '🛡️ Защитник', cores: [{type:'hp',count:3},{type:'regen',count:2}], ether: 5000, price: 900, theme: 'defender' },
   ];
   const CORE_EMOJI = { income: '✴️', capacity: '✳️', hp: '❤️', regen: '♻️' };
+  const MOTIF = { businessman: '💰', defender: '🛡️' };
   grid.innerHTML = CORE_PACKS.map((p, i) => {
     const chips = p.cores.map(c => `<span class="core-bundle-chip">${c.count}× ${CORE_EMOJI[c.type]}</span>`).join('');
     return `<div class="core-bundle core-bundle-${p.theme}" onclick="buyCorePack(${i})">
+      <div class="core-bundle-motif">${MOTIF[p.theme]}</div>
       <div class="core-bundle-header">
         <div class="core-bundle-title">${p.label}</div>
         <div class="core-bundle-price">💎 ${p.price.toLocaleString()}</div>
       </div>
-      <div class="core-bundle-cores">${chips}</div>
-      <div class="core-bundle-ether">+ ${p.ether.toLocaleString()} 🌀 эфира</div>
+      <div class="core-bundle-body">
+        <div class="core-bundle-cores">${chips}</div>
+        <div class="core-bundle-ether">${p.ether.toLocaleString()} 🌀</div>
+      </div>
     </div>`;
   }).join('');
 }
