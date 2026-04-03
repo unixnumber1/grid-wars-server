@@ -2033,7 +2033,7 @@
       width: 100%; margin-top: 4px; padding: 7px 0; border-radius: 10px; border: none;
       font-size: 13px; font-weight: 800; cursor: pointer;
       -webkit-tap-highlight-color: transparent; transition: opacity 0.15s;
-      background: var(--btn-bg); color: var(--btn-color);
+      background: var(--btn-bg); color: #fff;
     }
     .shop-item-btn:active { opacity: 0.7; }
     /* ── Wide product card (set / bundle) ── */
@@ -2052,7 +2052,7 @@
       padding: 8px 18px; border-radius: 10px; border: none;
       font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap;
       -webkit-tap-highlight-color: transparent; flex-shrink: 0;
-      background: var(--btn-bg); color: var(--btn-color);
+      background: var(--btn-bg); color: #fff;
     }
     .shop-item-wide-btn:active { opacity: 0.7; }
     .shop-stars-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -3681,7 +3681,7 @@
           <div class="shop-item-wide-name" data-i18n="shop.mythic_bundle">Мифический комплект</div>
           <div class="shop-item-wide-sub" data-i18n="shop.savings">экономия 300 💎</div>
         </div>
-        <button class="shop-item-wide-btn" style="background:linear-gradient(135deg,#ff6d00,#e65100);color:#fff;">💎 1,500</button>
+        <button class="shop-item-wide-btn" style="background:linear-gradient(135deg,#ff6d00,#e65100);">💎 1,500</button>
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:15px;font-weight:700;color:#7DF9FF;margin-bottom:12px;" data-i18n="shop.core_packs_title">🔮 Паки ядер</div>
@@ -13915,7 +13915,7 @@ function _renderCorePacks() {
         <div class="shop-item-wide-name">${p.label}</div>
         <div class="shop-item-wide-sub">${desc}</div>
       </div>
-      <button class="shop-item-wide-btn" style="background:${t.btn};color:${t.btnColor}">💎 ${p.price.toLocaleString()}</button>
+      <button class="shop-item-wide-btn" style="background:${t.btn}">💎 ${p.price.toLocaleString()}</button>
     </div>`;
   }).join('');
 }
