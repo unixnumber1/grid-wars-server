@@ -7009,12 +7009,16 @@ const ITEM_SELL_PRICE = {
 };
 
 function getItemUpgradeCost(upgradeLevel) {
-  if (upgradeLevel <= 10) return 100;
-  if (upgradeLevel <= 25) return 400;
-  if (upgradeLevel <= 50) return 1500;
-  if (upgradeLevel <= 75) return 5000;
-  if (upgradeLevel <= 90) return 20000;
-  return 53000;
+  if (upgradeLevel <= 10) return 200;
+  if (upgradeLevel <= 20) return 400;
+  if (upgradeLevel <= 30) return 800;
+  if (upgradeLevel <= 40) return 1600;
+  if (upgradeLevel <= 50) return 3000;
+  if (upgradeLevel <= 60) return 5000;
+  if (upgradeLevel <= 70) return 9000;
+  if (upgradeLevel <= 80) return 15000;
+  if (upgradeLevel <= 90) return 25000;
+  return 40000;
 }
 
 function getItemSellPrice(rarity, upgradeLevel = 0) {
