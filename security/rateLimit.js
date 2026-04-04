@@ -19,7 +19,7 @@ const LIMITS = {
   default:  { max: 240, window: 60000 },
   attack:   { max: 300, window: 60000 },
   tick:     { max: 60,  window: 60000 },
-  build:    { max: 80,  window: 60000 },
+  build:    { max: 160, window: 60000 },
   collect:  { max: 120, window: 60000 },
   market:   { max: 120, window: 60000 },
   location: { max: 400, window: 60000 },
