@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
-import { CORE_TYPES, MAX_CORE_SLOTS, getCoreMultiplier, getCoreUpgradeCost } from '../../lib/cores.js';
+import { CORE_TYPES, MAX_CORE_SLOTS, getUnlockedSlots, getCoreMultiplier, getCoreUpgradeCost } from '../../lib/cores.js';
 import { SMALL_RADIUS } from '../../lib/formulas.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
@@ -52,10 +52,11 @@ async function handleInstall(req, res) {
     if (dist > SMALL_RADIUS + (_crFx.radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
   }
 
-  // Check slot count
+  // Check slot count (slots unlock every 20 mine levels)
   const existing = gameState.getCoresForMine(mine.cell_id);
-  if (existing.length >= MAX_CORE_SLOTS)
-    return res.status(400).json({ error: ts(lang, 'err.all_slots_full') });
+  const maxSlots = getUnlockedSlots(mine.level);
+  if (existing.length >= maxSlots)
+    return res.status(400).json({ error: ts(lang, 'err.all_slots_full'), slots: existing.length, max_slots: maxSlots });
 
   // Find next free slot
   const usedSlots = new Set(existing.map(c => c.slot_index));

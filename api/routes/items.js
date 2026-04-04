@@ -523,27 +523,20 @@ itemsRouter.post('/', async (req, res) => {
     const diamonds = p.diamonds ?? 0;
     if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: MYTHIC_PRICE }) });
 
-    // Fixed mythic base stats (matching game/mechanics/items.js)
-    const mythicStats = {
-      sword: { attack: 380, crit_chance: 16, defense: 0, block_chance: 0 },
-      axe: { attack: 520, crit_chance: 0, defense: 0, block_chance: 0 },
-      shield: { attack: 0, crit_chance: 0, defense: 3800, block_chance: 15 },
-    };
-    const stats = mythicStats[weapon_type];
+    // Generate mythic with random stats from range
+    const item = generateItem(weapon_type, 'mythic');
     const buyLang = getLang(gameState, telegram_id);
-    const names = { sword: ts(buyLang, 'item.mythic_sword'), axe: ts(buyLang, 'item.mythic_axe'), shield: ts(buyLang, 'item.mythic_shield') };
-    const emojis = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };
 
     const newDiamonds = diamonds - MYTHIC_PRICE;
     const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
     if (!diamOk) return res.status(409).json({ error: ts(buyLang, 'err.conflict') });
 
     const insertData = {
-      type: weapon_type, rarity: 'mythic', name: names[weapon_type], emoji: emojis[weapon_type],
-      stat_value: stats.attack || stats.defense,
-      attack: stats.attack, crit_chance: stats.crit_chance, defense: stats.defense,
-      block_chance: stats.block_chance,
-      base_attack: stats.attack, base_crit_chance: stats.crit_chance, base_defense: stats.defense,
+      type: weapon_type, rarity: 'mythic', name: item.name, emoji: item.emoji,
+      stat_value: item.stat_value,
+      attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
+      block_chance: item.block_chance || 0,
+      base_attack: item.base_attack, base_crit_chance: item.base_crit_chance, base_defense: item.base_defense,
       upgrade_level: 0, owner_id: p.id, equipped: false,
     };
     const { data: newItem, error: insErr } = await supabase.from('items').insert(insertData).select().single();
@@ -569,14 +562,7 @@ itemsRouter.post('/', async (req, res) => {
     const diamonds = p.diamonds ?? 0;
     if (diamonds < SET_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: SET_PRICE }) });
 
-    const mythicStats = {
-      sword: { attack: 380, crit_chance: 16, defense: 0, block_chance: 0 },
-      axe: { attack: 520, crit_chance: 0, defense: 0, block_chance: 0 },
-      shield: { attack: 0, crit_chance: 0, defense: 3800, block_chance: 15 },
-    };
     const setLang = getLang(gameState, telegram_id);
-    const names = { sword: ts(setLang, 'item.mythic_sword'), axe: ts(setLang, 'item.mythic_axe'), shield: ts(setLang, 'item.mythic_shield') };
-    const emojis = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };
 
     const newDiamonds = diamonds - SET_PRICE;
     const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', p.id).eq('diamonds', diamonds).select('id').maybeSingle();
@@ -584,13 +570,13 @@ itemsRouter.post('/', async (req, res) => {
 
     const createdItems = [];
     for (const wt of ['sword', 'axe', 'shield']) {
-      const stats = mythicStats[wt];
+      const item = generateItem(wt, 'mythic');
       const insertData = {
-        type: wt, rarity: 'mythic', name: names[wt], emoji: emojis[wt],
-        stat_value: stats.attack || stats.defense,
-        attack: stats.attack, crit_chance: stats.crit_chance, defense: stats.defense,
-        block_chance: stats.block_chance,
-        base_attack: stats.attack, base_crit_chance: stats.crit_chance, base_defense: stats.defense,
+        type: wt, rarity: 'mythic', name: item.name, emoji: item.emoji,
+        stat_value: item.stat_value,
+        attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
+        block_chance: item.block_chance || 0,
+        base_attack: item.base_attack, base_crit_chance: item.base_crit_chance, base_defense: item.base_defense,
         upgrade_level: 0, owner_id: p.id, equipped: false,
       };
       const { data: newItem, error: insErr } = await supabase.from('items').insert(insertData).select().single();

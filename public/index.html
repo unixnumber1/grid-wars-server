@@ -8648,9 +8648,11 @@ function showMinePopup(mine, isOwn, canCapture) {
         })()]] : []),
         ...(mine.level > 0 && mine.cell_id ? [['__fullwidth__', (() => {
           const cores = getCoresForMine(mine.cell_id);
-          let slotsHtml = `<div style="font-size:12px;font-weight:600;color:#aaa;margin-bottom:8px">${t('mine.cores_n', {n: cores.length})}</div>`;
+          const maxSlots = Math.min(10, Math.floor((mine.level || 1) / 20) + 1);
+          const nextUnlock = maxSlots < 10 ? maxSlots * 20 : null;
+          let slotsHtml = `<div style="font-size:12px;font-weight:600;color:#aaa;margin-bottom:8px">🔮 ${_lang==='ru'?'Ядра':'Cores'} ${cores.length}/${maxSlots}${nextUnlock ? ` <span style="color:#555;font-weight:400">(+1 на lv${nextUnlock})</span>` : ''}</div>`;
           slotsHtml += '<div class="mine-cores-grid">';
-          for (let i = 0; i < 10; i++) {
+          for (let i = 0; i < maxSlots; i++) {
             const c = cores.find(x => x.slot_index === i);
             if (c) {
               const info = CORE_TYPES[c.core_type] || {};
@@ -8658,6 +8660,10 @@ function showMinePopup(mine, isOwn, canCapture) {
             } else {
               slotsHtml += `<div class="core-slot empty" onclick="openCoreInstallPicker('${mine.id}','${mine.cell_id}')"><div class="slot-plus">+</div></div>`;
             }
+          }
+          // Show locked slots as visual hint
+          for (let i = maxSlots; i < 10; i++) {
+            slotsHtml += `<div class="core-slot locked" style="opacity:0.25;cursor:default"><div class="slot-plus">🔒</div></div>`;
           }
           slotsHtml += '</div>';
           // Total boosts
