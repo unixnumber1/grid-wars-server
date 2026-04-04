@@ -89,6 +89,7 @@ export function autoCollect(collector) {
   const pLat = player?.last_lat ?? collector.lat;
   const pLng = player?.last_lng ?? collector.lng;
   const boostMines = allOwnerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS);
+  const boostMineIds = new Set(boostMines.map(m => m.id));
   const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
   const mineCountBoost = getMineCountBoost(totalLevelPoints);
 
@@ -96,7 +97,8 @@ export function autoCollect(collector) {
 
   for (const mine of minesInRange) {
     const cores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-    const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineCountBoost;
+    const mineBoost = boostMineIds.has(mine.id) ? mineCountBoost : 1;
+    const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
     const income = getMineIncome(mine.level) * incBoost;
     // Cap per mine to its boosted capacity to prevent burst on first collect
