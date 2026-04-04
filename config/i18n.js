@@ -148,7 +148,7 @@ const TRANSLATIONS = {
 
     // ── Cores ──
     'err.core_installed': 'Ядро установлено в шахту',
-    'err.all_slots_full': 'Все слоты заняты — прокачайте шахту для новых',
+    'err.all_slots_full': 'Все слоты заняты (10/10)',
     'err.core_not_installed': 'Ядро не установлено',
     'err.uninstall_core_first': 'Сначала извлеки ядро из шахты',
     'err.no_cores_available': 'Нет доступных ядер',
@@ -406,7 +406,7 @@ const TRANSLATIONS = {
 
     // ── Cores ──
     'err.core_installed': 'Core is installed in a mine',
-    'err.all_slots_full': 'All slots occupied — upgrade mine to unlock more',
+    'err.all_slots_full': 'All slots occupied (10/10)',
     'err.core_not_installed': 'Core is not installed',
     'err.uninstall_core_first': 'Uninstall core from mine first',
     'err.no_cores_available': 'No cores available',
