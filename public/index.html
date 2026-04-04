@@ -10235,6 +10235,7 @@ async function doBuildCollector(lat, lng) {
     const data = await apiFetch('/api/collectors', {
       method: 'POST',
       body: JSON.stringify({ action: 'build', lat, lng }),
+      signal: AbortSignal.timeout(25000),
     });
     showToast(t('toast.collector_built', {count: data.mines_in_range}));
     if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
@@ -10249,6 +10250,7 @@ async function doBuildFireTruck(lat, lng) {
     const data = await apiFetch('/api/fire-trucks', {
       method: 'POST',
       body: JSON.stringify({ action: 'build', lat, lng }),
+      signal: AbortSignal.timeout(25000),
     });
     if (data.success) {
       showToast('🚒 Пожарная машина построена!');
@@ -10307,6 +10309,7 @@ async function doBuildMine(lat, lng) {
     const data = await apiFetch('/api/buildings/mine', {
       method: 'POST',
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(25000),
     });
     showToast(t('toast.mine_built'));
     handleXpResult(data.xp);

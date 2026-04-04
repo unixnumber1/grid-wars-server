@@ -185,9 +185,14 @@ async function handleMineBuild(req, res) {
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: hq, error: hqError } = await supabase.from('headquarters').select('id').eq('player_id', player.id).maybeSingle();
-  if (hqError) return res.status(500).json({ error: hqError.message });
-  if (!hq) return res.status(403).json({ error: 'You must place your headquarters first' });
+  const hq = gameState.loaded ? gameState.getHqByPlayerId(player.id) : null;
+  if (!gameState.loaded) {
+    const { data: hqRow, error: hqError } = await supabase.from('headquarters').select('id').eq('player_id', player.id).maybeSingle();
+    if (hqError) return res.status(500).json({ error: hqError.message });
+    if (!hqRow) return res.status(403).json({ error: 'You must place your headquarters first' });
+  } else if (!hq) {
+    return res.status(403).json({ error: 'You must place your headquarters first' });
+  }
   // Distance check uses tap coordinates (mineLat/mineLng), NOT cell center
   const distance = haversine(playerActualLat, playerActualLng, mineLat, mineLng);
   const _bSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
