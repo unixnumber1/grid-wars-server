@@ -347,7 +347,6 @@ async function handleUpgradeUnit(req, res) {
   await persistNow('players', { id: player.id, ether: player.ether });
 
   upgrade.level = nextLevel;
-  const upgradeKey = `${Number(telegram_id)}_${upgrade.unit_type}`;
   gameState.markDirty('unitUpgrades', upgradeKey);
 
   logActivity(telegram_id, 'scout_upgrade', { level: nextLevel, cost });
