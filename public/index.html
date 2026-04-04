@@ -8830,6 +8830,9 @@ map.on('click', e => {
 // Long-press on empty cell → instant mine build
 (function() {
   const container = map.getContainer();
+  container.style.webkitUserSelect = 'none';
+  container.style.userSelect = 'none';
+  container.style.webkitTouchCallout = 'none';
   container.addEventListener('touchstart', function(e) {
     if (e.touches.length !== 1) { clearTimeout(_longPressTimer); return; }
     const t = e.touches[0];
@@ -8846,6 +8849,7 @@ map.on('click', e => {
       const building = getBuildingInCell(cellId);
       if (building) return;
       _longPressFired = true;
+      _suppressMapClick = Date.now();
       _flashHexGrid();
       try { TG.HapticFeedback.impactOccurred('medium'); } catch(_) {}
       doBuildMine(latlng.lat, latlng.lng);
