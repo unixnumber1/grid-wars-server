@@ -83,6 +83,7 @@ async function handleBuild(req, res) {
     [...gameState.headquarters.values()].some(h => h.cell_id === cellId) ||
     [...gameState.collectors.values()].some(c => c.cell_id === cellId) ||
     [...gameState.clanHqs.values()].some(c => c.cell_id === cellId) ||
+    [...gameState.monuments.values()].some(m => m.cell_id === cellId) ||
     [...gameState.fireTrucks.values()].some(ft => ft.cell_id === cellId && ft.status !== 'destroyed') ||
     [...gameState.barracks.values()].some(b => b.cell_id === cellId);
   if (cellOccupied) return res.status(400).json({ error: ts(lang, 'err.cell_occupied') });

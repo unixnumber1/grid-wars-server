@@ -323,6 +323,9 @@ app.post('/api/telegram-webhook', async (req, res) => {
         if (!displaced) for (const ch of gameState.clanHqs.values()) {
           if (ch.cell_id === cell_id) { displaced = { type: 'clan_hq', obj: ch, table: 'clan_headquarters' }; break; }
         }
+        if (!displaced) for (const b of gameState.barracks.values()) {
+          if (b.cell_id === cell_id) { displaced = { type: 'barracks', obj: b, table: 'barracks' }; break; }
+        }
 
         if (displaced) {
           const ownerId = displaced.obj.owner_id || displaced.obj.player_id;
@@ -348,6 +351,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
           else if (displaced.type === 'fire_truck') gameState.fireTrucks.delete(displaced.obj.id);
           else if (displaced.type === 'hq') { gameState.hqByPlayerId.delete(displaced.obj.player_id); gameState.headquarters.delete(displaced.obj.id); }
           else if (displaced.type === 'clan_hq') gameState.clanHqs.delete(displaced.obj.id);
+          else if (displaced.type === 'barracks') gameState.barracks.delete(displaced.obj.id);
 
           // Notify building owner
           const ownerPlayer = gameState.getPlayerById(ownerId);
@@ -1053,13 +1057,16 @@ async function start() {
         let uncoveredPlayers = [];
         if (playersInCity) {
           for (const tgId of playersInCity) {
-            const pp = playerCityCache.get(tgId);
-            if (!pp?.lat || !pp?.lng) continue;
+            // Use actual gameState position (more accurate than geocity cache)
+            const gsP = gameState.getPlayerByTgId(Number(tgId));
+            const pLat = gsP?.last_lat || playerCityCache.get(tgId)?.lat;
+            const pLng = gsP?.last_lng || playerCityCache.get(tgId)?.lng;
+            if (!pLat || !pLng) continue;
             let hasNearbyOre = false;
             for (const o of gameState.oreNodes.values()) {
-              if (haversine(pp.lat, pp.lng, o.lat, o.lng) < 3000) { hasNearbyOre = true; break; }
+              if (haversine(pLat, pLng, o.lat, o.lng) < 3000) { hasNearbyOre = true; break; }
             }
-            if (!hasNearbyOre) uncoveredPlayers.push({ lat: pp.lat, lng: pp.lng });
+            if (!hasNearbyOre) uncoveredPlayers.push({ lat: pLat, lng: pLng });
           }
         }
 
@@ -1106,7 +1113,10 @@ async function start() {
   setTimeout(async () => {
     try {
       const { updatePlayerCity, clearCityBoundsCache } = await import('./lib/geocity.js');
+      const { clearSpawnPointsCache, clearSpawnErrorCache } = await import('./lib/oreNodes.js');
       clearCityBoundsCache(); // Rebuild with updated min-span logic
+      clearSpawnPointsCache(); // Clear road cache to pick up new road types
+      clearSpawnErrorCache(); // Clear error cache to retry failed cities
       const players = [...gameState.players.values()].filter(p => p.last_lat && p.last_lng);
       console.log(`[GEOCITY] Populating city cache for ${players.length} players...`);
       for (const p of players) {
@@ -1181,14 +1191,43 @@ async function start() {
       global._lastVaseSpawn = vaseResetKey;
 
       console.log('[VASES] Daily midnight spawn starting...');
-      const { getAllCityKeys, getCityBounds, getCityPlayerCount } = await import('./lib/geocity.js');
+      const { getAllCityKeys, getCityBounds, getCityPlayerCount, playerCityCache, cityPlayersCache } = await import('./lib/geocity.js');
       const { spawnVasesForCity } = await import('./lib/vases.js');
+      const { haversine: hav } = await import('./lib/haversine.js');
+
       for (const cityKey of getAllCityKeys()) {
         const pc = getCityPlayerCount(cityKey);
         if (pc <= 0) continue;
         const cb = await getCityBounds(cityKey);
         if (!cb?.boundingbox) continue;
+
+        // Main city bounds spawn
         await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+
+        // Check for uncovered players (no vase within 3km) and spawn sub-zones
+        const playersInCity = cityPlayersCache.get(cityKey);
+        if (playersInCity) {
+          const PAD = 0.018; // ~2km
+          for (const tgId of playersInCity) {
+            // Use actual gameState position (more accurate than geocity cache)
+            const gsPlayer = gameState.getPlayerByTgId(Number(tgId));
+            const lat = gsPlayer?.last_lat || playerCityCache.get(tgId)?.lat;
+            const lng = gsPlayer?.last_lng || playerCityCache.get(tgId)?.lng;
+            if (!lat || !lng) continue;
+            let hasNearbyVase = false;
+            for (const v of gameState.vases.values()) {
+              if (!v.broken_by && new Date(v.expires_at) > new Date() && hav(lat, lng, v.lat, v.lng) < 3000) {
+                hasNearbyVase = true; break;
+              }
+            }
+            if (!hasNearbyVase) {
+              const subBounds = [lat - PAD, lat + PAD, lng - PAD, lng + PAD];
+              console.log(`[VASES] ${cityKey}: uncovered player ${tgId} at ${lat.toFixed(3)},${lng.toFixed(3)}, spawning sub-zone`);
+              await spawnVasesForCity(`${cityKey}_sub`, subBounds, 1);
+            }
+          }
+        }
+
         await new Promise(r => setTimeout(r, 2000));
       }
       console.log('[VASES] Daily midnight spawn complete');
