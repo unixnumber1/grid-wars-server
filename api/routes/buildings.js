@@ -579,11 +579,6 @@ async function handleUpgradePost(req, res) {
   const balance = player.coins ?? 0;
   if (balance < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${Math.round(cost).toLocaleString()})` });
   const newBalance = balance - cost;
-  // Upgrade time: each level costs its number in seconds (lv1→2 = 1s, lv6→7 = 6s, bulk sums up)
-  let upgradeSecs = 0;
-  for (let l = mine.level; l < targetLevel; l++) upgradeSecs += l;
-  if (upgradeSecs < 1) upgradeSecs = 1;
-  const finishAt = new Date(Date.now() + upgradeSecs * 1000);
 
   // SEQUENTIAL: first deduct coins (optimistic lock), then update mine
   const { data: coinsOk, error: playerUpdateError } = await supabase
@@ -593,13 +588,13 @@ async function handleUpgradePost(req, res) {
   if (playerUpdateError) return res.status(500).json({ error: 'Failed to deduct coins' });
   if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
 
-  // Coins deducted — now update mine with idempotency guard
+  // Instant upgrade — set new level, HP, clear pending state
+  const newMaxHp = getMineHp(targetLevel);
   const { error: mineUpdateError } = await supabase
-    .from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() })
+    .from('mines').update({ level: targetLevel, pending_level: null, upgrade_finish_at: null, hp: newMaxHp, max_hp: newMaxHp })
     .eq('id', mine_id);
   if (mineUpdateError) {
     console.error('[upgrade] mine update error, rolling back coins:', mineUpdateError.message);
-    // ROLLBACK: restore coins in DB (gameState still has old balance — not yet updated)
     const { error: rollbackErr } = await supabase
       .from('players').update({ coins: balance })
       .eq('id', player.id);
@@ -608,14 +603,17 @@ async function handleUpgradePost(req, res) {
   }
 
   // Update gameState (only reached if BOTH DB writes succeeded)
-  mine.pending_level = targetLevel;
-  mine.upgrade_finish_at = finishAt.toISOString();
+  mine.level = targetLevel;
+  mine.hp = newMaxHp;
+  mine.max_hp = newMaxHp;
+  mine.pending_level = null;
+  mine.upgrade_finish_at = null;
   gameState.markDirty('mines', mine_id);
   player.coins = newBalance;
   gameState.markDirty('players', player.id);
 
   logPlayer(telegram_id, 'action', `Улучшил шахту до уровня ${targetLevel}`, { mine_id, cost });
-  return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: upgradeSecs, player_coins: newBalance, pendingLevel: targetLevel });
+  return res.status(200).json({ upgrading: false, level: targetLevel, player_coins: newBalance });
 }
 
 // ─── Single-hit mine attack (projectile) ─────────────────────────────
