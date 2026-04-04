@@ -151,6 +151,22 @@ export function getItemDescription(item) {
   return desc;
 }
 
+// ── Inventory limit ──
+import { MAX_INVENTORY_SLOTS } from '../../config/constants.js';
+export { MAX_INVENTORY_SLOTS };
+
+export function getPlayerItemCount(gameState, playerId) {
+  let count = 0;
+  for (const i of gameState.items.values()) {
+    if (i.owner_id === playerId && !i.on_market) count++;
+  }
+  return count;
+}
+
+export function hasInventorySpace(gameState, playerId, needed = 1) {
+  return getPlayerItemCount(gameState, playerId) + needed <= MAX_INVENTORY_SLOTS;
+}
+
 // ── Existing exports (keep as-is) ──
 export const ITEM_SELL_PRICE = { common: 10, uncommon: 25, rare: 50, epic: 100, mythic: 200, legendary: 500 };
 

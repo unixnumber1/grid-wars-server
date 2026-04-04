@@ -51,6 +51,7 @@ export const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
 // ── Items ──
 export const BOX_PRICES = { rare: 10, epic: 40, mythic: 150 };
 export const ITEM_TYPES = ['sword', 'axe', 'shield'];
+export const MAX_INVENTORY_SLOTS = 200;
 
 // ── Market ──
 export const MARKET_PAGE_SIZE = 20;

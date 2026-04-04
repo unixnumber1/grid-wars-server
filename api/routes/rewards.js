@@ -173,6 +173,10 @@ export async function grantReward(player, tgId, reward) {
     const itemType = rollRandomType();
     const item = generateItem(itemType, itemRarity);
 
+    // Skip if inventory full
+    const { hasInventorySpace } = await import('../../game/mechanics/items.js');
+    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) continue;
+
     const insertData = {
       type: itemType, rarity: item.rarity, name: item.name, emoji: item.emoji,
       stat_value: item.stat_value, owner_id: player.id, equipped: false,

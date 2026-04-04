@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
-import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted } from '../../lib/items.js';
+import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted, hasInventorySpace, getPlayerItemCount, MAX_INVENTORY_SLOTS } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
@@ -522,6 +522,7 @@ itemsRouter.post('/', async (req, res) => {
     const MYTHIC_PRICE = 600;
     const diamonds = p.diamonds ?? 0;
     if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: MYTHIC_PRICE }) });
+    if (gameState.loaded && !hasInventorySpace(gameState, p.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: MAX_INVENTORY_SLOTS }) });
 
     // Fixed mythic base stats (matching game/mechanics/items.js)
     const mythicStats = {
@@ -568,6 +569,7 @@ itemsRouter.post('/', async (req, res) => {
     const SET_PRICE = 1500;
     const diamonds = p.diamonds ?? 0;
     if (diamonds < SET_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: SET_PRICE }) });
+    if (gameState.loaded && !hasInventorySpace(gameState, p.id, 3)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerItemCount(gameState, p.id) }) });
 
     const mythicStats = {
       sword: { attack: 380, crit_chance: 16, defense: 0, block_chance: 0 },
@@ -738,6 +740,7 @@ itemsRouter.post('/', async (req, res) => {
     const price = BOX_PRICES[box_type];
     const diamonds = player.diamonds ?? 0;
     if (diamonds < price) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_diamonds_short') });
+    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: MAX_INVENTORY_SLOTS }) });
 
     const rarity = rollWeighted(BOX_ODDS[box_type]);
     const type = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];

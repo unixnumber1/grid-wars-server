@@ -90,36 +90,41 @@ async function handleBreak(req, res) {
     if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); }
   }
 
-  // Roll and insert item — try with new columns, fallback without
-  const rolled = rollVaseItem();
-  const insertBase = {
-    type:       rolled.type,
-    rarity:     rolled.rarity,
-    name:       rolled.name,
-    emoji:      rolled.emoji,
-    stat_value: rolled.stat_value,
-    owner_id:   player.id,
-    equipped:   false,
-  };
-  const insertFull = {
-    ...insertBase,
-    attack:      rolled.attack || 0,
-    crit_chance: rolled.crit_chance || 0,
-    defense:     rolled.defense || 0,
-    base_attack: rolled.base_attack || 0,
-    base_crit_chance: rolled.base_crit_chance || 0,
-    base_defense: rolled.base_defense || 0,
-    block_chance: rolled.block_chance || 0,
-    upgrade_level: 0,
-  };
+  // Roll and insert item (skip if inventory full)
+  const { hasInventorySpace } = await import('../../game/mechanics/items.js');
+  const inventoryFull = gameState.loaded && !hasInventorySpace(gameState, player.id);
+  const rolled = !inventoryFull ? rollVaseItem() : null;
+  let newItem = null;
+  if (rolled) {
+    const insertBase = {
+      type:       rolled.type,
+      rarity:     rolled.rarity,
+      name:       rolled.name,
+      emoji:      rolled.emoji,
+      stat_value: rolled.stat_value,
+      owner_id:   player.id,
+      equipped:   false,
+    };
+    const insertFull = {
+      ...insertBase,
+      attack:      rolled.attack || 0,
+      crit_chance: rolled.crit_chance || 0,
+      defense:     rolled.defense || 0,
+      base_attack: rolled.base_attack || 0,
+      base_crit_chance: rolled.base_crit_chance || 0,
+      base_defense: rolled.base_defense || 0,
+      block_chance: rolled.block_chance || 0,
+      upgrade_level: 0,
+    };
 
-  let { data: newItem } = await supabase
-    .from('items').insert(insertFull).select().single();
-  if (!newItem) {
     ({ data: newItem } = await supabase
-      .from('items').insert(insertBase).select().single());
+      .from('items').insert(insertFull).select().single());
+    if (!newItem) {
+      ({ data: newItem } = await supabase
+        .from('items').insert(insertBase).select().single());
+    }
+    if (gameState.loaded && newItem) gameState.upsertItem(newItem);
   }
-  if (gameState.loaded && newItem) gameState.upsertItem(newItem);
 
   // Award XP for breaking vase
   let xpResult = null;

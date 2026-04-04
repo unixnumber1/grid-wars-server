@@ -72,6 +72,7 @@ const TRANSLATIONS = {
     'err.legendary_no_craft': 'Легендарные предметы нельзя крафтить',
     'err.no_items_to_sell': 'Нет предметов для продажи',
     'err.max_200_items': 'Максимум 200 предметов за раз',
+    'err.inventory_full': 'Инвентарь полон ({n}/200) — продайте или скрафтите предметы',
     'err.need_diamonds': 'Нужно {cost} 💎',
 
     // ── Market ──
@@ -330,6 +331,7 @@ const TRANSLATIONS = {
     'err.legendary_no_craft': 'Legendary items cannot be crafted',
     'err.no_items_to_sell': 'No items to sell',
     'err.max_200_items': 'Maximum 200 items at once',
+    'err.inventory_full': 'Inventory full ({n}/200) — sell or craft items',
     'err.need_diamonds': 'Need {cost} 💎',
 
     // ── Market ──

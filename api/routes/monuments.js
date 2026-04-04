@@ -537,7 +537,8 @@ async function handleOpenLootBox(req, res) {
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
 
-  // Grant items and cores
+  // Grant items and cores (skip items if inventory full)
+  const { hasInventorySpace } = await import('../../game/mechanics/items.js');
   const items = typeof box.items === 'string' ? JSON.parse(box.items) : (box.items || []);
   const insertedItems = [];
   const insertedCores = [];
@@ -559,6 +560,8 @@ async function handleOpenLootBox(req, res) {
       }
       continue;
     }
+    // Skip if inventory full
+    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) continue;
     const itemRow = {
       owner_id: player.id,
       type: itemData.type,
