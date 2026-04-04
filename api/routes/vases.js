@@ -157,7 +157,14 @@ async function handleCron(req, res) {
   await supabase.from('vases').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   if (gameState.loaded) gameState.clearAllVases();
 
-  const spawned = await spawnVasesForAllHQs(supabase, gameState);
+  let spawned = 0;
+  const cityKeys = getAllCityKeys();
+  for (const cityKey of cityKeys) {
+    const pc = Math.max(getCityPlayerCount(cityKey), 1);
+    const cb = await getCityBounds(cityKey);
+    if (!cb?.boundingbox) continue;
+    spawned += await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+  }
 
   await supabase.from('app_settings')
     .upsert({ key: 'last_vases_spawn', value: Date.now().toString() }, { onConflict: 'key' });

@@ -95,6 +95,9 @@ async function _queryOverpass(bbox) {
       way["highway"="living_street"](${bbox});
       way["highway"="tertiary"](${bbox});
       way["highway"="pedestrian"](${bbox});
+      way["highway"="secondary"](${bbox});
+      way["highway"="unclassified"](${bbox});
+      way["highway"="service"](${bbox});
     );
     out center 500;
   `;
@@ -198,21 +201,28 @@ function offsetPoint(lat, lng) {
 // ── Spawn ores into a single bounding box ──
 async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
   const roadPoints = await fetchSpawnPoints(cacheKey, bounds);
-  if (!roadPoints || roadPoints.length < 10) {
-    console.log(`[ORE] ${cacheKey}: skipping — not enough road points (${roadPoints?.length ?? 0})`);
-    return 0;
-  }
+  const useRoads = roadPoints && roadPoints.length >= 3;
 
   const nowISO = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ORE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
   let spawned = 0;
   const allOrePositions = [...gameState.oreNodes.values()].map(o => ({ lat: o.lat, lng: o.lng }));
 
+  const [minLat, maxLat, minLng, maxLng] = bounds;
+
   for (let attempt = 0; attempt < toSpawn * 5 && spawned < toSpawn; attempt++) {
-    const pt = roadPoints[Math.floor(Math.random() * roadPoints.length)];
-    const off = offsetPoint(pt.lat, pt.lng);
-    const lat = off.lat;
-    const lng = off.lng;
+    let lat, lng;
+
+    if (useRoads) {
+      const pt = roadPoints[Math.floor(Math.random() * roadPoints.length)];
+      const off = offsetPoint(pt.lat, pt.lng);
+      lat = off.lat;
+      lng = off.lng;
+    } else {
+      // Random fallback within bbox (for areas without road data)
+      lat = minLat + Math.random() * (maxLat - minLat);
+      lng = minLng + Math.random() * (maxLng - minLng);
+    }
 
     let tooClose = false;
     for (const pos of allOrePositions) {
@@ -227,7 +237,7 @@ async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
       lat, lng, cell_id: getCellId(lat, lng),
       level, hp, max_hp: hp,
       ore_type: oreType,
-      owner_id: null, currency: 'shards',
+      owner_id: null, currency: (ORE_TYPES[oreType]?.dualCurrency ? 'both' : 'shards'),
       last_collected: nowISO, expires_at: expiresAt, created_at: nowISO,
     };
 
@@ -286,13 +296,7 @@ export async function spawnOreNodesForCity(cityKey, bounds, playerCount, subZone
     totalSpawned = await _spawnInBounds(cityKey, cityKey, bounds, toSpawn);
   }
 
-  console.log(`[ORE] ${cityKey}: spawned ${totalSpawned}/${toSpawn} total`);
+  console.log(`[ORE] ${cityKey}: spawned ${totalSpawned}/${toSpawn} total${totalSpawned > 0 ? '' : ' (check Overpass/roads)'}`);
   return totalSpawned;
 }
 
-// ── Legacy global spawn (kept for backward compat in server.js initial startup) ──
-export async function spawnOreNodesGlobally() {
-  console.log('[ORE] Global ore spawn — delegating to city-based system');
-  // No-op: city-based spawn happens via server.js citySpawnCycle
-  return 0;
-}

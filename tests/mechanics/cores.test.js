@@ -55,13 +55,26 @@ describe('getCoresTotalBoost', () => {
     assert.strictEqual(getCoresTotalBoost([], 'income'), 1);
   });
 
-  it('returns sum of multipliers for matching cores', () => {
+  it('lv0 cores give no bonus (base x1)', () => {
     const cores = [
       { core_type: 'income', level: 0 },
       { core_type: 'income', level: 0 },
     ];
     const boost = getCoresTotalBoost(cores, 'income');
-    assert.strictEqual(boost, 2); // 1 + 1
+    assert.strictEqual(boost, 1); // 1 + (1-1) + (1-1)
+  });
+
+  it('single lv50 core gives x25.5', () => {
+    const cores = [{ core_type: 'income', level: 50 }];
+    assert.strictEqual(getCoresTotalBoost(cores, 'income'), 25.5);
+  });
+
+  it('two lv50 cores give x50', () => {
+    const cores = [
+      { core_type: 'income', level: 50 },
+      { core_type: 'income', level: 50 },
+    ];
+    assert.strictEqual(getCoresTotalBoost(cores, 'income'), 50); // 1 + 24.5 + 24.5
   });
 
   it('ignores non-matching core types', () => {

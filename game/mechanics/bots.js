@@ -1,3 +1,4 @@
+// Currently only goblin is active; other types were removed during simplification
 export const BOT_TYPES = {
   goblin: {
     emoji: '\u{1F47A}', category: 'undead',

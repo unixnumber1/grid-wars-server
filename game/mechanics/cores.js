@@ -43,7 +43,7 @@ export function getCoreSellPrice(level) {
 export function getCoresTotalBoost(cores, type) {
   const relevant = cores.filter(c => c.core_type === type);
   if (relevant.length === 0) return 1;
-  return relevant.reduce((sum, c) => sum + getCoreMultiplier(c.level), 0);
+  return 1 + relevant.reduce((sum, c) => sum + (getCoreMultiplier(c.level) - 1), 0);
 }
 
 // Core drop config from monument by level (returns { chance, min, max })

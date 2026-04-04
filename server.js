@@ -1015,16 +1015,6 @@ async function start() {
   startMonumentLoop();
   startDefenderLoop();
 
-  // Ore nodes — auto-spawn if too few
-  if (gameState.loaded && gameState.players.size > 0) {
-    const expectedOres = gameState.players.size * 2.5;
-    if (gameState.oreNodes.size < expectedOres * 0.1) {
-      console.log(`[ORE] Low ore count (${gameState.oreNodes.size}/${Math.round(expectedOres)}), spawning...`);
-      const { spawnOreNodesGlobally } = await import('./lib/oreNodes.js');
-      spawnOreNodesGlobally().catch(e => console.error('[ORE] Initial spawn error:', e.message));
-    }
-  }
-
   // ── City-based spawn cycle (ore only — vases spawn at midnight MSK) ──
   async function citySpawnCycle() {
     try {

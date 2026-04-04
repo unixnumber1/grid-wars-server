@@ -107,7 +107,7 @@ async function _notifyAllPlayers(text) {
 
 // ── GET ──────────────────────────────────────────────────────
 adminRouter.get('/', async (req, res) => {
-  const { action, admin_id, search } = req.query || {};
+  const { action, search } = req.query || {};
 
   // ── players-list: search players by username ──
   if (action === 'players-list') {
@@ -252,8 +252,7 @@ adminRouter.get('/stats', async (req, res) => {
 
 // ── GET /player-search ───────────────────────────────────────
 adminRouter.get('/player-search', (req, res) => {
-  const tgId = req.query.admin_id || req.query.telegram_id;
-  if (String(tgId) !== '560013667') return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
 
   const q = (req.query.q || '').trim().toLowerCase();
   if (!q) return res.json({ players: [] });
@@ -299,8 +298,7 @@ adminRouter.get('/player-search', (req, res) => {
 
 // ── GET /player-logs ─────────────────────────────────────────
 adminRouter.get('/player-logs', (req, res) => {
-  const tgId = req.query.admin_id || req.query.telegram_id;
-  if (String(tgId) !== '560013667') return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
 
   const playerTgId = parseInt(req.query.player_telegram_id, 10);
   if (!playerTgId) return res.status(400).json({ error: 'player_telegram_id required' });

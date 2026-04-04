@@ -478,9 +478,7 @@ async function handleAttackSellMine(req, res) {
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'You do not own this mine' });
   const sellCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
   if (sellCores.length > 0) return res.status(400).json({ error: 'Сначала извлеките все ядра из постройки' });
-  const sellIncBoost = sellCores.length > 0 ? getCoresTotalBoost(sellCores, 'income') : 1;
-  const sellCapBoost = sellCores.length > 0 ? getCoresTotalBoost(sellCores, 'capacity') : 1;
-  const collected = calcAccumulatedCoins(mine.level, mine.last_collected, sellIncBoost, sellCapBoost);
+  const collected = calcAccumulatedCoins(mine.level, mine.last_collected, 1, 1);
   const refund = calcSellRefund(mine.level);
   const total = collected + refund;
   const newCoins = (player.coins ?? 0) + Math.round(total);

@@ -5,7 +5,7 @@ import { VASE_MIN_DISTANCE } from '../../config/constants.js';
 
 // ── City-based vase count ──
 function getVaseCountForCity(playerCount) {
-  return playerCount * 10 + Math.floor(Math.random() * playerCount * 5);
+  return Math.floor(playerCount * 12.5);
 }
 
 // ── Overpass road points cache (shared idea with oreNodes) ──
@@ -32,6 +32,9 @@ async function fetchVaseSpawnPoints(cityKey, bounds) {
       way["highway"="living_street"](${bbox});
       way["highway"="tertiary"](${bbox});
       way["highway"="pedestrian"](${bbox});
+      way["highway"="secondary"](${bbox});
+      way["highway"="unclassified"](${bbox});
+      way["highway"="service"](${bbox});
     );
     out center 500;
   `;
@@ -87,7 +90,7 @@ export async function spawnVasesForCity(cityKey, bounds, playerCount) {
 
   // Try to use road points for better placement
   const roadPoints = await fetchVaseSpawnPoints(cityKey, bounds);
-  const useRoads = roadPoints && roadPoints.length >= 10;
+  const useRoads = roadPoints && roadPoints.length >= 3;
 
   // Collect existing positions for distance check
   const allPositions = existingInCity.map(v => ({ lat: v.lat, lng: v.lng }));
@@ -135,8 +138,3 @@ export async function spawnVasesForCity(cityKey, bounds, playerCount) {
   return batch.length;
 }
 
-// ── Legacy function (kept for backward compat) ──
-export async function spawnVasesForAllHQs(supabase, gameState) {
-  console.log('[VASES] Legacy spawn — delegating to city-based system');
-  return 0;
-}

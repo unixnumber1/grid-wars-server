@@ -54,11 +54,11 @@ export async function addXp(playerId, amount) {
 
   if (fetchErr) {
     console.error('[xp] fetch error:', fetchErr.message);
-    return null;
+    return { xpGained: 0, newXp: 0, newLevel: 0, leveledUp: false, error: fetchErr.message };
   }
   if (!player) {
     console.error('[xp] player not found id=%s', playerId);
-    return null;
+    return { xpGained: 0, newXp: 0, newLevel: 0, leveledUp: false, error: 'player not found' };
   }
 
   const currentXp = player.xp ?? 0;
@@ -79,7 +79,7 @@ export async function addXp(playerId, amount) {
 
   if (updateErr) {
     console.error('[xp] update error:', updateErr.message);
-    return null;
+    return { xpGained: 0, newXp: 0, newLevel: 0, leveledUp: false, error: updateErr.message };
   }
 
   // Update gameState
