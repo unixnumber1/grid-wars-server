@@ -6282,7 +6282,7 @@ function setLang(lang) {
   if (TG_ID && typeof fetch === 'function') {
     const _langHeaders = {'Content-Type':'application/json'};
     if (_tgInitData) _langHeaders['X-Telegram-Init-Data'] = _tgInitData;
-    fetch('/api/player/init', { method: 'POST', headers: _langHeaders, body })
+    fetch(_basePath + '/api/player/init', { method: 'POST', headers: _langHeaders, body })
       .finally(() => { console.log('[i18n] reloading...'); location.reload(); });
   } else {
     location.reload();
@@ -6311,6 +6311,8 @@ function applyI18n() {
 // ─────────────────────────────────────────────
 //  Constants — mirrors server-side lib/formulas.js
 // ─────────────────────────────────────────────
+const _isStaging = location.pathname.startsWith('/staging');
+const _basePath = _isStaging ? '/staging' : '';
 const VPS_URL = 'https://overthrow.ru:8443';  // Socket.io direct
 const MINE_MAX_LEVEL    = 200;
 const HQ_MAX_LEVEL      = 10;
@@ -7517,7 +7519,7 @@ async function apiFetch(path, opts = {}) {
   if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   if (_tgInitData) headers['X-Telegram-Init-Data'] = _tgInitData;
-  const res = await fetch(path, { ...opts, headers });
+  const res = await fetch(_basePath + path, { ...opts, headers });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || (typeof data.error === 'string' ? data.error : (data.error?.message || 'API error')));
   return data;
@@ -10613,6 +10615,7 @@ function initSocket() {
   if (_socket) return;
   try {
     _socket = io(VPS_URL, {
+      path: _basePath + '/socket.io/',
       transports: ['websocket', 'polling'],
       timeout: 10000,
       reconnection: true,
@@ -11277,7 +11280,7 @@ async function unifiedTick() {
     _tickAbort = new AbortController();
     const _tickHeaders = { 'Content-Type': 'application/json' };
     if (_tgInitData) _tickHeaders['X-Telegram-Init-Data'] = _tgInitData;
-    const tickRes = await fetch('/api/map', {
+    const tickRes = await fetch(_basePath + '/api/map', {
       method: 'POST',
       headers: _tickHeaders,
       signal: _tickAbort.signal,
@@ -11875,7 +11878,7 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch('/api/admin', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(_basePath + '/api/admin', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
 
     if (maintenance) {
@@ -12862,7 +12865,7 @@ async function boot() {
   try {
     const _initHeaders = { 'Content-Type': 'application/json' };
     if (_tgInitData) _initHeaders['X-Telegram-Init-Data'] = _tgInitData;
-    const initRes = await fetch('/api/player/init', {
+    const initRes = await fetch(_basePath + '/api/player/init', {
       method: 'POST',
       headers: _initHeaders,
       body: JSON.stringify({ username: TG_NAME }),
@@ -18773,7 +18776,7 @@ async function doClanKick(targetTgId) {
 
   // For everyone else: check maintenance first (3s timeout — never block boot)
   try {
-    const res = await fetch('/api/admin', { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(_basePath + '/api/admin', { signal: AbortSignal.timeout(3000) });
     const { maintenance } = await res.json();
     if (maintenance) {
       _maintenanceMode = true;
