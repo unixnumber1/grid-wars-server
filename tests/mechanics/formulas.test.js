@@ -109,10 +109,9 @@ describe('getMineCountBoost', () => {
 });
 
 describe('HQ formulas', () => {
-  it('hqConfig returns correct maxMines for level 1', () => {
+  it('hqConfig returns correct config for level 1', () => {
     const cfg = hqConfig(1);
-    assert.strictEqual(cfg.maxMines, 10);
-    assert.strictEqual(cfg.maxMineLevel, 25);
+    assert.strictEqual(cfg.upgradeCost, 0);
   });
 
   it('hqUpgradeCost returns null at max level', () => {
@@ -120,7 +119,7 @@ describe('HQ formulas', () => {
   });
 
   it('hqUpgradeCost returns number for valid levels', () => {
-    assert.strictEqual(hqUpgradeCost(1), 1000);
+    assert.strictEqual(hqUpgradeCost(1), 10000);
   });
 });
 

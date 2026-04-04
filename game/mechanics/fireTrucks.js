@@ -29,8 +29,9 @@ export const FIRETRUCK_LEVELS = {
  * 0 if hqLevel < 5, 1 if >= 5, 2 if >= 10.
  */
 export function getMaxFireTrucks(hqLevel) {
-  if (hqLevel >= 10) return 2;
-  if (hqLevel >= 5) return 1;
+  if (hqLevel >= 9) return 3;
+  if (hqLevel >= 7) return 2;
+  if (hqLevel >= 3) return 1;
   return 0;
 }
 

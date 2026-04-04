@@ -4441,7 +4441,7 @@ const I18N = {
     'barracks.scout_upgrade_cost': '{cost} эфира',
     'barracks.scout_max': 'Максимальный уровень',
     'barracks.scout_needs_barracks': 'Улучшите казарму до Lv.{level}',
-    'barracks.no_barracks': 'Постройте казарму (HQ Lv.4+)',
+    'barracks.no_barracks': 'Постройте казарму (HQ Lv.5+)',
     'barracks.scout_bag': '🎒 В сумке: {count}',
     'barracks.send_scout': '🤠 Отправить скаута',
     'barracks.scout_cant_capture': 'Скаут Lv.{level} не может захватить {type}',
@@ -5004,6 +5004,7 @@ const I18N = {
     'hq.roadmap_level': 'Уровень {n}',
     'hq.roadmap_collector': '🧲 Сборщик ×{n}',
     'hq.roadmap_firetruck': '🚒 Пожарная ×{n}',
+    'hq.roadmap_barracks': '🏰 Казарма',
     'hq.roadmap_base': 'Базовый штаб',
     'effect.weapon_damage_bonus': 'к урону оружия',
     'effect.crit_chance_bonus': 'к шансу крита',
@@ -5676,7 +5677,7 @@ const I18N = {
     'barracks.scout_upgrade_cost': '{cost} ether',
     'barracks.scout_max': 'Max level',
     'barracks.scout_needs_barracks': 'Upgrade barracks to Lv.{level}',
-    'barracks.no_barracks': 'Build barracks (HQ Lv.4+)',
+    'barracks.no_barracks': 'Build barracks (HQ Lv.5+)',
     'barracks.scout_bag': '🎒 In bag: {count}',
     'barracks.send_scout': '🤠 Send scout',
     'barracks.scout_cant_capture': 'Scout Lv.{level} cannot capture {type}',
@@ -6239,6 +6240,7 @@ const I18N = {
     'hq.roadmap_level': 'Level {n}',
     'hq.roadmap_collector': '🧲 Collector ×{n}',
     'hq.roadmap_firetruck': '🚒 Fire truck ×{n}',
+    'hq.roadmap_barracks': '🏰 Barracks',
     'hq.roadmap_base': 'Base HQ',
     'effect.weapon_damage_bonus': 'weapon damage',
     'effect.crit_chance_bonus': 'crit chance',
@@ -6312,8 +6314,6 @@ function applyI18n() {
 const VPS_URL = 'https://overthrow.ru:8443';  // Socket.io direct
 const MINE_MAX_LEVEL    = 200;
 const HQ_MAX_LEVEL      = 10;
-const HQ_LIMITS = [1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13,1e14,1e18];
-function getHQLimit(lvl) { return HQ_LIMITS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 const SMALL_RADIUS = 200;
 const LARGE_RADIUS = 500;
 const H3_RES            = 10;
@@ -6351,16 +6351,16 @@ const mineRate = getMineIncome;
 const mineUpgradeCost = getMineUpgradeCost;
 
 const HQ_LEVELS = [
-  { level:1,  maxMines:10,  maxMineLevel:25,  upgradeCost:0 },
-  { level:2,  maxMines:20,  maxMineLevel:50,  upgradeCost:1_000 },
-  { level:3,  maxMines:30,  maxMineLevel:75,  upgradeCost:10_000 },
-  { level:4,  maxMines:40,  maxMineLevel:100, upgradeCost:100_000 },
-  { level:5,  maxMines:50,  maxMineLevel:125, upgradeCost:1_000_000 },
-  { level:6,  maxMines:60,  maxMineLevel:150, upgradeCost:10_000_000 },
-  { level:7,  maxMines:70,  maxMineLevel:175, upgradeCost:100_000_000 },
-  { level:8,  maxMines:80,  maxMineLevel:200, upgradeCost:1_000_000_000 },
-  { level:9,  maxMines:90,  maxMineLevel:200, upgradeCost:10_000_000_000 },
-  { level:10, maxMines:100, maxMineLevel:200, upgradeCost:100_000_000_000 },
+  { level:1,  upgradeCost:0 },
+  { level:2,  upgradeCost:10_000 },
+  { level:3,  upgradeCost:100_000 },
+  { level:4,  upgradeCost:1_500_000 },
+  { level:5,  upgradeCost:15_000_000 },
+  { level:6,  upgradeCost:180_000_000 },
+  { level:7,  upgradeCost:5_000_000_000 },
+  { level:8,  upgradeCost:165_000_000_000 },
+  { level:9,  upgradeCost:5_000_000_000_000 },
+  { level:10, upgradeCost:150_000_000_000_000 },
 ];
 function hqConfig(lvl) { return HQ_LEVELS[Math.min(Math.max(lvl,1),HQ_MAX_LEVEL)-1]; }
 function hqUpgradeCost(lvl) { return lvl >= HQ_MAX_LEVEL ? null : HQ_LEVELS[lvl].upgradeCost; }
@@ -7975,7 +7975,7 @@ function showBuildMenu(cellLat, cellLng, tab) {
 
   // Barracks limits — 1 per player, HQ lv4+
   const hasBarracks = Object.values(barracksData).some(b => b.is_mine);
-  const canBuildBarracks = hqLvl >= 4 && !hasBarracks;
+  const canBuildBarracks = hqLvl >= 5 && !hasBarracks;
 
   // Count available "other" items
   const otherItems = [];
@@ -8394,8 +8394,8 @@ function showHqPopup(hq, isOwn) {
 
     // Collect own collectors (from cache — includes out-of-viewport ones)
     const myCollectors = Object.values(_myCollectorsCache);
-    // Max collectors based on HQ level: lv1→0, lv2→1, lv3→1, lv4→2, lv5→2, lv6→3, lv7→3, lv8→4, lv9→4, lv10→5
-    const maxCollectors = Math.floor(hqLvl / 2);
+    // Max collectors based on HQ level
+    const maxCollectors = [0,0,1,1,2,2,3,3,4,4,5][hqLvl] || 0;
     let collectorsHtml = '';
     if (myCollectors.length > 0 || maxCollectors > 0) {
       let cardsHtml = '';
@@ -8482,15 +8482,15 @@ function showHqPopup(hq, isOwn) {
 function showHqRoadmap(currentLvl) {
   const levels = [
     { lv: 1, cost: 0, unlocks: [t('hq.roadmap_base')] },
-    { lv: 2, cost: 1000, unlocks: [t('hq.roadmap_collector', {n:1})] },
-    { lv: 3, cost: 10000, unlocks: [] },
-    { lv: 4, cost: 100000, unlocks: [t('hq.roadmap_collector', {n:2})] },
-    { lv: 5, cost: 1000000, unlocks: [t('hq.roadmap_firetruck', {n:1}), t('hq.roadmap_collector', {n:2})] },
-    { lv: 6, cost: 10000000, unlocks: [t('hq.roadmap_collector', {n:3})] },
-    { lv: 7, cost: 100000000, unlocks: [t('hq.roadmap_collector', {n:3})] },
-    { lv: 8, cost: 1000000000, unlocks: [t('hq.roadmap_collector', {n:4})] },
-    { lv: 9, cost: 10000000000, unlocks: [t('hq.roadmap_collector', {n:4})] },
-    { lv: 10, cost: 100000000000, unlocks: [t('hq.roadmap_firetruck', {n:2}), t('hq.roadmap_collector', {n:5})] },
+    { lv: 2, cost: 10000, unlocks: [t('hq.roadmap_collector', {n:1})] },
+    { lv: 3, cost: 100000, unlocks: [t('hq.roadmap_firetruck', {n:1})] },
+    { lv: 4, cost: 1500000, unlocks: [t('hq.roadmap_collector', {n:2})] },
+    { lv: 5, cost: 15000000, unlocks: [t('hq.roadmap_barracks')] },
+    { lv: 6, cost: 180000000, unlocks: [t('hq.roadmap_collector', {n:3})] },
+    { lv: 7, cost: 5000000000, unlocks: [t('hq.roadmap_firetruck', {n:2})] },
+    { lv: 8, cost: 165000000000, unlocks: [t('hq.roadmap_collector', {n:4})] },
+    { lv: 9, cost: 5000000000000, unlocks: [t('hq.roadmap_firetruck', {n:3})] },
+    { lv: 10, cost: 150000000000000, unlocks: [t('hq.roadmap_collector', {n:5})] },
   ];
 
   let html = '<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
@@ -19974,7 +19974,7 @@ function getTotalFTGems(level) {
 }
 
 function buildFireTruckHQSection(hqLvl) {
-  const maxTrucks = hqLvl >= 10 ? 2 : (hqLvl >= 5 ? 1 : 0);
+  const maxTrucks = hqLvl >= 9 ? 3 : (hqLvl >= 7 ? 2 : (hqLvl >= 3 ? 1 : 0));
   if (maxTrucks === 0) return '';
 
   const myTrucks = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed');

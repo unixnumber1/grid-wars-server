@@ -1,7 +1,7 @@
-import { MINE_MAX_LEVEL, HQ_MAX_LEVEL, HQ_COIN_LIMIT, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP } from './constants.js';
+import { MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP } from './constants.js';
 
 // Re-export constants for backward compatibility
-export { MINE_MAX_LEVEL, HQ_MAX_LEVEL, HQ_COIN_LIMIT, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP };
+export { MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP };
 
 // ─── Mine formulas ────────────────────────────────────────────────────────────
 
@@ -73,26 +73,17 @@ export const mineUpgradeCost = getMineUpgradeCost;
 
 // ─── Headquarters formulas ────────────────────────────────────────────────────
 
-const HQ_LIMITS = [
-  1_000_000, 10_000_000, 100_000_000, 1_000_000_000, 10_000_000_000,
-  100_000_000_000, 1_000_000_000_000, 10_000_000_000_000, 100_000_000_000_000, 1e18,
-];
-
-export function getHQLimit(hqLevel) {
-  return HQ_LIMITS[Math.min(Math.max(hqLevel, 1), HQ_MAX_LEVEL) - 1];
-}
-
 const HQ_LEVELS = [
-  { level: 1,  maxMines: 10,  maxMineLevel: 25,  upgradeCost: 0 },
-  { level: 2,  maxMines: 20,  maxMineLevel: 50,  upgradeCost: 1_000 },
-  { level: 3,  maxMines: 30,  maxMineLevel: 75,  upgradeCost: 10_000 },
-  { level: 4,  maxMines: 40,  maxMineLevel: 100, upgradeCost: 100_000 },
-  { level: 5,  maxMines: 50,  maxMineLevel: 125, upgradeCost: 1_000_000 },
-  { level: 6,  maxMines: 60,  maxMineLevel: 150, upgradeCost: 10_000_000 },
-  { level: 7,  maxMines: 70,  maxMineLevel: 175, upgradeCost: 100_000_000 },
-  { level: 8,  maxMines: 80,  maxMineLevel: 200, upgradeCost: 1_000_000_000 },
-  { level: 9,  maxMines: 90,  maxMineLevel: 200, upgradeCost: 10_000_000_000 },
-  { level: 10, maxMines: 100, maxMineLevel: 200, upgradeCost: 100_000_000_000 },
+  { level: 1,  upgradeCost: 0 },
+  { level: 2,  upgradeCost: 10_000 },
+  { level: 3,  upgradeCost: 100_000 },
+  { level: 4,  upgradeCost: 1_500_000 },
+  { level: 5,  upgradeCost: 15_000_000 },
+  { level: 6,  upgradeCost: 180_000_000 },
+  { level: 7,  upgradeCost: 5_000_000_000 },
+  { level: 8,  upgradeCost: 165_000_000_000 },
+  { level: 9,  upgradeCost: 5_000_000_000_000 },
+  { level: 10, upgradeCost: 150_000_000_000_000 },
 ];
 
 export function hqConfig(hqLevel) {

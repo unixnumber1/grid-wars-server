@@ -58,10 +58,10 @@ async function handleBuild(req, res) {
   const _buildFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > SMALL_RADIUS + (_buildFx.radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far', { distance: Math.round(dist), radius: SMALL_RADIUS }) });
 
-  // Check max collectors limit based on HQ level (lv/2 rounded down)
+  // Check max collectors limit based on HQ level
   const hq = gameState.getHqByPlayerId(player.id);
   const hqLevel = hq?.level || 1;
-  const maxCollectors = Math.floor(hqLevel / 2);
+  const maxCollectors = [0,0,1,1,2,2,3,3,4,4,5][hqLevel] || 0;
   const currentCount = [...gameState.collectors.values()].filter(c => c.owner_id === player.id).length;
   if (currentCount >= maxCollectors)
     return res.status(400).json({ error: ts(lang, 'err.max_collectors', { max: maxCollectors, hqLevel }) });

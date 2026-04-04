@@ -17,8 +17,9 @@ const FIRETRUCK_LEVELS = {
 };
 
 function getMaxFireTrucks(hqLevel) {
-  if (hqLevel >= 10) return 2;
-  if (hqLevel >= 5) return 1;
+  if (hqLevel >= 9) return 3;
+  if (hqLevel >= 7) return 2;
+  if (hqLevel >= 3) return 1;
   return 0;
 }
 
@@ -82,19 +83,24 @@ describe('Fire Truck constants', () => {
 });
 
 describe('getMaxFireTrucks', () => {
-  it('returns 0 for HQ level < 5', () => {
+  it('returns 0 for HQ level < 3', () => {
     assert.equal(getMaxFireTrucks(1), 0);
-    assert.equal(getMaxFireTrucks(4), 0);
+    assert.equal(getMaxFireTrucks(2), 0);
   });
 
-  it('returns 1 for HQ level 5-9', () => {
-    assert.equal(getMaxFireTrucks(5), 1);
-    assert.equal(getMaxFireTrucks(7), 1);
-    assert.equal(getMaxFireTrucks(9), 1);
+  it('returns 1 for HQ level 3-6', () => {
+    assert.equal(getMaxFireTrucks(3), 1);
+    assert.equal(getMaxFireTrucks(6), 1);
   });
 
-  it('returns 2 for HQ level 10', () => {
-    assert.equal(getMaxFireTrucks(10), 2);
+  it('returns 2 for HQ level 7-8', () => {
+    assert.equal(getMaxFireTrucks(7), 2);
+    assert.equal(getMaxFireTrucks(8), 2);
+  });
+
+  it('returns 3 for HQ level 9+', () => {
+    assert.equal(getMaxFireTrucks(9), 3);
+    assert.equal(getMaxFireTrucks(10), 3);
   });
 });
 

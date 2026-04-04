@@ -18,7 +18,6 @@ export const MINE_DISK_K = 12;
 // ── Mine limits ──
 export const MINE_MAX_LEVEL = 200;
 export const HQ_MAX_LEVEL = 10;
-export const HQ_COIN_LIMIT = 1_000_000;
 
 // ── Weapon cooldowns (ms) ──
 export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
@@ -93,7 +92,7 @@ export const COLLECTOR_EXTINGUISH_COST = 5;          // diamonds to extinguish
 
 // ── Barracks ──
 export const BARRACKS_BUILD_COST = 50;               // diamonds
-export const BARRACKS_MIN_HQ_LEVEL = 4;
+export const BARRACKS_MIN_HQ_LEVEL = 5;
 export const BARRACKS_BASE_TRAIN_TIME_MS = 30 * 60 * 1000; // 30 min
 
 export const BARRACKS_LEVELS = {
