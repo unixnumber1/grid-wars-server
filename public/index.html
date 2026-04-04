@@ -5002,8 +5002,8 @@ const I18N = {
     'hq.roadmap_subtitle': 'Что открывается на каждом уровне',
     'hq.roadmap_btn': 'ℹ️ Дорожная карта',
     'hq.roadmap_level': 'Уровень {n}',
-    'hq.roadmap_collector': '🧲 Сборщик ×{n}',
-    'hq.roadmap_firetruck': '🚒 Пожарная ×{n}',
+    'hq.roadmap_collector': '🧲 +1 сборщик (всего {n})',
+    'hq.roadmap_firetruck': '🚒 +1 пожарная (всего {n})',
     'hq.roadmap_barracks': '🏰 Казарма',
     'hq.roadmap_base': 'Базовый штаб',
     'effect.weapon_damage_bonus': 'к урону оружия',
@@ -6238,8 +6238,8 @@ const I18N = {
     'hq.roadmap_subtitle': 'What unlocks at each level',
     'hq.roadmap_btn': 'ℹ️ Roadmap',
     'hq.roadmap_level': 'Level {n}',
-    'hq.roadmap_collector': '🧲 Collector ×{n}',
-    'hq.roadmap_firetruck': '🚒 Fire truck ×{n}',
+    'hq.roadmap_collector': '🧲 +1 collector (total {n})',
+    'hq.roadmap_firetruck': '🚒 +1 fire truck (total {n})',
     'hq.roadmap_barracks': '🏰 Barracks',
     'hq.roadmap_base': 'Base HQ',
     'effect.weapon_damage_bonus': 'weapon damage',
@@ -8493,20 +8493,32 @@ function showHqRoadmap(currentLvl) {
     { lv: 10, cost: 150000000000000, unlocks: [t('hq.roadmap_collector', {n:5})] },
   ];
 
-  let html = '<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
-  for (const l of levels) {
+  const reversed = [...levels].reverse();
+  let html = '<div style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-left:18px">';
+  for (let i = 0; i < reversed.length; i++) {
+    const l = reversed[i];
     const isCurrent = l.lv === currentLvl;
     const isPast = l.lv < currentLvl;
-    const border = isCurrent ? 'border:1px solid #4488ff' : isPast ? 'border:1px solid #333' : 'border:1px solid #222';
-    const bg = isCurrent ? 'background:#111830' : 'background:#111';
-    const opacity = isPast ? 'opacity:0.5' : '';
+    const isFuture = l.lv > currentLvl;
+    const isLast = i === reversed.length - 1;
 
-    html += `<div style="${bg};${border};border-radius:10px;padding:10px 12px;margin-bottom:6px;${opacity}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-weight:700;color:${isCurrent ? '#4488ff' : '#fff'};font-size:14px">${isPast ? '✅' : isCurrent ? '📍' : '🔒'} ${t('hq.roadmap_level', {n: l.lv})}</span>
-        ${l.cost > 0 ? `<span style="font-size:11px;color:#888">${formatCoins(l.cost)} 💰</span>` : ''}
+    const dotColor = isPast ? '#4caf50' : isCurrent ? '#4488ff' : '#333';
+    const lineColor = isPast ? '#4caf50' : '#222';
+    const textColor = isCurrent ? '#4488ff' : isPast ? '#888' : '#fff';
+    const bg = isCurrent ? 'background:#111830;border:1px solid #4488ff' : 'background:#111;border:1px solid #1a1a2e';
+
+    html += `<div style="display:flex;position:relative;margin-bottom:0">
+      <div style="display:flex;flex-direction:column;align-items:center;width:20px;flex-shrink:0;position:relative;left:-18px">
+        <div style="width:12px;height:12px;border-radius:50%;background:${dotColor};flex-shrink:0;z-index:1;${isCurrent ? 'box-shadow:0 0 8px #4488ff' : ''}"></div>
+        ${!isLast ? `<div style="width:2px;flex:1;background:${lineColor};min-height:10px"></div>` : ''}
       </div>
-      ${l.unlocks.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${l.unlocks.map(u => `<span style="font-size:11px;background:#1a2a1a;color:#4caf50;padding:2px 8px;border-radius:6px">${u}</span>`).join('')}</div>` : ''}
+      <div style="${bg};border-radius:10px;padding:10px 12px;margin-bottom:8px;flex:1;margin-left:-8px;${isPast ? 'opacity:0.5' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700;color:${textColor};font-size:14px">${isPast ? '✅' : isCurrent ? '📍' : '🔒'} ${t('hq.roadmap_level', {n: l.lv})}</span>
+          ${l.cost > 0 ? `<span style="font-size:11px;color:#666">${formatCoins(l.cost)} 💰</span>` : ''}
+        </div>
+        ${l.unlocks.length ? `<div style="margin-top:6px">${l.unlocks.map(u => `<div style="font-size:12px;color:${isPast ? '#666' : '#4caf50'};padding:2px 0">${u}</div>`).join('')}</div>` : ''}
+      </div>
     </div>`;
   }
   html += '</div>';
