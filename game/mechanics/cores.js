@@ -10,6 +10,11 @@ export const CORE_TYPES = {
 
 export const MAX_CORE_SLOTS = 10;
 
+// Slots unlock every 20 mine levels: lv1=1 slot, lv20=2, lv40=3, ... lv180+=10
+export function getUnlockedSlots(mineLevel) {
+  return Math.min(MAX_CORE_SLOTS, Math.floor((mineLevel || 1) / 20) + 1);
+}
+
 // Multiplier per core level: lv0=x1, lv50=x25.5, lv100=x50
 // Formula: 1 + level * 0.49
 export function getCoreMultiplier(level) {

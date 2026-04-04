@@ -70,10 +70,11 @@ describe('getUpgradedStats', () => {
     assert.strictEqual(upgraded.crit_chance, 5);
   });
 
-  it('generateItem sword common has fixed attack 20', () => {
+  it('generateItem sword common has attack in range [15,25]', () => {
     const item = generateItem('sword', 'common');
-    assert.strictEqual(item.attack, 20);
-    assert.strictEqual(item.crit_chance, 3);
+    assert(item.attack >= 15 && item.attack <= 25, `attack ${item.attack} not in [15,25]`);
+    assert(item.crit_chance >= 2 && item.crit_chance <= 4, `crit ${item.crit_chance} not in [2,4]`);
+    assert.strictEqual(item.base_attack, item.attack);
   });
 });
 

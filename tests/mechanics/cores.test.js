@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CORE_TYPES, MAX_CORE_SLOTS,
+  CORE_TYPES, MAX_CORE_SLOTS, getUnlockedSlots,
   getCoreMultiplier, getCoreUpgradeCost, getCoresTotalBoost,
   getCoreDropConfig, randomCoreType,
 } from '../../game/mechanics/cores.js';
@@ -103,6 +103,32 @@ describe('getCoreDropConfig', () => {
   it('returns default for invalid level', () => {
     const cfg = getCoreDropConfig(99);
     assert.strictEqual(cfg.chance, 0.10);
+  });
+});
+
+describe('getUnlockedSlots', () => {
+  it('lv1 = 1 slot', () => {
+    assert.strictEqual(getUnlockedSlots(1), 1);
+  });
+
+  it('lv19 = 1 slot', () => {
+    assert.strictEqual(getUnlockedSlots(19), 1);
+  });
+
+  it('lv20 = 2 slots', () => {
+    assert.strictEqual(getUnlockedSlots(20), 2);
+  });
+
+  it('lv100 = 6 slots', () => {
+    assert.strictEqual(getUnlockedSlots(100), 6);
+  });
+
+  it('lv180 = 10 slots (max)', () => {
+    assert.strictEqual(getUnlockedSlots(180), 10);
+  });
+
+  it('lv200 = 10 slots (capped)', () => {
+    assert.strictEqual(getUnlockedSlots(200), 10);
   });
 });
 
