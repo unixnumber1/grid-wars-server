@@ -279,9 +279,9 @@ export const INVENTORY_SLOT_PACKS = [
 export const INVENTORY_MAX_SLOTS = 600;
 
 // ── Clan HQ upgrade costs ──
-export const CLAN_HQ_UPGRADE_COSTS = [0, 2000, 4000, 8000, 14000, 24000, 40000, 66000, 108000, 234000];
+export const CLAN_HQ_UPGRADE_COSTS = [0, 2000, 4000, 7000, 12000, 20000, 32000, 48000, 72000, 103000];
 export const CLAN_MAX_MEMBERS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-export const CLAN_BOOST_PRICES = [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500];
+export const CLAN_BOOST_PRICES = [100, 300, 500, 700, 950, 1150, 1400, 1600, 1800, 2000];
 
 // ── Collector upgrade prices ──
 export const COLLECTOR_UPGRADE_PRICES = [0, 25, 30, 35, 40, 50, 55, 65, 75, 100];
