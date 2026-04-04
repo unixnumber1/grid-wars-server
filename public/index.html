@@ -7959,17 +7959,17 @@ function showBuildMenu(cellLat, cellLng, tab) {
   const hasClanHq = state.hasClanHq || (state.mapBuildings.clan_hqs || []).some(ch => ch.is_mine || ch.player_id === state.player?.id);
   const playerCoins = state.player?.coins ?? 0;
   const diamonds = state.player?.diamonds || 0;
-  const hasDiamonds = diamonds >= 75;
+  const hasDiamonds = diamonds >= 25;
   const canAffordClanHq = playerCoins >= CLAN_HQ_COST;
   const hqLvl = state.hq?.level || ((state.mapBuildings?.headquarters || []).find(h => h.is_mine)?.level) || 1;
 
   // Collector limits
-  const maxColl = Math.floor(hqLvl / 2);
+  const maxColl = [0,0,1,1,2,2,3,3,4,4,5][hqLvl] || 0;
   const currentColl = Object.values(_myCollectorsCache).length;
   const canBuildColl = maxColl > 0 && currentColl < maxColl;
 
   // Fire truck limits
-  const maxFT = hqLvl >= 10 ? 2 : (hqLvl >= 5 ? 1 : 0);
+  const maxFT = hqLvl >= 9 ? 3 : (hqLvl >= 7 ? 2 : (hqLvl >= 3 ? 1 : 0));
   const currentFT = Object.values(_myFireTrucksCache).filter(ft => ft.status !== 'destroyed').length;
   const canBuildFT = maxFT > 0 && currentFT < maxFT;
 
@@ -13007,12 +13007,15 @@ function selectMonumentLevel(el, level) {
   el.classList.add('selected');
 }
 function parseCoords(input) {
-  const simple = input.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/);
-  if (simple) return { lat: parseFloat(simple[1]), lng: parseFloat(simple[2]) };
-  const gmaps = input.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  // Strip degree symbols, NBSP, extra whitespace
+  const clean = input.replace(/[°'"″′\u00A0]/g, ' ').trim();
+  const gmaps = clean.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
   if (gmaps) return { lat: parseFloat(gmaps[1]), lng: parseFloat(gmaps[2]) };
-  const query = input.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  const query = clean.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
   if (query) return { lat: parseFloat(query[1]), lng: parseFloat(query[2]) };
+  // "55.755, 37.617" or "55.755 37.617" or "55.755,37.617"
+  const simple = clean.match(/(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)/);
+  if (simple) return { lat: parseFloat(simple[1]), lng: parseFloat(simple[2]) };
   return null;
 }
 function goToCoords() {

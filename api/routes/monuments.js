@@ -609,7 +609,7 @@ async function handleMonumentRequest(req, res) {
   const { telegram_id, lat, lng, name, emoji, level } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
   const lang = getLang(gameState, telegram_id);
-  if (!lat || !lng || !name || !emoji || !level)
+  if (lat == null || lng == null || !name || !emoji || !level)
     return res.status(400).json({ error: ts(lang, 'monreq.fill_all') });
   if (level < 1 || level > 10)
     return res.status(400).json({ error: ts(lang, 'monreq.level_range') });
