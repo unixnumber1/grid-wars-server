@@ -83,21 +83,26 @@ export function autoCollect(collector) {
   const elapsedSec = Math.max(0, (now - lastAutoCollect) / 1000);
   if (elapsedSec <= 0) return 0;
 
-  // Mine level boost (same as manual collect) — +1% per 1000 total level points
+  // Per-mine level boost: each mine sums levels of nearby mines within 20km of itself
   const allOwnerMines = [...gameState.mines.values()].filter(m => m.owner_id === collector.owner_id && m.status !== 'destroyed');
-  const player = gameState.getPlayerById(collector.owner_id);
-  const pLat = player?.last_lat ?? collector.lat;
-  const pLng = player?.last_lng ?? collector.lng;
-  const boostMines = allOwnerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS);
-  const boostMineIds = new Set(boostMines.map(m => m.id));
-  const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
-  const mineCountBoost = getMineCountBoost(totalLevelPoints);
+  const R_DEG = MINE_BOOST_RADIUS / 111320;
+  const perMineBoost = new Map();
+  for (const m of minesInRange) {
+    let pts = 0;
+    for (const other of allOwnerMines) {
+      if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
+      if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
+        pts += (other.level || 1);
+      }
+    }
+    perMineBoost.set(m.id, getMineCountBoost(pts));
+  }
 
   let totalCollected = 0;
 
   for (const mine of minesInRange) {
     const cores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-    const mineBoost = boostMineIds.has(mine.id) ? mineCountBoost : 1;
+    const mineBoost = perMineBoost.get(mine.id) || 1;
     const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
     const income = getMineIncome(mine.level) * incBoost;

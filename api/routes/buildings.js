@@ -261,16 +261,24 @@ async function handleMineCollect(req, res) {
     }
   }
   // Calculate accumulated coins per mine (save for XP calc later)
-  // Must match tick income formula: base * mineCountBoost * coreBoost * clanBonus * boostMul
-  const boostMines = allMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS);
-  const boostMineIds = new Set(boostMines.map(m => m.id));
-  const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
-  const mineCountBoost = getMineCountBoost(totalLevelPoints);
+  // Per-mine boost: each mine sums levels of nearby mines within 20km of itself
+  const R_DEG = MINE_BOOST_RADIUS / 111320;
+  const perMineBoost = new Map();
+  for (const m of allMines) {
+    let pts = 0;
+    for (const other of allMines) {
+      if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
+      if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
+        pts += (other.level || 1);
+      }
+    }
+    perMineBoost.set(m.id, getMineCountBoost(pts));
+  }
   let totalCoins = 0;
   const mineCoinsMap = new Map();
   for (const mine of mines) {
     const cores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-    const mineBoost = boostMineIds.has(mine.id) ? mineCountBoost : 1;
+    const mineBoost = perMineBoost.get(mine.id) || 1;
     let incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
     // Apply clan bonus to income rate (same as tick in map.js lines 527-531)

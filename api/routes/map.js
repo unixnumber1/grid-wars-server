@@ -523,14 +523,23 @@ async function handleTick(req, res) {
       inventory = inv || [];
     }
 
-    // Compute mine level boost — sum of levels within 20km of player, +1% per 1000 points
-    // Only mines within boost radius receive the boost
-    const boostMines = hasPos
-      ? playerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS)
-      : playerMines;
-    const boostMineIds = new Set(boostMines.map(m => m.id));
-    const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
-    mineCountBoost = getMineCountBoost(totalLevelPoints);
+    // Per-mine level boost: each mine sums levels of nearby mines within 20km of ITSELF
+    const R_DEG = MINE_BOOST_RADIUS / 111320; // rough degrees for bbox pre-filter
+    const perMineBoost = new Map();
+    let maxBoost = 1;
+    for (const m of playerMines) {
+      let pts = 0;
+      for (const other of playerMines) {
+        if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
+        if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
+          pts += (other.level || 1);
+        }
+      }
+      const boost = getMineCountBoost(pts);
+      perMineBoost.set(m.id, boost);
+      if (boost > maxBoost) maxBoost = boost;
+    }
+    mineCountBoost = maxBoost; // for HUD display (best cluster)
 
     // ── Single-pass per-mine income (base * mineCountBoost * cores * clan zone * boost) ──
     try {
@@ -553,7 +562,7 @@ async function handleTick(req, res) {
       const _isOnline = player.last_seen ? (Date.now() - new Date(player.last_seen).getTime()) < ONLINE_MS_INC : false;
 
       for (const m of playerMines) {
-        let inc = getMineIncome(m.level) * (boostMineIds.has(m.id) ? mineCountBoost : 1);
+        let inc = getMineIncome(m.level) * (perMineBoost.get(m.id) || 1);
         // Skill income bonus
         if (_skillFx && _skillFx.mine_income_bonus) inc *= (1 + _skillFx.mine_income_bonus);
         // Core income boost
@@ -596,7 +605,7 @@ async function handleTick(req, res) {
     ether: player.ether || 0,
     smallRadius: SMALL_RADIUS + (_skillFx?.radius_bonus || 0), largeRadius: LARGE_RADIUS + (_skillFx?.attack_radius_bonus || 0),
     mine_count_boost: mineCountBoost,
-    mine_level_points: totalLevelPoints,
+    mine_level_points: playerMines.reduce((s, m) => s + (m.level || 1), 0),
     mine_count: playerMineCount,
   };
 
@@ -620,9 +629,9 @@ async function handleTick(req, res) {
     }
   }
 
-  // Base income = mineCountBoost + cores, WITHOUT clan zone/boost
+  // Base income = perMineBoost + cores, WITHOUT clan zone/boost
   const baseIncome = playerMines.reduce((sum, m) => {
-    let inc = getMineIncome(m.level) * (boostMineIds.has(m.id) ? mineCountBoost : 1);
+    let inc = getMineIncome(m.level) * (perMineBoost.get(m.id) || 1);
     if (gameState.loaded && m.cell_id) {
       const cores = gameState.getCoresForMine(m.cell_id);
       if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
