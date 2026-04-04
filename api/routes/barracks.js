@@ -119,7 +119,7 @@ async function handleBuild(req, res) {
       level: 1,
     };
     gameState.unitUpgrades.set(upgradeKey, upgrade);
-    gameState.markDirty('unitUpgrades', upgrade.id);
+    gameState.markDirty('unitUpgrades', upgradeKey);
   }
 
   logActivity(telegram_id, 'barracks_build', { level: 1, lat: tapLat, lng: tapLng });
@@ -347,7 +347,8 @@ async function handleUpgradeUnit(req, res) {
   await persistNow('players', { id: player.id, ether: player.ether });
 
   upgrade.level = nextLevel;
-  gameState.markDirty('unitUpgrades', upgrade.id);
+  const upgradeKey = `${Number(telegram_id)}_${upgrade.unit_type}`;
+  gameState.markDirty('unitUpgrades', upgradeKey);
 
   logActivity(telegram_id, 'scout_upgrade', { level: nextLevel, cost });
   res.json({ ok: true, level: nextLevel, cost });

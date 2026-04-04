@@ -72,10 +72,10 @@ export const VASE_MIN_DISTANCE = 100;               // min distance between vase
 
 // Ore types (4 tiers)
 export const ORE_TYPES = {
-  hill:     { emoji: '⛰',  spawnWeight: 50, levels: [1, 4],  incomeMultiplier: 1,   hpBase: 1000, hpPerLevel: 500,  dualCurrency: false, canErupt: false },
-  mountain: { emoji: '🏔', spawnWeight: 30, levels: [3, 7],  incomeMultiplier: 1.5, hpBase: 2000, hpPerLevel: 800,  dualCurrency: false, canErupt: false },
-  peak:     { emoji: '🗻', spawnWeight: 15, levels: [5, 9],  incomeMultiplier: 2.5, hpBase: 3000, hpPerLevel: 1200, dualCurrency: true,  canErupt: false },
-  volcano:  { emoji: '🌋', spawnWeight: 5,  levels: [8, 10], incomeMultiplier: 4,   hpBase: 5000, hpPerLevel: 2000, dualCurrency: true,  canErupt: true  },
+  hill:     { emoji: '⛰',  spawnWeight: 50, levels: [1, 2],  incomeMultiplier: 1,   hpBase: 1000, hpPerLevel: 500,  dualCurrency: false, canErupt: false },
+  mountain: { emoji: '🏔', spawnWeight: 30, levels: [3, 5],  incomeMultiplier: 1.5, hpBase: 2000, hpPerLevel: 800,  dualCurrency: false, canErupt: false },
+  peak:     { emoji: '🗻', spawnWeight: 15, levels: [6, 8],  incomeMultiplier: 2.5, hpBase: 3000, hpPerLevel: 1200, dualCurrency: true,  canErupt: false },
+  volcano:  { emoji: '🌋', spawnWeight: 5,  levels: [9, 10], incomeMultiplier: 4,   hpBase: 5000, hpPerLevel: 2000, dualCurrency: true,  canErupt: true  },
 };
 export const VOLCANO_ERUPTION_MAX_CHANCE = 90;       // % per day at cap
 export const VOLCANO_ERUPTION_RAMP_DAYS = 20;        // days from 0% to max chance
