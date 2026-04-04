@@ -8784,6 +8784,9 @@ function showMinePopup(mine, isOwn, canCapture) {
 // ─────────────────────────────────────────────
 let _suppressMapClick = 0; // timestamp — suppress map click briefly after marker click
 let _adminPlaceHqFor = null; // { playerId, playerName } — admin HQ placement mode
+let _longPressTimer = null;
+let _longPressFired = false;
+let _longPressStartXY = null;
 
 function _processMapClick(e) {
   const { lat, lng } = e.latlng;
@@ -8814,6 +8817,7 @@ function _processMapClick(e) {
 }
 
 map.on('click', e => {
+  if (_longPressFired) { _longPressFired = false; return; }
   if (Date.now() - _suppressMapClick < 300) return;
   // Defer click by 300ms so double-tap can cancel it
   if (_deferredMapClick) clearTimeout(_deferredMapClick);
@@ -8822,6 +8826,47 @@ map.on('click', e => {
     _processMapClick(e);
   }, 300);
 });
+
+// Long-press on empty cell → instant mine build
+(function() {
+  const container = map.getContainer();
+  container.addEventListener('touchstart', function(e) {
+    if (e.touches.length !== 1) { clearTimeout(_longPressTimer); return; }
+    const t = e.touches[0];
+    _longPressStartXY = { x: t.clientX, y: t.clientY };
+    _longPressFired = false;
+    _longPressTimer = setTimeout(() => {
+      if (!state.player || !state.playerPos) return;
+      const pt = L.point(t.clientX, t.clientY);
+      const latlng = map.containerPointToLatLng(pt);
+      const pos = state.playerPos;
+      const dist = haversine(pos.lat, pos.lng, latlng.lat, latlng.lng);
+      if (dist > SMALL_RADIUS) return;
+      const cellId = getCellId(latlng.lat, latlng.lng);
+      const building = getBuildingInCell(cellId);
+      if (building) return;
+      _longPressFired = true;
+      _flashHexGrid();
+      try { TG.HapticFeedback.impactOccurred('medium'); } catch(_) {}
+      doBuildMine(latlng.lat, latlng.lng);
+    }, 500);
+  }, { passive: true });
+  container.addEventListener('touchmove', function(e) {
+    if (!_longPressStartXY) return;
+    const t = e.touches[0];
+    const dx = t.clientX - _longPressStartXY.x;
+    const dy = t.clientY - _longPressStartXY.y;
+    if (dx * dx + dy * dy > 100) { clearTimeout(_longPressTimer); _longPressStartXY = null; }
+  }, { passive: true });
+  container.addEventListener('touchend', function() {
+    clearTimeout(_longPressTimer);
+    _longPressStartXY = null;
+  }, { passive: true });
+  container.addEventListener('touchcancel', function() {
+    clearTimeout(_longPressTimer);
+    _longPressStartXY = null;
+  }, { passive: true });
+})();
 
 let _loadBuildingsTimer = null;
 function _debouncedLoad() {
