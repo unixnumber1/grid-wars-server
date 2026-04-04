@@ -466,6 +466,7 @@ async function handleTick(req, res) {
   let totalIncome = 0;
   let _clanBoost = null;
   let mineCountBoost = 1;
+  let perMineBoost = new Map();
   const _skillRow = gameState.loaded ? gameState.getPlayerSkills(player.telegram_id) : null;
   const _skillFx = _skillRow ? getPlayerSkillEffects(_skillRow) : null;
   try {
@@ -525,11 +526,12 @@ async function handleTick(req, res) {
 
     // Per-mine level boost: each mine sums levels of nearby mines within 20km of ITSELF
     const R_DEG = MINE_BOOST_RADIUS / 111320; // rough degrees for bbox pre-filter
-    const perMineBoost = new Map();
     let maxBoost = 1;
     for (const m of playerMines) {
+      if (m.lat == null || m.lng == null) continue;
       let pts = 0;
       for (const other of playerMines) {
+        if (other.lat == null || other.lng == null) continue;
         if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
         if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
           pts += (other.level || 1);
@@ -591,7 +593,7 @@ async function handleTick(req, res) {
       console.error('[tick] income calc error:', incErr.message);
       totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
     }
-  } catch (_) {}
+  } catch (mineErr) { console.error('[map] mines/boost error:', mineErr.message); }
 
   // ── Build response ─────────────────────────────────────
   const playerMineCount = playerMines.length;
