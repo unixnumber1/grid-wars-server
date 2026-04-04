@@ -523,11 +523,12 @@ async function handleTick(req, res) {
       inventory = inv || [];
     }
 
-    // Compute mine count boost — only mines within 20km of player
-    const boostMineCount = hasPos
-      ? playerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS).length
-      : playerMines.length;
-    mineCountBoost = getMineCountBoost(boostMineCount);
+    // Compute mine level boost — sum of levels within 20km of player, +1% per 1000 points
+    const boostMines = hasPos
+      ? playerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS)
+      : playerMines;
+    const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
+    mineCountBoost = getMineCountBoost(totalLevelPoints);
 
     // ── Single-pass per-mine income (base * mineCountBoost * cores * clan zone * boost) ──
     try {
@@ -593,6 +594,7 @@ async function handleTick(req, res) {
     ether: player.ether || 0,
     smallRadius: SMALL_RADIUS + (_skillFx?.radius_bonus || 0), largeRadius: LARGE_RADIUS + (_skillFx?.attack_radius_bonus || 0),
     mine_count_boost: mineCountBoost,
+    mine_level_points: totalLevelPoints,
     mine_count: playerMineCount,
   };
 

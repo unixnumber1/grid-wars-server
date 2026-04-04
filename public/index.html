@@ -6731,7 +6731,6 @@ function showLevelUp(level, xpGained) {
   }, 3000);
 }
 
-window.testLevelUp = (level = 5) => showLevelUp(level, 250);
 
 function showXpFloatOnMap(xp, lat, lng) {
   const point = map.latLngToContainerPoint([lat, lng]);
@@ -10503,13 +10502,15 @@ function updateCoinDisplay() {
     etherIncEl.textContent = ei > 0 ? `+${ei}/${t('per_hour')}` : '';
   }
 
-  // Mine count boost display
+  // Mine level boost display
   const boostEl = document.getElementById('mine-count-boost-display');
   if (boostEl) {
     const mcb = state.player?.mine_count_boost || 1;
-    const mineCount = state.player?.mine_count || 0;
+    const pts = state.player?.mine_level_points || 0;
     if (mcb > 1.001) {
-      boostEl.textContent = t('hud.mine_bonus', { pct: ((mcb - 1) * 100).toFixed(0), n: mineCount });
+      const pct = ((mcb - 1) * 100).toFixed(0);
+      const nextThreshold = (Math.floor(pts / 1000) + 1) * 1000;
+      boostEl.textContent = `⚡ +${pct}% доход (${pts}/${nextThreshold} очков)`;
       boostEl.style.display = '';
     } else {
       boostEl.style.display = 'none';

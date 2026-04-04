@@ -83,13 +83,14 @@ export function autoCollect(collector) {
   const elapsedSec = Math.max(0, (now - lastAutoCollect) / 1000);
   if (elapsedSec <= 0) return 0;
 
-  // Mine count boost (same as manual collect)
+  // Mine level boost (same as manual collect) — +1% per 1000 total level points
   const allOwnerMines = [...gameState.mines.values()].filter(m => m.owner_id === collector.owner_id && m.status !== 'destroyed');
   const player = gameState.getPlayerById(collector.owner_id);
   const pLat = player?.last_lat ?? collector.lat;
   const pLng = player?.last_lng ?? collector.lng;
-  const boostMineCount = allOwnerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS).length;
-  const mineCountBoost = getMineCountBoost(boostMineCount);
+  const boostMines = allOwnerMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS);
+  const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
+  const mineCountBoost = getMineCountBoost(totalLevelPoints);
 
   let totalCollected = 0;
 

@@ -33,10 +33,11 @@ export function getMineCapacity(level) {
   return Math.floor(incomePerHour * hours);
 }
 
-// Boost from mine count: +0.1% per mine
-// 100 mines = +10%, 1000 mines = +100% (x2), 2000 mines = +200% (x3)
-export function getMineCountBoost(mineCount) {
-  return 1 + (mineCount * 0.001);
+// Boost from total mine levels: +1% per 1000 level points
+// Each mine contributes its level (lv1=1pt, lv50=50pt)
+// 600 lv1 mines (600pts) = +0%, 600 lv25 mines (15000pts) = +15%
+export function getMineCountBoost(totalLevelPoints) {
+  return 1 + Math.floor(totalLevelPoints / 1000) * 0.01;
 }
 
 export function calcAccumulatedCoins(level, lastCollectedISO, incomeBoost = 1, capacityBoost = 1) {

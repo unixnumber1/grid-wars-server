@@ -99,12 +99,24 @@ describe('getMineCapacity', () => {
 });
 
 describe('getMineCountBoost', () => {
-  it('0 mines = x1', () => {
+  it('0 points = x1', () => {
     assert.strictEqual(getMineCountBoost(0), 1);
   });
 
-  it('1000 mines = x2', () => {
-    assert.strictEqual(getMineCountBoost(1000), 2);
+  it('600 points (spam lv1) = x1 (no boost)', () => {
+    assert.strictEqual(getMineCountBoost(600), 1);
+  });
+
+  it('1000 points = +1%', () => {
+    assert.strictEqual(getMineCountBoost(1000), 1.01);
+  });
+
+  it('15000 points (600 mines lv25) = +15%', () => {
+    assert.strictEqual(getMineCountBoost(15000), 1.15);
+  });
+
+  it('150000 points (3000 mines lv50) = +150%', () => {
+    assert.strictEqual(getMineCountBoost(150000), 2.5);
   });
 });
 

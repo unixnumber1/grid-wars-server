@@ -262,8 +262,9 @@ async function handleMineCollect(req, res) {
   }
   // Calculate accumulated coins per mine (save for XP calc later)
   // Must match tick income formula: base * mineCountBoost * coreBoost * clanBonus * boostMul
-  const boostMineCount = allMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS).length;
-  const mineCountBoost = getMineCountBoost(boostMineCount);
+  const boostMines = allMines.filter(m => haversine(pLat, pLng, m.lat, m.lng) <= MINE_BOOST_RADIUS);
+  const totalLevelPoints = boostMines.reduce((sum, m) => sum + (m.level || 1), 0);
+  const mineCountBoost = getMineCountBoost(totalLevelPoints);
   let totalCoins = 0;
   const mineCoinsMap = new Map();
   for (const mine of mines) {
