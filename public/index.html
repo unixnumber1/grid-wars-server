@@ -6547,11 +6547,11 @@ function _addOrUpdateMineMarker(mine) {
     }
     // Rebind click so popup shows fresh data
     existing.off('click');
-    existing.on('click', () => showMinePopup(mine, isOwn, false));
+    existing.on('click', () => { if (Date.now() - _suppressMapClick < 800) return; showMinePopup(mine, isOwn, false); });
   } else {
     const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt, hpInfo), zIndexOffset: 1000 })
       .addTo(map)
-      .on('click', () => showMinePopup(mine, isOwn, false));
+      .on('click', () => { if (Date.now() - _suppressMapClick < 800) return; showMinePopup(mine, isOwn, false); });
     marker._gw_level   = displayLevel;
     marker._gw_iconSt  = iconSt;
     marker._gw_hp      = mine.hp;
