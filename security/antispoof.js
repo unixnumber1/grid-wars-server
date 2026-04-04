@@ -230,7 +230,7 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, accura
       effectiveSpeedLimit = MAX_SPEED_KMH * 2;
     }
 
-    if (speedKmh > effectiveSpeedLimit && distanceKm > 0.1) {
+    if (speedKmh > effectiveSpeedLimit && distanceKm > 0.3) {
       // If gap > 1 min, this is a cross-session reconnect — use more lenient check
       if (timeDiffMs > SESSION_GAP_MIN_MS) {
         const sessionSpeedKmh = (distanceKm / (timeDiffMs / 1000)) * 3600;
@@ -386,12 +386,14 @@ function recordSpoofViolation(telegramId, violation) {
 
   const now = Date.now();
   const ONE_DAY = 86400000;
+  const TYPE_WEIGHT = { speed: 0.5, session_teleport: 1.0, joystick: 1.5 };
   let weightedScore = 0;
   for (const v of record.violations) {
     const age = now - v.timestamp;
-    if (age < ONE_DAY) weightedScore += 1;
-    else if (age < 7 * ONE_DAY) weightedScore += 0.7;
-    else weightedScore += 0.3;
+    const tw = TYPE_WEIGHT[v.type] || 1.0;
+    if (age < ONE_DAY) weightedScore += 1 * tw;
+    else if (age < 7 * ONE_DAY) weightedScore += 0.7 * tw;
+    else weightedScore += 0.3 * tw;
   }
   record.weightedScore = weightedScore;
 

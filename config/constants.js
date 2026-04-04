@@ -389,7 +389,7 @@ export const ANTISPOOF = {
   PIN_GRACE_MS: 5000,                // grace window for PIN socket race condition
   MIN_UPDATE_INTERVAL_MS: 1000,
   POSITION_HISTORY_SIZE: 20,
-  VIOLATION_THRESHOLD: 30,
+  VIOLATION_THRESHOLD: 50,
   BAN_DAYS: 30,
 
   // Cross-session teleport
@@ -406,8 +406,8 @@ export const ANTISPOOF = {
 
   // GPS instability score (0-100)
   INSTABILITY_DECAY_PER_UPDATE: 2,
-  INSTABILITY_MODERATE: 30,          // double speed threshold
-  INSTABILITY_SEVERE: 60,            // suppress speed violations entirely
+  INSTABILITY_MODERATE: 20,          // double speed threshold
+  INSTABILITY_SEVERE: 40,            // suppress speed violations entirely
 
   // Joystick detection
   JITTER_THRESHOLD: 2,
