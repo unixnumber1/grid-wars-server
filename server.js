@@ -573,7 +573,13 @@ io.on('connection', (socket) => {
     const verifiedTgId = player.telegram_id;
 
     // Validate position through antispoof
-    const validation = validatePosition(verifiedTgId, data.lat, data.lng, false, data.accuracy || null);
+    const validation = validatePosition(verifiedTgId, data.lat, data.lng, false, {
+      accuracy: data.accuracy || null,
+      altitude: data.altitude ?? null,
+      altitudeAccuracy: data.altitudeAccuracy ?? null,
+      gpsSpeed: data.gpsSpeed ?? null,
+      heading: data.heading ?? null,
+    });
     if (!validation.valid) return;
 
     // ── Walking distance tracking ──

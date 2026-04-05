@@ -383,35 +383,28 @@ export const WALK_WEEKLY_REWARDS = [
 //  Antispoof
 // ═══════════════════════════════════════════════════════
 export const ANTISPOOF = {
-  MAX_SPEED_KMH: 200,
+  // PIN mode
   PIN_MAX_DISTANCE_KM: 20,
-  PIN_GRACE_MS: 5000,                // grace window for PIN socket race condition
+  PIN_GRACE_MS: 5000,
+
+  // Basic
   MIN_UPDATE_INTERVAL_MS: 1000,
-  POSITION_HISTORY_SIZE: 20,
-  VIOLATION_THRESHOLD: 50,
+  POSITION_HISTORY_SIZE: 30,
+  SESSION_GAP_MS: 60000,              // >60s gap = session reset, no speed check
+
+  // Speed (only cosmic violations — never triggers on cars/planes)
+  TELEPORT_SPEED_KMH: 500,            // instant ban threshold
+  TELEPORT_MAX_TIME_S: 60,            // within 60 seconds
+  HIGH_SPEED_KMH: 300,                // violation but not instant ban
+  HIGH_SPEED_MAX_TIME_S: 30,
+  BAD_ACCURACY_THRESHOLD: 300,         // reject update if accuracy > this (meters)
+
+  // GPS Fingerprint (fake GPS software detection)
+  FINGERPRINT_MIN_UPDATES: 20,         // minimum moving samples before judging
+  FINGERPRINT_NULL_RATIO: 0.85,        // 85%+ null altitude/speed/heading = fake GPS
+  FINGERPRINT_MIN_MOVEMENT_M: 10,      // only count updates where player moved >10m
+
+  // Banning
+  VIOLATION_THRESHOLD: 10,             // weighted score for auto-ban
   BAN_DAYS: 30,
-
-  // Cross-session teleport
-  SESSION_MAX_SPEED_KMH: 250,
-  SESSION_GAP_MIN_MS: 60000,
-
-  // Jamming detection
-  JAMMING_ACCURACY_THRESHOLD: 300,   // meters
-  JAMMING_JUMP_KM: 0.5,             // was 2km — lowered for Russian GPS jamming
-  JAMMING_COOLDOWN_MS: 60000,        // base cooldown 60s
-  JAMMING_MAX_COOLDOWN_MS: 300000,   // adaptive cap 5 min
-  SNAP_BACK_RADIUS_M: 300,           // GPS recovery detection radius
-  OSCILLATION_RADIUS_M: 500,         // bounce-back detection radius
-
-  // GPS instability score (0-100)
-  INSTABILITY_DECAY_PER_UPDATE: 2,
-  INSTABILITY_MODERATE: 20,          // double speed threshold
-  INSTABILITY_SEVERE: 40,            // suppress speed violations entirely
-
-  // Joystick detection
-  JITTER_THRESHOLD: 2,
-  CONST_SPEED_WINDOW: 8,
-  CONST_SPEED_TOLERANCE: 0.03,
-  SUSPICIOUS_ACCURACY: 3,
-  JOYSTICK_SCORE_THRESHOLD: 80,
 };

@@ -1,41 +1,42 @@
 import { haversine } from '../lib/haversine.js';
 import { suspiciousActivity } from './rateLimit.js';
 import { logPlayer } from '../lib/logger.js';
-import { ADMIN_TG_ID, ADMIN_NOTIFY_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
+import { ADMIN_NOTIFY_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
 
 // ═══════════════════════════════════════════════════════
-//  GPS Anti-Spoof v3 — jamming-tolerant, PIN-aware
+//  GPS Anti-Spoof v4 — GPS fingerprint + cosmic speed only
+//
+//  Principles:
+//  1. Detect FAKE GPS SOFTWARE by missing altitude/speed/heading
+//  2. Only ban for absolutely impossible speeds (>500 km/h)
+//  3. Never ban for driving, GPS glitches, or jamming
+//  4. Bad accuracy → silently reject update, no penalty
 // ═══════════════════════════════════════════════════════
 
 const {
-  MAX_SPEED_KMH, PIN_MAX_DISTANCE_KM, PIN_GRACE_MS,
-  MIN_UPDATE_INTERVAL_MS, POSITION_HISTORY_SIZE,
+  PIN_MAX_DISTANCE_KM, PIN_GRACE_MS,
+  MIN_UPDATE_INTERVAL_MS, POSITION_HISTORY_SIZE, SESSION_GAP_MS,
+  TELEPORT_SPEED_KMH, TELEPORT_MAX_TIME_S,
+  HIGH_SPEED_KMH, HIGH_SPEED_MAX_TIME_S,
+  BAD_ACCURACY_THRESHOLD,
+  FINGERPRINT_MIN_UPDATES, FINGERPRINT_NULL_RATIO, FINGERPRINT_MIN_MOVEMENT_M,
   VIOLATION_THRESHOLD, BAN_DAYS,
-  SESSION_MAX_SPEED_KMH, SESSION_GAP_MIN_MS,
-  JAMMING_ACCURACY_THRESHOLD, JAMMING_JUMP_KM, JAMMING_COOLDOWN_MS, JAMMING_MAX_COOLDOWN_MS,
-  SNAP_BACK_RADIUS_M, OSCILLATION_RADIUS_M,
-  INSTABILITY_DECAY_PER_UPDATE, INSTABILITY_MODERATE, INSTABILITY_SEVERE,
-  JITTER_THRESHOLD, CONST_SPEED_WINDOW, CONST_SPEED_TOLERANCE,
-  SUSPICIOUS_ACCURACY, JOYSTICK_SCORE_THRESHOLD,
 } = ANTISPOOF;
 
-// ── Per-player state maps ──
-const positionHistory = new Map(); // telegram_id -> [{ lat, lng, timestamp, accuracy }]
-const joystickScores = new Map();  // telegram_id -> { score, lastDecay, jammingUntil }
-const pinModeState = new Map();    // telegram_id -> { active, graceUntil }
-const gpsInstability = new Map();  // telegram_id -> { score, preJammingPositions, jammingCount }
+// ── Per-player state ──
+const positionHistory = new Map();  // telegram_id → [{ lat, lng, timestamp, ...gpsData }]
+const gpsFingerprint = new Map();   // telegram_id → { nullCount, totalMoving, lastViolationAt }
+const pinModeState = new Map();     // telegram_id → { active, graceUntil }
 
-// ── PIN mode server-side tracking ──
+// ── PIN mode ──
 
 export function setPinMode(telegramId, active) {
   const now = Date.now();
   if (active) {
     pinModeState.set(telegramId, { active: true, graceUntil: now + PIN_GRACE_MS });
-    // Reset history so the teleport to HQ doesn't pollute speed checks
     positionHistory.delete(telegramId);
   } else {
     pinModeState.set(telegramId, { active: false, graceUntil: now + PIN_GRACE_MS });
-    // Reset history so the return from HQ to real GPS doesn't trigger speed violation
     positionHistory.delete(telegramId);
   }
 }
@@ -43,101 +44,29 @@ export function setPinMode(telegramId, active) {
 function isPinModeActive(telegramId) {
   const state = pinModeState.get(telegramId);
   if (!state) return false;
-  // Active OR within grace window (covers socket events that arrive before HTTP)
   if (state.active) return true;
   if (Date.now() < state.graceUntil) return true;
   return false;
-}
-
-// ── Oscillation detection ──
-// GPS jammers cause position to bounce between points. If current position
-// is close to a position from 3+ updates ago, it's oscillation (not travel).
-function detectOscillation(history, lat, lng) {
-  if (history.length < 3) return false;
-  // Check positions from 3+ updates ago (skip last 2 to avoid normal backtracking)
-  for (let i = 0; i < history.length - 2; i++) {
-    const dist = haversine(history[i].lat, history[i].lng, lat, lng);
-    if (dist < OSCILLATION_RADIUS_M) return true;
-  }
-  return false;
-}
-
-// ── Snap-back detection ──
-// After jamming cooldown expires, GPS may "snap back" to real position.
-// If the new position is close to a pre-jamming stable position, it's recovery.
-function isSnapBack(preJammingPositions, lat, lng) {
-  if (!preJammingPositions || preJammingPositions.length === 0) return false;
-  for (const pos of preJammingPositions) {
-    if (haversine(pos.lat, pos.lng, lat, lng) < SNAP_BACK_RADIUS_M) return true;
-  }
-  return false;
-}
-
-// ── GPS instability score update ──
-function updateInstability(telegramId, accuracy, distanceKm, timeDiffS, isOscillation) {
-  const inst = gpsInstability.get(telegramId) || { score: 0, preJammingPositions: [], jammingCount: 0 };
-
-  let increase = 0;
-  if (accuracy !== null && accuracy > 100) increase += 5;
-  if (accuracy !== null && accuracy > JAMMING_ACCURACY_THRESHOLD) increase += 10;
-  if (distanceKm > 0.2 && timeDiffS < 5) increase += 15;  // 200m+ jump in <5s
-  if (distanceKm >= 2 && timeDiffS < 5) increase += 10;    // extra for huge jumps
-  if (isOscillation) increase += 10;
-
-  if (increase > 0) {
-    inst.score = Math.min(100, inst.score + increase);
-  } else {
-    // Stable update — decay instability
-    if (accuracy !== null && accuracy < 50) {
-      inst.score = Math.max(0, inst.score - INSTABILITY_DECAY_PER_UPDATE);
-    }
-  }
-
-  gpsInstability.set(telegramId, inst);
-  return inst;
-}
-
-// ── Adaptive cooldown ──
-// Each re-detection of jamming extends the cooldown. Capped at max.
-function getAdaptiveCooldown(inst) {
-  const base = JAMMING_COOLDOWN_MS;
-  // Each consecutive jamming detection adds 30s, up to max
-  const extra = Math.min(inst.jammingCount, 8) * 30000;
-  return Math.min(base + extra, JAMMING_MAX_COOLDOWN_MS);
 }
 
 // ════════════════════════════════════════════════════════
 //  Main validation
 // ════════════════════════════════════════════════════════
 
-export function validatePosition(telegramId, lat, lng, isPinMode = false, accuracy = null) {
-  // Admin bypass
+export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsData = {}) {
   if (isAdmin(telegramId)) return { valid: true };
 
   // Validate coords
-  if (typeof lat !== 'number' || typeof lng !== 'number') {
-    return { valid: false, reason: 'invalid_coords' };
-  }
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-    return { valid: false, reason: 'out_of_bounds' };
-  }
-  if (lat === 0 && lng === 0) {
-    return { valid: false, reason: 'null_island' };
-  }
+  if (typeof lat !== 'number' || typeof lng !== 'number') return { valid: false, reason: 'invalid_coords' };
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return { valid: false, reason: 'out_of_bounds' };
+  if (lat === 0 && lng === 0) return { valid: false, reason: 'null_island' };
 
   const now = Date.now();
-  const history = positionHistory.get(telegramId) || [];
-  const jScore = joystickScores.get(telegramId) || { score: 0, lastDecay: now, jammingUntil: 0 };
+  const accuracy = gpsData.accuracy ?? null;
 
-  // Time-decay joystick score: -5 points per minute
-  const decayMinutes = (now - jScore.lastDecay) / 60000;
-  if (decayMinutes >= 1) {
-    jScore.score = Math.max(0, jScore.score - Math.floor(decayMinutes * 5));
-    jScore.lastDecay = now;
-  }
-
-  // PIN mode — check parameter OR server-side state (covers socket race condition)
+  // PIN mode — distance check only
   if (isPinMode || isPinModeActive(telegramId)) {
+    const history = positionHistory.get(telegramId) || [];
     if (history.length > 0) {
       const last = history[history.length - 1];
       const distanceKm = haversine(last.lat, last.lng, lat, lng) / 1000;
@@ -148,231 +77,110 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, accura
     return { valid: true };
   }
 
+  // Bad accuracy — silently reject, no violation, no history pollution
+  if (accuracy !== null && accuracy > BAD_ACCURACY_THRESHOLD) {
+    return { valid: false, reason: 'bad_accuracy' };
+  }
+
+  const history = positionHistory.get(telegramId) || [];
+
   if (history.length > 0) {
     const last = history[history.length - 1];
     const timeDiffMs = now - last.timestamp;
-    const timeDiff = timeDiffMs / 1000;
-    const distance = haversine(last.lat, last.lng, lat, lng);
-    const distanceKm = distance / 1000;
+    const timeDiffS = timeDiffMs / 1000;
 
     // Too frequent
     if (timeDiffMs < MIN_UPDATE_INTERVAL_MS) {
       return { valid: false, reason: 'too_frequent' };
     }
 
-    const speedKmh = timeDiff > 0 ? (distanceKm / timeDiff) * 3600 : 0;
+    const distance = haversine(last.lat, last.lng, lat, lng);
+    const distanceKm = distance / 1000;
+    const speedKmh = timeDiffS > 0 ? (distanceKm / timeDiffS) * 3600 : 0;
 
-    // ── Oscillation detection ──
-    const isOscillation = detectOscillation(history, lat, lng);
-
-    // ── Update GPS instability score ──
-    const inst = updateInstability(telegramId, accuracy, distanceKm, timeDiff, isOscillation);
-
-    // ── GPS Jamming Detection (improved) ──
-    // Lowered thresholds: 500m jump in <5s, bad accuracy, or oscillation pattern
-    const isLikelyJamming = (
-      (accuracy !== null && accuracy > JAMMING_ACCURACY_THRESHOLD) ||
-      (distanceKm > JAMMING_JUMP_KM && timeDiff < 5) ||
-      (isOscillation && distanceKm > 0.1 && speedKmh > 50)
-    );
-
-    if (isLikelyJamming) {
-      // Save pre-jamming positions (stable ones) for snap-back detection
-      if (inst.jammingCount === 0 || inst.preJammingPositions.length === 0) {
-        inst.preJammingPositions = history
-          .filter(h => h.accuracy === null || h.accuracy < 100)
-          .slice(-5)
-          .map(h => ({ lat: h.lat, lng: h.lng }));
-      }
-      inst.jammingCount++;
-      gpsInstability.set(telegramId, inst);
-
-      // Adaptive cooldown — extends on repeated detection
-      const cooldown = getAdaptiveCooldown(inst);
-      jScore.jammingUntil = now + cooldown;
-      joystickScores.set(telegramId, jScore);
-      return { valid: false, reason: 'gps_jamming', speed: speedKmh };
-    }
-
-    // During jamming cooldown — accept positions but skip all checks
-    if (now < jScore.jammingUntil) {
-      history.push({ lat, lng, timestamp: now, accuracy });
-      if (history.length > POSITION_HISTORY_SIZE) history.shift();
+    // ── Session gap (>60s) — reset history, accept without speed check ──
+    if (timeDiffMs > SESSION_GAP_MS) {
+      history.length = 0;
+      history.push({ lat, lng, timestamp: now, ...gpsData });
       positionHistory.set(telegramId, history);
       return { valid: true };
     }
 
-    // ── Jamming cooldown just expired — check for snap-back ──
-    // If the player's position returned to where they were before jamming, it's GPS recovery
-    if (inst.preJammingPositions.length > 0 && speedKmh > MAX_SPEED_KMH && distanceKm > 0.1) {
-      if (isSnapBack(inst.preJammingPositions, lat, lng)) {
-        // GPS recovered to real position — accept and clear jamming state
-        inst.preJammingPositions = [];
-        inst.jammingCount = 0;
-        inst.score = Math.max(0, inst.score - 20);
-        gpsInstability.set(telegramId, inst);
-        // Reset history to new (real) position
-        history.length = 0;
-        history.push({ lat, lng, timestamp: now, accuracy });
-        positionHistory.set(telegramId, history);
-        return { valid: true };
-      }
+    // ── Speed checks — only cosmic violations ──
+    // Teleport: >500 km/h within 60s = instant ban
+    if (speedKmh > TELEPORT_SPEED_KMH && timeDiffS <= TELEPORT_MAX_TIME_S && distanceKm > 1) {
+      recordViolation(telegramId, {
+        timestamp: now, speed: speedKmh, distance: distanceKm,
+        from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
+        type: 'teleport',
+      });
+      // Reset history to new position (don't lock player at old spot)
+      history.length = 0;
+      history.push({ lat, lng, timestamp: now, ...gpsData });
+      positionHistory.set(telegramId, history);
+      return { valid: false, reason: 'teleport', speed: speedKmh };
     }
 
-    // ── Speed Check (instability-adaptive) ──
-    // Determine effective speed limit based on GPS instability
-    let effectiveSpeedLimit = MAX_SPEED_KMH;
-    if (inst.score >= INSTABILITY_SEVERE) {
-      // Severe instability: treat impossible speed as jamming, not violation
-      effectiveSpeedLimit = Infinity;
-    } else if (inst.score >= INSTABILITY_MODERATE) {
-      // Moderate instability: double the threshold
-      effectiveSpeedLimit = MAX_SPEED_KMH * 2;
-    }
-
-    if (speedKmh > effectiveSpeedLimit && distanceKm > 0.3) {
-      // If gap > 1 min, this is a cross-session reconnect — use more lenient check
-      if (timeDiffMs > SESSION_GAP_MIN_MS) {
-        const sessionSpeedKmh = (distanceKm / (timeDiffMs / 1000)) * 3600;
-        if (sessionSpeedKmh > SESSION_MAX_SPEED_KMH && distanceKm > 5) {
-          recordSpoofViolation(telegramId, {
-            timestamp: now, speed: sessionSpeedKmh, distance: distanceKm,
-            from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
-            type: 'session_teleport', gapMinutes: Math.round(timeDiffMs / 60000),
-          });
-          history.length = 0;
-          history.push({ lat, lng, timestamp: now, accuracy });
-          positionHistory.set(telegramId, history);
-          return { valid: true };
-        }
-        // Long gap + fast but plausible — reset history, allow
-        history.length = 0;
-        history.push({ lat, lng, timestamp: now, accuracy });
-        positionHistory.set(telegramId, history);
-        return { valid: true };
-      }
-
-      // Short gap + impossible speed
-      // Medium-to-large jumps (>=500m) at impossible speed = treat as jamming always
-      if (distanceKm >= 0.5) {
-        inst.jammingCount++;
-        if (inst.preJammingPositions.length === 0) {
-          inst.preJammingPositions = history
-            .filter(h => h.accuracy === null || h.accuracy < 100)
-            .slice(-5)
-            .map(h => ({ lat: h.lat, lng: h.lng }));
-        }
-        gpsInstability.set(telegramId, inst);
-        const cooldown = getAdaptiveCooldown(inst);
-        jScore.jammingUntil = now + cooldown;
-        joystickScores.set(telegramId, jScore);
-        return { valid: false, reason: 'gps_jamming', speed: speedKmh };
-      }
-
-      // Small distance (<500m) + impossible speed = real-time spoof
-      recordSpoofViolation(telegramId, {
+    // High speed: >300 km/h within 30s = violation (not instant ban)
+    if (speedKmh > HIGH_SPEED_KMH && timeDiffS <= HIGH_SPEED_MAX_TIME_S && distanceKm > 0.5) {
+      recordViolation(telegramId, {
         timestamp: now, speed: speedKmh, distance: distanceKm,
         from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
         type: 'speed',
       });
-      return { valid: false, reason: 'impossible_speed', speed: speedKmh };
+      history.length = 0;
+      history.push({ lat, lng, timestamp: now, ...gpsData });
+      positionHistory.set(telegramId, history);
+      return { valid: false, reason: 'high_speed', speed: speedKmh };
     }
 
-    // If we got here with normal speed, decay jamming state
-    if (inst.jammingCount > 0 && speedKmh < 50 && (accuracy === null || accuracy < 50)) {
-      inst.jammingCount = Math.max(0, inst.jammingCount - 1);
-      if (inst.jammingCount === 0) inst.preJammingPositions = [];
-      gpsInstability.set(telegramId, inst);
-    }
+    // ── GPS Fingerprint check (fake GPS software detection) ──
+    // Real GPS provides altitude, speed, heading when moving.
+    // Spoof software almost always sends null for these fields.
+    if (distance >= FINGERPRINT_MIN_MOVEMENT_M) {
+      const fp = gpsFingerprint.get(telegramId) || { nullCount: 0, totalMoving: 0, lastViolationAt: 0 };
+      fp.totalMoving++;
 
-    // ── Joystick Pattern Detection (unchanged) ──
-    if (history.length >= 3) {
-      let scoreIncrease = 0;
+      const altitude = gpsData.altitude ?? null;
+      const gpsSpeed = gpsData.gpsSpeed ?? null;
+      const heading = gpsData.heading ?? null;
 
-      // Check 1: No jitter (positions too smooth)
-      if (distance > 10 && distance < 5000) {
-        const prevDistance = history.length >= 2
-          ? haversine(history[history.length - 2].lat, history[history.length - 2].lng, last.lat, last.lng)
-          : 0;
-        if (prevDistance > 10) {
-          const bearing1 = getBearing(history[history.length - 2], last);
-          const bearing2 = getBearing(last, { lat, lng });
-          const bearingDiff = Math.abs(bearing1 - bearing2);
-          const normalizedDiff = bearingDiff > 180 ? 360 - bearingDiff : bearingDiff;
-          if (normalizedDiff < 0.5 && distance > 50) {
-            scoreIncrease += 2;
-          }
-        }
+      // All three null while moving = likely fake GPS
+      if (altitude === null && gpsSpeed === null && heading === null) {
+        fp.nullCount++;
       }
 
-      // Check 2: Constant speed (joystick moves at fixed speed)
-      if (history.length >= CONST_SPEED_WINDOW) {
-        const speeds = [];
-        for (let i = history.length - CONST_SPEED_WINDOW; i < history.length; i++) {
-          const prev = history[i - 1] || history[0];
-          const curr = history[i];
-          const dt = (curr.timestamp - prev.timestamp) / 1000;
-          if (dt > 0) {
-            const d = haversine(prev.lat, prev.lng, curr.lat, curr.lng);
-            speeds.push((d / dt) * 3.6);
-          }
-        }
-        if (speeds.length >= 4) {
-          const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-          if (avgSpeed > 3) {
-            const maxDeviation = Math.max(...speeds.map(s => Math.abs(s - avgSpeed) / avgSpeed));
-            if (maxDeviation < CONST_SPEED_TOLERANCE) {
-              scoreIncrease += 5;
-            }
-          }
-        }
-      }
-
-      // Check 3: Suspiciously perfect accuracy
-      if (accuracy !== null && accuracy < SUSPICIOUS_ACCURACY) {
-        const recentPerfect = history.slice(-8).filter(h => h.accuracy !== null && h.accuracy < SUSPICIOUS_ACCURACY).length;
-        if (recentPerfect >= 7) {
-          scoreIncrease += 1;
-        }
-      }
-
-      if (scoreIncrease > 0) {
-        jScore.score += scoreIncrease;
-        joystickScores.set(telegramId, jScore);
-
-        if (jScore.score >= JOYSTICK_SCORE_THRESHOLD) {
-          recordSpoofViolation(telegramId, {
+      // Check threshold: enough samples AND high null ratio
+      if (fp.totalMoving >= FINGERPRINT_MIN_UPDATES) {
+        const nullRatio = fp.nullCount / fp.totalMoving;
+        if (nullRatio >= FINGERPRINT_NULL_RATIO && now - fp.lastViolationAt > 300000) {
+          // Record violation at most once per 5 minutes
+          fp.lastViolationAt = now;
+          recordViolation(telegramId, {
             timestamp: now, speed: speedKmh, distance: distanceKm,
             from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
-            type: 'joystick', joystickScore: jScore.score,
+            type: 'fake_gps', nullRatio: nullRatio.toFixed(2),
+            nullCount: fp.nullCount, totalMoving: fp.totalMoving,
           });
-          jScore.score = Math.floor(jScore.score * 0.5);
         }
       }
+
+      gpsFingerprint.set(telegramId, fp);
     }
   }
 
   // Update history
-  history.push({ lat, lng, timestamp: now, accuracy });
+  history.push({ lat, lng, timestamp: now, ...gpsData });
   if (history.length > POSITION_HISTORY_SIZE) history.shift();
   positionHistory.set(telegramId, history);
-  joystickScores.set(telegramId, jScore);
 
   return { valid: true };
 }
 
-// ── Bearing calculation (degrees 0-360) ──
-function getBearing(from, to) {
-  const dLng = (to.lng - from.lng) * Math.PI / 180;
-  const lat1 = from.lat * Math.PI / 180;
-  const lat2 = to.lat * Math.PI / 180;
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
-}
+// ── Violation Recording ──
+const TYPE_WEIGHT = { teleport: 10, fake_gps: 5, speed: 3 };
 
-// ── Violation Recording (with time-decay) ──
-function recordSpoofViolation(telegramId, violation) {
+function recordViolation(telegramId, violation) {
   const key = `spoof:${telegramId}`;
   const record = suspiciousActivity.get(key) || {
     violations: [],
@@ -384,27 +192,29 @@ function recordSpoofViolation(telegramId, violation) {
   record.violations.push(violation);
   record.totalViolations++;
 
+  // Recalculate weighted score with time decay
   const now = Date.now();
   const ONE_DAY = 86400000;
-  const TYPE_WEIGHT = { speed: 0.5, session_teleport: 1.0, joystick: 1.5 };
   let weightedScore = 0;
   for (const v of record.violations) {
     const age = now - v.timestamp;
-    const tw = TYPE_WEIGHT[v.type] || 1.0;
-    if (age < ONE_DAY) weightedScore += 1 * tw;
-    else if (age < 7 * ONE_DAY) weightedScore += 0.7 * tw;
-    else weightedScore += 0.3 * tw;
+    const tw = TYPE_WEIGHT[v.type] || 1;
+    if (age < ONE_DAY) weightedScore += tw;
+    else if (age < 7 * ONE_DAY) weightedScore += tw * 0.5;
+    else weightedScore += tw * 0.2;
   }
   record.weightedScore = weightedScore;
 
-  if (record.violations.length > 30) record.violations.shift();
+  if (record.violations.length > 50) record.violations.shift();
   suspiciousActivity.set(key, record);
 
-  const typeLabel = violation.type === 'joystick' ? 'Джойстик' : 'Скорость';
-  console.log(`[ANTISPOOF] ${typeLabel} violation #${record.totalViolations} for ${telegramId}: speed=${violation.speed?.toFixed(0) || 0}km/h, dist=${violation.distance?.toFixed(2) || 0}km, weighted=${weightedScore.toFixed(1)}`);
-  logPlayer(telegramId, 'spoof', `${typeLabel}: ${violation.speed?.toFixed(0) || 0} км/ч`, {
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS' };
+  const label = typeLabels[violation.type] || violation.type;
+  console.log(`[ANTISPOOF] ${label} #${record.totalViolations} for ${telegramId}: speed=${violation.speed?.toFixed(0) || 0}km/h, dist=${violation.distance?.toFixed(2) || 0}km, weighted=${weightedScore.toFixed(1)}`);
+  logPlayer(telegramId, 'spoof', `${label}: ${violation.speed?.toFixed(0) || 0} км/ч`, {
     speed: violation.speed, distance: violation.distance, type: violation.type,
-    joystickScore: violation.joystickScore, from: violation.from, to: violation.to,
+    from: violation.from, to: violation.to,
+    nullRatio: violation.nullRatio, nullCount: violation.nullCount,
   });
 
   if (record.weightedScore >= VIOLATION_THRESHOLD && !record.banned) {
@@ -412,6 +222,7 @@ function recordSpoofViolation(telegramId, violation) {
   }
 }
 
+// ── Auto-Ban ──
 async function autoBan(telegramId, record) {
   if (isAdmin(telegramId)) return;
   try {
@@ -420,7 +231,7 @@ async function autoBan(telegramId, record) {
 
     await supabase.from('players').update({
       is_banned: true,
-      ban_reason: 'GPS спуфинг (автобан)',
+      ban_reason: 'GPS спуфинг (автобан v4)',
       ban_until: banUntil.toISOString(),
     }).eq('telegram_id', telegramId);
 
@@ -429,7 +240,7 @@ async function autoBan(telegramId, record) {
       const p = gameState.getPlayerByTgId(telegramId);
       if (p) {
         p.is_banned = true;
-        p.ban_reason = 'GPS спуфинг (автобан)';
+        p.ban_reason = 'GPS спуфинг (автобан v4)';
         p.ban_until = banUntil.toISOString();
         gameState.markDirty('players', p.id);
       }
@@ -439,7 +250,9 @@ async function autoBan(telegramId, record) {
     suspiciousActivity.set(`spoof:${telegramId}`, record);
 
     console.log(`[ANTISPOOF] AUTO-BAN: ${telegramId} (weighted=${record.weightedScore.toFixed(1)}, total=${record.totalViolations})`);
-    logPlayer(telegramId, 'ban', `Автобан: GPS спуфинг (score ${record.weightedScore.toFixed(1)})`, { violations: record.totalViolations, ban_until: banUntil.toISOString() });
+    logPlayer(telegramId, 'ban', `Автобан v4: GPS спуфинг (score ${record.weightedScore.toFixed(1)})`, {
+      violations: record.totalViolations, ban_until: banUntil.toISOString(),
+    });
 
     notifyAdmin(telegramId, record);
   } catch (e) {
@@ -452,9 +265,14 @@ async function notifyAdmin(telegramId, record) {
   if (!BOT_TOKEN) return;
 
   const lastV = record.violations[record.violations.length - 1];
-  const typeLabel = lastV?.type === 'joystick' ? '🕹 Джойстик' : '🚀 Скорость';
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS' };
+  const label = typeLabels[lastV?.type] || lastV?.type || '?';
 
-  const message = `🚨 АВТОБАН — GPS\n\n👤 ID: ${telegramId}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${typeLabel}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км\n⏰ Бан ${BAN_DAYS} дней`;
+  let message = `🚨 АВТОБАН v4 — GPS\n\n👤 ID: ${telegramId}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
+  if (lastV?.type === 'fake_gps') {
+    message += `\n📡 Null ratio: ${lastV.nullRatio} (${lastV.nullCount}/${lastV.totalMoving})`;
+  }
+  message += `\n⏰ Бан ${BAN_DAYS} дней`;
 
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -476,6 +294,8 @@ async function notifyAdmin(telegramId, record) {
   }
 }
 
+// ── Public API ──
+
 export function getSpoofStats(telegramId) {
   return suspiciousActivity.get(`spoof:${telegramId}`) || null;
 }
@@ -483,8 +303,7 @@ export function getSpoofStats(telegramId) {
 export function resetSpoofRecord(telegramId) {
   suspiciousActivity.delete(`spoof:${telegramId}`);
   positionHistory.delete(telegramId);
-  joystickScores.delete(telegramId);
-  gpsInstability.delete(telegramId);
+  gpsFingerprint.delete(telegramId);
   pinModeState.delete(telegramId);
 }
 
@@ -492,7 +311,6 @@ export function resetPositionHistory(telegramId) {
   positionHistory.delete(telegramId);
 }
 
-// Seed position history from DB on player connect (for cross-session teleport detection)
 export function seedPositionFromDB(telegramId, lastLat, lastLng, lastSeen) {
   if (!lastLat || !lastLng || !lastSeen) return;
   const existing = positionHistory.get(telegramId);

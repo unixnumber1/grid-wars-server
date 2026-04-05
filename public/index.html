@@ -7799,6 +7799,7 @@ function _animatePlayerMarker(toLat, toLng, duration = 1000) {
 }
 
 let _lastGpsAccuracy = null;
+let _lastGpsExtended = null;
 let _lastLocationEmit = 0;
 function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
@@ -7806,7 +7807,7 @@ function _applyPlayerPosition(lat, lng) {
   const _locNow = Date.now();
   if (_socket?.connected && _locNow - _lastLocationEmit >= 3000) {
     _lastLocationEmit = _locNow;
-    _socket.emit('player:location', { lat, lng, accuracy: _lastGpsAccuracy });
+    _socket.emit('player:location', { lat, lng, accuracy: _lastGpsAccuracy, ...(_lastGpsExtended || {}) });
   }
   if (playerMarker) {
     _animatePlayerMarker(lat, lng, 1000);
@@ -11484,8 +11485,9 @@ let _lastLocationReport = 0;
 const GPS_MIN_DISTANCE = 5; // metres — ignore GPS jitter below this threshold
 
 function onPosition(pos) {
-  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  const { latitude: lat, longitude: lng, accuracy, altitude, altitudeAccuracy, speed: gpsSpeed, heading } = pos.coords;
   _lastGpsAccuracy = accuracy || null;
+  _lastGpsExtended = { altitude: altitude ?? null, altitudeAccuracy: altitudeAccuracy ?? null, gpsSpeed: gpsSpeed ?? null, heading: heading ?? null };
   const isFirstFix = state.playerPos === null;
 
   // Ignore GPS jitter below threshold (except first fix)

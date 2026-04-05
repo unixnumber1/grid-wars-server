@@ -121,13 +121,10 @@ async function handleLocation(req, res) {
 
   // GPS antispoof validation
   const isPinMode = pin_mode === true || pin_unpin === true;
-  const validation = validatePosition(telegram_id, playerLat, playerLng, isPinMode);
+  const validation = validatePosition(telegram_id, playerLat, playerLng, isPinMode, {});
   if (!validation.valid) {
-    if (validation.reason === 'impossible_speed') {
-      // Don't reveal detection — silently accept
-      return res.json({ ok: true });
-    }
-    if (validation.reason === 'too_frequent') {
+    // Don't reveal detection — silently accept for speed/teleport violations
+    if (['teleport', 'high_speed', 'too_frequent', 'bad_accuracy'].includes(validation.reason)) {
       return res.json({ ok: true });
     }
     return res.status(400).json({ error: 'Invalid coordinates' });
