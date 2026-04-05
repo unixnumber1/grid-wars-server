@@ -9713,7 +9713,10 @@ async function claimReward(level) {
     if (granted.items && granted.items.length) {
       for (const item of granted.items) {
         await showItemRevealPromise(item);
+        // Add to local inventory so it appears immediately
+        if (state.inventory) state.inventory.push(item);
       }
+      _renderInventoryGrid();
     }
     // Show core reveals if any
     if (granted.cores && granted.cores.length) {
@@ -9752,6 +9755,11 @@ async function claimAllRewards() {
     }
     const granted = data.granted;
     if (granted) {
+      // Add items to local inventory so they appear immediately
+      if (granted.items?.length && state.inventory) {
+        state.inventory.push(...granted.items);
+        _renderInventoryGrid();
+      }
       await showClaimAllSummary(data.claimed_levels || [], granted);
     }
     updateDiamondDisplay();
