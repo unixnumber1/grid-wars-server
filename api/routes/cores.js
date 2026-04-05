@@ -73,9 +73,10 @@ async function handleInstall(req, res) {
   let slot = 0;
   while (usedSlots.has(slot)) slot++;
 
+  // Add to index AFTER mutating (old mine_cell_id was null, so no removal needed)
   core.mine_cell_id = mine.cell_id;
   core.slot_index = slot;
-  gameState.upsertCore(core);
+  gameState._updateCoreIndex(core, false);
   gameState.markDirty('cores', core.id);
 
   await supabase.from('cores').update({ mine_cell_id: mine.cell_id, slot_index: slot }).eq('id', core.id);
@@ -100,9 +101,10 @@ async function handleUninstall(req, res) {
 
   const oldCellId = core.mine_cell_id;
   const mineObj = [...gameState.mines.values()].find(m => m.cell_id === oldCellId);
+  // Remove from index BEFORE mutating (same object reference in gameState.cores)
+  gameState._updateCoreIndex(core, true);
   core.mine_cell_id = null;
   core.slot_index = null;
-  gameState.upsertCore(core);
   gameState.markDirty('cores', core.id);
 
   await supabase.from('cores').update({ mine_cell_id: null, slot_index: null }).eq('id', core.id);
