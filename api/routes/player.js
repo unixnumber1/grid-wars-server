@@ -570,7 +570,7 @@ playerRouter.post('/init', async (req, res) => {
       headquarters = gameState.getHqByPlayerId(player.id) || null;
       const rawMines = [...gameState.mines.values()].filter(m => m.owner_id === player.id);
       mines = rawMines.map(m => { const cMax = getMineHp(m.level); const rph = getMineHpRegen(m.level); const rawHp = Math.min(m.hp ?? cMax, cMax); return { ...m, max_hp: cMax, hp: calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update), hp_regen: rph, income: getMineIncome(m.level), capacity: getMineCapacity(m.level) }; });
-      inventory = gameState.getPlayerItems(player.id) || [];
+      inventory = (gameState.getPlayerItems(player.id) || []).map(i => ({ ...i, equipped: !!i.equipped, on_market: !!i.on_market }));
       // Read notifications from gameState (all unread are cached in memory)
       notifications = gameState.getPlayerNotifications(player.id, 20);
     } else {

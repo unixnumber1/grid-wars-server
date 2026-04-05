@@ -9717,7 +9717,7 @@ async function claimReward(level) {
         const item = granted.items[i];
         const boxType = boxTypes[i] || 'rare';
         await _animateBoxOpenPromise(boxType, item);
-        if (state.inventory) state.inventory.push(item);
+        if (state.inventory) state.inventory.push({ ...item, equipped: false, on_market: false, upgrade_level: 0 });
       }
       _renderInventoryGrid();
     }
@@ -9760,7 +9760,7 @@ async function claimAllRewards() {
     if (granted) {
       // Add items to local inventory so they appear immediately
       if (granted.items?.length && state.inventory) {
-        state.inventory.push(...granted.items);
+        state.inventory.push(...granted.items.map(i => ({ ...i, equipped: false, on_market: false, upgrade_level: 0 })));
         _renderInventoryGrid();
       }
       await showClaimAllSummary(data.claimed_levels || [], granted);

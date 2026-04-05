@@ -495,7 +495,7 @@ async function handleTick(req, res) {
           capacity: Math.round(getMineCapacity(m.level) * bCap * sCap),
         };
       });
-      inventory = gameState.getPlayerItems(currentPlayerId);
+      inventory = gameState.getPlayerItems(currentPlayerId).map(i => ({ ...i, equipped: !!i.equipped, on_market: !!i.on_market }));
     } else {
       const [{ data: pm }, { data: inv }] = await Promise.all([
         supabase.from('mines').select('id,lat,lng,level,owner_id,cell_id,upgrade_finish_at,pending_level,last_collected,hp,max_hp,last_hp_update,status,burning_started_at,attacker_id,attack_ends_at').eq('owner_id', currentPlayerId),
