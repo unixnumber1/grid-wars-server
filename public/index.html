@@ -7698,9 +7698,7 @@ function updatePinButton() {
   const btn = document.getElementById('btn-teleport');
   if (!btn) return;
   if (pinMode) {
-    const remaining = Math.max(0, PIN_DURATION_MS - (Date.now() - pinStartTime));
-    const mins = Math.ceil(remaining / 60000);
-    btn.textContent = `${mins}m`;
+    btn.textContent = '📌';
     btn.title = t('joy.back_real');
     btn.style.background = 'rgba(255,215,0,0.15)';
     btn.style.borderColor = 'rgba(255,215,0,0.4)';
@@ -7740,16 +7738,6 @@ async function doTeleportToHq() {
       showToast(t('toast.build_hq_first'));
       return;
     }
-    // PIN abuse fix: HQ must be 24h+ old
-    const hqCreatedAt = state.hq?.created_at;
-    if (hqCreatedAt) {
-      const ageMs = Date.now() - new Date(hqCreatedAt).getTime();
-      if (ageMs < 24 * 60 * 60 * 1000) {
-        const hoursLeft = Math.ceil((24 * 60 * 60 * 1000 - ageMs) / 3600000);
-        showToast(t('toast.pin_cooldown', {hours: hoursLeft}));
-        return;
-      }
-    }
     realPlayerPos = state.playerPos ? { ...state.playerPos } : null;
     pinMode = true;
     pinStartTime = Date.now();
@@ -7760,9 +7748,6 @@ async function doTeleportToHq() {
       body: JSON.stringify({ action: 'location', lat: hqLat, lng: hqLng, pin_mode: true }),
     }).catch(() => {});
     loadVisibleBuildings();
-    // Auto-expire after 1 hour
-    pinExpireTimer = setTimeout(() => deactivatePin('toast.pin_expired'), PIN_DURATION_MS);
-    pinCountdownInterval = setInterval(updatePinButton, 60000);
     updatePinButton();
     showToast(t('toast.teleport_hq'));
   } else {
