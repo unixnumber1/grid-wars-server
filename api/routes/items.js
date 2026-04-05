@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
-import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted, hasInventorySpace, getPlayerItemCount, MAX_INVENTORY_SLOTS } from '../../lib/items.js';
+import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted, hasInventorySpace, getPlayerItemCount, getPlayerMaxSlots } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
@@ -448,6 +448,21 @@ itemsRouter.post('/', async (req, res) => {
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
   return withPlayerLock(telegram_id, async () => {
 
+  if (action === 'buy-slot') {
+    const { INVENTORY_SLOT_PRICE, INVENTORY_MAX_SLOTS, INVENTORY_BASE_SLOTS } = await import('../../config/constants.js');
+    const player = gameState.loaded ? gameState.getPlayerByTgId(Number(telegram_id)) : null;
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+    const lang = getLang(gameState, telegram_id);
+    const currentMax = INVENTORY_BASE_SLOTS + (player.extra_slots || 0);
+    if (currentMax >= INVENTORY_MAX_SLOTS) return res.status(400).json({ error: ts(lang, 'err.max_slots_reached') });
+    if ((player.diamonds || 0) < INVENTORY_SLOT_PRICE) return res.status(400).json({ error: ts(lang, 'err.not_enough_diamonds') });
+    player.diamonds -= INVENTORY_SLOT_PRICE;
+    player.extra_slots = (player.extra_slots || 0) + 1;
+    gameState.markDirty('players', player.id);
+    await supabase.from('players').update({ diamonds: player.diamonds, extra_slots: player.extra_slots }).eq('id', player.id);
+    return res.json({ ok: true, diamonds: player.diamonds, max_slots: INVENTORY_BASE_SLOTS + player.extra_slots });
+  }
+
   if (action === 'upgrade-item') {
     const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,crystals');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
@@ -522,7 +537,7 @@ itemsRouter.post('/', async (req, res) => {
     const MYTHIC_PRICE = 600;
     const diamonds = p.diamonds ?? 0;
     if (diamonds < MYTHIC_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: MYTHIC_PRICE }) });
-    if (gameState.loaded && !hasInventorySpace(gameState, p.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: MAX_INVENTORY_SLOTS }) });
+    if (gameState.loaded && !hasInventorySpace(gameState, p.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerMaxSlots(gameState, p?.id || player?.id) }) });
 
     // Generate mythic with random stats from range
     const item = generateItem(weapon_type, 'mythic');
@@ -726,7 +741,7 @@ itemsRouter.post('/', async (req, res) => {
     const price = BOX_PRICES[box_type];
     const diamonds = player.diamonds ?? 0;
     if (diamonds < price) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_diamonds_short') });
-    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: MAX_INVENTORY_SLOTS }) });
+    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerMaxSlots(gameState, p?.id || player?.id) }) });
 
     const rarity = rollWeighted(BOX_ODDS[box_type]);
     const type = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];

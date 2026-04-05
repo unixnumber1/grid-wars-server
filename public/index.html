@@ -6957,6 +6957,7 @@ function _renderInventoryGrid() {
   });
   const titleEl = document.getElementById('inventory-title');
   titleEl.textContent = t('profile.inventory_n', {n: inv.length});
+  updateSlotCounter();
 
   const grid = document.getElementById('inventory-grid');
   grid.innerHTML = '';
@@ -6979,6 +6980,33 @@ function _renderInventoryGrid() {
     cell.style.borderColor = 'rgba(255,255,255,0.08)';
     grid.appendChild(cell);
   }
+}
+
+function updateSlotCounter() {
+  const el = document.getElementById('inv-slot-count');
+  if (!el) return;
+  const count = (state.inventory || []).filter(i => !i.on_market).length;
+  const maxSlots = 200 + (state.player?.extra_slots || 0);
+  el.textContent = `${count}/${maxSlots}`;
+  if (count >= maxSlots) el.style.color = '#f44336';
+  else if (count >= maxSlots * 0.9) el.style.color = '#ff9800';
+  else el.style.color = '#aaa';
+}
+
+async function buyInventorySlot() {
+  const maxSlots = 200 + (state.player?.extra_slots || 0);
+  if (maxSlots >= 600) { showToast('❌ Максимум слотов'); return; }
+  if ((state.player?.diamonds || 0) < 5) { showToast('❌ Нужно 5 💎'); return; }
+  try {
+    const data = await apiFetch('/api/items', { method: 'POST', body: JSON.stringify({ action: 'buy-slot' }) });
+    if (data.ok) {
+      state.player.diamonds = data.diamonds;
+      state.player.extra_slots = (state.player.extra_slots || 0) + 1;
+      updateSlotCounter();
+      updateCoinDisplay();
+      showToast(`✅ +1 слот (${200 + state.player.extra_slots}/600)`);
+    }
+  } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
 // Opens inventory for a specific slot type (from tapping empty/equipped slot)
@@ -9059,11 +9087,13 @@ function switchMainTab(mainTab) {
 
   const subRow = document.getElementById('sub-tabs-row');
   const actionsRow = document.getElementById('inv-equip-actions');
+  const slotBar = document.getElementById('inv-slot-bar');
   if (mainTab === 'inventory') {
     subRow.innerHTML = `
       <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">${t('profile.tab.equip')}</button>
       <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">${t('profile.tab.cores')}</button>
       <button class="profile-inv-tab" id="inv-tab-other" onclick="switchInvTab('other')">${t('inv.sub_other') || 'Другое'}</button>`;
+    if (slotBar) slotBar.style.display = '';
     switchInvTab('equip');
   } else {
     subRow.innerHTML = `
@@ -9071,6 +9101,7 @@ function switchMainTab(mainTab) {
       <button class="profile-inv-tab" id="inv-tab-skills" onclick="switchInvTab('skills')">${t('inv.sub_skills') || 'Навыки'}</button>
       <button class="profile-inv-tab" id="inv-tab-badges" onclick="switchInvTab('badges')">${t('inv.sub_badges') || 'Бейджи'}</button>`;
     if (actionsRow) actionsRow.style.display = 'none';
+    if (slotBar) slotBar.style.display = 'none';
     switchInvTab('rewards');
   }
 }
@@ -9108,6 +9139,7 @@ function switchInvTab(tab) {
     document.getElementById('inv-tab-cores')?.classList.add('active');
     document.getElementById('inv-panel-cores').style.display = '';
     renderCoresInventory();
+    updateSlotCounter();
   } else if (tab === 'rewards') {
     document.getElementById('inv-tab-rewards')?.classList.add('active');
     document.getElementById('inv-panel-rewards').style.display = '';
@@ -21384,6 +21416,11 @@ async function spawnZombieScout() {
   <!-- Sub-tabs row -->
   <div class="profile-inv-tabs" style="align-items:center">
     <div id="sub-tabs-row" style="display:flex;flex:1"></div>
+  </div>
+  <!-- Slot counter -->
+  <div id="inv-slot-bar" style="display:flex;align-items:center;justify-content:space-between;padding:4px 16px;font-size:12px;color:#aaa;">
+    <span id="inv-slot-count">0/200</span>
+    <button id="btn-buy-slot" onclick="buyInventorySlot()" style="background:#252538;border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:11px;border-radius:8px;padding:3px 10px;cursor:pointer;">+1 слот · 5💎</button>
   </div>
   <!-- Action buttons (right-aligned below header) -->
   <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:0 16px 6px 16px">

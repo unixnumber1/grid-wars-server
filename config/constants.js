@@ -270,12 +270,7 @@ export const COSMETIC_PRICES = {
 
 // ── Inventory slots ──
 export const INVENTORY_BASE_SLOTS = 200;
-export const INVENTORY_SLOT_PACKS = [
-  { slots: 10,  price: 20 },
-  { slots: 50,  price: 80 },
-  { slots: 100, price: 140 },
-  { slots: 200, price: 250 },
-];
+export const INVENTORY_SLOT_PRICE = 5; // diamonds per extra slot
 export const INVENTORY_MAX_SLOTS = 600;
 
 // ── Clan HQ upgrade costs ──

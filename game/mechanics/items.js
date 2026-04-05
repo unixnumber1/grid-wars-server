@@ -152,8 +152,14 @@ export function getItemDescription(item) {
 }
 
 // ── Inventory limit ──
-import { MAX_INVENTORY_SLOTS } from '../../config/constants.js';
-export { MAX_INVENTORY_SLOTS };
+import { INVENTORY_BASE_SLOTS, INVENTORY_MAX_SLOTS } from '../../config/constants.js';
+export { INVENTORY_BASE_SLOTS, INVENTORY_MAX_SLOTS };
+
+export function getPlayerMaxSlots(gameState, playerId) {
+  const player = gameState.getPlayerById(playerId);
+  const extra = player?.extra_slots || 0;
+  return Math.min(INVENTORY_BASE_SLOTS + extra, INVENTORY_MAX_SLOTS);
+}
 
 export function getPlayerItemCount(gameState, playerId) {
   let count = 0;
@@ -164,7 +170,7 @@ export function getPlayerItemCount(gameState, playerId) {
 }
 
 export function hasInventorySpace(gameState, playerId, needed = 1) {
-  return getPlayerItemCount(gameState, playerId) + needed <= MAX_INVENTORY_SLOTS;
+  return getPlayerItemCount(gameState, playerId) + needed <= getPlayerMaxSlots(gameState, playerId);
 }
 
 // ── Existing exports (keep as-is) ──
