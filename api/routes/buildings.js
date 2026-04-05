@@ -240,7 +240,9 @@ async function handleMineCollect(req, res) {
     const mineBoost = perMineBoost.get(mine.id) || 1;
     let incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
-    // Apply clan bonus to income rate (same as tick in map.js lines 527-531)
+    // Skill income bonus
+    if (_colFx.mine_income_bonus) incBoost *= (1 + _colFx.mine_income_bonus);
+    // Clan zone bonus
     if (clanIncomeBonus > 0 && clanHqs.length > 0) {
       const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
       const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
@@ -250,7 +252,15 @@ async function handleMineCollect(req, res) {
         if (clanBoostMul > 1) incBoost *= clanBoostMul;
       }
     }
-    const acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost);
+    // Landlord ability (+15% for mines within 200m while online)
+    if (_colFx.landlord_bonus) {
+      const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
+      const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
+      if (haversine(pLat, pLng, mLat, mLng) <= SMALL_RADIUS) incBoost *= 1.15;
+    }
+    // Skill capacity bonus
+    const _skCapMul = 1 + (_colFx.mine_capacity_bonus || 0);
+    const acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost * _skCapMul);
     mineCoinsMap.set(mine.id, acc);
     totalCoins += acc;
   }
