@@ -16824,7 +16824,7 @@ function bindAttackButton(targetType, target) {
     document.getElementById('popup-overlay')?.classList.add('combat-mode');
     executePopupAttack();
     if (combatState.attackInterval) clearInterval(combatState.attackInterval);
-    combatState.attackInterval = setInterval(executePopupAttack, cd + 50);
+    combatState.attackInterval = setInterval(executePopupAttack, cd + 150);
   }
 
   function stopHold() {
@@ -16867,7 +16867,7 @@ function bindAttackButton(targetType, target) {
   if (combatState.isHolding) {
     if (combatState.attackInterval) clearInterval(combatState.attackInterval);
     executePopupAttack();
-    combatState.attackInterval = setInterval(executePopupAttack, cd + 50);
+    combatState.attackInterval = setInterval(executePopupAttack, cd + 150);
   }
 }
 
