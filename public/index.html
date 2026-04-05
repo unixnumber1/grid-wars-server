@@ -9710,10 +9710,12 @@ async function claimReward(level) {
 
     // Show box animations if any
     const granted = data.granted || {};
+    const boxTypes = rw.boxes || [];
     if (granted.items && granted.items.length) {
-      for (const item of granted.items) {
-        await showItemRevealPromise(item);
-        // Add to local inventory so it appears immediately
+      for (let i = 0; i < granted.items.length; i++) {
+        const item = granted.items[i];
+        const boxType = boxTypes[i] || 'rare';
+        await _animateBoxOpenPromise(boxType, item);
         if (state.inventory) state.inventory.push(item);
       }
       _renderInventoryGrid();
@@ -9867,6 +9869,44 @@ function showRewardPreview(level, rw) {
 }
 
 // ── Item reveal (promise-based, reuses existing showItemReveal style) ──
+function _animateBoxOpenPromise(boxType, item) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('box-open-overlay');
+    const boxEmoji = { common: '📦', rare: '📦', epic: '🎁', mythic: '🏆' }[boxType] || '📦';
+    const rarityColor = (RARITY_COLORS_CLIENT || {})[item.rarity] || '#888';
+
+    // Phase 1: Show box
+    overlay.innerHTML = `<div class="box-anim-icon">${boxEmoji}</div>`;
+    overlay.classList.add('open');
+    try { Telegram.WebApp.HapticFeedback.impactOccurred('light'); } catch(_){}
+
+    // Phase 2: Shake
+    setTimeout(() => {
+      const icon = overlay.querySelector('.box-anim-icon');
+      if (icon) icon.style.animation = 'boxShake 0.4s ease-in-out';
+      try { Telegram.WebApp.HapticFeedback.impactOccurred('medium'); } catch(_){}
+    }, 500);
+
+    // Phase 3: Flash
+    setTimeout(() => {
+      const flash = document.createElement('div');
+      flash.className = 'box-flash';
+      flash.style.background = typeof rarityColor === 'string' && rarityColor.startsWith('linear') ? '#FFD700' : rarityColor;
+      flash.style.opacity = '0.8';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 300);
+    }, 900);
+
+    // Phase 4: Close box overlay, show item reveal
+    setTimeout(() => {
+      overlay.classList.remove('open');
+      overlay.innerHTML = '';
+      // Show promise-based reveal
+      showItemRevealPromise(item).then(resolve);
+    }, 1200);
+  });
+}
+
 function showItemRevealPromise(item) {
   return new Promise(resolve => {
     const REVEAL_COLORS = {common:'#9e9e9e',uncommon:'#2e7d32',rare:'#1565c0',epic:'#6a1b9a',mythic:'#e65100',legendary:'#ffd700'};
