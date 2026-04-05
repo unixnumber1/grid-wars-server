@@ -21,14 +21,10 @@ import { supabase } from '../lib/supabase.js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
-// ── Compensation formula: gems + shards + ether by player level ──
+// ── Compensation formula: flat per level ──
 function getLevelCompensation(level) {
   if (level <= 0) return { diamonds: 0, crystals: 0, ether: 0 };
-  // Base: 5 gems + 10 shards + 10 ether per level, scaling up
-  const diamonds = Math.floor(5 * level + level * level * 0.05);
-  const crystals = Math.floor(10 * level + level * level * 0.1);
-  const ether    = Math.floor(10 * level + level * level * 0.1);
-  return { diamonds, crystals, ether };
+  return { diamonds: level * 20, crystals: level * 200, ether: level * 200 };
 }
 
 async function wipeFull() {
@@ -110,7 +106,7 @@ async function wipeFull() {
   let resetCount = 0;
   for (const c of compensations) {
     const { error } = await supabase.from('players').update({
-      coins: 0,
+      coins: 10_000_000,
       diamonds: c.diamonds,
       crystals: c.crystals,
       ether: c.ether,
@@ -118,16 +114,24 @@ async function wipeFull() {
       xp: 0,
       hp: 1000,
       max_hp: 1000,
+      kills: 0,
+      deaths: 0,
       shield_until: null,
+      respawn_until: null,
+      last_hp_regen: null,
       bonus_attack: 0,
       bonus_hp: 0,
       bonus_crit: 0,
       equipped_sword: null,
+      equipped_shield: null,
       active_badge: c.isPioneer ? 'pioneer' : null,
       clan_id: null,
+      clan_role: null,
       daily_diamonds_claimed_at: null,
       streak_day: 0,
+      streak_week: 0,
       streak_last_claim: null,
+      streak_claimed_at: null,
     }).eq('id', c.id);
     if (error) console.error(`  ERROR resetting player ${c.telegram_id}:`, error.message);
     else resetCount++;
@@ -180,6 +184,8 @@ async function wipeFull() {
     'unit_bag',
     'unit_upgrades',
     'active_scouts',
+    // Markets (auto-spawned, wipe stale locations)
+    'markets',
     // Social & tracking
     'clans',
     'clan_members',
@@ -189,6 +195,7 @@ async function wipeFull() {
     'player_skills',
     'level_rewards_claimed',
     'notifications',
+    'monument_requests',
   ];
 
   for (const table of deleteTables) {
@@ -199,15 +206,16 @@ async function wipeFull() {
 
   // ─── Step 7: Reset monuments to fresh state ───
   console.log('── Resetting monuments (preserved, HP restored) ──');
-  const { data: monuments } = await supabase.from('monuments').select('id, level');
+  const { data: monuments } = await supabase.from('monuments').select('id, level, max_hp, max_shield_hp');
   for (const m of monuments || []) {
-    // Reset to shield phase, full HP
+    // Reset to shield phase, full HP (use stored max values)
     await supabase.from('monuments').update({
       phase: 'shield',
-      hp: m.max_hp || 50000,
-      shield_hp: m.max_shield_hp || 8000,
+      hp: m.max_hp,
+      shield_hp: m.max_shield_hp,
       waves_triggered: null,
       respawn_at: null,
+      raid_started_at: null,
     }).eq('id', m.id);
   }
   console.log(`  Reset ${(monuments || []).length} monuments`);
