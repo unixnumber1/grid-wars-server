@@ -129,8 +129,6 @@ async function wipeFull() {
       clan_role: null,
       daily_diamonds_claimed_at: null,
       streak_day: 0,
-      streak_week: 0,
-      streak_last_claim: null,
       streak_claimed_at: null,
     }).eq('id', c.id);
     if (error) console.error(`  ERROR resetting player ${c.telegram_id}:`, error.message);
@@ -198,9 +196,19 @@ async function wipeFull() {
     'monument_requests',
   ];
 
+  // Tables with integer PK or no standard 'id' column
+  const intIdTables = new Set(['pvp_cooldowns', 'player_skills', 'level_rewards_claimed', 'monument_requests']);
   for (const table of deleteTables) {
-    const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    if (error) console.error(`  ERROR ${table}:`, error.message);
+    let result;
+    if (intIdTables.has(table)) {
+      // Use gt on a safe column or gte on id for integer PKs
+      result = await supabase.from(table).delete().gte('id', 0);
+      // Fallback: if that fails, try neq on a text field
+      if (result.error) result = await supabase.from(table).delete().not('id', 'is', null);
+    } else {
+      result = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    }
+    if (result.error) console.error(`  ERROR ${table}:`, result.error.message);
     else console.log(`  ✓ ${table}`);
   }
 
