@@ -2,13 +2,23 @@ import { Router } from 'express';
 import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
-import { CORE_TYPES, MAX_CORE_SLOTS, getUnlockedSlots, getCoreMultiplier, getCoreUpgradeCost } from '../../lib/cores.js';
-import { SMALL_RADIUS } from '../../lib/formulas.js';
+import { CORE_TYPES, MAX_CORE_SLOTS, getUnlockedSlots, getCoreMultiplier, getCoreUpgradeCost, getCoresTotalBoost } from '../../lib/cores.js';
+import { SMALL_RADIUS, getMineIncome } from '../../lib/formulas.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const coresRouter = Router();
+
+function getMineBoosts(cellId) {
+  const cores = gameState.getCoresForMine(cellId);
+  return {
+    income: getCoresTotalBoost(cores, 'income'),
+    capacity: getCoresTotalBoost(cores, 'capacity'),
+    hp: getCoresTotalBoost(cores, 'hp'),
+    regen: getCoresTotalBoost(cores, 'regen'),
+  };
+}
 
 coresRouter.post('/', async (req, res) => {
   const { action, telegram_id } = req.body || {};
@@ -70,7 +80,7 @@ async function handleInstall(req, res) {
 
   await supabase.from('cores').update({ mine_cell_id: mine.cell_id, slot_index: slot }).eq('id', core.id);
 
-  return res.json({ success: true, core, slot });
+  return res.json({ success: true, core, slot, mine_id: mine.id, mine_cell_id: mine.cell_id, mine_boosts: getMineBoosts(mine.cell_id) });
 }
 
 // ── uninstall: remove core from mine back to inventory ──
@@ -89,6 +99,7 @@ async function handleUninstall(req, res) {
   if (!core.mine_cell_id) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.core_not_installed') });
 
   const oldCellId = core.mine_cell_id;
+  const mineObj = [...gameState.mines.values()].find(m => m.cell_id === oldCellId);
   core.mine_cell_id = null;
   core.slot_index = null;
   gameState.upsertCore(core);
@@ -96,7 +107,7 @@ async function handleUninstall(req, res) {
 
   await supabase.from('cores').update({ mine_cell_id: null, slot_index: null }).eq('id', core.id);
 
-  return res.json({ success: true, core });
+  return res.json({ success: true, core, mine_id: mineObj?.id, mine_cell_id: oldCellId, mine_boosts: getMineBoosts(oldCellId) });
 }
 
 // ── upgrade: level up a core for ether ──
@@ -133,12 +144,15 @@ async function handleUpgrade(req, res) {
   gameState.markDirty('cores', core.id);
   await supabase.from('cores').update({ level: core.level }).eq('id', core.id);
 
+  const upgradeBoosts = core.mine_cell_id ? getMineBoosts(core.mine_cell_id) : null;
+  const upgMineObj = core.mine_cell_id ? [...gameState.mines.values()].find(m => m.cell_id === core.mine_cell_id) : null;
   return res.json({
     success: true,
     core,
     new_level: core.level,
     multiplier: getCoreMultiplier(core.level),
     ether_left: player.ether,
+    ...(upgradeBoosts && { mine_id: upgMineObj?.id, mine_cell_id: core.mine_cell_id, mine_boosts: upgradeBoosts }),
   });
 }
 

@@ -10168,6 +10168,7 @@ async function doCoreUpgrade(coreId) {
     });
     if (data.success) {
       if (state.player) state.player.ether = data.ether_left;
+      applyMineBoosts(data);
       // Update local core data
       const c = (state._playerCores || []).find(x => x.id === coreId);
       if (c) c.level = data.new_level;
@@ -10189,6 +10190,7 @@ async function doCoreUninstall(coreId) {
       body: JSON.stringify({ action: 'uninstall', core_id: coreId }),
     });
     if (data.success) {
+      applyMineBoosts(data);
       if (c) { c.mine_cell_id = null; c.slot_index = null; }
       showToast(t('toast.core_extracted'));
       // Reopen mine popup to show updated core slots
@@ -10247,6 +10249,7 @@ async function doCoreInstall(coreId, mineId) {
       }),
     });
     if (data.success) {
+      applyMineBoosts(data);
       const c = (state._playerCores || []).find(x => x.id === coreId);
       if (c) { c.mine_cell_id = data.core?.mine_cell_id || 'installed'; c.slot_index = data.slot; }
       renderCoresInventory();
@@ -10266,6 +10269,28 @@ async function doCoreInstall(coreId, mineId) {
 // Helper: get cores installed in a specific mine
 function getCoresForMine(cellId) {
   return (state._playerCores || []).filter(c => c.mine_cell_id === cellId);
+}
+
+// Helper: update mine income/boosts after core install/uninstall/upgrade
+function applyMineBoosts(data) {
+  if (!data.mine_boosts || !data.mine_id) return;
+  const newIncBoost = data.mine_boosts.income || 1;
+  const sources = [state.mapBuildings?.mines, state.mines];
+  for (const arr of sources) {
+    if (!arr) continue;
+    const mine = arr.find(m => m.id === data.mine_id || m.cell_id === data.mine_cell_id);
+    if (mine) {
+      // Derive old core income boost from currently known cores (before this change was applied to state)
+      const oldCores = getCoresForMine(mine.cell_id);
+      const oldIncBoost = oldCores.length > 0
+        ? 1 + oldCores.filter(c => c.core_type === 'income').reduce((s, c) => s + (getCoreMultiplier(c.level) - 1), 0)
+        : 1;
+      // Adjust income proportionally: remove old core boost, apply new
+      if (mine.income && oldIncBoost > 0) {
+        mine.income = (mine.income / oldIncBoost) * newIncBoost;
+      }
+    }
+  }
 }
 
 async function doBuildHq(lat, lng) {
