@@ -10,6 +10,7 @@ export const PIN_DURATION_MS = 60 * 60 * 1000; // 1 hour PIN session
 
 // ── Admin ──
 export const ADMIN_TG_ID = parseInt(process.env.ADMIN_TG_ID || '560013667', 10);
+export const ADMIN_NOTIFY_ID = 8752325699; // notifications (bans, monuments, payments)
 export const ADMIN_TG_IDS = new Set([560013667, 8752325699]);
 export function isAdmin(tgId) { return ADMIN_TG_IDS.has(Number(tgId)); }
 

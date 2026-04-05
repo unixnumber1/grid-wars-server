@@ -606,7 +606,8 @@ async function handleOpenLootBox(req, res) {
 }
 
 // ── Monument Request ──
-const ADMIN_TG_ID = 560013667;
+import { ADMIN_NOTIFY_ID } from '../../config/constants.js';
+const ADMIN_TG_ID = ADMIN_NOTIFY_ID;
 
 async function handleMonumentRequest(req, res) {
   const { telegram_id, lat, lng, name, emoji, level } = req.body;

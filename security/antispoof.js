@@ -1,7 +1,7 @@
 import { haversine } from '../lib/haversine.js';
 import { suspiciousActivity } from './rateLimit.js';
 import { logPlayer } from '../lib/logger.js';
-import { ADMIN_TG_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
+import { ADMIN_TG_ID, ADMIN_NOTIFY_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
 
 // ═══════════════════════════════════════════════════════
 //  GPS Anti-Spoof v3 — jamming-tolerant, PIN-aware
@@ -461,7 +461,7 @@ async function notifyAdmin(telegramId, record) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: ADMIN_TG_ID,
+        chat_id: ADMIN_NOTIFY_ID,
         text: message,
         reply_markup: {
           inline_keyboard: [[

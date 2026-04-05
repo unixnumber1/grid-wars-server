@@ -409,13 +409,13 @@ export async function handleStarsWebhook(req, res) {
         if (buyerRes && !buyerRes.ok) console.error('[stars] buyer notify fail:', await buyerRes.text().catch(() => ''));
 
         // Notify admin about purchase
-        const ADMIN_TG_ID = 560013667;
+        const { ADMIN_NOTIFY_ID } = await import('../../config/constants.js');
         const buyerName = update.message.from?.username || update.message.from?.first_name || payload.telegram_id;
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chat_id: ADMIN_TG_ID,
+            chat_id: ADMIN_NOTIFY_ID,
             text: ts('ru', 'admin.purchase', { buyer: buyerName, tgId: payload.telegram_id, stars: payment.total_amount, diamonds: diamondAmount }),
           }),
         }).catch(e => console.error('[stars] admin notify error:', e.message));
