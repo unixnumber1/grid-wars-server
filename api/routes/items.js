@@ -456,10 +456,13 @@ itemsRouter.post('/', async (req, res) => {
     const currentMax = INVENTORY_BASE_SLOTS + (player.extra_slots || 0);
     if (currentMax >= INVENTORY_MAX_SLOTS) return res.status(400).json({ error: ts(lang, 'err.max_slots_reached') });
     if ((player.diamonds || 0) < INVENTORY_SLOT_PRICE) return res.status(400).json({ error: ts(lang, 'err.not_enough_diamonds') });
-    player.diamonds -= INVENTORY_SLOT_PRICE;
+    const oldD = player.diamonds;
+    player.diamonds = (player.diamonds || 0) - INVENTORY_SLOT_PRICE;
     player.extra_slots = (player.extra_slots || 0) + 1;
     gameState.markDirty('players', player.id);
-    await supabase.from('players').update({ diamonds: player.diamonds, extra_slots: player.extra_slots }).eq('id', player.id);
+    const { error: upErr } = await supabase.from('players').update({ diamonds: player.diamonds, extra_slots: player.extra_slots }).eq('id', player.id);
+    if (upErr) console.error('[buy-slot] DB update error:', upErr.message);
+    console.log(`[buy-slot] tg:${telegram_id} diamonds: ${oldD} -> ${player.diamonds}, extra_slots: ${player.extra_slots}`);
     return res.json({ ok: true, diamonds: player.diamonds, max_slots: INVENTORY_BASE_SLOTS + player.extra_slots });
   }
 
