@@ -219,7 +219,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
           parse_mode: 'Markdown',
           reply_markup: { inline_keyboard: [
               [{ text: '🎮 Играть', web_app: { url: 'https://overthrow.ru:8443' } }],
-              [{ text: '💬 Чат игры', url: 'https://t.me/overthrowglobal' }],
+              [{ text: '💬 Чат игры', url: 'https://t.me/overthrowglobal' }, { text: '📢 Новости', url: 'https://t.me/OverthrowInsider' }],
               [{ text: '🔗 Реферальная ссылка', callback_data: 'get_referral_link' }],
             ] },
         }),
