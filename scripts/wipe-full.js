@@ -130,6 +130,10 @@ async function wipeFull() {
       daily_diamonds_claimed_at: null,
       streak_day: 0,
       streak_claimed_at: null,
+      walk_daily_m: 0,
+      walk_weekly_m: 0,
+      walk_daily_claimed: 0,
+      walk_weekly_claimed: 0,
     }).eq('id', c.id);
     if (error) console.error(`  ERROR resetting player ${c.telegram_id}:`, error.message);
     else resetCount++;
