@@ -4,7 +4,7 @@ import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
-import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
+import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
@@ -152,7 +152,7 @@ oreRouter.post('/', async (req, res) => {
 
     // Calculate damage
     const baseDmg = 10 + (weapon?.attack || 0);
-    const multiplier = 0.8 + Math.random() * 0.4;
+    const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
     let damage = Math.round(baseDmg * multiplier);
     if (_oSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.weapon_damage_bonus));
     if (_oSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.pve_damage_bonus));

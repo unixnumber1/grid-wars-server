@@ -7,6 +7,7 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from 
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { distanceMultiplier } from '../../lib/formulas.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import {
   FIRETRUCK_BUILD_COST, FIRETRUCK_COOLDOWN_MS, FIRETRUCK_LEVELS,
@@ -198,7 +199,7 @@ async function handleHit(req, res) {
 
   // Calculate damage
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = 0.8 + Math.random() * 0.4;
+  const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
   if (_skFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _skFx.weapon_damage_bonus));
   let isCrit = false;

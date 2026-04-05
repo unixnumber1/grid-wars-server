@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL } from '../../lib/formulas.js';
+import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL, distanceMultiplier } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -614,7 +614,7 @@ async function handleMineHit(req, res) {
 
   // Calculate damage
   const baseDmg = 10 + (weapon?.attack || 0);
-  const multiplier = 0.8 + Math.random() * 0.4;
+  const multiplier = distanceMultiplier(dist, LARGE_RADIUS + (_hitFx.attack_radius_bonus || 0));
   let damage = Math.round(baseDmg * multiplier);
   if (_hitFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _hitFx.weapon_damage_bonus));
   let isCrit = false;

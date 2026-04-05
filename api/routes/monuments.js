@@ -3,7 +3,7 @@ import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
-import { calcHpRegen, LARGE_RADIUS } from '../../lib/formulas.js';
+import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
   MONUMENT_LEVELS, MONUMENT_ATTACK_RADIUS,
@@ -179,7 +179,7 @@ async function handleAttackShield(req, res) {
   // Calculate damage
   const _mSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  const multiplier = 0.8 + Math.random() * 0.4;
+  const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * multiplier);
   if (_mSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.weapon_damage_bonus));
   if (_mSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.pve_damage_bonus));
@@ -291,7 +291,7 @@ async function handleAttackMonument(req, res) {
   // Calculate damage (with crit + execution)
   const _mSkFx2 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  const multiplier = 0.8 + Math.random() * 0.4;
+  const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * multiplier);
   if (_mSkFx2.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.weapon_damage_bonus));
   if (_mSkFx2.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.pve_damage_bonus));
@@ -659,10 +659,15 @@ async function sendAdminMonumentRequest(request, player) {
     `🕐 Время: ${new Date().toLocaleString('ru')}`;
 
   const keyboard = {
-    inline_keyboard: [[
-      { text: '✅ Одобрить', callback_data: `approve_monument_${request.id}` },
-      { text: '❌ Отклонить', callback_data: `reject_monument_${request.id}` },
-    ]],
+    inline_keyboard: [
+      [
+        { text: '✅ Одобрить', callback_data: `approve_monument_${request.id}` },
+        { text: '❌ Отклонить', callback_data: `reject_monument_${request.id}` },
+      ],
+      [
+        { text: '📍 Посмотреть место', web_app: { url: `https://overthrow.ru:8443?fly_to=${request.lat},${request.lng}` } },
+      ],
+    ],
   };
 
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {

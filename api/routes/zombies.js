@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
-import { LARGE_RADIUS } from '../../lib/formulas.js';
+import { LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { ZOMBIE_ATTACK_RANGE } from '../../config/constants.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
@@ -97,7 +97,7 @@ async function handleAttack(req, res) {
   // Calculate damage
   const _zSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = 0.8 + Math.random() * 0.4;
+  const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
   if (_zSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.weapon_damage_bonus));
   if (_zSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.pve_damage_bonus));

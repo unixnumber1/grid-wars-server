@@ -5,6 +5,7 @@ import { getCellId } from '../../lib/grid.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
+import { distanceMultiplier } from '../../lib/formulas.js';
 import { ts, getLang } from '../../config/i18n.js';
 import {
   SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS,
@@ -451,7 +452,7 @@ async function handleAttackScout(req, res) {
 
   // Calculate damage
   const baseAtk = 10 + (equipped?.attack || 0);
-  const dmgMul = 0.8 + Math.random() * 0.4;
+  const dmgMul = distanceMultiplier(dist, LARGE_RADIUS);
   const damage = Math.round(baseAtk * dmgMul);
 
   scout.hp -= damage;

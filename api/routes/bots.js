@@ -4,7 +4,7 @@ import { log } from '../../lib/log.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../../lib/bots.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
-import { LARGE_RADIUS, calcHpRegen } from '../../lib/formulas.js';
+import { LARGE_RADIUS, calcHpRegen, distanceMultiplier } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
@@ -314,7 +314,7 @@ async function handleAttack(player, body) {
   }
   const critChance = 0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0);
   const isCrit     = Math.random() < critChance;
-  let   damage     = Math.floor(playerAtk * (0.8 + Math.random() * 0.4));
+  let   damage     = Math.floor(playerAtk * distanceMultiplier(dist, LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)));
   // Skill bonuses: weapon damage + PvE
   if (_bRadFx.weapon_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.weapon_damage_bonus));
   if (_bRadFx.pve_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.pve_damage_bonus));

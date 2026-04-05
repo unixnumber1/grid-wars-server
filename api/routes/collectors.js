@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { getCellId, getCellCenter } from '../../lib/grid.js';
-import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS } from '../../lib/formulas.js';
+import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
@@ -312,7 +312,7 @@ async function handleHit(req, res) {
 
   // Calculate damage
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = 0.8 + Math.random() * 0.4;
+  const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
   if (_cSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _cSkFx.weapon_damage_bonus));
   let isCrit = false;

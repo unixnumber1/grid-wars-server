@@ -13062,6 +13062,13 @@ async function boot() {
       }).catch(() => {});
     }
 
+    // fly_to URL param — move camera to coordinates (e.g. monument request preview)
+    const _flyParam = new URLSearchParams(window.location.search).get('fly_to');
+    if (_flyParam) {
+      const [_fLat, _fLng] = _flyParam.split(',').map(Number);
+      if (_fLat && _fLng) setTimeout(() => map.flyTo([_fLat, _fLng], 17), 500);
+    }
+
   }, (err) => {
     // GPS failed — if we have last known position, proceed anyway
     if (state.player?.last_lat && state.player?.last_lng) {

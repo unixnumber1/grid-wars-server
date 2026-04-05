@@ -175,6 +175,12 @@ export function getBuildRadius(_level) {
   return SMALL_RADIUS;
 }
 
+// Distance-based damage multiplier: 100% at 0m, 10% at maxRadius
+export function distanceMultiplier(dist, maxRadius) {
+  const t = Math.min(dist / maxRadius, 1);
+  return 1 - t * 0.9;
+}
+
 // ─── Allowed avatars ──────────────────────────────────────────────────────────
 
 export const ALLOWED_AVATARS = [

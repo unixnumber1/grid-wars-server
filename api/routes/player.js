@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
-import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS } from '../../lib/formulas.js';
+import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS, distanceMultiplier } from '../../lib/formulas.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
@@ -337,7 +337,7 @@ async function handlePvpAttack(req, res) {
   if (!blocked) {
     // 2. Base damage
     const baseDmg = 10 + (weapon?.attack || 0);
-    const multiplier = 0.8 + Math.random() * 0.4;
+    const multiplier = distanceMultiplier(dist, LARGE_RADIUS + (_atkFx.attack_radius_bonus || 0));
     damage = Math.round(baseDmg * multiplier);
     // Skill weapon damage bonus
     if (_atkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _atkFx.weapon_damage_bonus));
