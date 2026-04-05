@@ -12349,8 +12349,7 @@ function apmShowPlayer() {
       <div style="background:#2a1a1a;border:1px solid #e74c3c;border-radius:10px;padding:10px 14px;margin:8px 12px;">
         <div style="color:#e74c3c;font-size:13px;font-weight:600;margin-bottom:8px;">⚠️ Штаб не установлен</div>
         <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
-          <input type="number" id="apm-hq-lat" placeholder="Lat" step="0.000001" class="apm-input-sm" style="flex:1;">
-          <input type="number" id="apm-hq-lng" placeholder="Lng" step="0.000001" class="apm-input-sm" style="flex:1;">
+          <input type="text" id="apm-hq-coords" placeholder="55.7558, 37.6173" class="apm-input-sm" style="flex:1;">
           <button class="apm-btn" style="background:#4fc3f7;color:#000;white-space:nowrap;" onclick="adminPlaceHqManual('${p.id}')">Поставить</button>
         </div>
         <button class="apm-btn" style="background:#2ecc71;color:#000;width:100%;padding:8px;" onclick="adminStartMapHqPick('${p.id}','${(p.username||'').replace(/'/g,"\\'")}')">📍 Выбрать на карте</button>
@@ -12504,11 +12503,10 @@ async function adminPlaceHqConfirm(playerId, lat, lng) {
 }
 
 async function adminPlaceHqManual(playerId) {
-  const latInput = document.getElementById('apm-hq-lat');
-  const lngInput = document.getElementById('apm-hq-lng');
-  const lat = parseFloat(latInput?.value);
-  const lng = parseFloat(lngInput?.value);
-  if (isNaN(lat) || isNaN(lng)) return showToast('❌ Введите координаты');
+  const raw = (document.getElementById('apm-hq-coords')?.value || '').trim();
+  const parts = raw.split(/[,\s]+/).map(Number);
+  const lat = parts[0], lng = parts[1];
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) return showToast('❌ Введите координаты (lat, lng)');
   try {
     await apiFetch('/api/admin', { method:'POST', body: JSON.stringify({
       action:'place-hq', player_id: playerId, lat, lng
