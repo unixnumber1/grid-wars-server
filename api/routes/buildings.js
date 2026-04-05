@@ -14,6 +14,7 @@ import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
+import { setPinMode } from '../../security/antispoof.js';
 
 export const buildingsRouter = Router();
 
@@ -93,7 +94,7 @@ async function handleHqUpgrade(player, res) {
   return res.status(200).json({ headquarters: updatedHq, player_coins: newBalance, xp: xpResult });
 }
 
-async function handleHqSell(player, res) {
+async function handleHqSell(player, telegramId, res) {
   const { data: hqs, error: hqError } = await supabase.from('headquarters').select('id').eq('player_id', player.id);
   if (hqError) return res.status(500).json({ error: hqError.message });
   if (!hqs || hqs.length === 0) return res.status(404).json({ error: 'Headquarters not found' });
@@ -126,7 +127,9 @@ async function handleHqSell(player, res) {
       }
     }
   }
-  return res.status(200).json({ success: true, refund, player_coins: player.coins });
+  // Reset PIN mode — player must return to real GPS coordinates
+  setPinMode(telegramId, false);
+  return res.status(200).json({ success: true, refund, player_coins: player.coins, pin_reset: true });
 }
 
 // ─── Mine handlers ───────────────────────────────────────────────────
@@ -781,7 +784,7 @@ buildingsRouter.post('/headquarters', async (req, res) => {
     if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
     if (!player) return res.status(404).json({ error: 'Player not found' });
     if (action === 'upgrade') return handleHqUpgrade(player, res);
-    if (action === 'sell') return handleHqSell(player, res);
+    if (action === 'sell') return handleHqSell(player, telegram_id, res);
     return handleHqPlace(player, req.body, res);
   });
 });

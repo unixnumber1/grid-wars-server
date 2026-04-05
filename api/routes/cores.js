@@ -65,6 +65,7 @@ async function handleInstall(req, res) {
 
   core.mine_cell_id = mine.cell_id;
   core.slot_index = slot;
+  gameState.upsertCore(core);
   gameState.markDirty('cores', core.id);
 
   await supabase.from('cores').update({ mine_cell_id: mine.cell_id, slot_index: slot }).eq('id', core.id);
@@ -87,8 +88,10 @@ async function handleUninstall(req, res) {
     return res.status(403).json({ error: 'Not your core' });
   if (!core.mine_cell_id) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.core_not_installed') });
 
+  const oldCellId = core.mine_cell_id;
   core.mine_cell_id = null;
   core.slot_index = null;
+  gameState.upsertCore(core);
   gameState.markDirty('cores', core.id);
 
   await supabase.from('cores').update({ mine_cell_id: null, slot_index: null }).eq('id', core.id);

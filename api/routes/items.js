@@ -380,7 +380,13 @@ export async function handleStarsWebhook(req, res) {
     }
 
     if (payload.product && payload.product.startsWith('diamonds_')) {
-      const diamondAmount = parseInt(payload.diamonds) || parseInt(payload.product.replace('diamonds_', '')) || 100;
+      // Validate diamond amount against STAR_PACKS by actual payment amount (cannot be forged via webhook)
+      const pack = STAR_PACKS.find(p => p.stars === payment.total_amount);
+      if (!pack) {
+        console.error('[stars] REJECTED unknown pack, total_amount:', payment.total_amount, 'payload:', JSON.stringify(payload));
+        return res.json({ ok: true });
+      }
+      const diamondAmount = pack.diamonds;
       const { data: player } = await supabase
         .from('players').select('id, diamonds')
         .eq('telegram_id', String(payload.telegram_id)).single();
@@ -430,11 +436,6 @@ export async function handleStarsWebhook(req, res) {
 // ── ROUTE ───────────────────────────────────────────────────────────────────
 itemsRouter.post('/', async (req, res) => {
   const body = req.body || {};
-
-  // Detect Telegram webhook calls (no action/telegram_id, has update structure)
-  if (body.pre_checkout_query || body.message?.successful_payment) {
-    return handleStarsWebhook(req, res);
-  }
 
   const { telegram_id, action } = body;
 
