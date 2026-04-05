@@ -267,7 +267,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `🔗 *Твоя реферальная ссылка:*\n\n\`${link}\`\n\n📋 Друг получит *50 💎* сразу при регистрации\n🏆 Когда друг достигнет *5 уровня* — ты тоже получишь *50 💎*`,
+          text: `🔗 *Твоя реферальная ссылка:*\n\n\`${link}\`\n\n📋 Друг получит *50 💎* сразу при регистрации\n🏆 Когда друг достигнет *5 уровня* — ты получишь *50 💎*\n🏆 Когда друг достигнет *50 уровня* — ты получишь ещё *100 💎*`,
           parse_mode: 'Markdown',
           reply_markup: { inline_keyboard: [
             [{ text: '📤 Поделиться', url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Играй в Overthrow — геолокационную стратегию! Присоединяйся по моей ссылке и получи 50 💎')}` }],

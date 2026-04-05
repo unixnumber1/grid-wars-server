@@ -118,5 +118,34 @@ export async function addXp(playerId, amount) {
     } catch (refErr) { console.error('[referral] lv5 check error:', refErr.message); }
   }
 
+  // Referral bonus: when player reaches level 50, reward referrer 100 diamonds
+  if (leveledUp && newLevel === 50) {
+    try {
+      const p = gameState.loaded ? gameState.getPlayerById(playerId) : null;
+      const playerTgId = p?.telegram_id;
+      if (playerTgId) {
+        const { data: ref } = await supabase.from('referrals')
+          .select('id, referrer_id')
+          .eq('referred_id', playerTgId)
+          .eq('level50_rewarded', false)
+          .maybeSingle();
+        if (ref) {
+          await supabase.from('referrals').update({ level50_rewarded: true }).eq('id', ref.id);
+          const referrer = gameState.loaded ? gameState.getPlayerByTgId(ref.referrer_id) : null;
+          if (referrer) {
+            referrer.diamonds = (referrer.diamonds ?? 0) + 100;
+            gameState.markDirty('players', referrer.id);
+            await supabase.from('players').update({ diamonds: referrer.diamonds }).eq('id', referrer.id);
+          } else {
+            const { data: refP } = await supabase.from('players').select('id, diamonds').eq('telegram_id', ref.referrer_id).maybeSingle();
+            if (refP) await supabase.from('players').update({ diamonds: (refP.diamonds ?? 0) + 100 }).eq('id', refP.id);
+          }
+          sendTelegramNotification(ref.referrer_id, `🏆 Твой реферал достиг 50 уровня! +100 💎`);
+          console.log(`[referral] Player ${playerTgId} reached lv50, referrer ${ref.referrer_id} rewarded 100 diamonds`);
+        }
+      }
+    } catch (refErr) { console.error('[referral] lv50 check error:', refErr.message); }
+  }
+
   return { xpGained: cappedAmount, newXp, newLevel, leveledUp, xpForNextLevel: getXpForLevel(newLevel) };
 }
