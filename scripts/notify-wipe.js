@@ -41,8 +41,8 @@ async function notifyAll() {
           `Спасибо, что играл в бету! Твоя компенсация:\n\n` +
           `💰 <b>${formatNum(p.coins)}</b> монет\n` +
           `💎 <b>${formatNum(p.diamonds)}</b> алмазов\n` +
-          `🔮 <b>${formatNum(p.crystals)}</b> осколков\n` +
-          `⚗️ <b>${formatNum(p.ether)}</b> эфира\n\n` +
+          `✨ <b>${formatNum(p.crystals)}</b> осколков\n` +
+          `🌀 <b>${formatNum(p.ether)}</b> эфира\n\n` +
           `Удачи в новом сезоне! 🚀`;
 
         return fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
