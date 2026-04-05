@@ -627,7 +627,7 @@ async function handleBuy(req, res) {
     const sp = gameState.getPlayerById(listing.seller_id);
     if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
     const gi = gameState.getItemById(listing.item_id);
-    if (gi) { gi.owner_id = buyer.id; gi.equipped = false; gi.on_market = false; gameState.markDirty('items', gi.id); }
+    if (gi) { gi.owner_id = buyer.id; gi.equipped = false; gi.on_market = false; gameState.upsertItem(gi); gameState.markDirty('items', gi.id); }
   }
 
   // Notify seller about the sale
@@ -1080,7 +1080,7 @@ async function handlePickupDrop(req, res) {
     if (gd) { gd.picked_up = true; gameState.markDirty('courierDrops', gd.id); }
     if (drop.item_id) {
       const gi = gameState.getItemById(drop.item_id);
-      if (gi) { gi.owner_id = player.id; gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
+      if (gi) { gi.owner_id = player.id; gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.upsertItem(gi); gameState.markDirty('items', gi.id); }
     }
     if (drop.core_id) {
       const core = gameState.cores.get(drop.core_id);
