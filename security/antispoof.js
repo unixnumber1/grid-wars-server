@@ -1,7 +1,7 @@
 import { haversine } from '../lib/haversine.js';
 import { suspiciousActivity } from './rateLimit.js';
 import { logPlayer } from '../lib/logger.js';
-import { ADMIN_TG_ID, ANTISPOOF } from '../config/constants.js';
+import { ADMIN_TG_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
 
 // ═══════════════════════════════════════════════════════
 //  GPS Anti-Spoof v3 — jamming-tolerant, PIN-aware
@@ -112,7 +112,7 @@ function getAdaptiveCooldown(inst) {
 
 export function validatePosition(telegramId, lat, lng, isPinMode = false, accuracy = null) {
   // Admin bypass
-  if (Number(telegramId) === ADMIN_TG_ID) return { valid: true };
+  if (isAdmin(telegramId)) return { valid: true };
 
   // Validate coords
   if (typeof lat !== 'number' || typeof lng !== 'number') {
@@ -413,7 +413,7 @@ function recordSpoofViolation(telegramId, violation) {
 }
 
 async function autoBan(telegramId, record) {
-  if (Number(telegramId) === ADMIN_TG_ID) return;
+  if (isAdmin(telegramId)) return;
   try {
     const { supabase } = await import('../lib/supabase.js');
     const banUntil = new Date(Date.now() + BAN_DAYS * 24 * 60 * 60 * 1000);

@@ -535,11 +535,11 @@ playerRouter.post('/init', async (req, res) => {
   // Use verified username from initData, fallback to body for backward compat
   const username = req.verifiedUser?.username || req.body.username || null;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
-  const ADMIN_TG_ID = 560013667;
+  const { isAdmin: isAdminId } = await import('../../config/constants.js');
   let tgId;
   try { tgId = parseTgId(telegram_id); } catch (e) { return res.status(400).json({ error: e.message }); }
   // Maintenance mode check (from gameState — no DB query)
-  if (tgId !== ADMIN_TG_ID) {
+  if (!isAdminId(tgId)) {
     if (gameState.loaded) {
       const mSetting = gameState.appSettings?.get('maintenance_mode');
       if (mSetting === 'true') return res.status(503).json({ maintenance: true });

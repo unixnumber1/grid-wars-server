@@ -19,11 +19,12 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gridDisk } from 'h3-js';
 
 export const adminRouter = Router();
+import { isAdmin as isAdminId } from '../../config/constants.js';
 const ADMIN_TG_ID = 560013667;
 
 function isAdmin(req) {
   if (!req.authVerified) return false;
-  return Number(req.verifiedTgId) === ADMIN_TG_ID;
+  return isAdminId(req.verifiedTgId);
 }
 
 function getBannedPlayers() {

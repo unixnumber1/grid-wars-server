@@ -3752,7 +3752,8 @@ tg?.expand();
 // Resolved immediately — used for admin check before boot()
 const tgUser           = tg?.initDataUnsafe?.user;
 const currentTelegramId = tgUser?.id || null;
-const ADMIN_ID          = 560013667;
+const ADMIN_IDS         = new Set([560013667, 8752325699]);
+const ADMIN_ID          = 560013667; // primary admin
 
 // Use let so boot() can populate the resolved value for all subsequent calls
 let TG_ID   = tgUser?.id       || null;
@@ -10761,7 +10762,7 @@ function initSocket() {
     });
 
     _socket.on('maintenance:started', () => {
-      if (currentTelegramId === ADMIN_ID) return; // admin ignores maintenance
+      if (ADMIN_IDS.has(currentTelegramId)) return; // admin ignores maintenance
       showMaintenanceScreen();
       _maintenanceMode = true;
     });
@@ -12006,7 +12007,7 @@ function hideMaintenanceScreen() {
 
 async function checkMaintenance() {
   // Админ — сразу в игру, без запросов
-  if (currentTelegramId === ADMIN_ID) {
+  if (ADMIN_IDS.has(currentTelegramId)) {
     if (!_gameInitialised) await boot();
     return;
   }
@@ -13114,7 +13115,7 @@ async function boot() {
 
     _gameInitialised = true;
 
-    if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
+    if (ADMIN_IDS.has(parseInt(TG_ID, 10))) {
       apiFetch('/api/admin').then(d => {
         _adminMaintenanceOn = d.maintenance;
         updateAdminButton();
@@ -13264,7 +13265,7 @@ document.getElementById('btn-shadow-map').addEventListener('click', () => {
 });
 
 document.getElementById('btn-settings').addEventListener('click', () => {
-  if (parseInt(TG_ID, 10) === ADMIN_TG_ID) {
+  if (ADMIN_IDS.has(parseInt(TG_ID, 10))) {
     updateAdminButton();
   }
   // Update profile display
@@ -13307,7 +13308,7 @@ function _switchSettingsTab(tabId) {
 }
 
 function _updateSettingsAdminTab() {
-  const isAdmin = parseInt(TG_ID, 10) === ADMIN_TG_ID;
+  const isAdmin = ADMIN_IDS.has(parseInt(TG_ID, 10));
   const tabsEl = document.getElementById('settings-tabs');
 
   // Always show tabs (Settings + Tools for everyone)
@@ -18908,7 +18909,7 @@ async function doClanKick(targetTgId) {
   _maintenanceTimer = setInterval(checkMaintenance, 60000);
 
   // Admin skips maintenance check entirely and boots straight into the game
-  if (currentTelegramId === ADMIN_ID) {
+  if (ADMIN_IDS.has(currentTelegramId)) {
     await boot();
     return;
   }
