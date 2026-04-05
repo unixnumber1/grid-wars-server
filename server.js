@@ -391,9 +391,6 @@ app.post('/api/telegram-webhook', async (req, res) => {
       if (!mreq || mreq.status !== 'pending') { await answerCallback('Заявка не найдена или уже обработана'); return; }
 
       await sb.from('monument_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', reqId);
-      const { ts: _ts3, getLang: _gl3 } = await import('./config/i18n.js');
-      const _rLang = _gl3(gameState, mreq.player_id);
-      notify(mreq.player_id, _ts3(_rLang, 'monreq.rejected', { id: reqId, emoji: mreq.emoji, name: mreq.name })).catch(e => console.error('[server] error:', e.message));
       await editMessage(`❌ ОТКЛОНЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name}`);
       await answerCallback('❌ Заявка отклонена');
     }
