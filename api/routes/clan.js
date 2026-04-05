@@ -265,11 +265,15 @@ async function handleJoin(req, res) {
 
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', clan_id).is('left_at', null);
   if (mems?.length) {
+    const nowISO_j = new Date().toISOString();
     const notifs = mems.filter(m => m.player_id !== player.id).map(m => {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
-      return { player_id: m.player_id, type: 'clan_join', message: ts(mLang, 'notif.clan_join', { name: pName }) };
+      return { id: globalThis.crypto.randomUUID(), player_id: m.player_id, type: 'clan_join', message: ts(mLang, 'notif.clan_join', { name: pName }), read: false, created_at: nowISO_j };
     });
-    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
+    if (notifs.length) {
+      for (const n of notifs) gameState.addNotification(n);
+      supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
+    }
   }
 
   return res.json({ success: true });
@@ -353,11 +357,15 @@ async function handleDonate(req, res) {
   const dName = player.game_username || player.username || 'Player';
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', player.clan_id).is('left_at', null);
   if (mems?.length) {
+    const nowISO = new Date().toISOString();
     const notifs = mems.filter(m => m.player_id !== player.id).map(m => {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
-      return { player_id: m.player_id, type: 'clan_donate', message: ts(mLang, 'notif.clan_donate', { name: dName, amount: donateAmount }) };
+      return { id: globalThis.crypto.randomUUID(), player_id: m.player_id, type: 'clan_donate', message: ts(mLang, 'notif.clan_donate', { name: dName, amount: donateAmount }), read: false, created_at: nowISO };
     });
-    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
+    if (notifs.length) {
+      for (const n of notifs) gameState.addNotification(n);
+      supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
+    }
   }
 
   return res.json({ success: true, treasury: newTreasury, player_diamonds: newDiamonds });
@@ -392,10 +400,12 @@ async function handleUpgrade(req, res) {
 
   const { data: mems } = await supabase.from('clan_members').select('player_id').eq('clan_id', clan.id).is('left_at', null);
   if (mems?.length) {
+    const nowISO_u = new Date().toISOString();
     const notifs = mems.map(m => {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
-      return { player_id: m.player_id, type: 'clan_upgrade', message: ts(mLang, 'notif.clan_upgrade', { level: newLevel }) };
+      return { id: globalThis.crypto.randomUUID(), player_id: m.player_id, type: 'clan_upgrade', message: ts(mLang, 'notif.clan_upgrade', { level: newLevel }), read: false, created_at: nowISO_u };
     });
+    for (const n of notifs) gameState.addNotification(n);
     supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
   }
 
@@ -456,7 +466,9 @@ async function handleKick(req, res) {
     supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', target.id),
   ]);
   const kickedLang = gameState.getPlayerById(target.id)?.language || 'en';
-  supabase.from('notifications').insert({ player_id: target.id, type: 'clan_kick', message: ts(kickedLang, 'notif.clan_kick') }).catch(e => console.error('[clan] DB error:', e.message));
+  const kickNotif = { id: globalThis.crypto.randomUUID(), player_id: target.id, type: 'clan_kick', message: ts(kickedLang, 'notif.clan_kick'), read: false, created_at: new Date().toISOString() };
+  gameState.addNotification(kickNotif);
+  supabase.from('notifications').insert(kickNotif).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
 
   // Update gameState
   if (gameState.loaded) {
@@ -695,11 +707,15 @@ async function handleDisband(req, res) {
       await supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', m.player_id);
     }
     // Notify non-leader members
+    const nowISO_d = new Date().toISOString();
     const notifs = members.filter(m => m.player_id !== player.id).map(m => {
       const mLang = gameState.getPlayerById(m.player_id)?.language || 'en';
-      return { player_id: m.player_id, type: 'clan_disband', message: ts(mLang, 'notif.clan_disband') };
+      return { id: globalThis.crypto.randomUUID(), player_id: m.player_id, type: 'clan_disband', message: ts(mLang, 'notif.clan_disband'), read: false, created_at: nowISO_d };
     });
-    if (notifs.length) supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
+    if (notifs.length) {
+      for (const n of notifs) gameState.addNotification(n);
+      supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
+    }
   }
 
   // Update gameState
