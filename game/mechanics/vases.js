@@ -5,7 +5,7 @@ import { VASE_MIN_DISTANCE } from '../../config/constants.js';
 
 // ── City-based vase count ──
 function getVaseCountForCity(playerCount) {
-  return Math.floor(playerCount * 12.5);
+  return Math.floor(playerCount * 8);
 }
 
 // ── Overpass road points cache (shared idea with oreNodes) ──

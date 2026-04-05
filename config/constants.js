@@ -72,7 +72,7 @@ export const ORE_CAPTURE_RADIUS = 200;
 export const ORE_TTL_DAYS = 30;
 export const ORE_MIN_DISTANCE = 500;                // min distance between ore nodes (was 200)
 export const ORE_ZONE_RADIUS = 5000;                // 5km zone for clustering
-export const VASE_MIN_DISTANCE = 100;               // min distance between vases (meters)
+export const VASE_MIN_DISTANCE = 200;               // min distance between vases (meters)
 
 // Ore types (4 tiers)
 export const ORE_TYPES = {
