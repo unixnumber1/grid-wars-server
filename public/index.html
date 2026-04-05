@@ -20334,7 +20334,7 @@ function doScoutHit(target) {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
 // ── Firefighter markers + animation ──
