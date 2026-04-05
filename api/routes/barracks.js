@@ -333,8 +333,16 @@ async function handleUpgradeUnit(req, res) {
   const upgradeKey = `${Number(telegram_id)}_scout`;
   let upgrade = gameState.unitUpgrades.get(upgradeKey);
   if (!upgrade) {
-    upgrade = { id: globalThis.crypto.randomUUID(), owner_id: Number(telegram_id), unit_type: 'scout', level: 1 };
-    gameState.unitUpgrades.set(upgradeKey, upgrade);
+    // Try DB before creating fresh (prevents level reset after restart)
+    const { data: dbUpgrade } = await supabase.from('unit_upgrades')
+      .select('*').eq('owner_id', Number(telegram_id)).eq('unit_type', 'scout').maybeSingle();
+    if (dbUpgrade) {
+      upgrade = dbUpgrade;
+      gameState.unitUpgrades.set(upgradeKey, upgrade);
+    } else {
+      upgrade = { id: globalThis.crypto.randomUUID(), owner_id: Number(telegram_id), unit_type: 'scout', level: 1 };
+      gameState.unitUpgrades.set(upgradeKey, upgrade);
+    }
   }
 
   const nextLevel = upgrade.level + 1;
@@ -349,6 +357,8 @@ async function handleUpgradeUnit(req, res) {
 
   upgrade.level = nextLevel;
   gameState.markDirty('unitUpgrades', upgradeKey);
+  // Persist immediately — prevent level loss on server restart
+  await persistNow('unit_upgrades', { id: upgrade.id, owner_id: upgrade.owner_id, unit_type: upgrade.unit_type, level: nextLevel });
 
   logActivity(telegram_id, 'scout_upgrade', { level: nextLevel, cost });
   res.json({ ok: true, level: nextLevel, cost });
