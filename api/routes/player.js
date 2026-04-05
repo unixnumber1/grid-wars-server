@@ -629,17 +629,26 @@ playerRouter.post('/init', async (req, res) => {
       }
     }
   }
-  // Save pending referral — rewards given later when player places HQ (real engagement)
+  // Save pending referral — invitee gets 50💎 immediately, inviter gets 50💎 when invitee reaches level 5
   if (player.starting_bonus_claimed === true) {
     const referrerId = pendingReferrals.get(Number(tgId));
     if (referrerId) {
       pendingReferrals.delete(Number(tgId));
       try {
-        // Insert referral record without rewards yet
+        const REFERRAL_REWARD = 50;
+        // Give invitee 50 diamonds immediately
+        const newDiamonds = (player.diamonds ?? 0) + REFERRAL_REWARD;
+        await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+        player.diamonds = newDiamonds;
+        if (gameState.loaded) {
+          const p = gameState.getPlayerById(player.id);
+          if (p) { p.diamonds = newDiamonds; gameState.markDirty('players', p.id); }
+        }
+        // Insert referral record — invitee already rewarded, inviter pending level 5
         await supabase.from('referrals')
-          .insert({ referrer_id: referrerId, referred_id: Number(tgId), referrer_rewarded: false, referred_rewarded: false })
+          .insert({ referrer_id: referrerId, referred_id: Number(tgId), referrer_rewarded: false, referred_rewarded: true })
           .select('id').maybeSingle();
-        console.log(`[referral] ${tgId} referred by ${referrerId} — saved, rewards pending HQ placement`);
+        console.log(`[referral] ${tgId} referred by ${referrerId} — invitee got ${REFERRAL_REWARD}💎, inviter pending lv5`);
       } catch (refErr) {
         if (!refErr.message?.includes('unique') && !refErr.message?.includes('duplicate')) {
           console.error('[referral] error:', refErr.message);

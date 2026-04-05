@@ -63,42 +63,6 @@ async function handleHqPlace(player, body, res) {
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) { console.error('[xp] addXp error:', e.message); }
 
-  // Process pending referral reward — player proved engagement by placing HQ
-  try {
-    const gsPlayer = gameState.loaded ? gameState.getPlayerById(player.id) : null;
-    const playerTgId = gsPlayer?.telegram_id || player.telegram_id;
-    if (playerTgId) {
-      const { data: ref } = await supabase.from('referrals')
-        .select('id, referrer_id, referrer_rewarded')
-        .eq('referred_id', playerTgId).eq('referred_rewarded', false).maybeSingle();
-      if (ref) {
-        const REFERRAL_REWARD = 50;
-        // Reward referred player
-        const newDiamonds = (gsPlayer?.diamonds ?? player.diamonds ?? 0) + REFERRAL_REWARD;
-        await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
-        if (gsPlayer) { gsPlayer.diamonds = newDiamonds; gameState.markDirty('players', gsPlayer.id); }
-        player.diamonds = newDiamonds;
-        await supabase.from('referrals').update({ referred_rewarded: true }).eq('id', ref.id);
-        // Reward referrer
-        if (!ref.referrer_rewarded) {
-          const referrer = gameState.loaded ? gameState.getPlayerByTgId(ref.referrer_id) : null;
-          if (referrer) {
-            referrer.diamonds = (referrer.diamonds ?? 0) + REFERRAL_REWARD;
-            gameState.markDirty('players', referrer.id);
-            await supabase.from('players').update({ diamonds: referrer.diamonds }).eq('id', referrer.id);
-          } else {
-            const { data: rp } = await supabase.from('players').select('id, diamonds').eq('telegram_id', ref.referrer_id).maybeSingle();
-            if (rp) await supabase.from('players').update({ diamonds: (rp.diamonds ?? 0) + REFERRAL_REWARD }).eq('id', rp.id);
-          }
-          await supabase.from('referrals').update({ referrer_rewarded: true }).eq('id', ref.id);
-          const { sendTelegramNotification } = await import('../../lib/supabase.js');
-          sendTelegramNotification(ref.referrer_id, `🎉 Твой реферал построил штаб и начал играть! +${REFERRAL_REWARD} 💎`);
-        }
-        console.log(`[referral] ${playerTgId} placed HQ — referral rewards given (referrer: ${ref.referrer_id})`);
-      }
-    }
-  } catch (refErr) { console.error('[referral] HQ reward error:', refErr.message); }
-
   return res.status(201).json({ headquarters: hq, xp: xpResult, player_coins: player.coins ?? 0, player_diamonds: player.diamonds ?? 0 });
 }
 
