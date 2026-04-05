@@ -81,6 +81,8 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
+  perMessageDeflate: { threshold: 1024 },
+  transports: ['websocket', 'polling'],
 });
 
 import { validateRequest, checkBan } from './lib/security.js';

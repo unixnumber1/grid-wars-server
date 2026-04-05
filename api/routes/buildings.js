@@ -37,15 +37,7 @@ async function handleHqPlace(player, body, res) {
   if (existingHqs && existingHqs.length > 0) return res.status(409).json({ error: 'Headquarters already placed' });
   const targetCell = getCellId(parseFloat(lat), parseFloat(lng));
   let finalCell = null;
-  const isCellFree = (cell) => {
-    return ![...gameState.mines.values()].some(m => m.cell_id === cell && m.status !== 'destroyed') &&
-           ![...gameState.headquarters.values()].some(h => h.cell_id === cell) &&
-           ![...gameState.collectors.values()].some(c => c.cell_id === cell) &&
-           ![...gameState.clanHqs.values()].some(c => c.cell_id === cell) &&
-           ![...gameState.monuments.values()].some(m => m.cell_id === cell) &&
-           ![...gameState.fireTrucks.values()].some(ft => ft.cell_id === cell && ft.status !== 'destroyed') &&
-           ![...gameState.barracks.values()].some(b => b.cell_id === cell);
-  };
+  const isCellFree = (cell) => !gameState.isCellOccupied(cell);
   if (isCellFree(targetCell)) {
     finalCell = targetCell;
   } else {

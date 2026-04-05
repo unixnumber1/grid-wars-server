@@ -141,16 +141,12 @@ async function handleTick(req, res) {
     }
   }
 
-  // ── 1. Update player location ────────────────────────────
+  // ── 1. Update player location (in-memory only, persist loop writes to DB) ──
   if (hasPos) {
     player.last_lat = pLat;
     player.last_lng = pLng;
     player.last_seen = nowISO;
     if (gameState.loaded) gameState.markDirty('players', player.id);
-    supabase.from('players')
-      .update({ last_lat: pLat, last_lng: pLng, last_seen: nowISO })
-      .eq('id', currentPlayerId)
-      .then(() => {}).catch(e => console.error('[map] DB error:', e.message));
   }
 
   // ── 2. Bot spawn (with global cap) ──────────────────────

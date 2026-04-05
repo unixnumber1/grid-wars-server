@@ -639,13 +639,7 @@ adminRouter.post('/', async (req, res) => {
     const targetCell = getCellId(hqLat, hqLng);
 
     // Check cell availability
-    const isCellFree = (cell) => {
-      return ![...gameState.mines.values()].some(m => m.cell_id === cell && m.status !== 'destroyed') &&
-             ![...gameState.headquarters.values()].some(h => h.cell_id === cell) &&
-             ![...gameState.collectors.values()].some(c => c.cell_id === cell) &&
-             ![...gameState.clanHqs.values()].some(c => c.cell_id === cell) &&
-             ![...gameState.monuments.values()].some(m => m.cell_id === cell);
-    };
+    const isCellFree = (cell) => !gameState.isCellOccupied(cell);
 
     let finalCell = null;
     if (isCellFree(targetCell)) {

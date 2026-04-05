@@ -136,8 +136,18 @@ async function handleLocation(req, res) {
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id);
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { error } = await supabase.from('players').update({ last_lat: playerLat, last_lng: playerLng, last_seen: new Date().toISOString() }).eq('id', player.id);
-  if (error) return res.status(500).json({ error: 'Failed to update location' });
+  // Update in-memory, persist loop writes to DB (avoid per-request DB write)
+  if (gameState.loaded) {
+    const p = gameState.getPlayerById(player.id);
+    if (p) {
+      p.last_lat = playerLat;
+      p.last_lng = playerLng;
+      p.last_seen = new Date().toISOString();
+      gameState.markDirty('players', player.id);
+    }
+  } else {
+    await supabase.from('players').update({ last_lat: playerLat, last_lng: playerLng, last_seen: new Date().toISOString() }).eq('id', player.id);
+  }
   return res.status(200).json({ ok: true });
 }
 
@@ -182,14 +192,12 @@ async function handlePvpInitiate(req, res) {
   const _pvpFx1 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_pvpFx1.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
   if (defender.shield_until && new Date(defender.shield_until) > new Date()) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.player_shielded'), shield_until: defender.shield_until });
-  const [{ data: atkItems }, { data: defItems }] = await Promise.all([
-    supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', attacker.id).eq('equipped', true),
-    supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', defender.id).eq('equipped', true),
-  ]);
-  const atkWeapon = (atkItems || []).find(i => i.type === 'sword' || i.type === 'axe');
-  const defWeapon = (defItems || []).find(i => i.type === 'sword' || i.type === 'axe');
-  const atkShield = (atkItems || []).find(i => i.type === 'shield');
-  const defShield = (defItems || []).find(i => i.type === 'shield');
+  const atkItems = gameState.loaded ? gameState.getEquippedItems(attacker.id) : ((await supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', attacker.id).eq('equipped', true)).data || []);
+  const defItems = gameState.loaded ? gameState.getEquippedItems(defender.id) : ((await supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', defender.id).eq('equipped', true)).data || []);
+  const atkWeapon = atkItems.find(i => i.type === 'sword' || i.type === 'axe');
+  const defWeapon = defItems.find(i => i.type === 'sword' || i.type === 'axe');
+  const atkShield = atkItems.find(i => i.type === 'shield');
+  const defShield = defItems.find(i => i.type === 'shield');
   const battleResult = simulateBattle(attacker, defender, atkWeapon, defWeapon);
   const winnerIsAttacker = battleResult.winner === 'attacker';
   const loser = winnerIsAttacker ? defender : attacker;
@@ -563,9 +571,8 @@ playerRouter.post('/init', async (req, res) => {
       const rawMines = [...gameState.mines.values()].filter(m => m.owner_id === player.id);
       mines = rawMines.map(m => { const cMax = getMineHp(m.level); const rph = getMineHpRegen(m.level); const rawHp = Math.min(m.hp ?? cMax, cMax); return { ...m, max_hp: cMax, hp: calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update), hp_regen: rph, income: getMineIncome(m.level), capacity: getMineCapacity(m.level) }; });
       inventory = gameState.getPlayerItems(player.id) || [];
-      // Only notifications need DB (not cached in gameState with full history)
-      const { data: notifData } = await withTimeout(supabase.from('notifications').select('id,type,message,data,created_at').eq('player_id', player.id).eq('read', false).order('created_at', { ascending: false }).limit(20));
-      notifications = notifData || [];
+      // Read notifications from gameState (all unread are cached in memory)
+      notifications = gameState.getPlayerNotifications(player.id, 20);
     } else {
       // Fallback: DB queries (parallel)
       const [hqRes, minesRes, itemsRes, notifRes] = await withTimeout(Promise.all([

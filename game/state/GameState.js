@@ -42,6 +42,14 @@ class GameState {
     this.pvpLog = new Map();        // id -> full row
     this.playerSkills = new Map();  // telegram_id (number) -> skill row
 
+    // ── Performance indexes ──
+    this._tickVersion = 0;                    // incremented each game loop tick
+    this._bestMineLevelByPlayer = new Map();  // player_id -> max mine level (cached)
+    this._coresByMineCellId = new Map();      // mine_cell_id -> core[] (secondary index)
+    this._itemsByOwnerId = new Map();         // owner_id -> item[] (secondary index)
+    this._occupiedCells = new Set();          // cell_ids with buildings (for fast isCellFree)
+    this._occupiedCellsDirty = true;           // rebuild on first use
+
     // Dirty tracking
     this._dirty = {
       players: new Set(),
@@ -207,6 +215,9 @@ class GameState {
     for (const u of (unitUpgradeRows || [])) this.unitUpgrades.set(`${Number(u.owner_id)}_${u.unit_type}`, u);
     for (const s of (activeScoutRows || [])) this.activeScouts.set(s.id, s);
 
+    // ── Build performance indexes ──
+    this._rebuildAllIndexes();
+
     this._loaded = true;
     console.log('[gameState] Loaded in', Date.now() - t0, 'ms:', this.stats());
   }
@@ -263,19 +274,231 @@ class GameState {
     if (set) for (const id of ids) set.delete(id);
   }
 
+  // ── Performance indexes ──────────────────────────────────────
+
+  _rebuildAllIndexes() {
+    // bestMineLevelByPlayer
+    this._bestMineLevelByPlayer.clear();
+    for (const m of this.mines.values()) {
+      if (m.status === 'destroyed' || !m.owner_id) continue;
+      const cur = this._bestMineLevelByPlayer.get(m.owner_id) || 0;
+      if (m.level > cur) this._bestMineLevelByPlayer.set(m.owner_id, m.level);
+    }
+    // coresByMineCellId
+    this._coresByMineCellId.clear();
+    for (const c of this.cores.values()) {
+      if (!c.mine_cell_id) continue;
+      const arr = this._coresByMineCellId.get(c.mine_cell_id);
+      if (arr) arr.push(c); else this._coresByMineCellId.set(c.mine_cell_id, [c]);
+    }
+    // itemsByOwnerId
+    this._itemsByOwnerId.clear();
+    for (const i of this.items.values()) {
+      if (!i.owner_id) continue;
+      const arr = this._itemsByOwnerId.get(i.owner_id);
+      if (arr) arr.push(i); else this._itemsByOwnerId.set(i.owner_id, [i]);
+    }
+    // occupiedCells
+    this._occupiedCells.clear();
+    for (const m of this.mines.values()) { if (m.cell_id && m.status !== 'destroyed') this._occupiedCells.add(m.cell_id); }
+    for (const h of this.headquarters.values()) { if (h.cell_id) this._occupiedCells.add(h.cell_id); }
+    for (const c of this.collectors.values()) { if (c.cell_id) this._occupiedCells.add(c.cell_id); }
+    for (const ch of this.clanHqs.values()) { if (ch.cell_id) this._occupiedCells.add(ch.cell_id); }
+    for (const m of this.monuments.values()) { if (m.cell_id) this._occupiedCells.add(m.cell_id); }
+    for (const ft of this.fireTrucks.values()) { if (ft.cell_id && ft.status !== 'destroyed') this._occupiedCells.add(ft.cell_id); }
+    for (const b of this.barracks.values()) { if (b.cell_id) this._occupiedCells.add(b.cell_id); }
+  }
+
+  // Mark occupiedCells for rebuild (call after adding/removing buildings)
+  _invalidateOccupiedCells() { this._occupiedCellsDirty = true; }
+
+  // Fast O(1) cell occupation check (auto-rebuilds if dirty)
+  isCellOccupied(cellId) {
+    if (this._occupiedCellsDirty) {
+      this._occupiedCells.clear();
+      for (const m of this.mines.values()) { if (m.cell_id && m.status !== 'destroyed') this._occupiedCells.add(m.cell_id); }
+      for (const h of this.headquarters.values()) { if (h.cell_id) this._occupiedCells.add(h.cell_id); }
+      for (const c of this.collectors.values()) { if (c.cell_id) this._occupiedCells.add(c.cell_id); }
+      for (const ch of this.clanHqs.values()) { if (ch.cell_id) this._occupiedCells.add(ch.cell_id); }
+      for (const m of this.monuments.values()) { if (m.cell_id) this._occupiedCells.add(m.cell_id); }
+      for (const ft of this.fireTrucks.values()) { if (ft.cell_id && ft.status !== 'destroyed') this._occupiedCells.add(ft.cell_id); }
+      for (const b of this.barracks.values()) { if (b.cell_id) this._occupiedCells.add(b.cell_id); }
+      this._occupiedCellsDirty = false;
+    }
+    return this._occupiedCells.has(cellId);
+  }
+
+  // Index-based core lookup — O(1) vs O(n)
+  getCoresForMineFast(cellId) {
+    return this._coresByMineCellId.get(cellId) || [];
+  }
+
+  // Index-based items lookup — O(1) vs O(n)
+  getItemsByOwner(ownerId) {
+    return this._itemsByOwnerId.get(ownerId) || [];
+  }
+
+  getEquippedItems(ownerId) {
+    return this.getItemsByOwner(ownerId).filter(i => i.equipped);
+  }
+
+  // Update bestMineLevel cache on mine change
+  _updateBestMineLevel(playerId) {
+    if (!playerId) return;
+    let best = 0;
+    for (const m of this.mines.values()) {
+      if (m.owner_id === playerId && m.status !== 'destroyed' && m.level > best) best = m.level;
+    }
+    if (best > 0) this._bestMineLevelByPlayer.set(playerId, best);
+    else this._bestMineLevelByPlayer.delete(playerId);
+  }
+
+  // Update core index on core change
+  _updateCoreIndex(core, removing) {
+    if (!core.mine_cell_id) return;
+    const cellId = core.mine_cell_id;
+    if (removing) {
+      const arr = this._coresByMineCellId.get(cellId);
+      if (arr) {
+        const idx = arr.indexOf(core);
+        if (idx !== -1) arr.splice(idx, 1);
+        if (arr.length === 0) this._coresByMineCellId.delete(cellId);
+      }
+    } else {
+      const arr = this._coresByMineCellId.get(cellId);
+      if (arr) { if (!arr.includes(core)) arr.push(core); }
+      else this._coresByMineCellId.set(cellId, [core]);
+    }
+  }
+
+  // Update item index on item change
+  _updateItemIndex(item, removing) {
+    if (!item.owner_id) return;
+    const ownerId = item.owner_id;
+    if (removing) {
+      const arr = this._itemsByOwnerId.get(ownerId);
+      if (arr) {
+        const idx = arr.indexOf(item);
+        if (idx !== -1) arr.splice(idx, 1);
+        if (arr.length === 0) this._itemsByOwnerId.delete(ownerId);
+      }
+    } else {
+      const arr = this._itemsByOwnerId.get(ownerId);
+      if (arr) { if (!arr.includes(item)) arr.push(item); }
+      else this._itemsByOwnerId.set(ownerId, [item]);
+    }
+  }
+
+  // ── Lightweight tick snapshot (only collections needed by socket tick) ──
+
+  getTickSnapshot(n, s, e, w, nowMs) {
+    const nowISO = new Date(nowMs).toISOString();
+
+    // Bots in bbox (not expired)
+    const bots = [];
+    for (const b of this.bots.values()) {
+      if (new Date(b.expires_at).getTime() <= nowMs) continue;
+      if (b.lat >= s && b.lat <= n && b.lng >= w && b.lng <= e) bots.push(b);
+    }
+
+    // Vases in bbox (not broken, not expired)
+    const vases = [];
+    for (const v of this.vases.values()) {
+      if (v.broken_by) continue;
+      if (new Date(v.expires_at).getTime() <= nowMs) continue;
+      if (v.lat >= s && v.lat <= n && v.lng >= w && v.lng <= e) {
+        vases.push({ id: v.id, lat: v.lat, lng: v.lng, expires_at: v.expires_at });
+      }
+    }
+
+    // Couriers in bbox (status=moving)
+    const couriers = [];
+    for (const c of this.couriers.values()) {
+      if (c.status !== 'moving') continue;
+      if (c.current_lat >= s && c.current_lat <= n && c.current_lng >= w && c.current_lng <= e) {
+        const owner = this.players.get(c.owner_id);
+        couriers.push({
+          ...c,
+          owner: owner ? { game_username: owner.game_username, username: owner.username } : null,
+        });
+      }
+    }
+
+    // Courier drops in bbox (not picked up, not expired)
+    const courier_drops = [];
+    for (const d of this.courierDrops.values()) {
+      if (d.picked_up) continue;
+      if (d.expires_at && new Date(d.expires_at).getTime() <= nowMs) continue;
+      if (d.lat >= s && d.lat <= n && d.lng >= w && d.lng <= e) {
+        const item = d.item_id ? this.items.get(d.item_id) : null;
+        const core = d.core_id ? this.cores.get(d.core_id) : null;
+        const courier = this.couriers.get(d.courier_id);
+        courier_drops.push({
+          ...d,
+          coins: d._coins || d.coins || 0,
+          owner_id: d.owner_id || (courier ? courier.owner_id : null),
+          items: item ? { name: item.name, emoji: item.emoji, rarity: item.rarity, type: item.type, attack: item.attack, crit_chance: item.crit_chance, defense: item.defense } : null,
+          core_info: core ? { core_type: core.core_type, level: core.level } : null,
+          couriers: courier ? { owner_id: courier.owner_id } : null,
+        });
+      }
+    }
+
+    // Monuments in bbox
+    const monuments = [];
+    for (const m of this.monuments.values()) {
+      if (m.lat >= s && m.lat <= n && m.lng >= w && m.lng <= e) {
+        monuments.push({
+          id: m.id, lat: m.lat, lng: m.lng, level: m.level, name: m.name, emoji: m.emoji || '🏛️',
+          hp: m.hp, max_hp: m.max_hp,
+          shield_hp: m.shield_hp, max_shield_hp: m.max_shield_hp,
+          wave_shield_hp: m._wave_shield_hp || 0,
+          phase: m.phase, raid_started_at: m.raid_started_at,
+          respawn_at: m.respawn_at,
+          next_level: m._pending_level || null,
+        });
+      }
+    }
+
+    // Monument defenders in bbox (alive only)
+    const monument_defenders = [];
+    for (const d of this.monumentDefenders.values()) {
+      if (!d.alive) continue;
+      if (d.lat >= s && d.lat <= n && d.lng >= w && d.lng <= e) {
+        monument_defenders.push({
+          id: d.id, monument_id: d.monument_id, emoji: d.emoji,
+          hp: d.hp, max_hp: d.max_hp, lat: d.lat, lng: d.lng,
+        });
+      }
+    }
+
+    // Active scouts in bbox
+    const active_scouts = [];
+    for (const s2 of this.activeScouts.values()) {
+      const lat = s2.current_lat;
+      const lng = s2.current_lng;
+      if (lat >= s && lat <= n && lng >= w && lng <= e) {
+        active_scouts.push({
+          id: s2.id, owner_id: s2.owner_id, lat, lng,
+          target_lat: s2.target_lat, target_lng: s2.target_lng,
+          speed: s2.speed,
+          hp: s2.hp, max_hp: s2.max_hp, level: s2.unit_level,
+          status: s2.status, target_ore_id: s2.target_ore_id,
+        });
+      }
+    }
+
+    return { bots, vases, couriers, courier_drops, monuments, monument_defenders, active_scouts };
+  }
+
   // -- Spatial queries --
   // Returns objects within bounding box {n, s, e, w}
   getMapSnapshot(n, s, e, w, currentPlayerId, nowMs) {
     const nowISO = new Date(nowMs).toISOString();
     const ONLINE_MS = 3 * 60 * 1000;
 
-    // Pre-compute best mine level per player (for HQ icons)
-    const bestMineLevelByPlayer = new Map();
-    for (const m of this.mines.values()) {
-      if (m.status === 'destroyed' || !m.owner_id) continue;
-      const cur = bestMineLevelByPlayer.get(m.owner_id) || 0;
-      if (m.level > cur) bestMineLevelByPlayer.set(m.owner_id, m.level);
-    }
+    // Use cached best mine level per player (updated on mine upsert/remove)
+    const bestMineLevelByPlayer = this._bestMineLevelByPlayer;
 
     // HQs in bbox
     const headquarters = [];
@@ -555,11 +778,8 @@ class GameState {
 
   // -- Player items (inventory) --
   getPlayerItems(playerId) {
-    const result = [];
-    for (const i of this.items.values()) {
-      if (i.owner_id === playerId && !i.on_market) result.push(i);
-    }
-    return result.sort((a, b) => new Date(b.obtained_at) - new Date(a.obtained_at));
+    const items = this._itemsByOwnerId.get(playerId) || [];
+    return items.filter(i => !i.on_market).sort((a, b) => new Date(b.obtained_at) - new Date(a.obtained_at));
   }
 
   // -- Player notifications (unread) --
@@ -625,11 +845,15 @@ class GameState {
   upsertMine(mine) {
     this.mines.set(mine.id, mine);
     if (mine.cell_id) this.mineByCellId.set(mine.cell_id, mine);
+    this._updateBestMineLevel(mine.owner_id);
+    this._occupiedCellsDirty = true;
   }
   removeMine(id) {
     const m = this.mines.get(id);
     if (m?.cell_id) this.mineByCellId.delete(m.cell_id);
     this.mines.delete(id);
+    if (m?.owner_id) this._updateBestMineLevel(m.owner_id);
+    this._occupiedCellsDirty = true;
   }
 
   // -- HQ --
@@ -637,12 +861,22 @@ class GameState {
   upsertHq(hq) {
     this.headquarters.set(hq.id, hq);
     this.hqByPlayerId.set(hq.player_id, hq);
+    this._occupiedCellsDirty = true;
   }
 
   // -- Items --
   getItemById(id) { return this.items.get(id) || null; }
-  upsertItem(item) { this.items.set(item.id, item); }
-  removeItem(id) { this.items.delete(id); }
+  upsertItem(item) {
+    const old = this.items.get(item.id);
+    if (old && old.owner_id !== item.owner_id) this._updateItemIndex(old, true);
+    this.items.set(item.id, item);
+    this._updateItemIndex(item, false);
+  }
+  removeItem(id) {
+    const item = this.items.get(id);
+    if (item) this._updateItemIndex(item, true);
+    this.items.delete(id);
+  }
 
   // -- Markets --
   getMarketById(id) { return this.markets.get(id) || null; }
@@ -698,7 +932,7 @@ class GameState {
     }
     return null;
   }
-  upsertClanHq(hq) { this.clanHqs.set(hq.id, hq); }
+  upsertClanHq(hq) { this.clanHqs.set(hq.id, hq); this._occupiedCellsDirty = true; }
 
   // -- App settings --
   getSetting(key) { return this.appSettings.get(key) || null; }
@@ -706,11 +940,7 @@ class GameState {
 
   // -- Cores --
   getCoresForMine(cellId) {
-    const result = [];
-    for (const c of this.cores.values()) {
-      if (c.mine_cell_id === cellId) result.push(c);
-    }
-    return result;
+    return this._coresByMineCellId.get(cellId) || [];
   }
   getPlayerCores(playerId) {
     const result = [];
@@ -722,8 +952,17 @@ class GameState {
   getPlayerInventoryCores(playerId) {
     return this.getPlayerCores(playerId).filter(c => !c.mine_cell_id);
   }
-  upsertCore(core) { this.cores.set(core.id, core); }
-  removeCore(id) { this.cores.delete(id); }
+  upsertCore(core) {
+    const old = this.cores.get(core.id);
+    if (old && old.mine_cell_id !== core.mine_cell_id) this._updateCoreIndex(old, true);
+    this.cores.set(core.id, core);
+    this._updateCoreIndex(core, false);
+  }
+  removeCore(id) {
+    const core = this.cores.get(id);
+    if (core) this._updateCoreIndex(core, true);
+    this.cores.delete(id);
+  }
 
   // -- Leaderboard --
   getLeaderboard(limit = 100) {

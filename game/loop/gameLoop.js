@@ -27,10 +27,6 @@ let _lastDailyMarketCheck = 0; // timestamp of last daily market check
 let _io = null;
 let _connectedPlayers = null;
 
-function hasChanged(prev, curr) {
-  return JSON.stringify(prev) !== JSON.stringify(curr);
-}
-
 export function startGameLoop(io, connectedPlayers) {
   _io = io;
   _connectedPlayers = connectedPlayers;
@@ -45,6 +41,7 @@ export function startGameLoop(io, connectedPlayers) {
     const nowMs = Date.now();
     const nowISO = new Date(nowMs).toISOString();
     _tickCount++;
+    gameState._tickVersion++;
 
     try {
       // ── 1. Move bots globally ──────────────────────────────
@@ -82,10 +79,9 @@ export function startGameLoop(io, connectedPlayers) {
         if (!playerInfo.lat || !playerInfo.lng) continue;
 
         try {
-          const state = await buildPlayerState(playerInfo, nowMs, nowISO);
-          if (state && hasChanged(playerInfo.lastState, state)) {
+          const state = buildPlayerState(playerInfo, nowMs, nowISO);
+          if (state) {
             io.to(socketId).emit('tick', state);
-            playerInfo.lastState = state;
           }
         } catch (e) {
           // Skip this player on error
@@ -110,17 +106,18 @@ function processMonumentShieldRegen() {
 
     if (monument.shield_hp !== oldHp) {
       gameState.markDirty('monuments', id);
-      // Emit smooth update to nearby players
+      // Emit smooth update to nearby players (bbox check instead of haversine)
       if (_io && _connectedPlayers) {
+        const PAD = 0.009; // ~1km
+        const payload = {
+          monument_id: monument.id,
+          shield_hp: monument.shield_hp,
+          max_shield_hp: monument.max_shield_hp,
+        };
         for (const [sid, info] of _connectedPlayers) {
           if (!info.lat || !info.lng) continue;
-          const dist = haversine(info.lat, info.lng, monument.lat, monument.lng);
-          if (dist <= 1000) {
-            _io.to(sid).emit('monument:shield_update', {
-              monument_id: monument.id,
-              shield_hp: monument.shield_hp,
-              max_shield_hp: monument.max_shield_hp,
-            });
+          if (Math.abs(info.lat - monument.lat) <= PAD && Math.abs(info.lng - monument.lng) <= PAD) {
+            _io.to(sid).emit('monument:shield_update', payload);
           }
         }
       }
@@ -324,12 +321,12 @@ async function moveCouriers(nowMs, nowISO) {
             coins: courierCoins,  // persisted to DB
           };
           gameState.upsertDrop(drop);
-          await supabase.from('courier_drops').insert({
+          supabase.from('courier_drops').insert({
             id: drop.id, courier_id: dc.id, owner_id: dc.owner_id, lat: dropLat, lng: dropLng,
             drop_type: 'coin_delivery', picked_up: false,
             coins: courierCoins,
             expires_at: drop.expires_at, created_at: nowISO,
-          });
+          }).then(() => {}).catch(e => console.error('[loop] courier_drops insert error:', e.message));
           const coinDelLang = gameState.getPlayerById(dc.owner_id)?.language || 'en';
           const notif = {
             id: globalThis.crypto.randomUUID(),
@@ -362,10 +359,10 @@ async function moveCouriers(nowMs, nowISO) {
             created_at: nowISO,
           };
           gameState.upsertDrop(drop);
-          // Write to DB — must complete before courier is deleted (FK constraint)
+          // Write to DB (fire-and-forget — gameState already updated)
           const cleanDrop = {};
           for (const k of Object.keys(drop)) { if (!k.startsWith('_')) cleanDrop[k] = drop[k]; }
-          await supabase.from('courier_drops').insert(cleanDrop);
+          supabase.from('courier_drops').insert(cleanDrop).then(() => {}).catch(e => console.error('[loop] courier_drops insert error:', e.message));
           if (dc.item_id) {
             const item = gameState.getItemById(dc.item_id);
             if (item) { item.held_by_courier = null; item.held_by_market = null; gameState.markDirty('items', item.id); }
@@ -385,9 +382,9 @@ async function moveCouriers(nowMs, nowISO) {
         }
       } catch (e) { console.error('[gameLoop] courier delivery error:', e.message); }
 
-      // Remove delivered courier from memory + DB (after drop insert to avoid FK violation)
+      // Remove delivered courier from memory + DB (fire-and-forget)
       gameState.couriers.delete(dc.id);
-      await supabase.from('couriers').delete().eq('id', dc.id);
+      supabase.from('couriers').delete().eq('id', dc.id).then(() => {}).catch(e => console.error('[loop] courier delete error:', e.message));
       if (_io) _io.emit('courier:removed', { courier_id: dc.id });
     }
   } catch (e) {
@@ -991,13 +988,14 @@ async function periodicCleanup(nowMs, nowISO) {
   }
 }
 
-async function buildPlayerState(playerInfo, nowMs, nowISO) {
+function buildPlayerState(playerInfo, nowMs, nowISO) {
   if (!playerInfo.lat || !playerInfo.lng) return null;
   const PAD = 0.02;
   const n = playerInfo.lat + PAD, s = playerInfo.lat - PAD;
   const e = playerInfo.lng + PAD, w = playerInfo.lng - PAD;
 
-  const snapshot = gameState.getMapSnapshot(n, s, e, w, null, nowMs);
+  // Use lightweight tick snapshot (only 7 collections instead of 17)
+  const snapshot = gameState.getTickSnapshot(n, s, e, w, nowMs);
 
   // Get unread notifications for this player
   let notifications = [];

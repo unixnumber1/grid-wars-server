@@ -309,7 +309,7 @@ async function handleAttack(player, body) {
   // Player attacks bot — crit chance from equipped weapon
   let weaponCrit = 0;
   if (pFull.equipped_sword) {
-    const { data: wpn } = await supabase.from('items').select('type, crit_chance').eq('id', pFull.equipped_sword).maybeSingle();
+    const wpn = gameState.loaded ? gameState.getItemById(pFull.equipped_sword) : (await supabase.from('items').select('type, crit_chance').eq('id', pFull.equipped_sword).maybeSingle()).data;
     if (wpn?.type === 'sword') weaponCrit = wpn.crit_chance ?? 0;
   }
   const critChance = 0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0);
