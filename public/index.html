@@ -11963,16 +11963,14 @@ function _startBotAutoAttack(botId) {
   }, cd + 50);
 }
 
-async function doAttackBot(botId) {
+function doAttackBot(botId) {
   const bot = botData[botId];
   if (!bot) return;
   const pos = state.playerPos;
-  try {
-    const data = await apiFetch('/api/bots', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
-    });
-    // Floating damage
+  apiFetch('/api/bots', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
+  }).then(data => {
     const ref = botMarkers[botId];
     if (ref?.marker) {
       const ll = ref.marker.getLatLng();
@@ -12002,11 +12000,14 @@ async function doAttackBot(botId) {
       if (state.player && (coinDrop > 0 || coinReward > 0)) { _setPlayerCoins(data.player_coins ?? (state.player.coins || 0)); }
       updateDiamondDisplay();
     } else {
-      // Update bot HP in popup (lightweight — no redraw)
       if (botData[botId]) { botData[botId].hp = data.botHp; botData[botId].max_hp = data.botMaxHp; }
       updatePopupHp(data.botHp, data.botMaxHp, '#e06060');
     }
-  } catch (err) { showToast(err.message); }
+  }).catch(err => {
+    const msg = err.message || '';
+    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    showToast(msg);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -16467,7 +16468,7 @@ async function doAttackMine(mineId) {
   openCombatPopup(t('combat.mine_target', {level: mine.level}), mine.id, 'mine', mine, { hideTargetHp: true });
 }
 
-async function doMineHit(mine) {
+function doMineHit(mine) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -16481,17 +16482,10 @@ async function doMineHit(mine) {
     setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
   }
 
-  try {
-    const data = await apiFetch('/api/buildings/attack', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'hit',
-               mine_id: mine.id,
-        lat: pos.lat,
-        lng: pos.lng
-      }),
-    });
-
+  apiFetch('/api/buildings/attack', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'hit', mine_id: mine.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     if (data.burned) {
       stopCombat(); closePopupKeepHold();
       let msg = '🔥 ' + t('toast.mine_burning');
@@ -16506,15 +16500,15 @@ async function doMineHit(mine) {
       }
       showToast(msg);
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
     stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
-async function doOreHit(target) {
+function doOreHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -16522,25 +16516,23 @@ async function doOreHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  try {
-    const data = await apiFetch('/api/ore', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'hit', ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/ore', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'hit', ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     const _oreT = oreData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _oreT ? L.latLng(_oreT.lat, _oreT.lng) : null);
     if (data.broken) {
       stopCombat(); closePopupKeepHold();
       showToast(t('toast.ore_broken'));
-      // Re-open popup so player can claim
       setTimeout(() => showOrePopup(target.id), 300);
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
     stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
 function _startAttackAnimation(mineId, duration, endsAtISO) {
@@ -17161,7 +17153,7 @@ function removeMonumentDeathOverlay() {
   if (screen) screen.classList.remove('open');
 }
 
-async function doPvpHit(target) {
+function doPvpHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -17169,7 +17161,6 @@ async function doPvpHit(target) {
   const pos = state.playerPos;
   if (!pos) return;
 
-  // Show CD on popup button or HUD button
   const popupCd = document.getElementById('popup-atk-cd');
   const hudCd = document.getElementById('combat-cd-overlay');
   const cdOverlay = popupCd || hudCd;
@@ -17178,31 +17169,23 @@ async function doPvpHit(target) {
     setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
   }
 
-  try {
-    const data = await apiFetch('/api/player/init', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'pvp-attack',
-               target_telegram_id: target.telegram_id,
-        lat: pos.lat,
-        lng: pos.lng
-      }),
-    });
-
+  apiFetch('/api/player/init', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'pvp-attack', target_telegram_id: target.telegram_id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     if (data.killed) {
       stopCombat();
       closePopupKeepHold();
       showToast(t('toast.pvp_won', {amount: formatCoins(data.coins_won)}));
       _setPlayerCoins((state.player.coins || 0) + data.coins_won);
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
-    // Ignore cooldown / rate-limit errors silently
     if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
     showToast(`❌ ${msg}`);
     stopCombat();
     closePopupKeepHold();
-  }
+  });
 }
 
 async function _finishAttack(mineId) {
@@ -19390,7 +19373,7 @@ const _origShowCombatHUD = showCombatHUD;
 // We need to add 'monument' and 'defender' modes to the doHit function
 
 // ── Hit handlers for monuments ──
-async function doMonumentShieldHit(target) {
+function doMonumentShieldHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -19400,11 +19383,10 @@ async function doMonumentShieldHit(target) {
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
-  try {
-    const data = await apiFetch('/api/monuments', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'attack-shield', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/monuments', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'attack-shield', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     const _monT = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, false, false, _monT ? L.latLng(_monT.lat, _monT.lng) : null);
     updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
@@ -19419,14 +19401,14 @@ async function doMonumentShieldHit(target) {
       stopCombat(); closePopupKeepHold(); showToast(t('mon.shield_broken'));
       updateMonumentPhase(target.id, 'open');
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
-async function doMonumentBodyHit(target) {
+function doMonumentBodyHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -19436,11 +19418,10 @@ async function doMonumentBodyHit(target) {
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
-  try {
-    const data = await apiFetch('/api/monuments', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'attack-monument', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/monuments', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'attack-monument', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const _monT2 = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _monT2 ? L.latLng(_monT2.lat, _monT2.lng) : null);
@@ -19449,38 +19430,34 @@ async function doMonumentBodyHit(target) {
     if (m) { m.hp = data.hp; m.max_hp = data.max_hp; updateMonumentMarkerIcon(target.id, true); }
     _updateMonumentPopupBars(target.id);
     if (data.defeated) { stopCombat(); closePopupKeepHold(); showToast(t('mon.defeated')); }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopCombat(); closePopupKeepHold(); showToast('⚔️ ' + msg); return; }
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
-async function doDefenderHit(target) {
+function doDefenderHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
 
-  // Show CD on popup button or HUD button
   const popupCd = document.getElementById('popup-atk-cd');
   const hudCd = document.getElementById('combat-cd-overlay');
   const cdOverlay = popupCd || hudCd;
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
-  try {
-    const data = await apiFetch('/api/monuments', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'attack-defender', defender_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/monuments', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'attack-defender', defender_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     if (data.killed) {
-      // Remove defender marker
       if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
       const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id && !d._dead);
       if (remaining.length > 0) {
-        // Don't auto-switch — let player pick next target via multitouch
         stopCombat(); closePopupKeepHold();
       } else {
         stopCombat(); closePopupKeepHold();
@@ -19489,16 +19466,15 @@ async function doDefenderHit(target) {
     } else {
       const _defT = defenderData[target.id];
       showCombatHitText(data.damage, data.crit, false, false, _defT ? L.latLng(_defT.lat, _defT.lng) : null);
-      // Update defender HP
       const d = defenderData[target.id];
       if (d) { d.hp = data.defender_hp; d.max_hp = data.defender_max_hp; if (defenderMarkers[target.id]) defenderMarkers[target.id].setIcon(defenderIcon(d)); }
       updatePopupHp(data.defender_hp, data.defender_max_hp, '#ff6600');
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
 async function doJoinRaid(monumentId) {
@@ -19786,7 +19762,7 @@ function doStartCollectorCombat(collectorId) {
   openCombatPopup(`🧲 Lv.${c.level}`, collectorId, 'collector', { id: collectorId, level: c.level, hp: c.hp, max_hp: c.max_hp });
 }
 
-async function doCollectorHit(target) {
+function doCollectorHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -19794,11 +19770,10 @@ async function doCollectorHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  try {
-    const data = await apiFetch('/api/collectors', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'hit', collector_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/collectors', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'hit', collector_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     const c = collectorData[target.id];
     if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
     if (data.destroyed) {
@@ -19807,11 +19782,11 @@ async function doCollectorHit(target) {
       showToast(t('coll.destroyed', {n: formatCoins(data.stolen_coins)}));
       _setPlayerCoins((state.player?.coins || 0) + data.stolen_coins);
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
 async function doCollectorDeliver(collectorId) {
@@ -20279,7 +20254,7 @@ function doStartFireTruckCombat(ftId) {
   openCombatPopup(`🚒 Lv.${ft.level}`, ftId, 'fire_truck', { id: ftId, level: ft.level, hp: ft.hp, max_hp: ft.max_hp });
 }
 
-async function doFireTruckHit(target) {
+function doFireTruckHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -20287,22 +20262,21 @@ async function doFireTruckHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  try {
-    const data = await apiFetch('/api/fire-trucks', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'hit', fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/fire-trucks', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'hit', fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     const ft = firetruckData[target.id];
     if (ft) { ft.hp = data.hp; ft.max_hp = data.max_hp; ft.status = data.status; updateFireTruckMarker(target.id); }
     if (data.destroyed) {
       stopCombat(); closePopupKeepHold();
       showToast('🔥 Пожарная машина подожжена!');
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
 function doStartFirefighterCombat(ffId) {
@@ -20311,7 +20285,7 @@ function doStartFirefighterCombat(ffId) {
   openCombatPopup('🧑‍🚒 Пожарный', ffId, 'firefighter', { id: ffId, hp: ff.hp, max_hp: ff.max_hp });
 }
 
-async function doFirefighterHit(target) {
+function doFirefighterHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -20319,11 +20293,10 @@ async function doFirefighterHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  try {
-    const data = await apiFetch('/api/fire-trucks', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'hit-firefighter', firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/fire-trucks', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'hit-firefighter', firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     const ff = firefighterData[target.id];
     if (ff) { ff.hp = data.hp; ff.max_hp = data.max_hp; }
     if (data.killed) {
@@ -20331,14 +20304,14 @@ async function doFirefighterHit(target) {
       removeFirefighterMarker(target.id);
       showToast('💀 Пожарный убит!');
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
-  }
+  });
 }
 
-async function doScoutHit(target) {
+function doScoutHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -20346,11 +20319,10 @@ async function doScoutHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  try {
-    const data = await apiFetch('/api/barracks', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'attack-scout', telegram_id: TG_ID, scout_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/barracks', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'attack-scout', telegram_id: TG_ID, scout_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     const sc = scoutData[target.id];
     if (sc) { sc.hp = data.hp; sc.max_hp = data.max_hp; updateScoutMarker(target.id); }
     if (data.killed) {
@@ -20358,7 +20330,7 @@ async function doScoutHit(target) {
       removeScoutMarker(target.id);
       showToast('💀 ' + (_lang === 'ru' ? 'Скаут убит!' : 'Scout killed!'));
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
@@ -21363,7 +21335,7 @@ function showZombiePopup(zombieId) {
   }
 }
 
-async function doZombieHit(target) {
+function doZombieHit(target) {
   const now = Date.now();
   if (now - _pvpLastHit < _pvpCdMs) return;
   _pvpLastHit = now;
@@ -21373,11 +21345,10 @@ async function doZombieHit(target) {
   const popupCd = document.getElementById('popup-atk-cd');
   if (popupCd) { popupCd.classList.add('active'); setTimeout(() => popupCd.classList.remove('active'), _pvpCdMs); }
 
-  try {
-    const data = await apiFetch('/api/zombies', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'attack', zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
-    });
+  apiFetch('/api/zombies', {
+    method: 'POST',
+    body: JSON.stringify({ action: 'attack', zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
+  }).then(data => {
     if (data.killed) {
       removeZombieMarker(target.id);
       closePopupKeepHold();
@@ -21389,16 +21360,15 @@ async function doZombieHit(target) {
     } else {
       const _zT = zombieData[target.id];
       showCombatHitText(data.damage, data.crit, false, false, _zT ? L.latLng(_zT.lat, _zT.lng) : null);
-      // Update zombie HP
       const z = zombieData[target.id];
       if (z) { z.hp = data.zombie_hp; if (zombieMarkers.has(target.id)) zombieMarkers.get(target.id).setIcon(zombieIcon(z)); }
       updatePopupHp(data.zombie_hp, z?.max_hp || 100, '#00cc44');
     }
-  } catch (err) {
+  }).catch(err => {
     const msg = err.message || '';
     if (msg.includes('429') || msg.includes('Cooldown')) return;
     showToast(`❌ ${msg}`);
-  }
+  });
 }
 
 async function forceSpawnVases() {
