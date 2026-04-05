@@ -88,7 +88,7 @@ const io = new Server(httpServer, {
 import { validateRequest, checkBan } from './lib/security.js';
 import { rateLimitMw } from './lib/rateLimit.js';
 import { verifyTelegramAuth, verifyInitData } from './security/telegramAuth.js';
-import { validatePosition, seedPositionFromDB } from './security/antispoof.js';
+import { validatePosition, seedPositionFromDB, setPlayerHq } from './security/antispoof.js';
 
 // Security headers
 app.use((req, res, next) => {
@@ -523,6 +523,9 @@ io.on('connection', (socket) => {
         playerDbId = p.id;
         // Seed antispoof history from last known DB position for cross-session teleport detection
         seedPositionFromDB(verifiedTgId, p.last_lat, p.last_lng, p.last_seen);
+        // Cache HQ position for PIN jump detection
+        const hq = gameState.getHqByPlayerId(p.id);
+        if (hq) setPlayerHq(verifiedTgId, hq.lat, hq.lng);
         // Handle death state on reconnect
         if (p.is_dead) {
           const respawnAt = p._respawn_at ? new Date(p._respawn_at).getTime() : 0;

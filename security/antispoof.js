@@ -27,6 +27,7 @@ const {
 const positionHistory = new Map();  // telegram_id → [{ lat, lng, timestamp, ...gpsData }]
 const gpsFingerprint = new Map();   // telegram_id → { nullCount, totalMoving, lastViolationAt }
 const pinModeState = new Map();     // telegram_id → { active, graceUntil }
+const playerHqPositions = new Map(); // telegram_id → { lat, lng } — cached HQ position for PIN detection
 
 // ── PIN mode ──
 
@@ -47,6 +48,21 @@ function isPinModeActive(telegramId) {
   if (state.active) return true;
   if (Date.now() < state.graceUntil) return true;
   return false;
+}
+
+// ── HQ position cache (for PIN jump detection) ──
+export function setPlayerHq(telegramId, lat, lng) {
+  if (lat != null && lng != null) playerHqPositions.set(telegramId, { lat, lng });
+  else playerHqPositions.delete(telegramId);
+}
+
+function isLikelyPinJump(telegramId, fromLat, fromLng, toLat, toLng) {
+  const hq = playerHqPositions.get(telegramId);
+  if (!hq) return false;
+  // Jump TO HQ (activating PIN) or FROM HQ (deactivating PIN)
+  const distToHq = haversine(toLat, toLng, hq.lat, hq.lng);
+  const distFromHq = haversine(fromLat, fromLng, hq.lat, hq.lng);
+  return distToHq < 500 || distFromHq < 500; // within 500m of HQ
 }
 
 // ════════════════════════════════════════════════════════
@@ -107,22 +123,31 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
     }
 
     // ── Speed checks — only cosmic violations ──
-    // Teleport: >500 km/h within 60s = instant ban
-    if (speedKmh > TELEPORT_SPEED_KMH && timeDiffS <= TELEPORT_MAX_TIME_S && distanceKm > 1) {
+    // Skip if this looks like a PIN jump (to/from HQ)
+    const pinJump = isLikelyPinJump(telegramId, last.lat, last.lng, lat, lng);
+    if (pinJump) {
+      // PIN jump — reset history and accept silently
+      history.length = 0;
+      history.push({ lat, lng, timestamp: now, ...gpsData });
+      positionHistory.set(telegramId, history);
+      return { valid: true };
+    }
+
+    // Teleport: >500 km/h within 60s
+    if (speedKmh > TELEPORT_SPEED_KMH && timeDiffS <= TELEPORT_MAX_TIME_S && distanceKm > 5) {
       recordViolation(telegramId, {
         timestamp: now, speed: speedKmh, distance: distanceKm,
         from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
         type: 'teleport',
       });
-      // Reset history to new position (don't lock player at old spot)
       history.length = 0;
       history.push({ lat, lng, timestamp: now, ...gpsData });
       positionHistory.set(telegramId, history);
       return { valid: false, reason: 'teleport', speed: speedKmh };
     }
 
-    // High speed: >300 km/h within 30s = violation (not instant ban)
-    if (speedKmh > HIGH_SPEED_KMH && timeDiffS <= HIGH_SPEED_MAX_TIME_S && distanceKm > 0.5) {
+    // High speed: >300 km/h within 30s
+    if (speedKmh > HIGH_SPEED_KMH && timeDiffS <= HIGH_SPEED_MAX_TIME_S && distanceKm > 2) {
       recordViolation(telegramId, {
         timestamp: now, speed: speedKmh, distance: distanceKm,
         from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
@@ -178,7 +203,8 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
 }
 
 // ── Violation Recording ──
-const TYPE_WEIGHT = { teleport: 10, fake_gps: 5, speed: 3 };
+// Weights: threshold=10, so teleport needs 3 hits, fake_gps needs 3, speed needs 4
+const TYPE_WEIGHT = { teleport: 4, fake_gps: 4, speed: 3 };
 
 function recordViolation(telegramId, violation) {
   const key = `spoof:${telegramId}`;
@@ -305,6 +331,7 @@ export function resetSpoofRecord(telegramId) {
   positionHistory.delete(telegramId);
   gpsFingerprint.delete(telegramId);
   pinModeState.delete(telegramId);
+  playerHqPositions.delete(telegramId);
 }
 
 export function resetPositionHistory(telegramId) {

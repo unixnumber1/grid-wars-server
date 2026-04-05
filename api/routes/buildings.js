@@ -14,7 +14,7 @@ import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
-import { setPinMode } from '../../security/antispoof.js';
+import { setPinMode, setPlayerHq } from '../../security/antispoof.js';
 
 export const buildingsRouter = Router();
 
@@ -57,10 +57,11 @@ async function handleHqPlace(player, body, res) {
   const cell_id = finalCell;
   const { data: hq, error: insertError } = await supabase.from('headquarters').insert({ player_id: player.id, owner_username: player.username, lat: hqLat, lng: hqLng, cell_id }).select('id,player_id,lat,lng,cell_id,level,created_at').single();
   if (insertError) return res.status(500).json({ error: 'Failed to place headquarters' });
-  // Update gameState
+  // Update gameState + antispoof HQ cache
   if (gameState.loaded) {
     gameState.upsertHq(hq);
   }
+  setPlayerHq(Number(body.telegram_id), hqLat, hqLng);
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.BUILD_HQ); } catch (e) { console.error('[xp] addXp error:', e.message); }
 
@@ -127,8 +128,9 @@ async function handleHqSell(player, telegramId, res) {
       }
     }
   }
-  // Reset PIN mode — player must return to real GPS coordinates
+  // Reset PIN mode + HQ cache — player must return to real GPS coordinates
   setPinMode(telegramId, false);
+  setPlayerHq(Number(telegramId), null, null);
   return res.status(200).json({ success: true, refund, player_coins: player.coins, pin_reset: true });
 }
 
