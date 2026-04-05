@@ -21417,15 +21417,16 @@ async function spawnZombieScout() {
   <div class="profile-inv-tabs" style="align-items:center">
     <div id="sub-tabs-row" style="display:flex;flex:1"></div>
   </div>
-  <!-- Slot counter -->
-  <div id="inv-slot-bar" style="display:flex;align-items:center;justify-content:space-between;padding:4px 16px;font-size:12px;color:#aaa;">
-    <span id="inv-slot-count">0/200</span>
-    <button id="btn-buy-slot" onclick="buyInventorySlot()" style="background:#252538;border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:11px;border-radius:8px;padding:3px 10px;cursor:pointer;">+1 слот · 5💎</button>
-  </div>
-  <!-- Action buttons (right-aligned below header) -->
-  <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:0 16px 6px 16px">
-    <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️</button>
-    <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
+  <!-- Inventory toolbar: slots + actions -->
+  <div id="inv-slot-bar" style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:#1a1a2e;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="inv-slot-count" style="font-size:12px;color:#aaa;">0/200</span>
+      <button id="btn-buy-slot" onclick="buyInventorySlot()" style="background:#252538;border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:11px;border-radius:8px;padding:2px 8px;cursor:pointer;">+1 · 5💎</button>
+    </div>
+    <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
+      <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️</button>
+      <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
+    </div>
   </div>
   <div class="profile-section" style="margin-bottom:16px;margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
     <div id="inv-panel-equip">
