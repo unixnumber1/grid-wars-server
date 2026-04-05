@@ -10694,6 +10694,7 @@ function initSocket() {
     });
 
     _socket.on('maintenance:started', () => {
+      if (currentTelegramId === ADMIN_ID) return; // admin ignores maintenance
       showMaintenanceScreen();
       _maintenanceMode = true;
     });
