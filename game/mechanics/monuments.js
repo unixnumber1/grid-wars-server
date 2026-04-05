@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
-import { haversine } from '../../lib/haversine.js';
+import { haversine, findSafeDropPosition } from '../../lib/haversine.js';
 import { generateItem } from './items.js';
 import { getCoreDropConfig, randomCoreType, CORE_TYPES } from './cores.js';
 import {
@@ -258,11 +258,12 @@ export async function defeatMonument(monument, io, connectedPlayers) {
       }
     }
 
-    // Create loot box near monument (slightly offset)
+    // Create loot box near monument (offset far enough to not overlap monument hitbox)
     const angle = (i / participants.length) * 2 * Math.PI;
     const cosLat = Math.cos(monument.lat * Math.PI / 180);
-    const boxLat = monument.lat + (30 / 111320) * Math.cos(angle);
-    const boxLng = monument.lng + (30 / (111320 * cosLat)) * Math.sin(angle);
+    const rawLat = monument.lat + (50 / 111320) * Math.cos(angle);
+    const rawLng = monument.lng + (50 / (111320 * cosLat)) * Math.sin(angle);
+    const { lat: boxLat, lng: boxLng } = findSafeDropPosition(rawLat, rawLng, gameState);
 
     const box = {
       id: globalThis.crypto.randomUUID(),

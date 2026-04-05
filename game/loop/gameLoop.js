@@ -2,7 +2,7 @@ import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
 import { log } from '../../lib/log.js';
 import { BOT_TYPES, getRandomBotType } from '../mechanics/bots.js';
-import { haversine } from '../../lib/haversine.js';
+import { haversine, findSafeDropPosition } from '../../lib/haversine.js';
 import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, xpForLevel, SMALL_RADIUS, LARGE_RADIUS } from '../../config/formulas.js';
 import { FIRETRUCK_LEVELS, FIRETRUCK_EXTINGUISH_DURATION, FIREFIGHTER_SPEED } from '../mechanics/fireTrucks.js';
 import { COLLECTOR_LEVELS } from '../mechanics/collectors.js';
@@ -303,8 +303,12 @@ async function moveCouriers(nowMs, nowISO) {
           // Collector coin delivery — create a coin drop on the ground
           const courierCoins = dc._coins || dc.coins || 0;
           const owner = gameState.getPlayerById(dc.owner_id);
-          const dropLat = (owner?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
-          const dropLng = (owner?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004;
+          const _rawDropPos = findSafeDropPosition(
+            (owner?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004,
+            (owner?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004,
+            gameState
+          );
+          const dropLat = _rawDropPos.lat, dropLng = _rawDropPos.lng;
           const drop = {
             id: globalThis.crypto.randomUUID(),
             courier_id: dc.id,
@@ -340,8 +344,12 @@ async function moveCouriers(nowMs, nowISO) {
           supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
         } else if (dc.type === 'delivery') {
           const buyer = gameState.getPlayerById(dc.owner_id);
-          const dropLat = (buyer?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004;
-          const dropLng = (buyer?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004;
+          const _rawDelPos = findSafeDropPosition(
+            (buyer?.last_lat ?? dc.target_lat) + (Math.random() - 0.5) * 0.0004,
+            (buyer?.last_lng ?? dc.target_lng) + (Math.random() - 0.5) * 0.0004,
+            gameState
+          );
+          const dropLat = _rawDelPos.lat, dropLng = _rawDelPos.lng;
           // Resolve core_id: runtime field → fallback to listing
           const _dcCoreId = dc._core_id || dc.core_id || gameState.getListingById(dc.listing_id)?.core_id || null;
           const drop = {

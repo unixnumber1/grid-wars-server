@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { log } from '../../lib/log.js';
-import { haversine } from '../../lib/haversine.js';
+import { haversine, findSafeDropPosition } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { SMALL_RADIUS, LARGE_RADIUS, getPlayerAttack } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
@@ -808,13 +808,8 @@ async function handleAttackCourier(req, res) {
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  const { data: courier, error: cErr } = await supabase
-    .from('couriers')
-    .select('id, owner_id, listing_id, item_id, current_lat, current_lng, hp, max_hp, status')
-    .eq('id', courier_id)
-    .maybeSingle();
-
-  if (cErr) return res.status(500).json({ error: cErr.message });
+  // Read from gameState (DB position may be stale — batch persist writes every 30s)
+  const courier = gameState.loaded ? gameState.getCourierById(courier_id) : null;
   if (!courier) return res.status(404).json({ error: 'Courier not found' });
 
   // Resolve core_id from listing (not stored on courier)
@@ -848,6 +843,7 @@ async function handleAttackCourier(req, res) {
   const killed = newHp <= 0;
 
   if (killed) {
+    const dropPos = findSafeDropPosition(courier.current_lat, courier.current_lng, gameState);
     const { data: drop } = await supabase
       .from('courier_drops')
       .insert({
@@ -855,8 +851,8 @@ async function handleAttackCourier(req, res) {
         item_id: courier.item_id || null,
         core_id: _courierCoreId || null,
         listing_id: courier.listing_id,
-        lat: courier.current_lat,
-        lng: courier.current_lng,
+        lat: dropPos.lat,
+        lng: dropPos.lng,
         drop_type: 'loot',
         expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
       })
@@ -871,7 +867,7 @@ async function handleAttackCourier(req, res) {
     if (gameState.loaded) {
       const gc = gameState.getCourierById(courier_id);
       if (gc) { gc.status = 'killed'; gc.hp = 0; gameState.markDirty('couriers', gc.id); }
-      if (drop) gameState.upsertDrop({ ...drop, courier_id: courier.id, item_id: courier.item_id, core_id: _courierCoreId, listing_id: courier.listing_id, lat: courier.current_lat, lng: courier.current_lng, drop_type: 'loot', picked_up: false });
+      if (drop) gameState.upsertDrop({ ...drop, courier_id: courier.id, item_id: courier.item_id, core_id: _courierCoreId, listing_id: courier.listing_id, lat: dropPos.lat, lng: dropPos.lng, drop_type: 'loot', picked_up: false });
     }
 
     // Item/core dropped — clear market flags
