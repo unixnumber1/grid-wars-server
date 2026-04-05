@@ -203,8 +203,8 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
 }
 
 // ── Violation Recording ──
-// Weights: threshold=10, so teleport needs 3 hits, fake_gps needs 3, speed needs 4
-const TYPE_WEIGHT = { teleport: 4, fake_gps: 4, speed: 3 };
+// Only fake_gps triggers auto-ban. Speed/teleport are logged + admin notified only.
+const TYPE_WEIGHT = { teleport: 0, fake_gps: 4, speed: 0 };
 
 function recordViolation(telegramId, violation) {
   const key = `spoof:${telegramId}`;
@@ -245,6 +245,9 @@ function recordViolation(telegramId, violation) {
 
   if (record.weightedScore >= VIOLATION_THRESHOLD && !record.banned) {
     autoBan(telegramId, record);
+  } else if (violation.type === 'teleport' || violation.type === 'speed') {
+    // Speed violations: notify admin for manual review, no auto-ban
+    notifyAdminWarning(telegramId, violation);
   }
 }
 
@@ -318,6 +321,21 @@ async function notifyAdmin(telegramId, record) {
   } catch (e) {
     console.error('[ANTISPOOF] notifyAdmin error:', e.message);
   }
+}
+
+async function notifyAdminWarning(telegramId, violation) {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return;
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость' };
+  const label = typeLabels[violation.type] || violation.type;
+  const message = `⚠️ GPS Подозрение (не бан)\n\n👤 ID: ${telegramId}\n${label}: ${violation.speed?.toFixed(0) || '?'} км/ч\n📏 ${violation.distance?.toFixed(2) || '?'} км\n\nВозможно глушилки. Автобан отключён для speed.`;
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: ADMIN_NOTIFY_ID, text: message }),
+    });
+  } catch (_) {}
 }
 
 // ── Public API ──
