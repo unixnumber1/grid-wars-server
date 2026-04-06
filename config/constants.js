@@ -21,6 +21,10 @@ export const MINE_DISK_K = 12;
 // ── Mine limits ──
 export const MINE_MAX_LEVEL = 200;
 export const HQ_MAX_LEVEL = 10;
+// Max mines per HQ level (index 0 = HQ lv1)
+export const HQ_MAX_MINES = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+// Max mine level per HQ level (index 0 = HQ lv1)
+export const HQ_MAX_MINE_LEVEL = [25, 50, 75, 100, 125, 150, 175, 200, 200, 200];
 
 // ── Weapon cooldowns (ms) ──
 export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 500 };
@@ -278,7 +282,7 @@ export const INVENTORY_MAX_SLOTS = 600;
 
 // ── Clan HQ upgrade costs ──
 export const CLAN_HQ_UPGRADE_COSTS = [0, 2000, 4000, 7000, 12000, 20000, 32000, 48000, 72000, 103000];
-export const CLAN_MAX_MEMBERS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+export const CLAN_MAX_MEMBERS = [20, 23, 27, 30, 33, 37, 40, 43, 47, 50];
 export const CLAN_BOOST_PRICES = [100, 300, 500, 700, 950, 1150, 1400, 1600, 1800, 2000];
 
 // ── Collector upgrade prices ──

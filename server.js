@@ -559,6 +559,17 @@ io.on('connection', (socket) => {
     });
     console.log('[socket] Player init:', verifiedTgId, 'db_id:', playerDbId, 'total:', connectedPlayers.size);
 
+    // Sync position to gameState immediately so distance checks work before first player:location
+    if (verifiedTgId && data.lat && data.lng) {
+      const p = gameState.getPlayerByTgId(verifiedTgId);
+      if (p) {
+        p.last_lat = data.lat;
+        p.last_lng = data.lng;
+        p.last_seen = new Date().toISOString();
+        gameState.markDirty('players', p.id);
+      }
+    }
+
     // Update player city cache for city-based spawning
     if (verifiedTgId && data.lat && data.lng) {
       import('./lib/geocity.js').then(({ updatePlayerCity }) => {
