@@ -6321,7 +6321,7 @@ const H3_DISK_K         = 12;
 // Badge definitions (keep in sync with config/badges.js)
 const BADGES = {
   pioneer: { id: 'pioneer', name: '🧭 Первопроходец', name_en: '🧭 Pioneer', emoji: '🧭', color: '#FFD700', desc: 'Один из первых игроков', desc_en: 'One of the first players' },
-  bughunter: { id: 'bughunter', name: '🪲 Охотник за багами', name_en: '🪲 Bug Hunter', emoji: '🪲', color: '#00E676', desc: 'Нашёл критический баг в игре', desc_en: 'Found a critical bug in the game' },
+  bughunter: { id: 'bughunter', name: '🪲 Охотник за багами', name_en: '🪲 Bug Hunter', emoji: '🪲', color: '#00E676', desc: '', desc_en: '' },
 };
 function badgeDesc(b) { return (state.player?.language === 'en' ? b.desc_en : b.desc) || b.desc; }
 function badgeName(b) { return (state.player?.language === 'en' ? b.name_en : b.name) || b.name; }

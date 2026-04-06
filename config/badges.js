@@ -19,8 +19,8 @@ export const BADGES = {
     name: 'Охотник за багами',
     name_en: 'Bug Hunter',
     emoji: '🪲',
-    description: 'Нашёл критический баг в игре',
-    description_en: 'Found a critical bug in the game',
+    description: '',
+    description_en: '',
     color: '#00E676',
     rarity: 'legendary',
     condition: () => false, // manual award only
