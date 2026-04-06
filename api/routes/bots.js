@@ -313,10 +313,8 @@ async function handleAttack(player, body) {
   const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
   if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
-  const { data: pFull, error: pErr } = await supabase
-    .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, equipped_sword, coins').eq('id', player.id).single();
-  if (pErr) return { status: 500, error: pErr.message };
-
+  // Use gameState for player stats (no DB query per attack)
+  const pFull = gsPlayer || player;
   const maxHp     = 1000 + (pFull.bonus_hp ?? 0);
   const playerAtk = 10 + (pFull.bonus_attack ?? 0);
   let   playerHp  = calcHpRegen(pFull.hp ?? maxHp, maxHp, pFull.last_hp_regen);
@@ -325,7 +323,7 @@ async function handleAttack(player, body) {
   // Player attacks bot — crit chance from equipped weapon
   let weaponCrit = 0;
   if (pFull.equipped_sword) {
-    const wpn = gameState.loaded ? gameState.getItemById(pFull.equipped_sword) : (await supabase.from('items').select('type, crit_chance').eq('id', pFull.equipped_sword).maybeSingle()).data;
+    const wpn = gameState.loaded ? gameState.getItemById(pFull.equipped_sword) : null;
     if (wpn?.type === 'sword') weaponCrit = wpn.crit_chance ?? 0;
   }
   const critChance = 0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0);
@@ -421,13 +419,14 @@ async function handleAttack(player, body) {
       result.player_coins = newCoins;
     }
 
-    await supabase.from('players').update({
-      hp: playerHp, max_hp: maxHp, last_hp_regen: new Date().toISOString(),
-      kills: (pFull.kills ?? 0) + 1,
-    }).eq('id', player.id);
+    // Update player stats in gameState (batch-persisted, no DB query per kill)
+    if (gameState.loaded) {
+      const gp = gameState.getPlayerById(player.id);
+      if (gp) { gp.hp = playerHp; gp.kills = (gp.kills ?? 0) + 1; gp.last_hp_regen = new Date().toISOString(); gameState.markDirty('players', gp.id); }
+    }
 
   } else {
-    await supabase.from('bots').update({ hp: botHpAfter }).eq('id', bot_id);
+    // Update bot HP in gameState only (batch-persisted every 30s)
     if (gameState.loaded) { const gb = gameState.bots.get(bot_id); if (gb) { gb.hp = botHpAfter; gameState.markDirty('bots', bot_id); } }
     result.botHp    = botHpAfter;
     result.botMaxHp = bot.max_hp ?? (botHpAfter + damage);
@@ -456,14 +455,18 @@ async function handleAttack(player, body) {
           shield_until: shieldUntil,
         }).eq('id', player.id);
       } else {
-        await supabase.from('players').update({
-          hp: playerHp, max_hp: maxHp, last_hp_regen: new Date().toISOString(),
-        }).eq('id', player.id);
+        // Counter damage — update HP in gameState (batch-persisted)
+        if (gameState.loaded) {
+          const gsP2 = gameState.getPlayerById(player.id);
+          if (gsP2) { gsP2.hp = playerHp; gsP2.last_hp_regen = new Date().toISOString(); gameState.markDirty('players', gsP2.id); }
+        }
       }
     } else {
-      await supabase.from('players').update({
-        hp: playerHp, max_hp: maxHp, last_hp_regen: new Date().toISOString(),
-      }).eq('id', player.id);
+      // No counter attack — update HP in gameState
+      if (gameState.loaded) {
+        const gsP2 = gameState.getPlayerById(player.id);
+        if (gsP2) { gsP2.hp = playerHp; gsP2.last_hp_regen = new Date().toISOString(); gameState.markDirty('players', gsP2.id); }
+      }
     }
   }
 
