@@ -204,8 +204,10 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
 }
 
 // ── Violation Recording ──
-// Only fake_gps triggers auto-ban. Speed/teleport are logged + admin notified only.
-const TYPE_WEIGHT = { teleport: 0, fake_gps: 4, speed: 0 };
+// All violation types contribute to auto-ban score.
+// teleport (>500km/h) = 2 pts, speed (>300km/h) = 1 pt, fake_gps = 4 pts.
+// Threshold = 15 → teleport: ~8 bans, speed: ~15 bans, fake_gps: ~4 bans.
+const TYPE_WEIGHT = { teleport: 2, fake_gps: 4, speed: 1 };
 
 function recordViolation(telegramId, violation) {
   const key = `spoof:${telegramId}`;
