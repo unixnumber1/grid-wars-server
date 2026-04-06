@@ -34,13 +34,14 @@ const playerHqPositions = new Map(); // telegram_id → { lat, lng } — cached 
 
 export function setPinMode(telegramId, active) {
   const now = Date.now();
-  if (active) {
-    pinModeState.set(telegramId, { active: true, graceUntil: now + PIN_GRACE_MS });
-    positionHistory.delete(telegramId);
-  } else {
-    pinModeState.set(telegramId, { active: false, graceUntil: now + PIN_GRACE_MS });
-    positionHistory.delete(telegramId);
+  pinModeState.set(telegramId, { active, graceUntil: now + PIN_GRACE_MS });
+  // Reset position history to single point (avoids speed violation from PIN teleport)
+  // but do NOT clear suspiciousActivity — violations must persist
+  const hq = playerHqPositions.get(telegramId);
+  if (hq) {
+    positionHistory.set(telegramId, [{ lat: hq.lat, lng: hq.lng, timestamp: now, accuracy: null }]);
   }
+  // gpsFingerprint is intentionally preserved across PIN toggles
 }
 
 function isPinModeActive(telegramId) {
@@ -81,7 +82,7 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
   const now = Date.now();
   const accuracy = gpsData.accuracy ?? null;
 
-  // PIN mode — distance check only
+  // PIN mode — distance check + GPS fingerprint (skip speed checks)
   if (isPinMode || isPinModeActive(telegramId)) {
     const history = positionHistory.get(telegramId) || [];
     if (history.length > 0) {
@@ -90,7 +91,36 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
       if (distanceKm > PIN_MAX_DISTANCE_KM) {
         return { valid: false, reason: 'pin_too_far', distance: distanceKm };
       }
+      // Still run GPS fingerprint check in PIN mode (detects fake GPS software)
+      const distance = distanceKm * 1000;
+      if (distance >= FINGERPRINT_MIN_MOVEMENT_M) {
+        const fp = gpsFingerprint.get(telegramId) || { nullCount: 0, totalMoving: 0, lastViolationAt: 0 };
+        fp.totalMoving++;
+        const altitude = gpsData.altitude ?? null;
+        const gpsSpeed = gpsData.gpsSpeed ?? null;
+        const heading = gpsData.heading ?? null;
+        if (altitude === null && gpsSpeed === null && heading === null) fp.nullCount++;
+        if (fp.totalMoving >= FINGERPRINT_MIN_UPDATES) {
+          const nullRatio = fp.nullCount / fp.totalMoving;
+          const speedKmh = (now - last.timestamp) > 0 ? (distanceKm / ((now - last.timestamp) / 1000)) * 3600 : 0;
+          if (nullRatio >= FINGERPRINT_NULL_RATIO && now - fp.lastViolationAt > 300000) {
+            fp.lastViolationAt = now;
+            recordViolation(telegramId, {
+              timestamp: now, speed: speedKmh, distance: distanceKm,
+              from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
+              type: 'fake_gps', nullRatio: nullRatio.toFixed(2),
+              nullCount: fp.nullCount, totalMoving: fp.totalMoving,
+            });
+          }
+        }
+        gpsFingerprint.set(telegramId, fp);
+      }
     }
+    // Update history for PIN mode too
+    const pinHistory = positionHistory.get(telegramId) || [];
+    pinHistory.push({ lat, lng, timestamp: now, ...gpsData });
+    if (pinHistory.length > POSITION_HISTORY_SIZE) pinHistory.shift();
+    positionHistory.set(telegramId, pinHistory);
     return { valid: true };
   }
 
