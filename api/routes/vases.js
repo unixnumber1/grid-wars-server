@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
+import { logPlayer } from '../../lib/logger.js';
 import { spawnVasesForCity } from '../../game/mechanics/vases.js';
 import { rollVaseItem } from '../../lib/items.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -91,6 +92,7 @@ async function handleBreak(req, res) {
     .eq('id', player.id).eq('diamonds', oldDiamonds)
     .select('id').maybeSingle();
   if (!diamOk) console.error('[vase] diamond update conflict for', player.id);
+  logPlayer(telegram_id, 'action', `Разбил вазу (+${vase.diamonds_reward}💎)`, { diamonds: vase.diamonds_reward });
 
   if (gameState.loaded) {
     const gp = gameState.getPlayerById(player.id);

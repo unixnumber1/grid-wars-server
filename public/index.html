@@ -12807,9 +12807,9 @@ async function apmRenderLogs(body) {
 
     const levelColors = { action:'#4caf50', error:'#f44336', ban:'#ff5252', spoof:'#ff9800', fraud:'#e91e63', login:'#2196f3', warn:'#ffab40' };
     let html = '<div class="apm-section" style="max-height:none;">';
-    logs.slice(0, 100).forEach(l => {
+    logs.slice(0, 200).forEach(l => {
       const color = levelColors[l.level] || '#888';
-      const time = l.time ? new Date(l.time).toLocaleString('ru-RU', {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}) : '';
+      const time = l.date && l.time ? `${l.date} ${l.time}` : (l.time || '');
       html += `<div class="apm-log-entry">
         <span class="apm-log-time">${time}</span>
         <span class="apm-log-level" style="background:${color}22;color:${color};">${l.level}</span>

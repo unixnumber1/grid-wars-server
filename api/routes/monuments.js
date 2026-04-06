@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
+import { logPlayer } from '../../lib/logger.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
@@ -135,6 +136,7 @@ async function handleStartRaid(req, res) {
   }
 
   logActivity(player.game_username, `started raid on monument lv${monument.level}`);
+  logPlayer(telegram_id, 'action', `Начал рейд на монумент lv${monument.level} "${monument.name}"`);
 
   const defenders = [...gameState.monumentDefenders.values()].filter(d => d.monument_id === monument.id && d.alive);
 
@@ -595,6 +597,7 @@ async function handleOpenLootBox(req, res) {
   try { xpResult = await addXp(player.id, getMonumentXp(box.monument_level)); } catch (_) {}
 
   logActivity(player.game_username, `opened monument loot box (lv${box.monument_level} ${box.box_type})`);
+  logPlayer(telegram_id, 'action', `Открыл лутбокс монумента lv${box.monument_level}`);
 
   return res.json({
     success: true,

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
+import { logPlayer } from '../../lib/logger.js';
 import { getCellId } from '../../lib/grid.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
@@ -99,6 +100,7 @@ async function handleBuild(req, res) {
 
   gameState.fireTrucks.set(inserted.id, inserted);
   logActivity(player.game_username, `built fire truck at ${tapLat.toFixed(4)},${tapLng.toFixed(4)}`);
+  logPlayer(telegram_id, 'action', 'Построил пожарную', { lat: tapLat, lng: tapLng });
 
   return res.json({ success: true, fire_truck: inserted, diamonds: newDiamonds });
 }
@@ -166,6 +168,7 @@ async function handleSell(req, res) {
   await supabase.from('fire_trucks').delete().eq('id', truck.id);
 
   logActivity(player.game_username, `sold fire truck lv${truck.level} (refund ${refund} diamonds)`);
+  logPlayer(telegram_id, 'action', `Продал пожарную lv${truck.level} (+${refund}💎)`, { refund });
   return res.json({ success: true, diamonds: newDiamonds, refund });
 }
 
@@ -272,6 +275,7 @@ async function handleHit(req, res) {
 
     try { await addXp(player.id, 100); } catch (_) {}
     logActivity(player.game_username, `burned fire truck lv${truck.level}`);
+    logPlayer(telegram_id, 'action', `Сжёг пожарную lv${truck.level}`);
   }
 
   return res.json({ damage, crit: isCrit, destroyed, hp: truck.hp, max_hp: truck.max_hp, status: truck.status });

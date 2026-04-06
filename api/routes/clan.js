@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification } from '../../lib/supabase.js';
 import { getClanLevel, CLAN_LEVELS, CLAN_HQ_COST, CLAN_LEAVE_COOLDOWN, ALLOWED_CLAN_COLORS } from '../../lib/clans.js';
+import { logPlayer } from '../../lib/logger.js';
 import { getCellId } from '../../lib/grid.js';
 import { cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
@@ -144,6 +145,7 @@ async function handleCreate(req, res) {
 
   const pName = gameState.loaded ? gameState.getPlayerById(player.id)?.game_username : null;
   logActivity(pName || 'player', `создал клан ${clan.name}`);
+  logPlayer(telegram_id, 'action', `Создал клан "${clan.name}"`);
 
   return res.status(201).json({ success: true, clan });
 }

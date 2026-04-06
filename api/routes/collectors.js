@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
+import { logPlayer } from '../../lib/logger.js';
 import { getCellId, getCellCenter } from '../../lib/grid.js';
 import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
@@ -119,6 +120,7 @@ async function handleBuild(req, res) {
 
   gameState.collectors.set(inserted.id, inserted);
   logActivity(player.game_username, `built collector at ${tapLat.toFixed(4)},${tapLng.toFixed(4)}`);
+  logPlayer(telegram_id, 'action', 'Построил сборщик', { lat: tapLat, lng: tapLng });
 
   return res.json({ success: true, collector: inserted, diamonds: newDiamonds, mines_in_range: nearbyMines.length });
 }
@@ -399,6 +401,7 @@ async function handleHit(req, res) {
     try { await addXp(player.id, 100); } catch (_) {}
 
     logActivity(player.game_username, `burned collector (stole ${stolenCoins} coins)`);
+    logPlayer(telegram_id, 'action', `Сжёг сборщик (+${stolenCoins} монет)`, { stolenCoins });
   }
 
   return res.json({ damage, crit: isCrit, destroyed, stolen_coins: stolenCoins, hp: collector.hp, max_hp: collector.max_hp, status: collector.status });

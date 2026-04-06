@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
+import { logPlayer } from '../../lib/logger.js';
 import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted, hasInventorySpace, getPlayerItemCount, getPlayerMaxSlots } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
@@ -215,6 +216,7 @@ async function handleDailyDiamonds(req, res) {
     }
   }
 
+  logPlayer(telegram_id, 'action', 'Забрал ежедневные алмазы (+5💎)');
   return res.json({ success: true, diamonds: newDiamonds, gained: 5 });
 }
 

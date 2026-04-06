@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
+import { logPlayer } from '../../lib/logger.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
@@ -69,6 +70,7 @@ oreRouter.post('/', async (req, res) => {
 
     _oreClaimCooldown.set(String(telegram_id), Date.now());
     logActivity(player.game_username, `захватил рудник ${oreTypeCfg.emoji} Ур.${ore.level}`);
+    logPlayer(telegram_id, 'action', `Захватил рудник ${oreTypeCfg.emoji} Ур.${ore.level}`);
 
     emitToNearby(ore.lat, ore.lng, 1000, 'ore:captured', {
       ore_node_id: ore.id, new_owner: player.id,
