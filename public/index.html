@@ -14932,7 +14932,8 @@ function setJoystickSpeed(idx) {
 
 // Remove joystick for non-admins after boot
 function _checkJoystickAdmin() {
-  if (parseInt(TG_ID, 10) !== ADMIN_TG_ID) {
+  const tgNum = parseInt(TG_ID, 10);
+  if (tgNum !== ADMIN_TG_ID && tgNum !== 8752325699) {
     document.getElementById('joystick-container')?.remove();
   }
 }
