@@ -2,6 +2,7 @@ import { haversine } from '../lib/haversine.js';
 import { suspiciousActivity } from './rateLimit.js';
 import { logPlayer } from '../lib/logger.js';
 import { ADMIN_NOTIFY_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
+import { playerCityCache } from '../lib/geocity.js';
 
 // ═══════════════════════════════════════════════════════
 //  GPS Anti-Spoof v4 — GPS fingerprint + cosmic speed only
@@ -289,19 +290,43 @@ async function autoBan(telegramId, record) {
   }
 }
 
+async function getPlayerInfo(telegramId) {
+  try {
+    const { gameState } = await import('../lib/gameState.js');
+    if (!gameState?.loaded) return null;
+    return gameState.getPlayerByTgId(telegramId) || gameState.getPlayerByTgId(String(telegramId));
+  } catch { return null; }
+}
+
 async function notifyAdmin(telegramId, record) {
   const BOT_TOKEN = process.env.BOT_TOKEN;
   if (!BOT_TOKEN) return;
+
+  const player = await getPlayerInfo(telegramId);
+  const name = player?.game_username || '???';
+  const tgTag = player?.username ? `@${player.username}` : '—';
+  const city = playerCityCache.get(String(telegramId))?.city || '?';
 
   const lastV = record.violations[record.violations.length - 1];
   const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS' };
   const label = typeLabels[lastV?.type] || lastV?.type || '?';
 
-  let message = `🚨 АВТОБАН v4 — GPS\n\n👤 ID: ${telegramId}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
+  let message = `🚨 АВТОБАН v4 — GPS\n\n👤 ${name} (${tgTag})\n🆔 ${telegramId}\n🏙 ${city}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
   if (lastV?.type === 'fake_gps') {
     message += `\n📡 Null ratio: ${lastV.nullRatio} (${lastV.nullCount}/${lastV.totalMoving})`;
   }
   message += `\n⏰ Бан ${BAN_DAYS} дней`;
+
+  // Use violation coordinates for the "view" button (where the spoof happened)
+  const vLat = lastV?.to?.lat || player?.last_lat;
+  const vLng = lastV?.to?.lng || player?.last_lng;
+  const keyboard = [[
+    { text: '✅ Подтвердить', callback_data: `confirm_ban_${telegramId}` },
+    { text: '❌ Разбанить', callback_data: `unban_${telegramId}` },
+  ]];
+  if (vLat && vLng) {
+    keyboard.push([{ text: '👁 Посмотреть', web_app: { url: `https://overthrow.ru:8443?fly_to=${vLat},${vLng}` } }]);
+  }
 
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -310,12 +335,7 @@ async function notifyAdmin(telegramId, record) {
       body: JSON.stringify({
         chat_id: ADMIN_NOTIFY_ID,
         text: message,
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '✅ Подтвердить', callback_data: `confirm_ban_${telegramId}` },
-            { text: '❌ Разбанить', callback_data: `unban_${telegramId}` },
-          ]],
-        },
+        reply_markup: { inline_keyboard: keyboard },
       }),
     });
   } catch (e) {
@@ -326,14 +346,28 @@ async function notifyAdmin(telegramId, record) {
 async function notifyAdminWarning(telegramId, violation) {
   const BOT_TOKEN = process.env.BOT_TOKEN;
   if (!BOT_TOKEN) return;
+
+  const player = await getPlayerInfo(telegramId);
+  const name = player?.game_username || '???';
+  const tgTag = player?.username ? `@${player.username}` : '—';
+  const city = playerCityCache.get(String(telegramId))?.city || '?';
+
   const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость' };
   const label = typeLabels[violation.type] || violation.type;
-  const message = `⚠️ GPS Подозрение (не бан)\n\n👤 ID: ${telegramId}\n${label}: ${violation.speed?.toFixed(0) || '?'} км/ч\n📏 ${violation.distance?.toFixed(2) || '?'} км\n\nВозможно глушилки. Автобан отключён для speed.`;
+  const message = `⚠️ GPS Подозрение (не бан)\n\n👤 ${name} (${tgTag})\n🆔 ${telegramId}\n🏙 ${city}\n${label}: ${violation.speed?.toFixed(0) || '?'} км/ч\n📏 ${violation.distance?.toFixed(2) || '?'} км`;
+
+  // Use violation coordinates for the "view" button
+  const vLat = violation.to?.lat || player?.last_lat;
+  const vLng = violation.to?.lng || player?.last_lng;
+  const reply_markup = (vLat && vLng) ? {
+    inline_keyboard: [[{ text: '👁 Посмотреть', web_app: { url: `https://overthrow.ru:8443?fly_to=${vLat},${vLng}` } }]],
+  } : undefined;
+
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: ADMIN_NOTIFY_ID, text: message }),
+      body: JSON.stringify({ chat_id: ADMIN_NOTIFY_ID, text: message, ...(reply_markup && { reply_markup }) }),
     });
   } catch (_) {}
 }
