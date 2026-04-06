@@ -205,8 +205,15 @@ app.post('/api/telegram-webhook', async (req, res) => {
       if (startParam && startParam.startsWith('ref_') && fromId) {
         const referrerId = parseInt(startParam.replace('ref_', ''), 10);
         if (referrerId && referrerId !== fromId) {
-          pendingReferrals.set(fromId, referrerId);
-          console.log(`[referral] Pending: ${fromId} referred by ${referrerId}`);
+          // Validate: referrer must exist as a player, referred must NOT exist yet
+          const referrerExists = gameState.loaded && gameState.getPlayerByTgId(referrerId);
+          const referredExists = gameState.loaded && gameState.getPlayerByTgId(fromId);
+          if (referrerExists && !referredExists) {
+            pendingReferrals.set(fromId, referrerId);
+            console.log(`[referral] Pending: ${fromId} referred by ${referrerId}`);
+          } else {
+            console.log(`[referral] Rejected: referrer=${referrerId} exists=${!!referrerExists}, referred=${fromId} exists=${!!referredExists}`);
+          }
         }
       }
 

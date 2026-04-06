@@ -641,20 +641,27 @@ playerRouter.post('/init', async (req, res) => {
     if (referrerId) {
       pendingReferrals.delete(Number(tgId));
       try {
-        const REFERRAL_REWARD = 50;
-        // Give invitee 50 diamonds immediately
-        const newDiamonds = (player.diamonds ?? 0) + REFERRAL_REWARD;
-        await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
-        player.diamonds = newDiamonds;
-        if (gameState.loaded) {
-          const p = gameState.getPlayerById(player.id);
-          if (p) { p.diamonds = newDiamonds; gameState.markDirty('players', p.id); }
+        // Double-check: referrer must exist, and no existing referral for this player
+        const referrerPlayer = gameState.loaded ? gameState.getPlayerByTgId(referrerId) : null;
+        const { data: existingRef } = await supabase.from('referrals').select('id').eq('referred_id', Number(tgId)).maybeSingle();
+        if (!referrerPlayer || existingRef) {
+          console.log(`[referral] Skipped: referrer=${referrerId} exists=${!!referrerPlayer}, already_referred=${!!existingRef}`);
+        } else {
+          const REFERRAL_REWARD = 50;
+          // Give invitee 50 diamonds immediately
+          const newDiamonds = (player.diamonds ?? 0) + REFERRAL_REWARD;
+          await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+          player.diamonds = newDiamonds;
+          if (gameState.loaded) {
+            const p = gameState.getPlayerById(player.id);
+            if (p) { p.diamonds = newDiamonds; gameState.markDirty('players', p.id); }
+          }
+          // Insert referral record — invitee already rewarded, inviter pending level 5
+          await supabase.from('referrals')
+            .insert({ referrer_id: referrerId, referred_id: Number(tgId), referrer_rewarded: false, referred_rewarded: true })
+            .select('id').maybeSingle();
+          console.log(`[referral] ${tgId} referred by ${referrerId} — invitee got ${REFERRAL_REWARD}💎, inviter pending lv5`);
         }
-        // Insert referral record — invitee already rewarded, inviter pending level 5
-        await supabase.from('referrals')
-          .insert({ referrer_id: referrerId, referred_id: Number(tgId), referrer_rewarded: false, referred_rewarded: true })
-          .select('id').maybeSingle();
-        console.log(`[referral] ${tgId} referred by ${referrerId} — invitee got ${REFERRAL_REWARD}💎, inviter pending lv5`);
       } catch (refErr) {
         if (!refErr.message?.includes('unique') && !refErr.message?.includes('duplicate')) {
           console.error('[referral] error:', refErr.message);
