@@ -465,7 +465,7 @@ async function handleTick(req, res) {
   } catch (_) {}
 
   const _t3 = Date.now();
-  // ── 7. Player mines + inventory (for income calc + UI) ─
+  // ── 7. Player mines + inventory (with 10s cache for expensive computations) ─
   let playerMines = [];
   let inventory = [];
   let totalIncome = 0;
@@ -474,9 +474,28 @@ async function handleTick(req, res) {
   let perMineBoost = new Map();
   const _skillRow = gameState.loaded ? gameState.getPlayerSkills(player.telegram_id) : null;
   const _skillFx = _skillRow ? getPlayerSkillEffects(_skillRow) : null;
+
+  // Cache key: player ID + mine count + total levels (invalidates on build/upgrade/destroy)
+  const _mineCache = mapRouter._mineCache || (mapRouter._mineCache = new Map());
+  const _rawMines = gameState.loaded ? gameState.getPlayerMines(currentPlayerId) : null;
+  const _mcHash = _rawMines ? _rawMines.length + '_' + _rawMines.reduce((s, m) => s + m.level, 0) : null;
+  const _mcCached = _mineCache.get(currentPlayerId);
+
   try {
-    if (gameState.loaded) {
-      playerMines = gameState.getPlayerMines(currentPlayerId).map(m => {
+    if (gameState.loaded && _mcCached && Date.now() - _mcCached.t < 10000 && _mcCached.h === _mcHash) {
+      // Cache hit — use cached mines with fresh HP regen only
+      playerMines = _mcCached.mines.map(cm => {
+        const gm = gameState.mines.get(cm.id);
+        const rawHp = gm ? Math.min(gm.hp ?? cm.max_hp, cm.max_hp) : cm.hp;
+        const canRegen = !cm.status || cm.status === 'normal' || cm.status === 'under_attack';
+        return { ...cm, hp: canRegen ? calcMineHpRegen(rawHp, cm.max_hp, cm.hp_regen, gm?.last_hp_update || cm.last_hp_update) : rawHp, status: gm?.status || cm.status };
+      });
+      totalIncome = _mcCached.totalIncome;
+      mineCountBoost = _mcCached.mineCountBoost;
+      _clanBoost = _mcCached.clanBoost;
+      inventory = gameState.getPlayerItems(currentPlayerId).map(i => ({ ...i, equipped: !!i.equipped, on_market: !!i.on_market }));
+    } else if (gameState.loaded) {
+      playerMines = _rawMines.map(m => {
         const cores = m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
         const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
@@ -529,23 +548,8 @@ async function handleTick(req, res) {
       inventory = inv || [];
     }
 
-    // ── Income calculation with 10s cache (O(N²) haversine is too expensive per tick) ──
-    const _incCache = mapRouter._incomeCache || (mapRouter._incomeCache = new Map());
-    const _incKey = currentPlayerId;
-    const _incCached = _incCache.get(_incKey);
-    const _mineCount = playerMines.length;
-    const _mineHash = _mineCount + '_' + playerMines.reduce((s, m) => s + m.level, 0); // invalidate on build/upgrade
-
-    if (_incCached && Date.now() - _incCached.t < 10000 && _incCached.h === _mineHash) {
-      // Use cached boost + income
-      totalIncome = _incCached.totalIncome;
-      mineCountBoost = _incCached.mineCountBoost;
-      _clanBoost = _incCached.clanBoost;
-      for (const m of playerMines) {
-        m.income = _incCached.incomes[m.id] || getMineIncome(m.level);
-      }
-    } else {
-      // Full recalculation
+    // ── Income calculation (O(N²) boost + per-mine income) ──
+    {
       const R_DEG = MINE_BOOST_RADIUS / 111320;
       let maxBoost = 1;
       for (const m of playerMines) {
@@ -601,10 +605,8 @@ async function handleTick(req, res) {
         totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
       }
 
-      // Cache result
-      const incomes = {};
-      for (const m of playerMines) incomes[m.id] = m.income;
-      _incCache.set(_incKey, { t: Date.now(), h: _mineHash, totalIncome, mineCountBoost, clanBoost: _clanBoost, incomes });
+      // Cache full result (mines + income + boosts)
+      _mineCache.set(currentPlayerId, { t: Date.now(), h: _mcHash, mines: playerMines, totalIncome, mineCountBoost, clanBoost: _clanBoost });
     }
   } catch (mineErr) { console.error('[map] mines/boost error:', mineErr.message); }
 
