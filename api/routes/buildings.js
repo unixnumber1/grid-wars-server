@@ -764,8 +764,8 @@ async function handleMineHit(req, res) {
   }
 
   // Emit projectile to nearby sockets (1km)
-  emitToNearbyPlayers(pLat, pLng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+  emitToNearbyPlayers(player.last_lat, player.last_lng, 1000, 'projectile', {
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: mine.lat, to_lng: mine.lng,
     damage, crit: isCrit, execution: isExecution,
     target_type: 'mine',

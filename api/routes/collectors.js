@@ -334,7 +334,7 @@ async function handleHit(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: collector.lat, to_lng: collector.lng,
     damage, crit: isCrit,
     target_type: 'collector', target_id: collector.id,

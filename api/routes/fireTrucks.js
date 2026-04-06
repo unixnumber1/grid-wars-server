@@ -223,7 +223,7 @@ async function handleHit(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(truck.lat, truck.lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: truck.lat, to_lng: truck.lng,
     damage, crit: isCrit,
     target_type: 'fire_truck', target_id: truck.id,
@@ -433,8 +433,8 @@ async function handleHitFirefighter(req, res) {
   const lang = getLang(gameState, telegram_id);
   if (ff.owner_id === player.id) return res.status(400).json({ error: ts(lang, 'err.cant_attack_own') });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, ff.current_lat, ff.current_lng);
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, ff.current_lat, ff.current_lng);
   if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
   // Weapon cooldown
@@ -471,7 +471,7 @@ async function handleHitFirefighter(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(ff.current_lat, ff.current_lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: ff.current_lat, to_lng: ff.current_lng,
     damage, crit: isCrit,
     target_type: 'firefighter', target_id: ff.id,

@@ -315,8 +315,10 @@ async function handlePvpAttack(req, res) {
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
   recordAttack(telegram_id, now);
 
-  // Distance check
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
+  // Distance check — use server-side attacker position
+  const gsAtk = gameState.getPlayerByTgId(Number(telegram_id));
+  const pLat = gsAtk?.last_lat, pLng = gsAtk?.last_lng;
+  if (!pLat || !pLng) return res.status(400).json({ error: 'Position unknown' });
   const defLat = defender.last_lat, defLng = defender.last_lng;
   if (!defLat || !defLng) return res.status(400).json({ error: 'Defender position unknown' });
   const dist = haversine(pLat, pLng, defLat, defLng);

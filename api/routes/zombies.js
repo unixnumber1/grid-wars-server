@@ -122,7 +122,7 @@ async function handleAttack(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(zombie.lat, zombie.lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: zombie.lat, to_lng: zombie.lng,
     damage, crit: isCrit,
     target_type: 'zombie', target_id: zombie.id,

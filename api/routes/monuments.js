@@ -211,7 +211,7 @@ async function handleAttackShield(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(monument.lat, monument.lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: monument.lat, to_lng: monument.lng,
     damage, crit: isCrit,
     target_type: 'monument_shield', target_id: monument.id,
@@ -323,8 +323,8 @@ async function handleAttackMonument(req, res) {
   // Aggro all defenders toward attacker regardless of distance
   if (defendersAlive) {
     for (const d of aliveDefenders) {
-      d._target_lat = pLat;
-      d._target_lng = pLng;
+      d._target_lat = player.last_lat;
+      d._target_lng = player.last_lng;
       d._target_player_id = telegram_id;
     }
     damage = 0;
@@ -346,7 +346,7 @@ async function handleAttackMonument(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(monument.lat, monument.lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: monument.lat, to_lng: monument.lng,
     damage, crit: isCrit, execution: isExecution,
     target_type: 'monument', target_id: monument.id,
@@ -455,7 +455,7 @@ async function handleAttackDefender(req, res) {
 
   // Emit projectile
   emitToNearbyPlayers(defender.lat, defender.lng, 1000, 'projectile', {
-    from_lat: pLat, from_lng: pLng,
+    from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: defender.lat, to_lng: defender.lng,
     damage, crit: isCrit,
     target_type: 'defender', target_id: defender.id,

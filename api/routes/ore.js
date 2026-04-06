@@ -227,8 +227,8 @@ oreRouter.post('/', async (req, res) => {
     }
 
     // Emit projectile
-    emitToNearby(pLat, pLng, 1000, 'projectile', {
-      from_lat: pLat, from_lng: pLng,
+    emitToNearby(player.last_lat, player.last_lng, 1000, 'projectile', {
+      from_lat: player.last_lat, from_lng: player.last_lng,
       to_lat: ore.lat, to_lng: ore.lng,
       damage, crit: isCrit, execution: isExecution,
       target_type: 'ore',
