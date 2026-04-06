@@ -184,8 +184,8 @@ async function handleHit(req, res) {
   if (truck.owner_id === player.id) return res.status(400).json({ error: ts(lang, 'err.cant_attack_own') });
   if (truck.hp <= 0 || truck.status === 'burning') return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, truck.lat, truck.lng);
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, truck.lat, truck.lng);
   const _skFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_skFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 

@@ -296,8 +296,8 @@ async function handleHit(req, res) {
   if (collector.hp <= 0 || collector.status === 'burning') return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
 
   const _cSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, collector.lat, collector.lng);
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, collector.lat, collector.lng);
   if (dist > LARGE_RADIUS + (_cSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
   // Weapon cooldown

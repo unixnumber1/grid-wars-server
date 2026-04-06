@@ -825,7 +825,10 @@ async function handleAttackCourier(req, res) {
   if (courier.status !== 'moving') return res.status(400).json({ error: 'Courier not moving' });
   if (courier.owner_id === player.id) return res.status(400).json({ error: 'Cannot attack your own courier' });
 
-  const dist = haversine(pLat, pLng, courier.current_lat, courier.current_lng);
+  // Use server-side position for distance check
+  const gsAttacker = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsAttacker?.last_lat || !gsAttacker?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(gsAttacker.last_lat, gsAttacker.last_lng, courier.current_lat, courier.current_lng);
   const _mktFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_mktFx.radius_bonus || 0)) {
     return res.status(400).json({ error: 'Too far from courier', distance: Math.round(dist) });

@@ -106,8 +106,9 @@ async function handleStartRaid(req, res) {
   const monument = gameState.monuments.get(monument_id);
   if (!monument) return res.status(404).json({ error: 'Monument not found' });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, monument.lat, monument.lng);
+  const gsP = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsP?.last_lat || !gsP?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(gsP.last_lat, gsP.last_lng, monument.lat, monument.lng);
   const _monRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > MONUMENT_ATTACK_RADIUS + (_monRadFx.attack_radius_bonus || 0))
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
@@ -161,8 +162,8 @@ async function handleAttackShield(req, res) {
   const lang = getLang(gameState, telegram_id);
   if (player.is_dead) return res.status(400).json({ error: ts(lang, 'err.dead') });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, monument.lat, monument.lng);
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, monument.lat, monument.lng);
   if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
 
   // Weapon cooldown
@@ -273,8 +274,8 @@ async function handleAttackMonument(req, res) {
   if (!player) return res.status(404).json({ error: 'Player not found' });
   if (player.is_dead) return res.status(400).json({ error: ts(lang2, 'err.dead') });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, monument.lat, monument.lng);
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, monument.lat, monument.lng);
   if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang2, 'err.too_far_short') });
 
   // Weapon cooldown
@@ -413,8 +414,8 @@ async function handleAttackDefender(req, res) {
   const lang3 = getLang(gameState, telegram_id);
   if (player.is_dead) return res.status(400).json({ error: ts(lang3, 'err.dead') });
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, defender.lat, defender.lng);
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, defender.lat, defender.lng);
   if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang3, 'err.too_far_short') });
 
   // Weapon cooldown

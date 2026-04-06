@@ -324,7 +324,10 @@ async function handleAttackStart(req, res) {
   if (mine.owner_id === player.id) return res.status(400).json({ error: 'Нельзя атаковать свою шахту' });
   if (mine.status !== 'normal') return res.status(400).json({ error: 'Шахта уже атакована' });
   if (mine.level < 0) return res.status(400).json({ error: 'Шахта неактивна' });
-  const dist = haversine(lat, lng, mine.lat, mine.lng);
+  // Use server-side position (antispoof-validated) instead of client-supplied lat/lng
+  const gsAttacker = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsAttacker?.last_lat || !gsAttacker?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(gsAttacker.last_lat, gsAttacker.last_lng, mine.lat, mine.lng);
   const _hSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const _effLarge = LARGE_RADIUS + (_hSkFx.attack_radius_bonus || 0);
   if (dist > _effLarge) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
@@ -621,9 +624,9 @@ async function handleMineHit(req, res) {
     return res.status(400).json({ error: 'Шахта недоступна для атаки' });
   if (mine.level < 0) return res.status(400).json({ error: 'Шахта неактивна' });
 
-  // Distance check
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, mine.lat, mine.lng);
+  // Distance check — use server-side position (antispoof-validated)
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, mine.lat, mine.lng);
   const _hitFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_hitFx.attack_radius_bonus || 0)) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
 

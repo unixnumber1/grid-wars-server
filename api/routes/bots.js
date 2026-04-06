@@ -293,7 +293,10 @@ async function handleAttack(player, body) {
   const bot = gsBot || (await supabase.from('bots').select('id,type,category,lat,lng,hp,max_hp,attack,speed,size,emoji,drain_per_sec,reward_min,reward_max,status,drained_amount').eq('id', bot_id).maybeSingle()).data;
   if (!bot) return { status: 404, error: 'Bot not found' };
 
-  const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
+  // Use server-side position for distance check
+  const gsPlayer = gameState.getPlayerByTgId(Number(body.telegram_id));
+  if (!gsPlayer?.last_lat || !gsPlayer?.last_lng) return { status: 400, error: 'Position unknown' };
+  const dist = haversine(gsPlayer.last_lat, gsPlayer.last_lng, bot.lat, bot.lng);
   const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
   if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
@@ -453,7 +456,10 @@ async function handleRepel(player, body) {
   if (!bot)  return { status: 404, error: 'Bot not found' };
   if (bot.category !== 'undead') return { status: 400, error: 'Can only repel undead' };
 
-  const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
+  // Use server-side position for distance check
+  const gsPlayer = gameState.getPlayerByTgId(Number(body.telegram_id));
+  if (!gsPlayer?.last_lat || !gsPlayer?.last_lng) return { status: 400, error: 'Position unknown' };
+  const dist = haversine(gsPlayer.last_lat, gsPlayer.last_lng, bot.lat, bot.lng);
   const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
   if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
@@ -476,7 +482,10 @@ async function handleLure(player, body) {
   if (!bot)  return { status: 404, error: 'Bot not found' };
   if (bot.category !== 'neutral') return { status: 400, error: 'Can only lure neutral bots' };
 
-  const dist = haversine(parseFloat(lat), parseFloat(lng), bot.lat, bot.lng);
+  // Use server-side position for distance check
+  const gsPlayer = gameState.getPlayerByTgId(Number(body.telegram_id));
+  if (!gsPlayer?.last_lat || !gsPlayer?.last_lng) return { status: 400, error: 'Position unknown' };
+  const dist = haversine(gsPlayer.last_lat, gsPlayer.last_lng, bot.lat, bot.lng);
   const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
   if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 

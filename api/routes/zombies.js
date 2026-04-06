@@ -78,9 +78,9 @@ async function handleAttack(req, res) {
   if (!horde || horde.player_id !== Number(telegram_id))
     return res.status(403).json({ error: 'Not your horde' });
 
-  // Distance check
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, zombie.lat, zombie.lng);
+  // Distance check — use server-side position
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, zombie.lat, zombie.lng);
   const _zRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_zRadFx.attack_radius_bonus || 0)) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
 

@@ -47,8 +47,8 @@ oreRouter.post('/', async (req, res) => {
     if (ore.owner_id) return res.status(400).json({ error: ts(lang, 'err.ore_occupied') });
     if ((ore.hp ?? ore.max_hp) > 0) return res.status(400).json({ error: ts(lang, 'err.ore_not_broken') });
 
-    const pLat = parseFloat(lat), pLng = parseFloat(lng);
-    const dist = haversine(pLat, pLng, ore.lat, ore.lng);
+    if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+    const dist = haversine(player.last_lat, player.last_lng, ore.lat, ore.lng);
     if (dist > ORE_CAPTURE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_closer', { radius: ORE_CAPTURE_RADIUS }) });
 
     // Dual currency types always produce both — currency choice only for single-currency types
@@ -136,8 +136,8 @@ oreRouter.post('/', async (req, res) => {
     if ((ore.hp || 0) <= 0) return res.status(400).json({ error: ts(hitLang, 'err.ore_already_broken') });
 
     const _oSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
-    const pLat = parseFloat(lat), pLng = parseFloat(lng);
-    const dist = haversine(pLat, pLng, ore.lat, ore.lng);
+    if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+    const dist = haversine(player.last_lat, player.last_lng, ore.lat, ore.lng);
     if (dist > LARGE_RADIUS + (_oSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(hitLang, 'err.too_far_short') });
 
     // Rate limit by weapon CD

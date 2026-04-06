@@ -189,8 +189,10 @@ async function handlePvpInitiate(req, res) {
   if (aErr || !attacker) return res.status(404).json({ error: 'Attacker not found' });
   const { player: defender, error: dErr } = await getPlayerByTelegramId(defender_telegram_id, 'id,telegram_id,game_username,avatar,level,xp,coins,bonus_attack,bonus_hp,bonus_crit,equipped_sword,shield_until,last_lat,last_lng');
   if (dErr || !defender) return res.status(404).json({ error: 'Defender not found' });
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  const dist = haversine(pLat, pLng, defender.last_lat, defender.last_lng);
+  // Use server-side attacker position for distance check
+  const gsAttacker = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsAttacker?.last_lat || !gsAttacker?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(gsAttacker.last_lat, gsAttacker.last_lng, defender.last_lat, defender.last_lng);
   const _pvpFx1 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_pvpFx1.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short'), distance: Math.round(dist) });
   if (defender.shield_until && new Date(defender.shield_until) > new Date()) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.player_shielded'), shield_until: defender.shield_until });
