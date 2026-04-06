@@ -46,14 +46,17 @@ async function handleEquip(player, body) {
   const isWeapon = item.type === 'sword' || item.type === 'axe';
   if (isWeapon) {
     // Unequip any weapon (sword or axe)
-    await supabase.from('items').update({ equipped: false })
+    const { error: unequipErr } = await supabase.from('items').update({ equipped: false })
       .eq('owner_id', player.id).in('type', ['sword', 'axe']);
+    if (unequipErr) return { status: 500, error: 'Failed to unequip weapons' };
   } else {
     // Unequip same type (shield)
-    await supabase.from('items').update({ equipped: false })
+    const { error: unequipErr } = await supabase.from('items').update({ equipped: false })
       .eq('owner_id', player.id).eq('type', item.type);
+    if (unequipErr) return { status: 500, error: 'Failed to unequip shield' };
   }
-  await supabase.from('items').update({ equipped: true }).eq('id', item_id);
+  const { error: equipErr } = await supabase.from('items').update({ equipped: true }).eq('id', item_id);
+  if (equipErr) return { status: 500, error: 'Failed to equip item' };
 
   const bonuses = await recalcBonuses(player.id, player.level ?? 1);
   const update  = { ...bonuses };

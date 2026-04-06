@@ -160,6 +160,8 @@ class GameState {
     for (const b of (bots || []))          this.bots.set(b.id, b);
     for (const v of (vases || []))         this.vases.set(v.id, v);
     for (const i of (items || []))         this.items.set(i.id, i);
+    // Dedup equipped items: only 1 weapon (sword/axe) and 1 shield per player
+    this._dedupEquippedItems();
     for (const m of (markets || []))       this.markets.set(m.id, m);
     for (const l of (listings || []))      this.marketListings.set(l.id, l);
     for (const c of (couriers || []))      this.couriers.set(c.id, c);
@@ -340,6 +342,38 @@ class GameState {
 
   getEquippedItems(ownerId) {
     return this.getItemsByOwner(ownerId).filter(i => i.equipped);
+  }
+
+  // Fix DB corruption: ensure at most 1 weapon + 1 shield equipped per player
+  _dedupEquippedItems() {
+    // Group equipped items by owner
+    const byOwner = new Map();
+    for (const item of this.items.values()) {
+      if (!item.equipped) continue;
+      if (!byOwner.has(item.owner_id)) byOwner.set(item.owner_id, []);
+      byOwner.get(item.owner_id).push(item);
+    }
+    for (const [ownerId, equipped] of byOwner) {
+      const weapons = equipped.filter(i => i.type === 'sword' || i.type === 'axe');
+      const shields = equipped.filter(i => i.type === 'shield');
+      if (weapons.length > 1) {
+        // Keep the one with highest attack, unequip rest
+        weapons.sort((a, b) => (b.attack || 0) - (a.attack || 0));
+        for (let i = 1; i < weapons.length; i++) {
+          weapons[i].equipped = false;
+          this.markDirty('items', weapons[i].id);
+        }
+        console.log(`[dedup] Player ${ownerId}: unequipped ${weapons.length - 1} extra weapons`);
+      }
+      if (shields.length > 1) {
+        shields.sort((a, b) => (b.defense || 0) - (a.defense || 0));
+        for (let i = 1; i < shields.length; i++) {
+          shields[i].equipped = false;
+          this.markDirty('items', shields[i].id);
+        }
+        console.log(`[dedup] Player ${ownerId}: unequipped ${shields.length - 1} extra shields`);
+      }
+    }
   }
 
   // Update bestMineLevel cache on mine change
