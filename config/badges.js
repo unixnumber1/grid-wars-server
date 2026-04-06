@@ -14,6 +14,17 @@ export const BADGES = {
     rarity: 'legendary',
     condition: (player) => player.created_at && new Date(player.created_at) < new Date('2026-04-01T00:00:00Z'),
   },
+  bughunter: {
+    id: 'bughunter',
+    name: 'Охотник за багами',
+    name_en: 'Bug Hunter',
+    emoji: '🪲',
+    description: 'Нашёл критический баг в игре',
+    description_en: 'Found a critical bug in the game',
+    color: '#00E676',
+    rarity: 'legendary',
+    condition: () => false, // manual award only
+  },
 };
 
 /**
