@@ -291,11 +291,10 @@ async function handleLeave(req, res) {
 
   const nowISO = new Date().toISOString();
   const leavingClanId = player.clan_id;
-  await Promise.all([
-    supabase.from('clan_members').update({ left_at: nowISO }).eq('player_id', player.id).eq('clan_id', leavingClanId).is('left_at', null),
-    supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', player.id),
-    supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', player.id),
-  ]);
+  // Sequential to prevent orphaned state if one operation fails
+  await supabase.from('clan_members').update({ left_at: nowISO }).eq('player_id', player.id).eq('clan_id', leavingClanId).is('left_at', null);
+  await supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', player.id);
+  await supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', player.id);
 
   // Update gameState
   if (gameState.loaded) {
@@ -460,11 +459,10 @@ async function handleKick(req, res) {
 
   const nowISO = new Date().toISOString();
   const kickedClanId = player.clan_id;
-  await Promise.all([
-    supabase.from('clan_members').update({ left_at: nowISO }).eq('player_id', target.id).eq('clan_id', kickedClanId).is('left_at', null),
-    supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', target.id),
-    supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', target.id),
-  ]);
+  // Sequential to prevent orphaned state if one operation fails
+  await supabase.from('clan_members').update({ left_at: nowISO }).eq('player_id', target.id).eq('clan_id', kickedClanId).is('left_at', null);
+  await supabase.from('players').update({ clan_id: null, clan_role: null, clan_left_at: nowISO }).eq('id', target.id);
+  await supabase.from('clan_headquarters').update({ clan_id: null }).eq('player_id', target.id);
   const kickedLang = gameState.getPlayerById(target.id)?.language || 'en';
   const kickNotif = { id: globalThis.crypto.randomUUID(), player_id: target.id, type: 'clan_kick', message: ts(kickedLang, 'notif.clan_kick'), read: false, created_at: new Date().toISOString() };
   gameState.addNotification(kickNotif);

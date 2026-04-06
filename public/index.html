@@ -4737,6 +4737,9 @@ const I18N = {
     'clan.promote': '⬆️ Повысить до офицера',
     'clan.demote': '⬇️ Понизить до участника',
     'clan.kick': '🚫 Выгнать',
+    'clan.transfer': '👑 Передать лидерство',
+    'clan.transfer_q': '👑 Передать лидерство?',
+    'clan.transfer_warn': 'Вы станете офицером, а выбранный игрок — главой клана',
     'clan.no_members': 'Нет участников',
     'clan.search': '🔍 Поиск по названию...',
     'clan.not_found': 'Кланов не найдено',
@@ -5973,6 +5976,9 @@ const I18N = {
     'clan.promote': '⬆️ Promote to officer',
     'clan.demote': '⬇️ Demote to member',
     'clan.kick': '🚫 Kick',
+    'clan.transfer': '👑 Transfer leadership',
+    'clan.transfer_q': '👑 Transfer leadership?',
+    'clan.transfer_warn': 'You will become an officer and the selected player will become the leader',
     'clan.no_members': 'No members',
     'clan.search': '🔍 Search by name...',
     'clan.not_found': 'No clans found',
@@ -18365,13 +18371,17 @@ async function _renderMembersTab(body) {
 }
 
 window._showMemberActions = function(tgId, currentRole, name) {
-  openPopup(`👤 ${name}`, '', [], [
+  const buttons = [
     currentRole === 'member'
-      ? { label: '⬆️ Повысить до офицера', cls: 'primary', action: () => { closePopup(); doClanSetRole(tgId, 'officer'); } }
-      : { label: '⬇️ Понизить до участника', cls: '', action: () => { closePopup(); doClanSetRole(tgId, 'member'); } },
-    { label: '🚫 Выгнать', cls: 'danger', action: () => { closePopup(); doClanKick(tgId); } },
-    { label: t('btn.cancel'), isClose: true },
-  ]);
+      ? { label: t('clan.promote'), cls: 'primary', action: () => { closePopup(); doClanSetRole(tgId, 'officer'); } }
+      : { label: t('clan.demote'), cls: '', action: () => { closePopup(); doClanSetRole(tgId, 'member'); } },
+  ];
+  if (currentRole === 'officer') {
+    buttons.push({ label: t('clan.transfer'), cls: 'primary', action: () => { closePopup(); doClanTransfer(tgId, name); } });
+  }
+  buttons.push({ label: t('clan.kick'), cls: 'danger', action: () => { closePopup(); doClanKick(tgId); } });
+  buttons.push({ label: t('btn.cancel'), isClose: true });
+  openPopup(`👤 ${name}`, '', [], buttons);
 }
 
 // ── Browse Tab ──
@@ -18904,6 +18914,20 @@ async function doClanKick(targetTgId) {
       try {
         await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'kick', target_telegram_id: targetTgId }) });
         showToast('🚫 Игрок исключён');
+        if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
+      } catch (err) { showToast(err.message); }
+    }},
+    { label: t('btn.cancel'), isClose: true },
+  ]);
+}
+
+async function doClanTransfer(targetTgId, name) {
+  openPopup(t('clan.transfer_q'), t('clan.transfer_warn'), [], [
+    { label: t('clan.transfer'), cls: 'primary', action: async () => {
+      closePopup();
+      try {
+        await apiFetch('/api/clan', { method: 'POST', body: JSON.stringify({ action: 'transfer', target_telegram_id: targetTgId }) });
+        showToast('👑 ' + name);
         if (_clanScreenId) openClanScreen(_clanScreenId, 'members');
       } catch (err) { showToast(err.message); }
     }},
