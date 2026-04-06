@@ -655,18 +655,25 @@ async function handleTick(req, res) {
     hasClanHq = !!gameState.getClanHqByPlayerId(currentPlayerId);
   }
 
-  // ── Loot boxes (monument rewards for this player, near viewport) ──
+  // ── Loot boxes — cached per player, refreshed every 30s to avoid DB query per tick ──
   let loot_boxes = [];
   if (hasBbox) {
-    try {
-      const { data: boxes } = await supabase.from('monument_loot_boxes')
-        .select('id,monument_id,player_id,player_name,player_avatar,box_type,monument_level,gems,opened,lat,lng,expires_at')
-        .eq('opened', false)
-        .gt('expires_at', nowISO)
-        .gte('lat', s).lte('lat', n).gte('lng', w).lte('lng', e)
-        .limit(50);
-      loot_boxes = boxes || [];
-    } catch (_) {}
+    const lbKey = `_lb_${currentPlayerId}`;
+    const lbCached = mapRouter[lbKey];
+    if (lbCached && Date.now() - lbCached.t < 30000) {
+      loot_boxes = lbCached.data;
+    } else {
+      try {
+        const { data: boxes } = await supabase.from('monument_loot_boxes')
+          .select('id,monument_id,player_id,player_name,player_avatar,box_type,monument_level,gems,opened,lat,lng,expires_at')
+          .eq('opened', false)
+          .gt('expires_at', nowISO)
+          .gte('lat', s).lte('lat', n).gte('lng', w).lte('lng', e)
+          .limit(50);
+        loot_boxes = boxes || [];
+        mapRouter[lbKey] = { data: loot_boxes, t: Date.now() };
+      } catch (_) {}
+    }
   }
 
   // Always include ALL own collectors (not just viewport)
