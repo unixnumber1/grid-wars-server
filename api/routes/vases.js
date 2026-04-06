@@ -79,11 +79,15 @@ async function handleBreak(req, res) {
     if (gv) { gv.broken_by = player.id; gameState.markDirty('vases', vase_id); }
   }
 
-  // Award diamonds
-  const newDiamonds = (player.diamonds || 0) + vase.diamonds_reward;
-  await supabase.from('players')
+  // Award diamonds (optimistic lock to prevent double-credit)
+  const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const oldDiamonds = freshP?.diamonds ?? player.diamonds ?? 0;
+  const newDiamonds = oldDiamonds + vase.diamonds_reward;
+  const { data: diamOk } = await supabase.from('players')
     .update({ diamonds: newDiamonds })
-    .eq('id', player.id);
+    .eq('id', player.id).eq('diamonds', oldDiamonds)
+    .select('id').maybeSingle();
+  if (!diamOk) console.error('[vase] diamond update conflict for', player.id);
 
   if (gameState.loaded) {
     const gp = gameState.getPlayerById(player.id);

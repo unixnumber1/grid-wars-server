@@ -90,9 +90,10 @@ async function handleClaimDaily(req, res) {
     p.walk_daily_claimed = claimed | (1 << tier);
     gameState.markDirty('players', p.id);
 
-    await supabase.from('players').update({
+    const { error: claimErr } = await supabase.from('players').update({
       walk_daily_claimed: p.walk_daily_claimed,
     }).eq('id', p.id);
+    if (claimErr) console.error('[walk] daily claim DB error:', claimErr.message);
 
     return res.json({ success: true, tier, reward: granted });
   });
@@ -119,9 +120,10 @@ async function handleClaimWeekly(req, res) {
     p.walk_weekly_claimed = claimed | (1 << tier);
     gameState.markDirty('players', p.id);
 
-    await supabase.from('players').update({
+    const { error: claimErr } = await supabase.from('players').update({
       walk_weekly_claimed: p.walk_weekly_claimed,
     }).eq('id', p.id);
+    if (claimErr) console.error('[walk] weekly claim DB error:', claimErr.message);
 
     return res.json({ success: true, tier, reward: granted });
   });

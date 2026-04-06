@@ -75,14 +75,14 @@ async function handleBuild(req, res) {
     [...gameState.fireTrucks.values()].some(ft => ft.cell_id === cellId && ft.status !== 'destroyed');
   if (cellOccupied) return res.status(400).json({ error: ts(lang, 'err.cell_occupied') });
 
-  // Deduct diamonds — read fresh from DB
+  // Deduct diamonds — read fresh from DB with optimistic lock
   const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
   const actualDiamonds = freshP?.diamonds ?? player.diamonds ?? 0;
   if (actualDiamonds < FIRETRUCK_BUILD_COST) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost: FIRETRUCK_BUILD_COST }) });
   const newDiamonds = actualDiamonds - FIRETRUCK_BUILD_COST;
-  player.diamonds = newDiamonds;
-  gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+  const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', actualDiamonds).select('id').maybeSingle();
+  if (!diamOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
+  if (gameState.loaded) { const gp = gameState.getPlayerById(player.id); if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); } }
 
   const cfg = FIRETRUCK_LEVELS[1];
   const fireTruck = {
@@ -119,12 +119,14 @@ async function handleUpgrade(req, res) {
   const nextLevel = truck.level + 1;
   const cost = FIRETRUCK_LEVELS[nextLevel].upgradeCost;
 
-  if ((player.diamonds || 0) < cost) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost }) });
+  const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+  const actualDiamonds = freshP?.diamonds ?? player.diamonds ?? 0;
+  if (actualDiamonds < cost) return res.status(400).json({ error: ts(lang, 'err.need_diamonds', { cost }) });
 
-  const newDiamonds = (player.diamonds || 0) - cost;
-  player.diamonds = newDiamonds;
-  gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+  const newDiamonds = actualDiamonds - cost;
+  const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', actualDiamonds).select('id').maybeSingle();
+  if (!diamOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
+  if (gameState.loaded) { const gp = gameState.getPlayerById(player.id); if (gp) { gp.diamonds = newDiamonds; gameState.markDirty('players', gp.id); } }
 
   const newCfg = FIRETRUCK_LEVELS[nextLevel];
   truck.level = nextLevel;

@@ -36,13 +36,18 @@ async function handleSetUsername(req, res) {
   const changes = player.username_changes ?? 0;
   let newDiamonds = player.diamonds ?? 0;
   if (!isFirstSetup && changes > 0) {
+    // Read fresh diamonds for optimistic lock
+    const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+    newDiamonds = freshP?.diamonds ?? newDiamonds;
     if (newDiamonds < COSMETIC_PRICES.rename_player)
       return res.status(400).json({ error: `Недостаточно алмазов (нужно ${COSMETIC_PRICES.rename_player} 💎)` });
     newDiamonds -= COSMETIC_PRICES.rename_player;
   }
   const updateObj = { game_username: trimmed, username_changes: changes + 1 };
   if (!isFirstSetup && changes > 0) updateObj.diamonds = newDiamonds;
-  const { error: updateErr } = await supabase.from('players').update(updateObj).eq('id', player.id);
+  const query = supabase.from('players').update(updateObj).eq('id', player.id);
+  if (!isFirstSetup && changes > 0) query.eq('diamonds', newDiamonds + COSMETIC_PRICES.rename_player);
+  const { error: updateErr } = await query;
   if (updateErr) return res.status(500).json({ error: updateErr.message });
   if (gameState.loaded) {
     const p = gameState.getPlayerById(player.id);
