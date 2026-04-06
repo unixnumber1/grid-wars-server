@@ -11966,7 +11966,7 @@ function _startBotAutoAttack(botId) {
   if (_botAutoAttackTimer) clearInterval(_botAutoAttackTimer);
   doAttackBot(botId);
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
   _botAutoAttackTimer = setInterval(() => {
     const bot = botData[botId];
     if (!bot || (bot.hp ?? 0) <= 0) { clearInterval(_botAutoAttackTimer); _botAutoAttackTimer = null; return; }
@@ -16747,7 +16747,7 @@ function updateMineHpBar(data) {
 
 let _pvpAutoFire = null;
 let _pvpTarget = null;
-let _pvpCdMs = 200;
+let _pvpCdMs = 500;
 let _pvpLastHit = 0;
 
 function startPvpCombat(target) {
@@ -16756,7 +16756,7 @@ function startPvpCombat(target) {
 
   // Determine weapon CD
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
 
   // Show floating attack button
   showCombatHUD(target, 'pvp');
@@ -16883,7 +16883,7 @@ function bindAttackButton(targetType, target) {
   if (!btn) return;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
   _pvpCdMs = cd;
 
   const targetId = targetType === 'player' ? target.telegram_id : target.id;
@@ -17023,7 +17023,7 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   const wasHolding = combatState.isHolding;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 200;
+  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
 
   bindAttackButton(targetType, target);
   if (wasHolding) combatState.isHolding = true;
