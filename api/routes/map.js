@@ -149,9 +149,13 @@ async function handleTick(req, res) {
     if (gameState.loaded) gameState.markDirty('players', player.id);
   }
 
-  // ── 2. Bot spawn (with global cap) ──────────────────────
+  // ── 2. Bot spawn (with global cap + per-player cooldown) ──
+  const _spawnCd = mapRouter._spawnCooldown || (mapRouter._spawnCooldown = new Map());
   let spawnedBots = [];
-  if (hasPos) {
+  const spawnTgKey = String(telegram_id);
+  const lastSpawnMs = _spawnCd.get(spawnTgKey) || 0;
+  const canSpawnNow = Date.now() - lastSpawnMs >= 10_000; // 10s cooldown
+  if (hasPos && canSpawnNow) {
     try {
       let botsInZone, globalCount;
 
@@ -212,6 +216,7 @@ async function handleTick(req, res) {
         if (inserted) {
           for (const b of inserted) gameState.addBot(b);
           spawnedBots = inserted;
+          _spawnCd.set(spawnTgKey, Date.now());
         }
       }
     } catch (e) { console.error('[tick] spawn error:', e.message); }

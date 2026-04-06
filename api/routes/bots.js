@@ -14,12 +14,25 @@ export const botsRouter = Router();
 
 const SPEED_METERS = BOT_SPEED_METERS;
 
+// ── Anti-bot farming detection ──
+const _spawnCooldown = new Map();  // tgId → lastSpawnTimestamp
+const _killWindow = new Map();     // tgId → [timestamp, ...]
+const SPAWN_COOLDOWN_MS = 10_000;  // 10s between spawns per player
+const KILL_BURST_LIMIT = 20;       // max kills per 60s window
+const KILL_BURST_WINDOW = 60_000;  // 60s window
+
 // ── SPAWN ──────────────────────────────────────────────────────────────────
 // Each player has their own 2km zone. Always keep 10 bots in that zone.
 // No global cap — each player's zone is independent.
 async function handleSpawn(player, body) {
   const { lat, lng } = body;
   if (lat == null || lng == null) return { status: 400, error: 'lat, lng required' };
+
+  // Per-player spawn cooldown (anti-farming)
+  const tgKey = String(body.telegram_id || player.telegram_id);
+  const lastSpawn = _spawnCooldown.get(tgKey) || 0;
+  if (Date.now() - lastSpawn < SPAWN_COOLDOWN_MS) return { spawned: 0, bots: [] };
+  _spawnCooldown.set(tgKey, Date.now());
 
   const playerLat = parseFloat(lat);
   const playerLng = parseFloat(lng);
@@ -350,6 +363,22 @@ async function handleAttack(player, body) {
     if (bot.type === 'goblin') {
       const xpGain = 75;
       result.xp = await addXp(player.id, xpGain).catch(() => null);
+
+      // Kill burst detection — block diamond reward if farming detected
+      const killKey = String(body.telegram_id);
+      const kills = _killWindow.get(killKey) || [];
+      const now60 = Date.now();
+      const recentKills = kills.filter(t => now60 - t < KILL_BURST_WINDOW);
+      recentKills.push(now60);
+      _killWindow.set(killKey, recentKills.slice(-50)); // keep last 50 entries
+
+      if (recentKills.length > KILL_BURST_LIMIT) {
+        // Farming detected — no diamond reward, log warning
+        const { logPlayer } = await import('../../lib/logger.js');
+        logPlayer(killKey, 'warn', `Bot farming: ${recentKills.length} kills/60s, reward blocked`);
+        result.diamondReward = 0;
+        return result;
+      }
 
       const diamondReward = 1 + Math.floor(Math.random() * 3); // 1-3
       const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
