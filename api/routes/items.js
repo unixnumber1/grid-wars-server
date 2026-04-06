@@ -299,11 +299,12 @@ async function handleStreakClaim(req, res) {
       nextWeek = (state.week + 1) % STREAK_POOL_COUNT;
     }
 
-    await supabase.from('players').update({
+    const { error: streakErr } = await supabase.from('players').update({
       streak_day: nextDay,
       streak_week: nextWeek,
       streak_claimed_at: new Date().toISOString(),
     }).eq('id', player.id);
+    if (streakErr) console.error('[streak] DB update failed:', streakErr.message);
 
     if (gameState.loaded) {
       const p = gameState.getPlayerById(player.id);

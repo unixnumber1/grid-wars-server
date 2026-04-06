@@ -488,7 +488,15 @@ class GameState {
       }
     }
 
-    return { bots, vases, couriers, courier_drops, monuments, monument_defenders, active_scouts };
+    // Markets in bbox
+    const markets = [];
+    for (const m of this.markets.values()) {
+      if (m.lat >= s && m.lat <= n && m.lng >= w && m.lng <= e) {
+        markets.push(m);
+      }
+    }
+
+    return { bots, vases, couriers, courier_drops, monuments, monument_defenders, active_scouts, markets };
   }
 
   // -- Spatial queries --

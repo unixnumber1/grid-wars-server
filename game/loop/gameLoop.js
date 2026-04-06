@@ -998,7 +998,7 @@ async function periodicCleanup(nowMs, nowISO) {
 
 function buildPlayerState(playerInfo, nowMs, nowISO) {
   if (!playerInfo.lat || !playerInfo.lng) return null;
-  const PAD = 0.02;
+  const PAD = 0.05;
   const n = playerInfo.lat + PAD, s = playerInfo.lat - PAD;
   const e = playerInfo.lng + PAD, w = playerInfo.lng - PAD;
 
@@ -1040,6 +1040,7 @@ function buildPlayerState(playerInfo, nowMs, nowISO) {
     drops: snapshot.courier_drops,
     monuments: snapshot.monuments,
     monument_defenders: snapshot.monument_defenders,
+    markets: snapshot.markets,
     active_scouts: ownScouts,
     notifications,
   };
