@@ -827,11 +827,15 @@ async function handleApply(req, res) {
   const { count } = await supabase.from('clan_members').select('*', { count: 'exact', head: true }).eq('clan_id', clan_id).is('left_at', null);
   if ((count || 0) >= config.maxMembers) return res.status(400).json({ error: ts(lang, 'err.clan_full') });
 
-  // Check for existing pending request
-  const { data: existing } = await supabase.from('clan_requests').select('id').eq('clan_id', clan_id).eq('player_id', player.id).eq('status', 'pending').maybeSingle();
-  if (existing) return res.status(400).json({ error: 'Заявка уже отправлена' });
-
-  await supabase.from('clan_requests').insert({ clan_id, player_id: player.id, status: 'pending' });
+  // Check for existing request (any status) — unique constraint on (clan_id, player_id)
+  const { data: existing } = await supabase.from('clan_requests').select('id, status').eq('clan_id', clan_id).eq('player_id', player.id).maybeSingle();
+  if (existing) {
+    if (existing.status === 'pending') return res.status(400).json({ error: 'Заявка уже отправлена' });
+    // Reuse old rejected/accepted request — update to pending
+    await supabase.from('clan_requests').update({ status: 'pending', created_at: new Date().toISOString() }).eq('id', existing.id);
+  } else {
+    await supabase.from('clan_requests').insert({ clan_id, player_id: player.id, status: 'pending' });
+  }
 
   // Notify leader
   const { data: leader } = await supabase.from('players').select('telegram_id').eq('id', clan.leader_id).single();
