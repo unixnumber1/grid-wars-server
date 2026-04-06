@@ -548,18 +548,38 @@ async function handleTick(req, res) {
       inventory = inv || [];
     }
 
-    // ── Income calculation (O(N²) boost + per-mine income) ──
+    // ── Income calculation (grid-bucketed boost — O(N) instead of O(N²)) ──
     {
-      const R_DEG = MINE_BOOST_RADIUS / 111320;
-      let maxBoost = 1;
+      // Spatial hash: bucket mines into ~10km grid cells, then only check neighbors
+      const CELL_DEG = 0.09; // ~10km per cell
+      const buckets = new Map();
       for (const m of playerMines) {
         if (m.lat == null || m.lng == null) continue;
+        const cx = Math.floor(m.lat / CELL_DEG);
+        const cy = Math.floor(m.lng / CELL_DEG);
+        const key = `${cx}_${cy}`;
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(m);
+      }
+
+      let maxBoost = 1;
+      const R_DEG = MINE_BOOST_RADIUS / 111320;
+      for (const m of playerMines) {
+        if (m.lat == null || m.lng == null) continue;
+        const cx = Math.floor(m.lat / CELL_DEG);
+        const cy = Math.floor(m.lng / CELL_DEG);
         let pts = 0;
-        for (const other of playerMines) {
-          if (other.lat == null || other.lng == null) continue;
-          if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
-          if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
-            pts += (other.level || 1);
+        // Check 3x3 neighboring cells only
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const neighbors = buckets.get(`${cx+dx}_${cy+dy}`);
+            if (!neighbors) continue;
+            for (const other of neighbors) {
+              if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
+              if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
+                pts += (other.level || 1);
+              }
+            }
           }
         }
         const boost = getMineCountBoost(pts);
