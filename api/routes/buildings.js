@@ -12,7 +12,7 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from 
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
-import { WEAPON_COOLDOWNS, HQ_MAX_MINES, HQ_MAX_MINE_LEVEL } from '../../config/constants.js';
+import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 import { setPinMode, setPlayerHq } from '../../security/antispoof.js';
 
@@ -154,12 +154,6 @@ async function handleMineBuild(req, res) {
   } else if (!hq) {
     return res.status(403).json({ error: 'You must place your headquarters first' });
   }
-  // Mine count limit per HQ level
-  const hqLevel = hq?.level || 1;
-  const maxMines = HQ_MAX_MINES[hqLevel - 1] || 10;
-  const currentMineCount = [...gameState.mines.values()].filter(m => m.owner_id === player.id && m.status !== 'destroyed').length;
-  if (currentMineCount >= maxMines) return res.status(400).json({ error: `Лимит шахт (${maxMines}) для HQ ${hqLevel} уровня` });
-
   // Distance check uses tap coordinates (mineLat/mineLng), NOT cell center
   const distance = haversine(playerActualLat, playerActualLng, mineLat, mineLng);
   const _bSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
@@ -554,12 +548,7 @@ async function handleUpgradePost(req, res) {
   const _upgSmall = SMALL_RADIUS + (_upgFx.radius_bonus || 0);
   if (distance > _upgSmall) return res.status(400).json({ error: `Слишком далеко! Подойди ближе (${_upgSmall}м)`, distance: Math.round(distance) });
   if (mine.level >= MINE_MAX_LEVEL) return res.status(400).json({ error: 'Mine is already at max level' });
-  // Cap mine level by HQ level
-  const upgHq = gameState.getHqByPlayerId(player.id);
-  const upgHqLevel = upgHq?.level || 1;
-  const maxMineLevel = HQ_MAX_MINE_LEVEL[upgHqLevel - 1] || 25;
-  if (mine.level >= maxMineLevel) return res.status(400).json({ error: `Макс уровень шахт для HQ ${upgHqLevel} — ${maxMineLevel}. Улучши штаб!` });
-  const targetLevel = Math.min(parseInt(targetLevelParam) || mine.level + 1, Math.min(MINE_MAX_LEVEL, maxMineLevel));
+  const targetLevel = Math.min(parseInt(targetLevelParam) || mine.level + 1, MINE_MAX_LEVEL);
   if (targetLevel <= mine.level) return res.status(400).json({ error: 'targetLevel должен быть выше текущего уровня' });
   let cost = 0;
   for (let l = mine.level; l < targetLevel; l++) cost += mineUpgradeCost(l);
