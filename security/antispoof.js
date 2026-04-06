@@ -145,8 +145,16 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
     const distanceKm = distance / 1000;
     const speedKmh = timeDiffS > 0 ? (distanceKm / timeDiffS) * 3600 : 0;
 
-    // ── Session gap (>60s) — reset history, accept without speed check ──
+    // ── Session gap (>60s) — reset history, but still check for impossible teleports ──
     if (timeDiffMs > SESSION_GAP_MS) {
+      // Even across sessions, check for teleports (>500km/h)
+      if (speedKmh > TELEPORT_SPEED_KMH && distanceKm > 5) {
+        recordViolation(telegramId, {
+          timestamp: now, speed: speedKmh, distance: distanceKm,
+          from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
+          type: 'teleport',
+        });
+      }
       history.length = 0;
       history.push({ lat, lng, timestamp: now, ...gpsData });
       positionHistory.set(telegramId, history);
