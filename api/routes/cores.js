@@ -55,9 +55,10 @@ async function handleInstall(req, res) {
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'Not your mine' });
 
-  // Distance check
-  if (lat != null && lng != null) {
-    const dist = haversine(parseFloat(lat), parseFloat(lng), mine.lat, mine.lng);
+  // Distance check — use server-side position
+  const gsCore = gameState.getPlayerByTgId(Number(telegram_id));
+  if (gsCore?.last_lat && gsCore?.last_lng) {
+    const dist = haversine(gsCore.last_lat, gsCore.last_lng, mine.lat, mine.lng);
     const _crFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
     if (dist > SMALL_RADIUS + (_crFx.radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
   }

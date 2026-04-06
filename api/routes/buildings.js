@@ -193,8 +193,10 @@ async function handleMineCollect(req, res) {
   if (!player) return res.status(404).json({ error: 'Player not found' });
   const allMines = gameState.loaded ? [...gameState.mines.values()].filter(m => m.owner_id === player.id) : [];
   if (allMines.length === 0) return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
-  if (lat == null || lng == null) return res.status(400).json({ error: 'Координаты игрока не переданы' });
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
+  // Use server-side position for distance check
+  const gsCollector = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsCollector?.last_lat || !gsCollector?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const pLat = gsCollector.last_lat, pLng = gsCollector.last_lng;
   const _colFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const _colSmall = SMALL_RADIUS + (_colFx.radius_bonus || 0);
   const mines = allMines.filter(m => {
@@ -538,10 +540,10 @@ async function handleUpgradePost(req, res) {
     return res.status(400).json({ error: `Апгрейд ещё идёт (${secondsLeft} сек)` });
   }
 
-  if (lat == null || lng == null) return res.status(400).json({ error: 'Координаты игрока не переданы' });
-  const pLat = parseFloat(lat); const pLng = parseFloat(lng);
-  if (isNaN(pLat) || isNaN(pLng)) return res.status(400).json({ error: 'Некорректные координаты' });
-  const distance = haversine(pLat, pLng, mine.lat, mine.lng);
+  // Use server-side position for distance check
+  const gsUpg = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsUpg?.last_lat || !gsUpg?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const distance = haversine(gsUpg.last_lat, gsUpg.last_lng, mine.lat, mine.lng);
   const _upgFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const _upgSmall = SMALL_RADIUS + (_upgFx.radius_bonus || 0);
   if (distance > _upgSmall) return res.status(400).json({ error: `Слишком далеко! Подойди ближе (${_upgSmall}м)`, distance: Math.round(distance) });

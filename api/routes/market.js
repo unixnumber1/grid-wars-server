@@ -937,9 +937,6 @@ async function handlePickupDrop(req, res) {
     return res.status(400).json({ error: 'telegram_id, drop_id, lat, lng required' });
   }
 
-  const pLat = parseFloat(lat), pLng = parseFloat(lng);
-  if (isNaN(pLat) || isNaN(pLng)) return res.status(400).json({ error: 'Invalid coordinates' });
-
   const { player, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id');
   if (pErr) return res.status(500).json({ error: pErr });
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -961,7 +958,10 @@ async function handlePickupDrop(req, res) {
     return res.status(400).json({ error: 'Drop expired' });
   }
 
-  const dist = haversine(pLat, pLng, drop.lat, drop.lng);
+  // Use server-side position for distance check
+  const gsPickup = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsPickup?.last_lat || !gsPickup?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(gsPickup.last_lat, gsPickup.last_lng, drop.lat, drop.lng);
   const _dropFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > SMALL_RADIUS + (_dropFx.radius_bonus || 0)) {
     return res.status(400).json({ error: 'Too far from drop', distance: Math.round(dist) });

@@ -61,8 +61,11 @@ async function handleBreak(req, res) {
   if (new Date(vase.expires_at) < new Date())
     return res.status(400).json({ error: 'Vase expired' });
 
+  // Use server-side position for distance check (prevent position spoofing)
+  const gsPlayer = gameState.getPlayerByTgId(Number(telegram_id));
+  if (!gsPlayer?.last_lat || !gsPlayer?.last_lng) return res.status(400).json({ error: 'Position unknown' });
   const BREAK_RADIUS = 200;
-  const dist = haversine(parseFloat(lat), parseFloat(lng), vase.lat, vase.lng);
+  const dist = haversine(gsPlayer.last_lat, gsPlayer.last_lng, vase.lat, vase.lng);
   if (dist > BREAK_RADIUS)
     return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.vase_too_far', { radius: BREAK_RADIUS }) });
 
