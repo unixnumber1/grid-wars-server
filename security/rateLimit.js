@@ -16,13 +16,13 @@ setInterval(() => {
 }, 60000);
 
 const LIMITS = {
-  default:  { max: 240, window: 60000 },
-  attack:   { max: 120, window: 60000 },
-  tick:     { max: 60,  window: 60000 },
-  build:    { max: 160, window: 60000 },
-  collect:  { max: 120, window: 60000 },
-  market:   { max: 120, window: 60000 },
-  location: { max: 400, window: 60000 },
+  default:  { max: 312, window: 60000 },
+  attack:   { max: 156, window: 60000 },
+  tick:     { max: 78,  window: 60000 },
+  build:    { max: 208, window: 60000 },
+  collect:  { max: 156, window: 60000 },
+  market:   { max: 156, window: 60000 },
+  location: { max: 520, window: 60000 },
 };
 
 const ADMIN_TG_ID = 560013667;

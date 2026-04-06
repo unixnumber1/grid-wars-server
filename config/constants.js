@@ -23,7 +23,7 @@ export const MINE_MAX_LEVEL = 200;
 export const HQ_MAX_LEVEL = 10;
 
 // ── Weapon cooldowns (ms) ──
-export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 200 };
+export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 500 };
 
 // ── Player base stats ──
 export const BASE_PLAYER_ATTACK = 10;
