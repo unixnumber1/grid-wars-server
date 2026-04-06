@@ -89,6 +89,7 @@ async function handleLeaderboard(req, res) {
 
 // ── Unified game tick (POST) ─────────────────────────────────
 async function handleTick(req, res) {
+  const _t0 = Date.now();
   const { telegram_id, lat, lng, north, south, east, west } = req.body || {};
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
@@ -149,6 +150,7 @@ async function handleTick(req, res) {
     if (gameState.loaded) gameState.markDirty('players', player.id);
   }
 
+  const _t1 = Date.now();
   // ── 2. Bot spawn (with global cap + per-player cooldown) ──
   const _spawnCd = mapRouter._spawnCooldown || (mapRouter._spawnCooldown = new Map());
   let spawnedBots = [];
@@ -295,6 +297,7 @@ async function handleTick(req, res) {
   }
   if (currentHp > maxHp) currentHp = maxHp;
 
+  const _t2 = Date.now();
   // ── 5. Fetch map data ────────────────────────────────────
   let mapData = { headquarters: [], mines: [], online_players: [], bots: [], vases: [], couriers: [], courier_drops: [], markets: [], clan_hqs: [], ore_nodes: [], collectors: [], monuments: [], monument_defenders: [], fire_trucks: [], firefighters: [] };
   if (hasBbox) {
@@ -461,6 +464,7 @@ async function handleTick(req, res) {
     }
   } catch (_) {}
 
+  const _t3 = Date.now();
   // ── 7. Player mines + inventory (for income calc + UI) ─
   let playerMines = [];
   let inventory = [];
@@ -723,6 +727,10 @@ async function handleTick(req, res) {
       }
     }
   }
+
+  const _t4 = Date.now();
+  const _tTotal = _t4 - _t0;
+  if (_tTotal > 300) console.log(`[TICK-SLOW] ${telegram_id} total=${_tTotal}ms player=${_t1-_t0}ms spawn=${_t2-_t1}ms map=${_t3-_t2}ms income=${_t4-_t3}ms`);
 
   return res.json({
     ...mapData,
