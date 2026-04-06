@@ -11337,38 +11337,40 @@ function processTickData(data) {
     for (const ft of data.fire_trucks) { if (ft.is_mine) _myFireTrucksCache[ft.id] = ft; }
   }
   // Batch all render calls into a single animation frame to avoid blocking main thread
-  const _tickBots = data.bots || [];
-  const _tickVases = data.vases || [];
-  const _tickMarkets = data.markets || [];
-  const _tickClanHqs = data.clan_hqs || [];
-  const _tickCouriers = data.couriers || [];
-  const _tickDrops = data.courier_drops || [];
-  const _tickOreNodes = data.ore_nodes || [];
-  const _tickMonuments = data.monuments || [];
-  const _tickMonDefs = data.monument_defenders || [];
-  const _tickCollectors = data.collectors || [];
-  const _tickFireTrucks = data.fire_trucks || [];
-  const _tickFirefighters = data.firefighters || [];
-  const _tickBarracks = data.barracks || [];
-  const _tickScouts = data.active_scouts || [];
-  const _tickLootBoxes = data.loot_boxes || [];
+  // Only render entity types that are present in tick data — socket ticks only send a subset,
+  // so missing fields should NOT clear markers (prevents flicker between HTTP and socket ticks)
+  const _tickBots = data.bots;
+  const _tickVases = data.vases;
+  const _tickMarkets = data.markets;
+  const _tickClanHqs = data.clan_hqs;
+  const _tickCouriers = data.couriers;
+  const _tickDrops = data.courier_drops;
+  const _tickOreNodes = data.ore_nodes;
+  const _tickMonuments = data.monuments;
+  const _tickMonDefs = data.monument_defenders;
+  const _tickCollectors = data.collectors;
+  const _tickFireTrucks = data.fire_trucks;
+  const _tickFirefighters = data.firefighters;
+  const _tickBarracks = data.barracks;
+  const _tickScouts = data.active_scouts;
+  const _tickLootBoxes = data.loot_boxes;
   requestAnimationFrame(() => {
     renderBuildings();
-    renderBots(_tickBots);
-    renderVases(_tickVases);
-    renderMarkets(_tickMarkets);
-    renderClanHqs(_tickClanHqs);
-    renderCouriers(_tickCouriers);
-    renderDrops(_tickDrops);
-    renderOreNodes(_tickOreNodes);
-    renderMonuments(_tickMonuments);
-    renderMonumentDefenders(_tickMonDefs);
-    renderCollectors(_tickCollectors);
-    renderFireTrucks(_tickFireTrucks);
-    renderFirefighters(_tickFirefighters);
-    renderBarracks(_tickBarracks);
-    renderActiveScouts(_tickScouts);
-    renderLootBoxes(_tickLootBoxes);
+    if (_tickBots != null) renderBots(_tickBots);
+    if (_tickVases != null) renderVases(_tickVases);
+    if (_tickMarkets != null) renderMarkets(_tickMarkets);
+    if (_tickClanHqs != null) renderClanHqs(_tickClanHqs);
+    if (_tickCouriers != null) renderCouriers(_tickCouriers);
+    if (_tickDrops != null) renderDrops(_tickDrops);
+    if (_tickOreNodes != null) renderOreNodes(_tickOreNodes);
+    if (_tickMonuments != null) renderMonuments(_tickMonuments);
+    if (_tickMonDefs != null) renderMonumentDefenders(_tickMonDefs);
+    if (_tickCollectors != null) renderCollectors(_tickCollectors);
+    if (_tickFireTrucks != null) renderFireTrucks(_tickFireTrucks);
+    if (_tickFirefighters != null) renderFirefighters(_tickFirefighters);
+    if (_tickBarracks != null) renderBarracks(_tickBarracks);
+    if (_tickScouts != null) renderActiveScouts(_tickScouts);
+    if (_tickLootBoxes != null) renderLootBoxes(_tickLootBoxes);
     updateCoinDisplay();
     updatePlayerDisplay();
     updateShadowButton();
