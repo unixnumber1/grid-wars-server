@@ -3,7 +3,9 @@ import { gameState } from '../state/GameState.js';
 import { log } from '../../lib/log.js';
 import { BOT_TYPES, getRandomBotType } from '../mechanics/bots.js';
 import { haversine, findSafeDropPosition } from '../../lib/haversine.js';
-import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, xpForLevel, SMALL_RADIUS, LARGE_RADIUS } from '../../config/formulas.js';
+import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, getMineCapacity, getMineCountBoost, xpForLevel, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS } from '../../config/formulas.js';
+import { getCoresTotalBoost } from '../mechanics/cores.js';
+import { getClanLevel, getClanDefenseForMine } from '../mechanics/clans.js';
 import { FIRETRUCK_LEVELS, FIRETRUCK_EXTINGUISH_DURATION, FIREFIGHTER_SPEED } from '../mechanics/fireTrucks.js';
 import { COLLECTOR_LEVELS } from '../mechanics/collectors.js';
 import { getCellsInRange } from '../../lib/grid.js';
@@ -999,14 +1001,135 @@ async function periodicCleanup(nowMs, nowISO) {
 function buildPlayerState(playerInfo, nowMs, nowISO) {
   if (!playerInfo.lat || !playerInfo.lng) return null;
 
-  // Socket tick only sends player-specific data (notifications).
-  // Map entities (bots, markets, couriers, etc.) are handled by the HTTP tick
-  // which uses the actual map viewport — socket tick's fixed bbox caused flicker
-  // because it was narrower than the viewport, clearing distant markers.
-  let notifications = [];
-  if (playerInfo.player_db_id) {
-    notifications = gameState.getPlayerNotifications(playerInfo.player_db_id, 10);
+  const tgId = playerInfo.telegram_id ? Number(playerInfo.telegram_id) : null;
+  if (!tgId) return null;
+
+  const player = gameState.getPlayerByTgId(tgId);
+  if (!player) return null;
+
+  // Notifications
+  const notifications = playerInfo.player_db_id
+    ? gameState.getPlayerNotifications(playerInfo.player_db_id, 10)
+    : [];
+
+  // Inventory + cores (in-memory)
+  const inventory = gameState.getPlayerItems(player.id).map(i => ({
+    ...i, equipped: !!i.equipped, on_market: !!i.on_market,
+  }));
+  const player_cores = gameState.getPlayerCores(tgId)
+    .concat(gameState.getPlayerCores(player.id))
+    .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
+    .map(c => ({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id || null, slot_index: c.slot_index ?? null, on_market: c.on_market || false }));
+
+  // Skills
+  const _skillRow = gameState.getPlayerSkills(tgId);
+  const _skillFxObj = _skillRow ? getPlayerSkillEffects(_skillRow) : null;
+
+  const playerMines = gameState.getPlayerMines(player.id).map(m => {
+    const cores = m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
+    const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
+    const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
+    const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
+    const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
+    const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
+    const sHp = _skillFxObj ? (1 + _skillFxObj.mine_hp_bonus) : 1;
+    const sRegen = _skillFxObj ? (1 + _skillFxObj.mine_regen_bonus) : 1;
+    const sCap = _skillFxObj ? (1 + _skillFxObj.mine_capacity_bonus) : 1;
+    const cMax = Math.round(getMineHp(m.level) * bHp * clanDef * sHp);
+    const rph = Math.round(getMineHpRegen(m.level) * bRegen * sRegen);
+    const rawHp = Math.min(m.hp ?? cMax, cMax);
+    const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
+    return {
+      ...m,
+      max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp,
+      hp_regen: rph, income: getMineIncome(m.level) * bInc,
+      capacity: Math.round(getMineCapacity(m.level) * bCap * sCap),
+    };
+  });
+
+  // Income calculation
+  let totalIncome = 0;
+  let _clanBoost = null;
+  try {
+    let clanCfg = null, clanHqs = [], boostMul = 1;
+    if (player.clan_id) {
+      const pClan = gameState.getClanById(player.clan_id);
+      if (pClan) {
+        clanCfg = getClanLevel(pClan.level || 1);
+        for (const ch of gameState.clanHqs.values()) { if (ch.clan_id === player.clan_id) clanHqs.push(ch); }
+        const boostActive = pClan.boost_expires_at && new Date(pClan.boost_expires_at).getTime() > nowMs;
+        boostMul = boostActive ? (pClan.boost_multiplier || 1) : 1;
+        if (boostActive) _clanBoost = { expires_at: pClan.boost_expires_at, multiplier: pClan.boost_multiplier };
+      }
+    }
+
+    const R_DEG = MINE_BOOST_RADIUS / 111320;
+    const perMineBoost = new Map();
+    for (const m of playerMines) {
+      if (m.lat == null) continue;
+      let pts = 0;
+      for (const o of playerMines) {
+        if (o.lat == null) continue;
+        if (Math.abs(m.lat - o.lat) > R_DEG || Math.abs(m.lng - o.lng) > R_DEG * 1.8) continue;
+        if (haversine(m.lat, m.lng, o.lat, o.lng) <= MINE_BOOST_RADIUS) pts += (o.level || 1);
+      }
+      perMineBoost.set(m.id, getMineCountBoost(pts));
+    }
+
+    for (const m of playerMines) {
+      let inc = getMineIncome(m.level) * (perMineBoost.get(m.id) || 1);
+      if (_skillFxObj?.mine_income_bonus) inc *= (1 + _skillFxObj.mine_income_bonus);
+      if (m.cell_id) { const cores = gameState.getCoresForMine(m.cell_id); if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income'); }
+      if (clanCfg && clanHqs.length > 0 && clanHqs.some(h => haversine(m.lat, m.lng, h.lat, h.lng) <= clanCfg.radius)) {
+        inc *= (1 + (clanCfg.income || 0) / 100);
+        if (boostMul > 1) inc *= boostMul;
+      }
+      if (_skillFxObj?.landlord_bonus && player.last_lat && player.last_lng && haversine(player.last_lat, player.last_lng, m.lat, m.lng) <= SMALL_RADIUS) inc *= 1.15;
+      m.income = inc;
+    }
+    totalIncome = playerMines.reduce((s, m) => s + m.income, 0);
+  } catch (_) { totalIncome = playerMines.reduce((s, m) => s + getMineIncome(m.level), 0); }
+
+  // Ore income
+  let oreIncome = 0, etherIncome = 0;
+  for (const ore of gameState.oreNodes.values()) {
+    if (ore.owner_id === player.id) {
+      const inc = getOreIncome(ore.level, ore.ore_type);
+      const cfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+      if (cfg.dualCurrency) { oreIncome += inc; etherIncome += inc; }
+      else if (ore.currency === 'ether') etherIncome += inc;
+      else oreIncome += inc;
+    }
   }
 
-  return { notifications };
+  const level = player.level || 1;
+  const maxHp = 1000 + (player.bonus_hp ?? 0);
+
+  return {
+    player: {
+      ...player, level, xp: player.xp ?? 0,
+      xpForNextLevel: xpForLevel(level),
+      hp: player.hp ?? maxHp, max_hp: maxHp,
+      attack: 10 + (player.bonus_attack ?? 0),
+      crystals: player.crystals || 0, ether: player.ether || 0,
+      smallRadius: SMALL_RADIUS + (_skillFxObj?.radius_bonus || 0),
+      largeRadius: LARGE_RADIUS + (_skillFxObj?.attack_radius_bonus || 0),
+      mine_count_boost: 1, mine_count: playerMines.length,
+    },
+    mines_own: playerMines,
+    totalIncome,
+    baseIncome: totalIncome,
+    oreIncome, etherIncome,
+    hasClanHq: !!gameState.getClanHqByPlayerId(player.id),
+    inventory, player_cores,
+    notifications,
+    ...(_clanBoost ? { clan_boost: _clanBoost } : {}),
+    player_skills: _skillRow || { farmer: {}, raider: {}, skill_points_used: 0 },
+    skill_effects: _skillFxObj || {},
+    skill_points_available: Math.max(0, level - (_skillRow?.skill_points_used || 0)),
+    shadow_active: player._shadow_until ? nowMs < player._shadow_until : false,
+    shadow_until: player._shadow_until || null,
+    shadow_cooldown: player._shadow_cooldown || null,
+    clanColor: player.clan_id ? gameState.getClanById(player.clan_id)?.color : null,
+  };
 }

@@ -716,6 +716,8 @@ async function handleTick(req, res) {
     }
   }
 
+  // Player state (coins, inventory, skills, etc.) is now sent via socket tick (faster, no DB).
+  // HTTP tick only sends map entities + minimal player data for first load.
   return res.json({
     ...mapData,
     player: playerData,
