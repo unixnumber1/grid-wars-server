@@ -998,50 +998,15 @@ async function periodicCleanup(nowMs, nowISO) {
 
 function buildPlayerState(playerInfo, nowMs, nowISO) {
   if (!playerInfo.lat || !playerInfo.lng) return null;
-  const PAD = 0.05;
-  const n = playerInfo.lat + PAD, s = playerInfo.lat - PAD;
-  const e = playerInfo.lng + PAD, w = playerInfo.lng - PAD;
 
-  // Use lightweight tick snapshot (only 7 collections instead of 17)
-  const snapshot = gameState.getTickSnapshot(n, s, e, w, nowMs);
-
-  // Get unread notifications for this player
+  // Socket tick only sends player-specific data (notifications).
+  // Map entities (bots, markets, couriers, etc.) are handled by the HTTP tick
+  // which uses the actual map viewport — socket tick's fixed bbox caused flicker
+  // because it was narrower than the viewport, clearing distant markers.
   let notifications = [];
   if (playerInfo.player_db_id) {
     notifications = gameState.getPlayerNotifications(playerInfo.player_db_id, 10);
   }
 
-  // Include own active scouts (regardless of viewport)
-  const ownScouts = [];
-  const tgId = playerInfo.telegram_id ? Number(playerInfo.telegram_id) : null;
-  if (tgId) {
-    for (const sc of gameState.activeScouts.values()) {
-      if (Number(sc.owner_id) === tgId) {
-        ownScouts.push({
-          id: sc.id, owner_id: sc.owner_id,
-          lat: sc.current_lat, lng: sc.current_lng,
-          target_lat: sc.target_lat, target_lng: sc.target_lng,
-          speed: sc.speed, hp: sc.hp, max_hp: sc.max_hp,
-          level: sc.unit_level, status: sc.status,
-          target_ore_id: sc.target_ore_id,
-        });
-      }
-    }
-  }
-  // Also include nearby enemy scouts from snapshot
-  for (const sc of (snapshot.active_scouts || [])) {
-    if (!ownScouts.some(o => o.id === sc.id)) ownScouts.push(sc);
-  }
-
-  return {
-    bots: snapshot.bots,
-    vases: snapshot.vases,
-    couriers: snapshot.couriers,
-    drops: snapshot.courier_drops,
-    monuments: snapshot.monuments,
-    monument_defenders: snapshot.monument_defenders,
-    markets: snapshot.markets,
-    active_scouts: ownScouts,
-    notifications,
-  };
+  return { notifications };
 }
