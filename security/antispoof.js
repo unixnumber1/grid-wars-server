@@ -29,6 +29,10 @@ const positionHistory = new Map();  // telegram_id → [{ lat, lng, timestamp, .
 const gpsFingerprint = new Map();   // telegram_id → { nullCount, totalMoving, lastViolationAt }
 const pinModeState = new Map();     // telegram_id → { active, graceUntil }
 const playerHqPositions = new Map(); // telegram_id → { lat, lng } — cached HQ position for PIN detection
+const pendingBoomerangs = new Map(); // telegram_id → { lat, lng, timestamp } — pre-jump position for jammer detection
+const BOOMERANG_RADIUS_M = 500;     // return within 500m = jammer, not spoofer
+const BOOMERANG_TIMEOUT_MS = 300000; // 5 minutes to return
+const CLUSTER_WINDOW_MS = 120000;    // 2 minutes — violations in same window = one incident
 
 // ── PIN mode ──
 
@@ -238,6 +242,35 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
   if (history.length > POSITION_HISTORY_SIZE) history.shift();
   positionHistory.set(telegramId, history);
 
+  // ── Boomerang detection: player returned to pre-jump position → likely jammer, not spoof ──
+  const boom = pendingBoomerangs.get(telegramId);
+  if (boom) {
+    if (now - boom.timestamp > BOOMERANG_TIMEOUT_MS) {
+      // Timed out — player didn't return, likely real spoof
+      pendingBoomerangs.delete(telegramId);
+    } else {
+      const returnDist = haversine(lat, lng, boom.lat, boom.lng);
+      if (returnDist <= BOOMERANG_RADIUS_M) {
+        // Player returned near pre-jump position → jammer, reduce violation weight
+        pendingBoomerangs.delete(telegramId);
+        const key = `spoof:${telegramId}`;
+        const record = suspiciousActivity.get(key);
+        if (record) {
+          // Mark recent teleport/speed violations as jammer
+          for (let i = record.violations.length - 1; i >= 0; i--) {
+            const v = record.violations[i];
+            if (v.jammer) continue;
+            if (now - v.timestamp > BOOMERANG_TIMEOUT_MS) break;
+            if (v.type === 'teleport' || v.type === 'speed') {
+              v.jammer = true;
+              console.log(`[ANTISPOOF] Boomerang detected for ${telegramId}: returned ${Math.round(returnDist)}m from pre-jump, marking violation as jammer`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return { valid: true };
 }
 
@@ -256,19 +289,41 @@ function recordViolation(telegramId, violation) {
     banned: false,
   };
 
-  record.violations.push(violation);
-  record.totalViolations++;
+  // Save pre-jump position for boomerang detection (jammer vs spoofer)
+  if ((violation.type === 'teleport' || violation.type === 'speed') && violation.from) {
+    pendingBoomerangs.set(telegramId, {
+      lat: violation.from.lat, lng: violation.from.lng,
+      timestamp: violation.timestamp,
+    });
+  }
 
-  // Recalculate weighted score with time decay
+  // Cluster detection: violations within 2 min = same jammer episode, don't stack
+  const lastV = record.violations.length > 0 ? record.violations[record.violations.length - 1] : null;
+  if (lastV && (violation.timestamp - lastV.timestamp) < CLUSTER_WINDOW_MS
+      && lastV.type === violation.type && (violation.type === 'teleport' || violation.type === 'speed')) {
+    // Update existing violation with worst values, don't add new entry
+    lastV.speed = Math.max(lastV.speed || 0, violation.speed || 0);
+    lastV.distance = Math.max(lastV.distance || 0, violation.distance || 0);
+    lastV.to = violation.to;
+    lastV.clustered = (lastV.clustered || 1) + 1;
+    // Don't increment totalViolations — same incident
+  } else {
+    record.violations.push(violation);
+    record.totalViolations++;
+  }
+
+  // Recalculate weighted score with time decay + boomerang discount
   const now = Date.now();
   const ONE_DAY = 86400000;
   let weightedScore = 0;
   for (const v of record.violations) {
     const age = now - v.timestamp;
     const tw = TYPE_WEIGHT[v.type] || 1;
-    if (age < ONE_DAY) weightedScore += tw;
-    else if (age < 7 * ONE_DAY) weightedScore += tw * 0.5;
-    else weightedScore += tw * 0.2;
+    const jammerDiscount = v.jammer ? 0.1 : 1; // boomerang = likely jammer, 10% weight
+    let decayed = tw * jammerDiscount;
+    if (age < ONE_DAY) weightedScore += decayed;
+    else if (age < 7 * ONE_DAY) weightedScore += decayed * 0.5;
+    else weightedScore += decayed * 0.2;
   }
   record.weightedScore = weightedScore;
 
