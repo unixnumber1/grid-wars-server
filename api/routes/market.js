@@ -1086,28 +1086,19 @@ async function handlePickupDrop(req, res) {
 
   let message = drop.core_id ? 'Ядро подобрано!' : 'Предмет подобран!';
   if (drop.couriers?.type === 'delivery' && drop.listing_id) {
-    // Atomically mark listing as intercepted (only if still 'sold') to prevent double refund
+    // Mark listing as intercepted (only if still 'sold')
     const { data: intercepted } = await supabase.from('market_listings')
       .update({ status: 'intercepted' })
       .eq('id', drop.listing_id).eq('status', 'sold')
-      .select('id, buyer_id, price_diamonds').maybeSingle();
+      .select('id').maybeSingle();
 
-    if (intercepted && intercepted.buyer_id) {
-      const { data: buyerPlayer } = await supabase
-        .from('players').select('diamonds').eq('id', intercepted.buyer_id).single();
-      if (buyerPlayer) {
-        await supabase.from('players')
-          .update({ diamonds: (buyerPlayer.diamonds ?? 0) + intercepted.price_diamonds })
-          .eq('id', intercepted.buyer_id);
-      }
-      // Update gameState
+    if (intercepted) {
+      // Update gameState listing status
       if (gameState.loaded) {
         const gl = gameState.getListingById(drop.listing_id);
         if (gl) { gl.status = 'intercepted'; gameState.markDirty('marketListings', gl.id); }
-        const bp = gameState.getPlayerById(intercepted.buyer_id);
-        if (bp) { bp.diamonds = (bp.diamonds ?? 0) + intercepted.price_diamonds; gameState.markDirty('players', bp.id); }
       }
-      message = drop.core_id ? 'Курьер перехвачен! Ядро украдено, покупателю возврат.' : 'Курьер перехвачен! Предмет украден, покупателю возврат.';
+      message = drop.core_id ? 'Курьер перехвачен! Ядро украдено.' : 'Курьер перехвачен! Предмет украдено.';
     }
   }
 
