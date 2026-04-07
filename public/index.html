@@ -4359,7 +4359,7 @@ const I18N = {
     'mine.income': 'Доход',
     'mine.stored': 'Накоплено',
     'mine.cores_n': '🔮 Ядра {n}/10',
-    'mine.extinguish': '🧯 Потушить (восстановит 25% HP)',
+    'mine.extinguish': '🧯 Потушить',
     'mine.demolish': '🗑️ Продать',
     'mine.burning_warn': '🔥 Шахта горит! Потушите в течение 24ч',
     'mine.burn_timer': '🔥 Сгорит через',
@@ -5598,7 +5598,7 @@ const I18N = {
     'mine.income': 'Income',
     'mine.stored': 'Stored',
     'mine.cores_n': '🔮 Cores {n}/10',
-    'mine.extinguish': '🧯 Extinguish (restores 25% HP)',
+    'mine.extinguish': '🧯 Extinguish',
     'mine.demolish': '🗑️ Sell',
     'mine.burning_warn': '🔥 Mine is burning! Extinguish within 24h',
     'mine.burn_timer': '🔥 Burns in',
@@ -7808,6 +7808,42 @@ function _animatePlayerMarker(toLat, toLng, duration = 1000) {
 let _lastGpsAccuracy = null;
 let _lastGpsExtended = null;
 let _lastLocationEmit = 0;
+let _popupWasInRange = null; // track if player was in SMALL_RADIUS of open popup entity
+function _checkPopupRangeRefresh(lat, lng) {
+  if (!_currentPopupEntityId) { _popupWasInRange = null; return; }
+  const overlay = document.getElementById('popup-overlay');
+  if (!overlay || !overlay.classList.contains('open')) { _popupWasInRange = null; return; }
+  // Don't refresh during combat
+  if (combatState.isHolding || combatState.currentTarget) return;
+
+  let entityLat, entityLng, refreshFn;
+  const parts = _currentPopupEntityId.split('_');
+  const type = parts[0];
+  const id = parts.slice(1).join('_');
+
+  if (type === 'mine') {
+    const m = (state.mines || []).find(x => x.id === id);
+    if (!m || m.status !== 'burning') { _popupWasInRange = null; return; }
+    entityLat = m.lat; entityLng = m.lng;
+    refreshFn = () => showMinePopup(m, true, false);
+  } else if (type === 'collector') {
+    const c = collectorData[id];
+    if (!c || !c.is_mine || c.status !== 'burning') { _popupWasInRange = null; return; }
+    entityLat = c.lat; entityLng = c.lng;
+    refreshFn = () => showCollectorPopup(id);
+  } else if (type === 'firetruck') {
+    const ft = firetruckData[id];
+    if (!ft || !ft.is_mine) { _popupWasInRange = null; return; }
+    entityLat = ft.lat; entityLng = ft.lng;
+    refreshFn = () => showFireTruckPopup(id);
+  } else { _popupWasInRange = null; return; }
+
+  const dist = haversine(lat, lng, entityLat, entityLng);
+  const inRange = dist <= SMALL_RADIUS;
+  if (_popupWasInRange === false && inRange) { refreshFn(); }
+  _popupWasInRange = inRange;
+}
+
 function _applyPlayerPosition(lat, lng) {
   state.playerPos = { lat, lng };
   // Send location to Socket.io server (throttled to max once per 3s)
@@ -7825,6 +7861,8 @@ function _applyPlayerPosition(lat, lng) {
   }
   // Trigger building load when player moves (respects 2s throttle)
   loadVisibleBuildings();
+  // Refresh open popup when player crosses SMALL_RADIUS boundary (for extinguish buttons)
+  _checkPopupRangeRefresh(lat, lng);
 }
 
 function togglePin() {
@@ -8690,11 +8728,13 @@ function showMinePopup(mine, isOwn, canCapture) {
         })()]] : []),
       ],
       mine.status === 'burning' ? [
-        {
-          label: t('mine.extinguish'),
-          cls: 'primary',
-          action: () => doExtinguish(mine.id),
-        },
+        (() => {
+          const _extDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, mine.lat, mine.lng) : 9999;
+          const _extInRange = _extDist <= SMALL_RADIUS;
+          return _extInRange
+            ? { label: t('mine.extinguish'), cls: 'primary', action: () => doExtinguish(mine.id) }
+            : { label: _lang === 'ru' ? '🧯 Подойдите ближе' : '🧯 Get closer', cls: '', disabled: true };
+        })(),
         [
           { label: t('mine.demolish'), cls: 'danger', action: () => confirmSellMine(mine.id, mine.level), disabled: getCoresForMine(mine.cell_id).length > 0 },
           { label: t('misc.close'), isClose: true },
@@ -19656,6 +19696,7 @@ function updateCollectorMarker(collectorId) {
 function showCollectorPopup(collectorId) {
   const c = collectorData[collectorId];
   if (!c) return;
+  _currentPopupEntityId = `collector_${collectorId}`;
   const pos = state.playerPos;
   const dist = pos ? haversine(pos.lat, pos.lng, c.lat, c.lng) : null;
   const inAttackRange = dist !== null && dist <= 500;
@@ -19725,7 +19766,13 @@ function showCollectorPopup(collectorId) {
       </div>
       ${!isBurning ? `<div class="coll-progress" style="margin-top:8px"><div style="width:${fillPct}%;background:${barColor}"></div></div>` : ''}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-        ${isBurning ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>` : ''}
+        ${isBurning ? (() => {
+          const _cExtDist = dist !== null ? dist : 9999;
+          const _cExtInRange = _cExtDist <= SMALL_RADIUS;
+          return _cExtInRange
+            ? `<button class="hq-btn blue" onclick="closePopup();doCollectorExtinguish('${collectorId}')">${t('misc.extinguish_cost')}</button>`
+            : `<button class="hq-btn" style="opacity:0.5;cursor:not-allowed;background:#333;color:#ccc" disabled>${_lang === 'ru' ? '🧯 Подойдите ближе' : '🧯 Get closer'}</button>`;
+        })() : ''}
         ${!isBurning && nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doCollectorUpgrade('${collectorId}')">${t('coll.upgrade', {cost: nextCost})}</button>` : ''}
         ${!isBurning ? `<div style="display:flex;gap:8px">
           <button style="background:#f44336;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;flex:1;text-align:center" onclick="confirmSellCollector('${collectorId}')">${t('coll.sell')}</button>
@@ -20009,6 +20056,7 @@ function updateFireTruckMarker(ftId) {
 function showFireTruckPopup(ftId) {
   const ft = firetruckData[ftId];
   if (!ft) return;
+  _currentPopupEntityId = `firetruck_${ftId}`;
 
   const isMine = ft.is_mine;
   const isBurning = ft.status === 'burning';
@@ -20052,9 +20100,14 @@ function showFireTruckPopup(ftId) {
       const cooldownLeft = ft.last_extinguish_at ? Math.max(0, 3600000 - (Date.now() - new Date(ft.last_extinguish_at).getTime())) : 0;
       const onCooldown = cooldownLeft > 0;
 
-      if (burningCount > 0 && !onCooldown) {
+      const _ftDispDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ft.lat, ft.lng) : 9999;
+      const _ftDispInRange = _ftDispDist <= SMALL_RADIUS;
+
+      if (burningCount > 0 && !onCooldown && _ftDispInRange) {
         const cost = estimateExtinguishCost(ft);
         actions.push({ label: `🧯 Потушить (${burningCount} 🔥) — ${formatCoins(cost)}`, cls: 'primary', action: () => doFireTruckDispatch(ft.id) });
+      } else if (burningCount > 0 && !onCooldown && !_ftDispInRange) {
+        actions.push({ label: '🧯 Подойдите ближе', cls: '', disabled: true });
       } else if (onCooldown) {
         const cdMins = Math.ceil(cooldownLeft / 60000);
         actions.push({ label: `⏳ Перезарядка: ${cdMins} мин`, cls: '', disabled: true });
