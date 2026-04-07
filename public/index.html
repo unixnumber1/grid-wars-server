@@ -3326,23 +3326,6 @@
             <input type="text" id="req-emoji" value="🏛️" maxlength="6" style="width:70px;font-size:32px;text-align:center;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:8px;box-sizing:border-box">
             <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.emoji_hint">Вставь любой эмоджи</div>
           </div>
-          <div class="form-group" style="margin-top:12px">
-            <label data-i18n="monreq.level_label">⚡ Желаемый уровень (1-10)</label>
-            <div class="level-selector">
-              <div class="level-option selected" onclick="selectMonumentLevel(this,1)" id="level-opt-1">1</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,2)" id="level-opt-2">2</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,3)" id="level-opt-3">3</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,4)" id="level-opt-4">4</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,5)" id="level-opt-5">5</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,6)" id="level-opt-6">6</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,7)" id="level-opt-7">7</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,8)" id="level-opt-8">8</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,9)" id="level-opt-9">9</div>
-              <div class="level-option" onclick="selectMonumentLevel(this,10)" id="level-opt-10">10</div>
-            </div>
-            <input type="hidden" id="req-level" value="1">
-            <div style="font-size:11px;color:#666;margin-top:4px" data-i18n="monreq.level_hint">Уровень влияет на сложность рейда и награды</div>
-          </div>
           <button id="btn-submit-monument-request" onclick="submitMonumentRequest()" data-i18n="monreq.submit" style="width:100%;margin-top:16px;padding:14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer">📨 Отправить заявку</button>
         </div>
       </div>
@@ -13253,7 +13236,7 @@ async function submitMonumentRequest() {
   const coordsInput = document.getElementById('req-coords').value.trim();
   const name = document.getElementById('req-name').value.trim();
   const emoji = document.getElementById('req-emoji').value.trim();
-  const level = parseInt(document.getElementById('req-level').value);
+  const level = 1;
   if (!coordsInput) { showToast(t('monreq.no_coords')); return; }
   if (!name || name.length < 3) { showToast(t('monreq.name_short')); return; }
   if (!emoji) { showToast(t('monreq.no_emoji')); return; }

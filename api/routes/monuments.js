@@ -614,13 +614,12 @@ import { ADMIN_NOTIFY_ID } from '../../config/constants.js';
 const ADMIN_TG_ID = ADMIN_NOTIFY_ID;
 
 async function handleMonumentRequest(req, res) {
-  const { telegram_id, lat, lng, name, emoji, level } = req.body;
+  const { telegram_id, lat, lng, name, emoji } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
   const lang = getLang(gameState, telegram_id);
-  if (lat == null || lng == null || !name || !emoji || !level)
+  if (lat == null || lng == null || !name || !emoji)
     return res.status(400).json({ error: ts(lang, 'monreq.fill_all') });
-  if (level < 1 || level > 10)
-    return res.status(400).json({ error: ts(lang, 'monreq.level_range') });
+  const level = 1;
   if (name.length < 3 || name.length > 50)
     return res.status(400).json({ error: ts(lang, 'monreq.name_length') });
 
@@ -658,7 +657,6 @@ async function sendAdminMonumentRequest(request, player) {
     `🔖 Тег: @${player.username || 'нет'}\n` +
     `🆔 ID: ${player.telegram_id}\n\n` +
     `${request.emoji} Название: ${request.name}\n` +
-    `⚡ Уровень: ${request.level}\n` +
     `📍 Координаты: ${request.lat}, ${request.lng}\n` +
     `🗺 Карта: ${gmapsUrl}\n\n` +
     `🕐 Время: ${new Date().toLocaleString('ru')}`;
