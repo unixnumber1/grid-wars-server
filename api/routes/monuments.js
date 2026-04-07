@@ -536,9 +536,10 @@ async function handleOpenLootBox(req, res) {
     if (new Date(box.expires_at) < new Date())
       return res.status(400).json({ error: ts(lang4, 'err.box_expired') });
 
-    // Distance check
+    // Distance check — must be within SMALL_RADIUS of the loot box
+    if (box.lat == null || box.lng == null) return res.status(400).json({ error: 'Loot box has no position' });
     const dist = haversine(player.last_lat, player.last_lng, box.lat, box.lng);
-    if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang4, 'err.too_far_short') });
+    if (!(dist <= SMALL_RADIUS)) return res.status(400).json({ error: ts(lang4, 'err.too_far_short'), distance: Math.round(dist) });
 
     // Mark as opened atomically — use .eq('opened', false) to prevent double-open
     const { data: updated, error: updErr } = await supabase.from('monument_loot_boxes')
