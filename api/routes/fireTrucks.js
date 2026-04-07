@@ -151,6 +151,7 @@ async function handleSell(req, res) {
 
   const truck = gameState.fireTrucks.get(fire_truck_id);
   if (!truck || truck.owner_id !== player.id) return res.status(404).json({ error: 'Fire truck not found' });
+  if (truck.status === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
 
   const refund = getSellRefundDiamonds(truck.level);
   const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();

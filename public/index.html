@@ -8736,7 +8736,7 @@ function showMinePopup(mine, isOwn, canCapture) {
             : { label: _lang === 'ru' ? '🧯 Подойдите ближе' : '🧯 Get closer', cls: '', disabled: true };
         })(),
         [
-          { label: t('mine.demolish'), cls: 'danger', action: () => confirmSellMine(mine.id, mine.level), disabled: getCoresForMine(mine.cell_id).length > 0 },
+          { label: t('mine.demolish'), cls: 'danger', disabled: true },
           { label: t('misc.close'), isClose: true },
         ],
       ] : [
@@ -20121,7 +20121,9 @@ function showFireTruckPopup(ftId) {
 
     const _ftRefund = Math.floor(getTotalFTGems(ft.level) * 0.5);
     actions.push([
-      { label: _lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell', cls: 'danger', action: () => confirmSellFireTruck(ft.id, _ftRefund) },
+      isBurning
+        ? { label: _lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell', cls: 'danger', disabled: true }
+        : { label: _lang === 'ru' ? '🗑️ Продать' : '🗑️ Sell', cls: 'danger', action: () => confirmSellFireTruck(ft.id, _ftRefund) },
       { label: t('btn.close'), isClose: true },
     ]);
 

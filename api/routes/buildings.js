@@ -470,6 +470,8 @@ async function handleAttackSellMine(req, res) {
   if (mineError) return res.status(500).json({ error: mineError.message });
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'You do not own this mine' });
+  const gsMine = gameState.loaded ? gameState.getMineById(mine_id) : null;
+  if ((gsMine?.status || mine.status) === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
   const sellCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
   if (sellCores.length > 0) return res.status(400).json({ error: 'Сначала извлеките все ядра из постройки' });
   const collected = calcAccumulatedCoins(mine.level, mine.last_collected, 1, 1);

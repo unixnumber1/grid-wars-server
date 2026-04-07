@@ -256,6 +256,7 @@ async function handleSell(req, res) {
 
   const collector = gameState.collectors.get(collector_id);
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
+  if (collector.status === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
 
   // Refund diamonds — 25% of total invested
   let totalInvested = COLLECTOR_COST_DIAMONDS;
