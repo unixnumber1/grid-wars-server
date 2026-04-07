@@ -85,11 +85,11 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
     zombies.js             — spawn-scout/attack
     fireTrucks.js          — build/upgrade/sell/hit/dispatch/extinguish-self/hit-firefighter
     rewards.js             — get-level-rewards/claim-reward/claim-all
-    barracks.js            — build/upgrade/sell/train/collect/upgrade-unit/send-scout/attack-scout/boost/status
+    barracks.js            — build/upgrade/sell/train/collect/upgrade-unit/send-scout/attack-scout/boost/status/hit/extinguish
     walking.js             — check/claim-daily/claim-weekly
 
 /security
-  antispoof.js             — GPS антиспуф v4 (скорость, телепорт, фейк GPS, автобан)
+  antispoof.js             — GPS антиспуф v4 (скорость, телепорт, межгород, фейк GPS, автобан)
   rateLimit.js             — rate limiting по telegram_id
   telegramAuth.js          — HMAC-SHA256 верификация initData
   validate.js              — валидация telegram_id, координат, XSS
@@ -101,7 +101,8 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
   supabase.js              — PostgreSQL QueryBuilder + sendTelegramNotification + rateLimit
   h3.js                    — H3 hex grid (resolution 10, ~65м гексы)
   grid.js                  — re-export из h3.js
-  haversine.js             — расстояние между координатами (метры)
+  haversine.js             — расстояние: haversine (точная) + fastDistance (быстрая ~10-20×)
+  mineBoost.js             — cell-aggregate mine boost O(N+C²), кеш в GameState
   logger.js                — логирование действий игроков (200 записей/игрок)
   log.js                   — dev-only лог
   format.js                — форматирование чисел (Q/T/B/M/K)
@@ -151,7 +152,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 | `clan_members` | id, clan_id, player_id, role(leader/officer/member), joined_at, left_at |
 | `clan_headquarters` | id, clan_id, player_id, lat, lng, cell_id, level |
 | `collectors` | id, owner_id, lat, lng, cell_id, level(1-10), coins, hp, status(active/burning/destroyed), mode(auto/manual) |
-| `fire_trucks` | id, owner_id, lat, lng, cell_id, level(1-10), hp, status(active/destroyed) |
+| `fire_trucks` | id, owner_id, lat, lng, cell_id, level(1-10), hp, status(active/burning/destroyed), burning_started_at |
 | `monuments` | id, lat, lng, cell_id, name, emoji, level(1-10), hp, max_hp, shield_hp, max_shield_hp, phase(shield/open/wave/defeated), respawn_at, waves_triggered, created_at |
 | `monument_defenders` | id, monument_id, emoji, hp, max_hp, lat, lng, wave, alive |
 | `monument_loot_boxes` | id, monument_id, player_id, box_type(trophy/gift), gems, items(JSONB), opened, lat, lng, expires_at(24h) |
@@ -166,7 +167,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 | `referrals` | id, referred_id, referrer_id, referred_rewarded, referrer_rewarded |
 | `level_rewards_claimed` | id, player_id, level, reward, claimed_at |
 | `app_settings` | key, value |
-| `barracks` | id, owner_id, lat, lng, cell_id, level(1-10), hp, status |
+| `barracks` | id, owner_id, lat, lng, cell_id, level(1-10), hp, max_hp, status(active/burning/destroyed), burning_started_at |
 | `training_queue` | id, barracks_id, owner_id, unit_type, level, started_at, finish_at |
 | `unit_bag` | id, owner_id, unit_type, level, count |
 | `unit_upgrades` | id, player_id, unit_type, level |
@@ -204,6 +205,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 - `_coresByMineCellId` — mine_cell_id → core[]
 - `_itemsByOwnerId` — owner_id → item[]
 - `_occupiedCells` — Set ячеек с постройками
+- `_mineBoostCache` — playerId → {hash, boost data} (инвалидируется при build/upgrade/destroy)
 
 ### Game Loop (`game/loop/gameLoop.js`)
 **Основной тик (5с):**
@@ -257,7 +259,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 - HP: `500 * level^1.3`, реген 25%/ч
 - Статусы: normal → under_attack → burning (24ч) → destroyed
 - Апгрейд стоимость: `998 * 1.1301^(l-1)` для l≤100, `base100 * 1.1857^(l-100)` для l>100
-- Буст от количества: +1% за каждые 1000 levelPoints в 20км
+- Буст от количества: +1% за каждые 1000 levelPoints в 20км (cell-aggregate алгоритм O(N+C²), кешируется в gameState)
 - Постройка в координаты тапа (не центр гекса), cell_id вычисляется
 - Время апгрейда: сумма секунд за каждый уровень (lv1→2 = 1с, lv6→7 = 6с)
 
@@ -317,7 +319,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 - Таймаут: 5 мин без атак → despawn
 
 ### Монументы (`game/mechanics/monuments.js`)
-- Создание: заявка от игрока → одобрение админа в Telegram
+- Создание: заявка от игрока → одобрение админа (всегда level=1, выбор уровня убран)
 - 10 уровней: HP 50K→40M, щит 8K→10M
 - Фазы: shield → open → wave → defeated
 - Респавн по уровням: [24, 48, 72, 96, 120, 144, 168, 192, 216, 24] часов
@@ -331,6 +333,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
   - Гемы: один бросок (2-8 lv1 → 500-1000 lv10), делятся по вкладу
   - Ядра: 10-95% шанс, 1-5 штук, топ-1 гарантирован минимум 1
 - XP при открытии бокса: `monumentLevel × 100000`
+- Лутбоксы: distance check (200м), withPlayerLock, атомарный update (.eq opened=false), кеш инвалидация
 
 ### PvP
 - Радиус: 500м, реалтайм удары
@@ -364,14 +367,18 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 ### Пожарные машины (`game/mechanics/fireTrucks.js`)
 - Стоимость: 50💎, 10 уровней (радиус 200-600м, HP 2K-60K)
 - Доступны: HQ lv3+ (1 шт), HQ lv7+ (2 шт), HQ lv9+ (3 шт)
-- Тушат: горящие шахты, сборщики, другие машины
+- Тушат: горящие шахты, сборщики, другие машины, казармы
 - Стоимость тушения: 5% от total upgrade cost шахты
 - Анимация пожарного от машины к цели (HP 5000, speed ~20 км/ч)
 - КД dispatch: 1 час
 
-### Казармы (barracks) — НОВАЯ МЕХАНИКА
+### Казармы (barracks)
 - Стоимость: 50💎, требуется HQ lv5+
 - 10 уровней: HP 3K→42K, слоты 1→5
+- Статусы: active → burning (24ч) → destroyed (как пожарная машина)
+- PvP: атака чужой казармы → при HP=0 загорается, владелец может потушить (200м)
+- Пожарные машины тушат горящие казармы автоматически через dispatch
+- Горящую казарму нельзя продать
 - Тренировка скаутов: базовое время 30мин, ускоряется с уровнем юнита
 - Скауты: 10 уровней, скорость 20-55 км/ч, дальность до 20км
 - Захват рудников скаутами: время 20-2мин по уровню
@@ -508,6 +515,7 @@ tick: { headquarters, mines, bots, vases, online_players, couriers, courier_drop
 - `monument:hp_update`, `monument:defeated`, `monument:loot_dropped`, `monument:defender_killed`
 - `collector:hp_update`, `collector:burning`, `core:dropped`
 - `firetruck:hp_update`, `firetruck:burning`
+- `barracks:hp_update`, `barracks:burning`
 - `firefighter:spawned`, `firefighter:hp_update`, `firefighter:killed`, `firefighter:arrived`, `firefighter:removed`
 - `zombie:scout_spawned`, `zombie:horde_started`, `zombie:wave_spawned`, `zombie:wave_cleared`
 - `zombie:killed`, `zombie:removed`, `zombie:remove_all`, `zombie:move_batch`, `zombie:horde_timeout`, `zombie:attack_player`
@@ -526,13 +534,15 @@ tick: { headquarters, mines, bots, vases, online_players, couriers, courier_drop
 
 ### GPS антиспуф v4 (`security/antispoof.js`)
 - Телепорт: >500 км/ч за <60с → violation weight 2
+- Межгородской прыжок: >100км и >200 км/ч между сессиями → violation weight 3
 - Высокая скорость: >300 км/ч за <30с → violation weight 1
 - Фейк GPS: >85% null altitude/speed/heading при >20 обновлениях → violation weight 4
 - Плохая точность: >300м → тихий reject (без violation)
-- Автобан: weighted score ≥10 → 30 дней + уведомление админу
+- Автобан: weighted score ≥10 → 30 дней + уведомление админу (только баны, подозрения не присылаются)
 - Time decay: 100% <1д, 50% 1-7д, 20% >7д
+- Boomerang detection: возврат в ≤500м за 5мин → jammer, вес ×0.1
 - PIN mode: grace 5с, макс 20км от HQ
-- Админы (ADMIN_TG_IDS) не проверяются
+- Админ-проверка на сервере (is_admin флаг в tick), ID не хардкодятся на фронтенде
 
 ### Rate limiting (`security/rateLimit.js`)
 | Тип | Лимит/60с |
@@ -576,7 +586,8 @@ tick: { headquarters, mines, bots, vases, online_players, couriers, courier_drop
 ---
 
 ## Админ
-- ADMIN_TG_ID: 560013667, ADMIN_NOTIFY_ID: 8752325699
+- ADMIN_TG_IDS: Set в config/constants.js (не хардкодятся на фронтенде)
+- Сервер отправляет `is_admin: true` в tick → фронтенд использует `_isServerAdmin`
 - Джойстик перемещения (3 скорости)
 - Fullscreen менеджер игроков: поиск → инвентарь/ресурсы/бан/логи
   - Инвентарь: просмотр, выдача предметов (тип/редкость/уровень), забирание
@@ -624,3 +635,11 @@ node --test tests/mechanics/*.test.js
 ### 13. БД колонка осколков = `crystals` (не `shards`)
 
 ### 14. Роуты с мутацией ресурсов → withPlayerLock(telegram_id)
+
+### 15. Тушение/взаимодействие с постройками — проверка дистанции SMALL_RADIUS на сервере
+
+### 16. Горящие постройки нельзя продавать (server + client блокировка)
+
+### 17. Массовые дистанции (boost, zone checks) → fastDistance() вместо haversine()
+
+### 18. Admin ID не хардкодить на фронтенде — только серверный is_admin флаг
