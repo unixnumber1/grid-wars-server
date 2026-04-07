@@ -341,9 +341,6 @@ function recordViolation(telegramId, violation) {
 
   if (record.weightedScore >= VIOLATION_THRESHOLD && !record.banned) {
     autoBan(telegramId, record);
-  } else if (violation.type === 'teleport' || violation.type === 'speed') {
-    // Speed violations: notify admin for manual review, no auto-ban
-    notifyAdminWarning(telegramId, violation);
   }
 }
 
