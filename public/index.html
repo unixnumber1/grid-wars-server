@@ -7819,6 +7819,11 @@ function _checkPopupRangeRefresh(lat, lng) {
     if (!ft || !ft.is_mine) { _popupWasInRange = null; return; }
     entityLat = ft.lat; entityLng = ft.lng;
     refreshFn = () => showFireTruckPopup(id);
+  } else if (type === 'lootbox') {
+    const lb = lootBoxData[id];
+    if (!lb) { _popupWasInRange = null; return; }
+    entityLat = lb.lat; entityLng = lb.lng;
+    refreshFn = () => showLootBoxPopup(id);
   } else { _popupWasInRange = null; return; }
 
   const dist = haversine(lat, lng, entityLat, entityLng);
@@ -19377,13 +19382,19 @@ function showDefenderPopup(defenderId) {
 function showLootBoxPopup(boxId) {
   const box = lootBoxData[boxId];
   if (!box) return;
+  _currentPopupEntityId = `lootbox_${boxId}`;
+  const pos = state.playerPos;
+  const dist = (pos && box.lat != null) ? haversine(pos.lat, pos.lng, box.lat, box.lng) : 9999;
+  const inRange = dist <= SMALL_RADIUS;
 
   const stats = [
     [t('mon.raid'), t('misc.level_short', {n: box.monument_level})],
   ];
 
   const actions = [
-    { label: t('mon.open_loot'), cls: 'danger', action: () => doOpenLootBox(boxId) },
+    inRange
+      ? { label: t('mon.open_loot'), cls: 'danger', action: () => doOpenLootBox(boxId) }
+      : { label: _lang === 'ru' ? '📦 Подойдите ближе' : '📦 Get closer', cls: '', disabled: true },
   ];
 
   openPopup(t('mon.loot_reward', {avatar: box.player_avatar || '', name: box.player_name || ''}), '', stats, actions);
@@ -19553,7 +19564,7 @@ async function doOpenLootBox(boxId) {
       body: JSON.stringify({ action: 'open-loot-box', box_id: boxId }),
     });
     closePopup();
-    // Remove marker
+    // Remove marker AFTER server confirms success
     if (lootBoxMarkers[boxId]) { map.removeLayer(lootBoxMarkers[boxId]); delete lootBoxMarkers[boxId]; delete lootBoxData[boxId]; }
     // Update diamonds
     if (state.player && data.diamonds != null) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
@@ -19572,10 +19583,17 @@ async function doOpenLootBox(boxId) {
         }
       }
     }
-    // XP shown via handleXpResult below (no duplicate toast)
     showToast(lines.join('\n'), 5000);
     handleXpResult(data.xp);
-  } catch (err) { showToast(`❌ ${err.message}`); }
+  } catch (err) {
+    closePopup();
+    const msg = err.message || '';
+    // If already opened or expired, remove stale marker
+    if (msg.includes('opened') || msg.includes('expired') || msg.includes('not found')) {
+      if (lootBoxMarkers[boxId]) { map.removeLayer(lootBoxMarkers[boxId]); delete lootBoxMarkers[boxId]; delete lootBoxData[boxId]; }
+    }
+    showToast(`❌ ${msg}`);
+  }
 }
 
 // ═══════════════════════════════════════════════════

@@ -16,7 +16,9 @@ import { MONUMENT_SHIELD_DPS_THRESHOLD, MONUMENT_DPS_WINDOW_MS } from '../../con
 import { sendTelegramNotification } from '../../lib/supabase.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
-import { WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { WEAPON_COOLDOWNS, SMALL_RADIUS } from '../../config/constants.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
+import { mapRouter } from './map.js';
 
 export const monumentsRouter = Router();
 
@@ -515,97 +517,116 @@ async function handleOpenLootBox(req, res) {
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  // Get loot box from DB (not cached in gameState)
-  const { data: box, error: boxErr } = await supabase.from('monument_loot_boxes')
-    .select('*')
-    .eq('id', box_id)
-    .maybeSingle();
-
-  if (boxErr || !box) return res.status(404).json({ error: 'Loot box not found' });
-  if (box.opened) return res.status(400).json({ error: 'Already opened' });
   const lang4 = getLang(gameState, telegram_id);
-  if (Number(box.player_id) !== Number(telegram_id))
-    return res.status(403).json({ error: ts(lang4, 'err.not_your_box') });
-  if (new Date(box.expires_at) < new Date())
-    return res.status(400).json({ error: ts(lang4, 'err.box_expired') });
 
-  // Mark as opened
-  await supabase.from('monument_loot_boxes').update({ opened: true }).eq('id', box_id);
+  // Distance check — player must be within SMALL_RADIUS
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
 
-  // Grant gems — read fresh from DB to avoid stale gameState
-  const { data: freshPlayer } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
-  const currentDiamonds = freshPlayer?.diamonds ?? player.diamonds ?? 0;
-  const newDiamonds = currentDiamonds + box.gems;
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
-  player.diamonds = newDiamonds;
-  gameState.markDirty('players', player.id);
+  return withPlayerLock(telegram_id, async () => {
+    // Get loot box from DB (not cached in gameState)
+    const { data: box, error: boxErr } = await supabase.from('monument_loot_boxes')
+      .select('*')
+      .eq('id', box_id)
+      .maybeSingle();
 
-  // Grant items and cores (skip items if inventory full)
-  const { hasInventorySpace } = await import('../../game/mechanics/items.js');
-  const items = typeof box.items === 'string' ? JSON.parse(box.items) : (box.items || []);
-  const insertedItems = [];
-  const insertedCores = [];
-  for (const itemData of items) {
-    // Core entry (added by addCoresToLootBoxes)
-    if (itemData._type === 'core') {
-      const coreRow = {
-        owner_id: Number(telegram_id),
-        mine_cell_id: null,
-        slot_index: null,
-        core_type: itemData.core_type,
-        level: itemData.level || 0,
-        created_at: new Date().toISOString(),
-      };
-      const { data: ins, error: insErr } = await supabase.from('cores').insert(coreRow).select().single();
-      if (!insErr && ins) {
-        gameState.upsertCore(ins);
-        insertedCores.push(ins);
+    if (boxErr || !box) return res.status(404).json({ error: 'Loot box not found' });
+    if (box.opened) return res.status(400).json({ error: 'Already opened' });
+    if (Number(box.player_id) !== Number(telegram_id))
+      return res.status(403).json({ error: ts(lang4, 'err.not_your_box') });
+    if (new Date(box.expires_at) < new Date())
+      return res.status(400).json({ error: ts(lang4, 'err.box_expired') });
+
+    // Distance check
+    const dist = haversine(player.last_lat, player.last_lng, box.lat, box.lng);
+    if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang4, 'err.too_far_short') });
+
+    // Mark as opened atomically — use .eq('opened', false) to prevent double-open
+    const { data: updated, error: updErr } = await supabase.from('monument_loot_boxes')
+      .update({ opened: true })
+      .eq('id', box_id)
+      .eq('opened', false)
+      .select('id')
+      .maybeSingle();
+    if (updErr || !updated) return res.status(400).json({ error: 'Already opened' });
+
+    // Invalidate loot box cache for this player so tick doesn't re-show opened box
+    if (mapRouter._lbCache) mapRouter._lbCache.delete(Number(telegram_id));
+
+    // Grant gems — read fresh from DB to avoid stale gameState
+    const { data: freshPlayer } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+    const currentDiamonds = freshPlayer?.diamonds ?? player.diamonds ?? 0;
+    const newDiamonds = currentDiamonds + box.gems;
+    await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+    player.diamonds = newDiamonds;
+    gameState.markDirty('players', player.id);
+
+    // Grant items and cores (skip items if inventory full)
+    const { hasInventorySpace } = await import('../../game/mechanics/items.js');
+    const items = typeof box.items === 'string' ? JSON.parse(box.items) : (box.items || []);
+    const insertedItems = [];
+    const insertedCores = [];
+    for (const itemData of items) {
+      // Core entry (added by addCoresToLootBoxes)
+      if (itemData._type === 'core') {
+        const coreRow = {
+          owner_id: Number(telegram_id),
+          mine_cell_id: null,
+          slot_index: null,
+          core_type: itemData.core_type,
+          level: itemData.level || 0,
+          created_at: new Date().toISOString(),
+        };
+        const { data: ins, error: insErr } = await supabase.from('cores').insert(coreRow).select().single();
+        if (!insErr && ins) {
+          gameState.upsertCore(ins);
+          insertedCores.push(ins);
+        }
+        continue;
       }
-      continue;
+      // Skip if inventory full
+      if (gameState.loaded && !hasInventorySpace(gameState, player.id)) continue;
+      const itemRow = {
+        owner_id: player.id,
+        type: itemData.type,
+        rarity: itemData.rarity,
+        name: itemData.name,
+        emoji: itemData.emoji,
+        attack: itemData.attack || 0,
+        crit_chance: itemData.crit_chance || 0,
+        defense: itemData.defense || 0,
+        block_chance: itemData.block_chance || 0,
+        stat_value: itemData.stat_value || itemData.attack || itemData.defense || 0,
+        base_attack: itemData.base_attack || itemData.attack || 0,
+        base_crit_chance: itemData.base_crit_chance || itemData.crit_chance || 0,
+        base_defense: itemData.base_defense || itemData.defense || 0,
+        upgrade_level: 0,
+        equipped: false,
+        on_market: false,
+        obtained_at: new Date().toISOString(),
+      };
+      const { data: ins, error: insErr } = await supabase.from('items').insert(itemRow).select().single();
+      if (!insErr && ins) {
+        gameState.upsertItem(ins);
+        insertedItems.push(ins);
+      }
     }
-    // Skip if inventory full
-    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) continue;
-    const itemRow = {
-      owner_id: player.id,
-      type: itemData.type,
-      rarity: itemData.rarity,
-      name: itemData.name,
-      emoji: itemData.emoji,
-      attack: itemData.attack || 0,
-      crit_chance: itemData.crit_chance || 0,
-      defense: itemData.defense || 0,
-      block_chance: itemData.block_chance || 0,
-      stat_value: itemData.stat_value || itemData.attack || itemData.defense || 0,
-      base_attack: itemData.base_attack || itemData.attack || 0,
-      base_crit_chance: itemData.base_crit_chance || itemData.crit_chance || 0,
-      base_defense: itemData.base_defense || itemData.defense || 0,
-      upgrade_level: 0,
-      equipped: false,
-      on_market: false,
-      obtained_at: new Date().toISOString(),
-    };
-    const { data: ins, error: insErr } = await supabase.from('items').insert(itemRow).select().single();
-    if (!insErr && ins) {
-      gameState.upsertItem(ins);
-      insertedItems.push(ins);
-    }
-  }
 
-  // XP
-  const { getMonumentXp } = await import('../../game/mechanics/xp.js');
-  let xpResult = null;
-  try { xpResult = await addXp(player.id, getMonumentXp(box.monument_level)); } catch (_) {}
+    // XP
+    const { getMonumentXp } = await import('../../game/mechanics/xp.js');
+    let xpResult = null;
+    try { xpResult = await addXp(player.id, getMonumentXp(box.monument_level)); } catch (_) {}
 
-  logActivity(player.game_username, `opened monument loot box (lv${box.monument_level} ${box.box_type})`);
-  logPlayer(telegram_id, 'action', `Открыл лутбокс монумента lv${box.monument_level}`);
+    logActivity(player.game_username, `opened monument loot box (lv${box.monument_level} ${box.box_type})`);
+    logPlayer(telegram_id, 'action', `Открыл лутбокс монумента lv${box.monument_level}`);
 
-  return res.json({
-    success: true,
-    gems: box.gems,
-    items: insertedItems.map(i => ({ id: i.id, type: i.type, rarity: i.rarity, name: i.name, emoji: i.emoji, attack: i.attack, defense: i.defense, crit_chance: i.crit_chance })),
-    cores: insertedCores.map(c => ({ id: c.id, core_type: c.core_type, level: c.level })),
-    diamonds: newDiamonds,
-    xp: xpResult,
+    return res.json({
+      success: true,
+      gems: box.gems,
+      items: insertedItems.map(i => ({ id: i.id, type: i.type, rarity: i.rarity, name: i.name, emoji: i.emoji, attack: i.attack, defense: i.defense, crit_chance: i.crit_chance })),
+      cores: insertedCores.map(c => ({ id: c.id, core_type: c.core_type, level: c.level })),
+      diamonds: newDiamonds,
+      xp: xpResult,
+    });
   });
 }
 
