@@ -12016,21 +12016,21 @@ function startRespawnCountdown(untilISO) {
 
 let _botAutoAttackTimer = null;
 function _startBotAutoAttack(botId) {
-  if (_botAutoAttackTimer) clearInterval(_botAutoAttackTimer);
-  doAttackBot(botId);
+  if (_botAutoAttackTimer) clearTimeout(_botAutoAttackTimer);
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
-  _botAutoAttackTimer = setInterval(() => {
+  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
+  _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
+  function botFireLoop() {
     const bot = botData[botId];
-    if (!bot || (bot.hp ?? 0) <= 0) { clearInterval(_botAutoAttackTimer); _botAutoAttackTimer = null; return; }
+    if (!bot || (bot.hp ?? 0) <= 0) { _botAutoAttackTimer = null; return; }
     doAttackBot(botId);
-  }, cd + 50);
+    _botAutoAttackTimer = setTimeout(botFireLoop, _pvpCdMs + 30);
+  }
+  botFireLoop();
 }
 
 function doAttackBot(botId) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const bot = botData[botId];
   if (!bot) return;
   const pos = state.playerPos;
@@ -12038,6 +12038,7 @@ function doAttackBot(botId) {
     method: 'POST',
     body: JSON.stringify({ action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const ref = botMarkers[botId];
     if (ref?.marker) {
       const ll = ref.marker.getLatLng();
@@ -16537,10 +16538,6 @@ async function doAttackMine(mineId) {
 }
 
 function doMineHit(mine) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
-
   const pos = state.playerPos;
   if (!pos) return;
 
@@ -16554,6 +16551,7 @@ function doMineHit(mine) {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', mine_id: mine.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     if (data.burned) {
       stopCombat(); closePopupKeepHold();
       let msg = t('toast.mine_burning');
@@ -16577,9 +16575,6 @@ function doMineHit(mine) {
 }
 
 function doOreHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
@@ -16588,6 +16583,7 @@ function doOreHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const _oreT = oreData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _oreT ? L.latLng(_oreT.lat, _oreT.lng) : null);
     if (data.broken) {
@@ -16819,9 +16815,11 @@ function startPvpCombat(target) {
   _pvpTarget = target;
   closePopup();
 
-  // Determine weapon CD
+  // Determine weapon CD (with skill speed bonus)
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
+  _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
 
   // Show floating attack button
   showCombatHUD(target, 'pvp');
@@ -16874,8 +16872,11 @@ function showCombatHUD(target, mode) {
     holdTimer = setTimeout(() => {
       isHolding = true;
       atkBtn.classList.add('atk-btn-pulse');
-      doHit(); // Fire first shot immediately on hold
-      _pvpAutoFire = setInterval(doHit, _pvpCdMs); // server enforces cooldown via 429
+      function autoFireLoop() {
+        doHit();
+        _pvpAutoFire = setTimeout(autoFireLoop, _pvpCdMs + 30);
+      }
+      autoFireLoop();
     }, 300);
   }
   function stopHold() {
@@ -16884,22 +16885,22 @@ function showCombatHUD(target, mode) {
     atkBtn.classList.remove('atk-btn-pulse');
     clearTimeout(holdTimer);
     holdTimer = null;
-    if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+    if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; }
     // If it was a quick tap (not a hold), fire single shot
     if (!wasHolding) doHit();
   }
 
   atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
   atkBtn.addEventListener('touchend', (e) => { stopHold(); }, { passive: false });
-  atkBtn.addEventListener('touchcancel', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('touchcancel', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('mousedown', startHold);
   atkBtn.addEventListener('mouseup', stopHold);
-  atkBtn.addEventListener('mouseleave', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('mouseleave', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function stopCombat() {
-  if (_pvpAutoFire) { clearInterval(_pvpAutoFire); _pvpAutoFire = null; }
+  if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; }
   _pvpTarget = null;
   const hud = document.getElementById('combat-hud');
   if (hud) hud.remove();
@@ -16949,8 +16950,9 @@ function bindAttackButton(targetType, target) {
   if (!btn) return;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const cd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
-  _pvpCdMs = cd;
+  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
+  _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
 
   const targetId = targetType === 'player' ? target.telegram_id : target.id;
   combatState.currentTarget = { id: targetId, type: targetType, data: target };
@@ -16978,16 +16980,19 @@ function bindAttackButton(targetType, target) {
     combatState.touchId = touchIdentifier ?? null;
     btn.classList.add('attacking');
     document.getElementById('popup-overlay')?.classList.add('combat-mode');
-    executePopupAttack();
-    if (combatState.attackInterval) clearInterval(combatState.attackInterval);
-    combatState.attackInterval = setInterval(executePopupAttack, cd + 30);
+    if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
+    function popupFireLoop() {
+      executePopupAttack();
+      combatState.attackInterval = setTimeout(popupFireLoop, _pvpCdMs + 30);
+    }
+    popupFireLoop();
   }
 
   function stopHold() {
     combatState.isHolding = false;
     combatState.touchId = null;
     btn.classList.remove('attacking');
-    if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+    if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
     const card = document.getElementById('popup-card');
     if (card) card.style.pointerEvents = '';
   }
@@ -17021,7 +17026,7 @@ function bindAttackButton(targetType, target) {
 
   // If already holding (multitouch target switch), start attacking immediately
   if (combatState.isHolding) {
-    if (combatState.attackInterval) clearInterval(combatState.attackInterval);
+    if (combatState.attackInterval) clearTimeout(combatState.attackInterval);
     executePopupAttack();
     combatState.attackInterval = setInterval(executePopupAttack, cd + 30);
   }
@@ -17046,7 +17051,7 @@ function stopPopupCombat(keepHolding) {
     combatState.touchId = null;
   }
   combatState.currentTarget = null;
-  if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+  if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
   if (!keepHolding) {
     document.getElementById('popup-overlay')?.classList.remove('combat-mode');
     const btn = document.getElementById('popup-atk-btn');
@@ -17064,7 +17069,7 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   // Clear timers from previous popups without calling closePopup (preserves isHolding)
   if (_upgradeCountdownTimer) { clearInterval(_upgradeCountdownTimer); _upgradeCountdownTimer = null; }
   if (_accumulatedCoinsTimer) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; }
-  if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+  if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
 
   const card = document.getElementById('popup-card');
   card.style.pointerEvents = '';
@@ -17176,7 +17181,7 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
     if (e.touches.length === 0) {
       combatState.isHolding = false;
       combatState.touchId = null;
-      if (combatState.attackInterval) { clearInterval(combatState.attackInterval); combatState.attackInterval = null; }
+      if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
     }
   }, { passive: true });
 })();
@@ -17232,10 +17237,6 @@ function removeMonumentDeathOverlay() {
 }
 
 function doPvpHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
-
   const pos = state.playerPos;
   if (!pos) return;
 
@@ -17251,6 +17252,7 @@ function doPvpHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'pvp-attack', target_telegram_id: target.telegram_id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     if (data.killed) {
       stopCombat();
       closePopupKeepHold();
@@ -19476,9 +19478,6 @@ const _origShowCombatHUD = showCombatHUD;
 
 // ── Hit handlers for monuments ──
 function doMonumentShieldHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
 
@@ -19489,6 +19488,7 @@ function doMonumentShieldHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-shield', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const _monT = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, false, false, _monT ? L.latLng(_monT.lat, _monT.lng) : null);
     updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
@@ -19511,9 +19511,6 @@ function doMonumentShieldHit(target) {
 }
 
 function doMonumentBodyHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
 
@@ -19524,6 +19521,7 @@ function doMonumentBodyHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-monument', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const _monT2 = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _monT2 ? L.latLng(_monT2.lat, _monT2.lng) : null);
@@ -19541,9 +19539,6 @@ function doMonumentBodyHit(target) {
 }
 
 function doDefenderHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
 
@@ -19556,6 +19551,7 @@ function doDefenderHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-defender', defender_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     if (data.killed) {
       if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
       const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id && !d._dead);
@@ -19879,9 +19875,6 @@ function doStartCollectorCombat(collectorId) {
 }
 
 function doCollectorHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
@@ -19890,6 +19883,7 @@ function doCollectorHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', collector_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const c = collectorData[target.id];
     if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
     if (data.destroyed) {
@@ -20380,9 +20374,6 @@ function doStartFireTruckCombat(ftId) {
 }
 
 function doFireTruckHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
@@ -20391,6 +20382,7 @@ function doFireTruckHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const ft = firetruckData[target.id];
     if (ft) { ft.hp = data.hp; ft.max_hp = data.max_hp; ft.status = data.status; updateFireTruckMarker(target.id); }
     if (data.destroyed) {
@@ -20420,9 +20412,6 @@ async function doBarracksExtinguish(barracksId) {
 }
 
 function doBarracksHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
@@ -20431,6 +20420,7 @@ function doBarracksHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', barracks_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const bk = barracksData[target.id];
     if (bk) { bk.hp = data.hp; bk.max_hp = data.max_hp; bk.status = data.status; }
     updatePopupHp(data.hp, data.max_hp);
@@ -20452,9 +20442,6 @@ function doStartFirefighterCombat(ffId) {
 }
 
 function doFirefighterHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
@@ -20463,6 +20450,7 @@ function doFirefighterHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'hit-firefighter', firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const ff = firefighterData[target.id];
     if (ff) { ff.hp = data.hp; ff.max_hp = data.max_hp; }
     if (data.killed) {
@@ -20478,9 +20466,6 @@ function doFirefighterHit(target) {
 }
 
 function doScoutHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
@@ -20489,6 +20474,7 @@ function doScoutHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-scout', telegram_id: TG_ID, scout_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     const sc = scoutData[target.id];
     if (sc) { sc.hp = data.hp; sc.max_hp = data.max_hp; updateScoutMarker(target.id); }
     if (data.killed) {
@@ -21545,9 +21531,6 @@ function showZombiePopup(zombieId) {
 }
 
 function doZombieHit(target) {
-  const now = Date.now();
-  if (now - _pvpLastHit < _pvpCdMs) return;
-  _pvpLastHit = now;
   const pos = state.playerPos;
   if (!pos) return;
 
@@ -21558,6 +21541,7 @@ function doZombieHit(target) {
     method: 'POST',
     body: JSON.stringify({ action: 'attack', zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
     if (data.killed) {
       removeZombieMarker(target.id);
       closePopupKeepHold();

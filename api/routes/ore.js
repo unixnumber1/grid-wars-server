@@ -3,7 +3,7 @@ import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { logPlayer } from '../../lib/logger.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
 import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
@@ -142,15 +142,16 @@ oreRouter.post('/', async (req, res) => {
     const dist = haversine(player.last_lat, player.last_lng, ore.lat, ore.lng);
     if (dist > LARGE_RADIUS + (_oSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(hitLang, 'err.too_far_short') });
 
-    // Rate limit by weapon CD
+    // Rate limit by weapon CD (centralized: weapon + skill speed bonus)
+    const cooldownMs = getAttackCooldown(telegram_id);
+    const now = Date.now();
+    const last = lastAttackTime.get(String(telegram_id)) || 0;
+    if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
+    recordAttack(telegram_id, now);
+
     const items = gameState.getPlayerItems(player.id);
     const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
     const weaponType = weapon ? weapon.type : 'none';
-    const cdMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
-    const now = Date.now();
-    const last = lastAttackTime.get(String(telegram_id)) || 0;
-    if (now - last < cdMs) return res.status(429).json({ error: 'Cooldown' });
-    recordAttack(telegram_id, now);
 
     // Calculate damage
     const baseDmg = 10 + (weapon?.attack || 0);
@@ -243,7 +244,7 @@ oreRouter.post('/', async (req, res) => {
       ore_node_id: ore.id, hp: ore.hp, max_hp: ore.max_hp,
     });
 
-    return res.json({ success: true, damage, crit: isCrit, hp: ore.hp, max_hp: ore.max_hp, broken });
+    return res.json({ success: true, damage, crit: isCrit, hp: ore.hp, max_hp: ore.max_hp, broken, effective_cd: cooldownMs });
   }
 
   return res.status(400).json({ error: 'Unknown action' });

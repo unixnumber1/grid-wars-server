@@ -9,7 +9,7 @@ import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { BOTS_PER_ZONE, BOT_TTL_MS, BOT_SPEED_METERS, DRAIN_LIMITS, WEAPON_COOLDOWNS } from '../../config/constants.js';
-import { lastAttackTime, recordAttack, connectedPlayers, io } from '../../server.js';
+import { lastAttackTime, recordAttack, getAttackCooldown, connectedPlayers, io } from '../../server.js';
 
 export const botsRouter = Router();
 
@@ -321,16 +321,17 @@ async function handleAttack(player, body) {
   const _bRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(body.telegram_id));
   if (dist > LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)) return { status: 400, error: ts(getLang(gameState, body.telegram_id || ''), 'err.approach_bot', { distance: Math.round(dist), radius: LARGE_RADIUS }) };
 
-  // Weapon cooldown check
-  const playerItems = gameState.getPlayerItems(player.id);
-  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown check (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(body.telegram_id);
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(body.telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return { status: 429, error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) };
   recordAttack(body.telegram_id, now);
+
+  const playerItems = gameState.getPlayerItems(player.id);
+  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
 
   const { data: pFull, error: pErr } = await supabase
     .from('players').select('hp, max_hp, last_hp_regen, kills, deaths, level, bonus_attack, bonus_hp, equipped_sword, coins').eq('id', player.id).single();
@@ -364,7 +365,7 @@ async function handleAttack(player, body) {
   }
 
   const botHpAfter = (bot.hp ?? bot.max_hp ?? BOT_TYPES[bot.type]?.hp ?? 50) - damage;
-  const result = { damage, isCrit, botDefeated: false, counterDamage: 0, playerDied: false };
+  const result = { damage, isCrit, botDefeated: false, counterDamage: 0, playerDied: false, effective_cd: cooldownMs };
 
   if (botHpAfter <= 0) {
     result.botDefeated = true;

@@ -5,7 +5,7 @@ import { LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { ZOMBIE_ATTACK_RANGE } from '../../config/constants.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import {
@@ -84,17 +84,17 @@ async function handleAttack(req, res) {
   const _zRadFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_zRadFx.attack_radius_bonus || 0)) return res.status(400).json({ error: 'Too far', distance: Math.round(dist) });
 
-  // Weapon cooldown
-  const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const last = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
   recordAttack(telegram_id, now);
 
   // Calculate damage
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const _zSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = distanceMultiplier(dist, LARGE_RADIUS);
@@ -183,7 +183,7 @@ async function handleAttack(req, res) {
     return res.json({
       success: true, damage, crit: isCrit, killed: true,
       xp_gained: xpGained, xp: xpResult, loot,
-      zombie_hp: 0, zombie_alive: false,
+      zombie_hp: 0, zombie_alive: false, effective_cd: cooldownMs,
     });
   }
 
@@ -194,6 +194,6 @@ async function handleAttack(req, res) {
 
   return res.json({
     success: true, damage, crit: isCrit, killed: false,
-    zombie_hp: zombie.hp, zombie_alive: true,
+    zombie_hp: zombie.hp, zombie_alive: true, effective_cd: cooldownMs,
   });
 }

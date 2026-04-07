@@ -8,7 +8,7 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
@@ -613,18 +613,18 @@ async function handleMineHit(req, res) {
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  // Get equipped weapon from gameState
-  const playerItems = gameState.getPlayerItems(player.id);
-  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-
-  // Rate limit by weapon cooldown
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Rate limit by weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
   recordAttack(telegram_id, now);
+
+  // Get equipped weapon from gameState
+  const playerItems = gameState.getPlayerItems(player.id);
+  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
 
   // Look up mine in gameState
   const mine = gameState.getMineById(mine_id);
@@ -796,6 +796,7 @@ async function handleMineHit(req, res) {
     mine_hp: burned ? 0 : currentHp, mine_max_hp: computedMaxHp,
     status: mine.status, burned,
     ...(burned && { stolenCoins, xp: xpResult }),
+    effective_cd: cooldownMs,
   });
 }
 

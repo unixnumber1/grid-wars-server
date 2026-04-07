@@ -5,7 +5,7 @@ import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
 import { ensureMarketNearPlayer } from '../../lib/markets.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity, pendingReferrals } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity, pendingReferrals } from '../../server.js';
 import { validatePosition } from '../../lib/antispoof.js';
 import { logPlayer } from '../../lib/logger.js';
 import { ts, getLang } from '../../config/i18n.js';
@@ -305,15 +305,14 @@ async function handlePvpAttack(req, res) {
   const attackerItems = gameState.getPlayerItems(attacker.id);
   const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
 
-  // Rate limit by weapon cooldown (with skill speed bonus)
-  const weaponType = weapon ? weapon.type : 'none';
-  const _atkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
-  const cooldownMs = Math.max(100, Math.floor((WEAPON_COOLDOWNS[weaponType] ?? 0) * (1 - (_atkFx.attack_speed_bonus || 0))));
+  // Rate limit by weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
   recordAttack(telegram_id, now);
+  const _atkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
 
   // Distance check — use server-side attacker position
   const gsAtk = gameState.getPlayerByTgId(Number(telegram_id));
@@ -512,6 +511,7 @@ async function handlePvpAttack(req, res) {
     defender_hp: defHp <= 0 ? defMaxHp : defHp,
     defender_max_hp: defMaxHp,
     killed, coins_won: coinsWon, coins_lost: coinsLost,
+    effective_cd: cooldownMs,
   });
 }
 

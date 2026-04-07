@@ -3,7 +3,7 @@ import { supabase, getPlayerByTelegramId } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { logPlayer } from '../../lib/logger.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
@@ -170,11 +170,8 @@ async function handleAttackShield(req, res) {
   const dist = haversine(player.last_lat, player.last_lng, monument.lat, monument.lng);
   if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
 
-  // Weapon cooldown
-  const attackerItems = gameState.getPlayerItems(player.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
@@ -182,6 +179,9 @@ async function handleAttackShield(req, res) {
   recordAttack(telegram_id, now);
 
   // Calculate damage
+  const attackerItems = gameState.getPlayerItems(player.id);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
@@ -253,7 +253,7 @@ async function handleAttackShield(req, res) {
   return res.json({
     damage, crit: isCrit,
     shield_hp: monument.shield_hp, max_shield_hp: monument.max_shield_hp,
-    shield_broken: shieldBroken,
+    shield_broken: shieldBroken, effective_cd: cooldownMs,
   });
 }
 
@@ -282,11 +282,8 @@ async function handleAttackMonument(req, res) {
   const dist = haversine(player.last_lat, player.last_lng, monument.lat, monument.lng);
   if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang2, 'err.too_far_short') });
 
-  // Weapon cooldown
-  const attackerItems = gameState.getPlayerItems(player.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
@@ -294,6 +291,9 @@ async function handleAttackMonument(req, res) {
   recordAttack(telegram_id, now);
 
   // Calculate damage (with crit + execution)
+  const attackerItems = gameState.getPlayerItems(player.id);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx2 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
@@ -392,7 +392,7 @@ async function handleAttackMonument(req, res) {
     hp: monument.hp, max_hp: monument.max_hp,
     defeated, defenders_alive: defendersAlive,
     wave_shield_hp: monument._wave_shield_hp || 0,
-    my_damage: dmgMap.get(tgId) || 0,
+    my_damage: dmgMap.get(tgId) || 0, effective_cd: cooldownMs,
   });
 }
 
@@ -422,11 +422,8 @@ async function handleAttackDefender(req, res) {
   const dist = haversine(player.last_lat, player.last_lng, defender.lat, defender.lng);
   if (dist > MONUMENT_ATTACK_RADIUS + (getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id)).attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang3, 'err.too_far_short') });
 
-  // Weapon cooldown
-  const attackerItems = gameState.getPlayerItems(player.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const lastTime = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - lastTime < cooldownMs)
@@ -434,6 +431,9 @@ async function handleAttackDefender(req, res) {
   recordAttack(telegram_id, now);
 
   // Calculate damage
+  const attackerItems = gameState.getPlayerItems(player.id);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx3 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const multiplier = 0.8 + Math.random() * 0.4;
@@ -505,7 +505,7 @@ async function handleAttackDefender(req, res) {
 
   return res.json({
     damage, crit: isCrit, killed,
-    defender_hp: defender.hp, defender_max_hp: defender.max_hp,
+    defender_hp: defender.hp, defender_max_hp: defender.max_hp, effective_cd: cooldownMs,
   });
 }
 

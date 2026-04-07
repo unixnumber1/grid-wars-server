@@ -36,6 +36,8 @@ import { haversine } from './lib/haversine.js';
 import { supabase } from './lib/supabase.js';
 import { gameState } from './lib/gameState.js';
 import { startPersistLoop } from './lib/persist.js';
+import { WEAPON_COOLDOWNS } from './config/constants.js';
+import { getPlayerSkillEffects } from './config/skills.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -487,6 +489,18 @@ export function recordAttack(telegramId, now) {
       supabase.from('players').update({ shield_until: null }).eq('id', p.id).then(() => {}).catch(e => console.error('[server] DB error:', e.message));
     }
   }
+}
+
+// Centralized attack cooldown — single source of truth for all routes
+export function getAttackCooldown(telegramId) {
+  const player = gameState.getPlayerByTgId(Number(telegramId));
+  if (!player) return WEAPON_COOLDOWNS.none;
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
+  const baseCd = WEAPON_COOLDOWNS[weaponType] ?? 500;
+  const fx = getPlayerSkillEffects(gameState.getPlayerSkills(telegramId));
+  return Math.max(100, Math.floor(baseCd * (1 - (fx.attack_speed_bonus || 0))));
 }
 
 // Socket.io

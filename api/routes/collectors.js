@@ -5,7 +5,7 @@ import { logPlayer } from '../../lib/logger.js';
 import { getCellId, getCellCenter } from '../../lib/grid.js';
 import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import {
@@ -303,17 +303,16 @@ async function handleHit(req, res) {
   const dist = haversine(player.last_lat, player.last_lng, collector.lat, collector.lng);
   if (dist > LARGE_RADIUS + (_cSkFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
-  // Weapon cooldown
-  const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const last = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
   recordAttack(telegram_id, now);
 
   // Calculate damage
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
@@ -406,7 +405,7 @@ async function handleHit(req, res) {
     logPlayer(telegram_id, 'action', `Сжёг сборщик (+${stolenCoins} монет)`, { stolenCoins });
   }
 
-  return res.json({ damage, crit: isCrit, destroyed, stolen_coins: stolenCoins, hp: collector.hp, max_hp: collector.max_hp, status: collector.status });
+  return res.json({ damage, crit: isCrit, destroyed, stolen_coins: stolenCoins, hp: collector.hp, max_hp: collector.max_hp, status: collector.status, effective_cd: cooldownMs });
 }
 
 // ── EXTINGUISH (put out burning collector) ──

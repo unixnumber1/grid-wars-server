@@ -4,7 +4,7 @@ import { haversine } from '../../lib/haversine.js';
 import { logPlayer } from '../../lib/logger.js';
 import { getCellId } from '../../lib/grid.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS } from '../../config/constants.js';
@@ -193,17 +193,16 @@ async function handleHit(req, res) {
   const _skFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   if (dist > LARGE_RADIUS + (_skFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
-  // Weapon cooldown
-  const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const last = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
   recordAttack(telegram_id, now);
 
   // Calculate damage
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
@@ -280,7 +279,7 @@ async function handleHit(req, res) {
     logPlayer(telegram_id, 'action', `Сжёг пожарную lv${truck.level}`);
   }
 
-  return res.json({ damage, crit: isCrit, destroyed, hp: truck.hp, max_hp: truck.max_hp, status: truck.status });
+  return res.json({ damage, crit: isCrit, destroyed, hp: truck.hp, max_hp: truck.max_hp, status: truck.status, effective_cd: cooldownMs });
 }
 
 // ── DISPATCH (send firefighters to extinguish burning buildings) ──
@@ -447,17 +446,16 @@ async function handleHitFirefighter(req, res) {
   const dist = haversine(player.last_lat, player.last_lng, ff.current_lat, ff.current_lng);
   if (dist > LARGE_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short'), distance: Math.round(dist) });
 
-  // Weapon cooldown
-  const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const weaponType = weapon ? weapon.type : 'none';
-  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  // Weapon cooldown (centralized: weapon + skill speed bonus)
+  const cooldownMs = getAttackCooldown(telegram_id);
   const now = Date.now();
   const last = lastAttackTime.get(String(telegram_id)) || 0;
   if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
   recordAttack(telegram_id, now);
 
   // Calculate damage
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
   const _skFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = 0.8 + Math.random() * 0.4;
@@ -506,5 +504,5 @@ async function handleHitFirefighter(req, res) {
     });
   }
 
-  return res.json({ damage, crit: isCrit, killed, hp: ff.hp, max_hp: ff.max_hp });
+  return res.json({ damage, crit: isCrit, killed, hp: ff.hp, max_hp: ff.max_hp, effective_cd: cooldownMs });
 }

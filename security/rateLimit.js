@@ -17,7 +17,7 @@ setInterval(() => {
 
 const LIMITS = {
   default:  { max: 312, window: 60000 },
-  attack:   { max: 156, window: 60000 },
+  attack:   { max: 180, window: 60000 },
   tick:     { max: 78,  window: 60000 },
   build:    { max: 208, window: 60000 },
   collect:  { max: 156, window: 60000 },
