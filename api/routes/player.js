@@ -304,6 +304,7 @@ async function handlePvpAttack(req, res) {
   // Get equipped weapon from gameState items
   const attackerItems = gameState.getPlayerItems(attacker.id);
   const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
 
   // Rate limit by weapon cooldown (centralized: weapon + skill speed bonus)
   const cooldownMs = getAttackCooldown(telegram_id);
