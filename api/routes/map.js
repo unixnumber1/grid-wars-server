@@ -993,6 +993,7 @@ mapRouter.get('/', async (req, res) => {
       income: getMineIncome(m.level), capacity: Math.round(getMineCapacity(m.level) * bCap),
       status: m.status || 'normal', burning_started_at: m.burning_started_at,
       attacker_id: m.attacker_id, attack_ends_at: m.attack_ends_at,
+      burned_by: m._burned_by || null,
       players: m.players,
       is_mine:     currentPlayerId ? m.owner_id === currentPlayerId : false,
       can_capture: currentPlayerId && playerRange

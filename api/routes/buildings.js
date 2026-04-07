@@ -361,8 +361,11 @@ async function handleAttackStart(req, res) {
   const ownerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
   const shadow = isInShadow(player);
   const atkMsg = ts(ownerLang, 'notif.mine_attacked', { level: mine.level, name: shadow ? '???' : (player.game_username || ts(ownerLang, 'misc.unknown')) });
-  await supabase.from('notifications').insert({ player_id: mine.owner_id, type: 'mine_attacked', message: atkMsg, data: { mine_id: mine.id } });
-  const { data: owner } = await supabase.from('players').select('telegram_id').eq('id', mine.owner_id).maybeSingle();
+  const notifId = globalThis.crypto.randomUUID();
+  const notif = { id: notifId, player_id: mine.owner_id, type: 'mine_attacked', message: atkMsg, data: { mine_id: mine.id }, read: false, created_at: new Date().toISOString() };
+  supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[buildings] notif DB error:', e.message));
+  gameState.addNotification(notif);
+  const owner = gameState.getPlayerById(mine.owner_id);
   if (owner?.telegram_id) sendTelegramNotification(owner.telegram_id, atkMsg, buildAttackButton(mine.lat, mine.lng));
   return res.json({ success: true, attackDuration, attackEndsAt, weapon: weapon ? { emoji: weapon.emoji, rarity: weapon.rarity, type: weapon.type } : null, mineHp: currentHp, mineMaxHp: computedMaxHp, avgDamage: Math.round(avgDamage) });
 }
@@ -397,8 +400,13 @@ async function handleAttackFinish(req, res) {
     await supabase.from('mines').update({ status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null, pending_level: null, upgrade_finish_at: null }).eq('id', mine_id);
     // Update gameState
     if (gameState.loaded) {
+      const gsPlayer = gameState.getPlayerByTgId(Number(telegram_id));
       const gm = gameState.getMineById(mine_id);
-      if (gm) { Object.assign(gm, { status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null, pending_level: null, upgrade_finish_at: null }); gameState.markDirty('mines', mine_id); }
+      if (gm) {
+        Object.assign(gm, { status: 'burning', hp: 0, burning_started_at: burnStarted, attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null, pending_level: null, upgrade_finish_at: null });
+        gm._burned_by = { telegram_id: Number(telegram_id), name: gsPlayer?.game_username || player.game_username || '???', avatar: gsPlayer?.avatar || '🎮' };
+        gameState.markDirty('mines', mine_id);
+      }
     }
     return res.json({ success: true, result: 'burning' });
   } else {
@@ -717,6 +725,8 @@ async function handleMineHit(req, res) {
     mine.max_hp = computedMaxHp;
     mine.burning_started_at = hpUpdateTime;
     mine.last_collected = hpUpdateTime; // coins taken
+    // Save attacker info for display on burning mine (runtime only, _ prefix)
+    mine._burned_by = { telegram_id: player.telegram_id, name: player.game_username || '???', avatar: player.avatar || '🎮' };
     mine.attacker_id = null;
     mine.attack_started_at = null;
     mine.attack_ends_at = null;
@@ -759,10 +769,10 @@ async function handleMineHit(req, res) {
       const hitOwnerLang = gameState.loaded ? (gameState.getPlayerById(mine.owner_id)?.language || 'en') : 'en';
       const _hitShadow = isInShadow(player);
       const hitAtkMsg = ts(hitOwnerLang, 'notif.mine_attacked', { level: mine.level, name: _hitShadow ? '???' : (player.game_username || ts(hitOwnerLang, 'misc.unknown')) });
-      supabase.from('notifications').insert({
-        player_id: mine.owner_id, type: 'mine_attacked', message: hitAtkMsg,
-        data: { mine_id: mine.id },
-      }).then(() => {}).catch(e => console.error('[buildings] DB error:', e.message));
+      const hitNotifId = globalThis.crypto.randomUUID();
+      const hitNotif = { id: hitNotifId, player_id: mine.owner_id, type: 'mine_attacked', message: hitAtkMsg, data: { mine_id: mine.id }, read: false, created_at: new Date().toISOString() };
+      supabase.from('notifications').insert(hitNotif).then(() => {}).catch(e => console.error('[buildings] DB error:', e.message));
+      gameState.addNotification(hitNotif);
 
       const hitOwner = gameState.getPlayerById(mine.owner_id);
       if (hitOwner?.telegram_id) sendTelegramNotification(hitOwner.telegram_id, hitAtkMsg, buildAttackButton(mine.lat, mine.lng));

@@ -8668,10 +8668,13 @@ function showMinePopup(mine, isOwn, canCapture) {
       ? t('mine.upgrade_to', {n: targetBulkLevel, cost: formatCoins(bulkCost)})
       : null;
 
-    // Burning timer subtitle
+    // Burning timer subtitle + attacker info
     let burningSubtitle = t('mine.burning_warn');
     if (mine.status === 'burning' && mine.burning_started_at) {
       burningSubtitle = `${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${formatBurnTimer(mine.burning_started_at)}</span>`;
+      if (mine.burned_by) {
+        burningSubtitle += `<br><span style="color:#ff6b6b;font-size:12px;">⚔️ ${mine.burned_by.avatar || '🎮'} ${mine.burned_by.name || '???'}</span>`;
+      }
     }
 
     openPopup(
@@ -8814,6 +8817,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     if (isBurning) {
       const burnTime = mine.burning_started_at ? formatBurnTimer(mine.burning_started_at) : '';
       statusLabel = burnTime ? ` ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnTime}</span>` : ` 🔥 ${t('misc.burning')}`;
+      if (mine.burned_by) statusLabel += `<br><span style="color:#ff6b6b;font-size:12px;">⚔️ ${mine.burned_by.avatar || '🎮'} ${mine.burned_by.name || '???'}</span>`;
     } else if (isUnderAttack) {
       statusLabel = ' ⚔️ ' + t('misc.under_attack');
     }
