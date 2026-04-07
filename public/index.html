@@ -12017,28 +12017,24 @@ function startRespawnCountdown(untilISO) {
 let _botAutoAttackTimer = null;
 function _startBotAutoAttack(botId) {
   if (_botAutoAttackTimer) clearTimeout(_botAutoAttackTimer);
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
-  const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
-  _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
-  function botFireLoop() {
+  _atkHolding = true;
+  _atkDoHit = () => {
     const bot = botData[botId];
-    if (!bot || (bot.hp ?? 0) <= 0) { _botAutoAttackTimer = null; return; }
+    if (!bot || (bot.hp ?? 0) <= 0) { _atkHolding = false; _atkDoHit = null; return; }
     doAttackBot(botId);
-    _botAutoAttackTimer = setTimeout(botFireLoop, _pvpCdMs + 30);
-  }
-  botFireLoop();
+  };
+  _atkDoHit(); // first shot — next scheduled from response
 }
 
 function doAttackBot(botId) {
   const bot = botData[botId];
   if (!bot) return;
   const pos = state.playerPos;
-  apiFetch('/api/bots', {
+  _atkFetch('/api/bots', {
     method: 'POST',
     body: JSON.stringify({ action: 'attack', bot_id: botId, lat: pos?.lat, lng: pos?.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const ref = botMarkers[botId];
     if (ref?.marker) {
       const ll = ref.marker.getLatLng();
@@ -16547,11 +16543,11 @@ function doMineHit(mine) {
     setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
   }
 
-  apiFetch('/api/buildings/attack', {
+  _atkFetch('/api/buildings/attack', {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', mine_id: mine.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     if (data.burned) {
       stopCombat(); closePopupKeepHold();
       let msg = t('toast.mine_burning');
@@ -16579,11 +16575,11 @@ function doOreHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  apiFetch('/api/ore', {
+  _atkFetch('/api/ore', {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', ore_node_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const _oreT = oreData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _oreT ? L.latLng(_oreT.lat, _oreT.lng) : null);
     if (data.broken) {
@@ -16810,6 +16806,44 @@ let _pvpAutoFire = null;
 let _pvpTarget = null;
 let _pvpCdMs = 500;
 let _pvpLastHit = 0;
+let _atkHolding = false;
+let _atkDoHit = null;
+let _atkInFlight = false;
+
+// Schedule next attack from response chain — server is sole timing authority
+function _scheduleNextHit(retryAfterMs) {
+  if (!_atkHolding || !_atkDoHit) return;
+  const delay = retryAfterMs || 50;
+  _pvpAutoFire = setTimeout(() => {
+    if (_atkHolding && _atkDoHit) _atkDoHit();
+  }, delay);
+}
+
+// Attack fetch — handles 429 cooldown with retry, schedules next hit from response
+async function _atkFetch(path, opts) {
+  _atkInFlight = true;
+  try {
+    if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (_tgInitData) headers['X-Telegram-Init-Data'] = _tgInitData;
+    const res = await fetch(_basePath + path, { ...opts, headers });
+    const data = await res.json();
+    _atkInFlight = false;
+    if (res.status === 429) {
+      // Server cooldown — retry after specified time
+      _scheduleNextHit(data.retry_after || _pvpCdMs);
+      return null;
+    }
+    if (!res.ok) return null;
+    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    _scheduleNextHit(50); // success — fire next hit after short delay (server enforces CD)
+    return data;
+  } catch (e) {
+    _atkInFlight = false;
+    _scheduleNextHit(_pvpCdMs); // on error, wait full CD before retry
+    return null;
+  }
+}
 
 function startPvpCombat(target) {
   _pvpTarget = target;
@@ -16872,16 +16906,16 @@ function showCombatHUD(target, mode) {
     holdTimer = setTimeout(() => {
       isHolding = true;
       atkBtn.classList.add('atk-btn-pulse');
-      function autoFireLoop() {
-        doHit();
-        _pvpAutoFire = setTimeout(autoFireLoop, _pvpCdMs + 30);
-      }
-      autoFireLoop();
+      _atkHolding = true;
+      _atkDoHit = doHit;
+      doHit(); // first shot — next scheduled from response
     }, 300);
   }
   function stopHold() {
     const wasHolding = isHolding;
     isHolding = false;
+    _atkHolding = false;
+    _atkDoHit = null;
     atkBtn.classList.remove('atk-btn-pulse');
     clearTimeout(holdTimer);
     holdTimer = null;
@@ -16892,14 +16926,15 @@ function showCombatHUD(target, mode) {
 
   atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
   atkBtn.addEventListener('touchend', (e) => { stopHold(); }, { passive: false });
-  atkBtn.addEventListener('touchcancel', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('touchcancel', () => { isHolding = false; _atkHolding = false; _atkDoHit = null; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('mousedown', startHold);
   atkBtn.addEventListener('mouseup', stopHold);
-  atkBtn.addEventListener('mouseleave', () => { isHolding = false; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('mouseleave', () => { isHolding = false; _atkHolding = false; _atkDoHit = null; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function stopCombat() {
+  _atkHolding = false; _atkDoHit = null;
   if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; }
   _pvpTarget = null;
   const hud = document.getElementById('combat-hud');
@@ -16981,16 +17016,16 @@ function bindAttackButton(targetType, target) {
     btn.classList.add('attacking');
     document.getElementById('popup-overlay')?.classList.add('combat-mode');
     if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
-    function popupFireLoop() {
-      executePopupAttack();
-      combatState.attackInterval = setTimeout(popupFireLoop, _pvpCdMs + 30);
-    }
-    popupFireLoop();
+    _atkHolding = true;
+    _atkDoHit = executePopupAttack;
+    executePopupAttack(); // first shot — next scheduled from response
   }
 
   function stopHold() {
     combatState.isHolding = false;
     combatState.touchId = null;
+    _atkHolding = false;
+    _atkDoHit = null;
     btn.classList.remove('attacking');
     if (combatState.attackInterval) { clearTimeout(combatState.attackInterval); combatState.attackInterval = null; }
     const card = document.getElementById('popup-card');
@@ -17027,8 +17062,8 @@ function bindAttackButton(targetType, target) {
   // If already holding (multitouch target switch), start attacking immediately
   if (combatState.isHolding) {
     if (combatState.attackInterval) clearTimeout(combatState.attackInterval);
-    executePopupAttack();
-    combatState.attackInterval = setInterval(executePopupAttack, cd + 30);
+    _atkDoHit = executePopupAttack;
+    executePopupAttack(); // next scheduled from response
   }
 }
 
@@ -17248,11 +17283,11 @@ function doPvpHit(target) {
     setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs);
   }
 
-  apiFetch('/api/player/init', {
+  _atkFetch('/api/player/init', {
     method: 'POST',
     body: JSON.stringify({ action: 'pvp-attack', target_telegram_id: target.telegram_id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     if (data.killed) {
       stopCombat();
       closePopupKeepHold();
@@ -19484,11 +19519,11 @@ function doMonumentShieldHit(target) {
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
-  apiFetch('/api/monuments', {
+  _atkFetch('/api/monuments', {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-shield', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const _monT = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, false, false, _monT ? L.latLng(_monT.lat, _monT.lng) : null);
     updatePopupHp(data.shield_hp, data.max_shield_hp, '#4488ff');
@@ -19517,11 +19552,11 @@ function doMonumentBodyHit(target) {
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
-  apiFetch('/api/monuments', {
+  _atkFetch('/api/monuments', {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-monument', monument_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     if (data.blocked) { showToast(data.message || '⚠️ Убейте защитников!'); return; }
     const _monT2 = monumentData[target.id];
     showCombatHitText(data.damage, data.crit, data.execution, false, _monT2 ? L.latLng(_monT2.lat, _monT2.lng) : null);
@@ -19547,11 +19582,11 @@ function doDefenderHit(target) {
   const cdOverlay = popupCd || hudCd;
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
 
-  apiFetch('/api/monuments', {
+  _atkFetch('/api/monuments', {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-defender', defender_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     if (data.killed) {
       if (defenderMarkers[target.id]) { map.removeLayer(defenderMarkers[target.id]); delete defenderMarkers[target.id]; delete defenderData[target.id]; }
       const remaining = Object.values(defenderData).filter(d => d.monument_id === target.monument_id && !d._dead);
@@ -19879,11 +19914,11 @@ function doCollectorHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  apiFetch('/api/collectors', {
+  _atkFetch('/api/collectors', {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', collector_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const c = collectorData[target.id];
     if (c) { c.hp = data.hp; c.max_hp = data.max_hp; updateCollectorMarker(target.id); }
     if (data.destroyed) {
@@ -20378,11 +20413,11 @@ function doFireTruckHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  apiFetch('/api/fire-trucks', {
+  _atkFetch('/api/fire-trucks', {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', fire_truck_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const ft = firetruckData[target.id];
     if (ft) { ft.hp = data.hp; ft.max_hp = data.max_hp; ft.status = data.status; updateFireTruckMarker(target.id); }
     if (data.destroyed) {
@@ -20416,11 +20451,11 @@ function doBarracksHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  apiFetch('/api/barracks', {
+  _atkFetch('/api/barracks', {
     method: 'POST',
     body: JSON.stringify({ action: 'hit', barracks_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const bk = barracksData[target.id];
     if (bk) { bk.hp = data.hp; bk.max_hp = data.max_hp; bk.status = data.status; }
     updatePopupHp(data.hp, data.max_hp);
@@ -20446,11 +20481,11 @@ function doFirefighterHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  apiFetch('/api/fire-trucks', {
+  _atkFetch('/api/fire-trucks', {
     method: 'POST',
     body: JSON.stringify({ action: 'hit-firefighter', firefighter_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const ff = firefighterData[target.id];
     if (ff) { ff.hp = data.hp; ff.max_hp = data.max_hp; }
     if (data.killed) {
@@ -20470,11 +20505,11 @@ function doScoutHit(target) {
   if (!pos) return;
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
-  apiFetch('/api/barracks', {
+  _atkFetch('/api/barracks', {
     method: 'POST',
     body: JSON.stringify({ action: 'attack-scout', telegram_id: TG_ID, scout_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     const sc = scoutData[target.id];
     if (sc) { sc.hp = data.hp; sc.max_hp = data.max_hp; updateScoutMarker(target.id); }
     if (data.killed) {
@@ -21537,11 +21572,11 @@ function doZombieHit(target) {
   const popupCd = document.getElementById('popup-atk-cd');
   if (popupCd) { popupCd.classList.add('active'); setTimeout(() => popupCd.classList.remove('active'), _pvpCdMs); }
 
-  apiFetch('/api/zombies', {
+  _atkFetch('/api/zombies', {
     method: 'POST',
     body: JSON.stringify({ action: 'attack', zombie_id: target.id, lat: pos.lat, lng: pos.lng }),
   }).then(data => {
-    if (data.effective_cd) _pvpCdMs = data.effective_cd;
+    if (!data) return;
     if (data.killed) {
       removeZombieMarker(target.id);
       closePopupKeepHold();
