@@ -34,6 +34,11 @@ const BOOMERANG_RADIUS_M = 500;     // return within 500m = jammer, not spoofer
 const BOOMERANG_TIMEOUT_MS = 300000; // 5 minutes to return
 const CLUSTER_WINDOW_MS = 120000;    // 2 minutes — violations in same window = one incident
 
+// ── Cross-city teleport detection ──
+// Catches spoofers who close the app in city A and reopen in city B too fast
+const CITY_JUMP_MIN_DISTANCE_KM = 100; // only flag if >100km apart
+const CITY_JUMP_MAX_SPEED_KMH = 200;   // impossible by car/train in most cases
+
 // ── PIN mode ──
 
 export function setPinMode(telegramId, active) {
@@ -151,12 +156,23 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
 
     // ── Session gap (>60s) — reset history, but still check for impossible teleports ──
     if (timeDiffMs > SESSION_GAP_MS) {
-      // Even across sessions, check for teleports (>500km/h)
+      // Cosmic teleport (>500km/h) — same as before
       if (speedKmh > TELEPORT_SPEED_KMH && distanceKm > 5) {
         recordViolation(telegramId, {
           timestamp: now, speed: speedKmh, distance: distanceKm,
           from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
           type: 'teleport',
+        });
+      }
+      // Cross-city jump: >100km at >200km/h across sessions
+      // Catches spoofers who close app in city A and reopen in city B
+      // (e.g., Moscow → Nizhny Novgorod in 10 min = 2400km/h, but also
+      //  catches slower jumps like 400km in 1.5 hours = 266km/h)
+      else if (distanceKm >= CITY_JUMP_MIN_DISTANCE_KM && speedKmh > CITY_JUMP_MAX_SPEED_KMH) {
+        recordViolation(telegramId, {
+          timestamp: now, speed: speedKmh, distance: distanceKm,
+          from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
+          type: 'city_jump',
         });
       }
       history.length = 0;
@@ -278,7 +294,7 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
 // All violation types contribute to auto-ban score.
 // teleport (>500km/h) = 2 pts, speed (>300km/h) = 1 pt, fake_gps = 4 pts.
 // Threshold = 15 → teleport: ~8 bans, speed: ~15 bans, fake_gps: ~4 bans.
-const TYPE_WEIGHT = { teleport: 2, fake_gps: 4, speed: 1 };
+const TYPE_WEIGHT = { teleport: 2, fake_gps: 4, speed: 1, city_jump: 3 };
 
 function recordViolation(telegramId, violation) {
   const key = `spoof:${telegramId}`;
@@ -330,7 +346,7 @@ function recordViolation(telegramId, violation) {
   if (record.violations.length > 50) record.violations.shift();
   suspiciousActivity.set(key, record);
 
-  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS' };
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород' };
   const label = typeLabels[violation.type] || violation.type;
   console.log(`[ANTISPOOF] ${label} #${record.totalViolations} for ${telegramId}: speed=${violation.speed?.toFixed(0) || 0}km/h, dist=${violation.distance?.toFixed(2) || 0}km, weighted=${weightedScore.toFixed(1)}`);
   logPlayer(telegramId, 'spoof', `${label}: ${violation.speed?.toFixed(0) || 0} км/ч`, {
@@ -400,7 +416,7 @@ async function notifyAdmin(telegramId, record) {
   const city = playerCityCache.get(String(telegramId))?.city || '?';
 
   const lastV = record.violations[record.violations.length - 1];
-  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS' };
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород' };
   const label = typeLabels[lastV?.type] || lastV?.type || '?';
 
   let message = `🚨 АВТОБАН v4 — GPS\n\n👤 ${name} (${tgTag})\n🆔 ${telegramId}\n🏙 ${city}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
