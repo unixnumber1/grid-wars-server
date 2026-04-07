@@ -8673,7 +8673,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     if (mine.status === 'burning' && mine.burning_started_at) {
       burningSubtitle = `${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${formatBurnTimer(mine.burning_started_at)}</span>`;
       if (mine.burned_by) {
-        burningSubtitle += `<br><span style="color:#ff6b6b;font-size:12px;">⚔️ ${mine.burned_by.avatar || '🎮'} ${mine.burned_by.name || '???'}</span>`;
+        burningSubtitle += `<br><span style="color:#ff6b6b;font-size:12px;">${mine.burned_by.avatar} ${mine.burned_by.name}</span>`;
       }
     }
 
