@@ -50,7 +50,9 @@ export function setPinMode(telegramId, active) {
   if (hq) {
     positionHistory.set(telegramId, [{ lat: hq.lat, lng: hq.lng, timestamp: now, accuracy: null }]);
   }
-  // gpsFingerprint is intentionally preserved across PIN toggles
+  // Reset GPS fingerprint on PIN activation — PIN mode has no real GPS data,
+  // so null altitude/speed/heading is expected, not a sign of spoofing
+  if (active) gpsFingerprint.delete(telegramId);
 }
 
 function isPinModeActive(telegramId) {
@@ -100,30 +102,8 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
       if (distanceKm > PIN_MAX_DISTANCE_KM) {
         return { valid: false, reason: 'pin_too_far', distance: distanceKm };
       }
-      // Still run GPS fingerprint check in PIN mode (detects fake GPS software)
-      const distance = distanceKm * 1000;
-      if (distance >= FINGERPRINT_MIN_MOVEMENT_M) {
-        const fp = gpsFingerprint.get(telegramId) || { nullCount: 0, totalMoving: 0, lastViolationAt: 0 };
-        fp.totalMoving++;
-        const altitude = gpsData.altitude ?? null;
-        const gpsSpeed = gpsData.gpsSpeed ?? null;
-        const heading = gpsData.heading ?? null;
-        if (altitude === null && gpsSpeed === null && heading === null) fp.nullCount++;
-        if (fp.totalMoving >= FINGERPRINT_MIN_UPDATES) {
-          const nullRatio = fp.nullCount / fp.totalMoving;
-          const speedKmh = (now - last.timestamp) > 0 ? (distanceKm / ((now - last.timestamp) / 1000)) * 3600 : 0;
-          if (nullRatio >= FINGERPRINT_NULL_RATIO && now - fp.lastViolationAt > 300000) {
-            fp.lastViolationAt = now;
-            recordViolation(telegramId, {
-              timestamp: now, speed: speedKmh, distance: distanceKm,
-              from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
-              type: 'fake_gps', nullRatio: nullRatio.toFixed(2),
-              nullCount: fp.nullCount, totalMoving: fp.totalMoving,
-            });
-          }
-        }
-        gpsFingerprint.set(telegramId, fp);
-      }
+      // Skip GPS fingerprint check in PIN mode — position is virtual (HQ),
+      // so null altitude/speed/heading is expected, not a sign of spoofing
     }
     // Update history for PIN mode too
     const pinHistory = positionHistory.get(telegramId) || [];
