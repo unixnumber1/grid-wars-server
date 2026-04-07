@@ -223,6 +223,7 @@ async function handleHit(req, res) {
   }
 
   truck.hp = Math.max(0, truck.hp - damage);
+  truck.last_hp_update = new Date().toISOString();
   gameState.markDirty('fireTrucks', truck.id);
 
   // Emit projectile

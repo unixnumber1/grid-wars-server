@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase.js';
 import { computeMineBoostData } from '../../lib/mineBoost.js';
+import { calcMineHpRegen } from '../../config/formulas.js';
 
 class GameState {
   constructor() {
@@ -692,13 +693,17 @@ class GameState {
       }
     }
 
-    // Collectors in bbox
+    // Collectors in bbox (with HP regen: 25% maxHP/hour)
     const collectorsArr = [];
     for (const c of this.collectors.values()) {
       if (c.lat >= s && c.lat <= n && c.lng >= w && c.lng <= e) {
         const owner = this.players.get(c.owner_id);
+        const canRegen = c.status === 'active' || c.status === 'normal';
+        const regenPerHour = canRegen ? Math.floor((c.max_hp || 3000) * 0.25) : 0;
+        const hp = (canRegen && c.last_hp_update && c.hp < c.max_hp)
+          ? calcMineHpRegen(c.hp, c.max_hp, regenPerHour, c.last_hp_update) : c.hp;
         collectorsArr.push({
-          ...c,
+          ...c, hp,
           is_mine: c.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
@@ -734,14 +739,18 @@ class GameState {
       }
     }
 
-    // Fire trucks in bbox
+    // Fire trucks in bbox (with HP regen: 25% maxHP/hour)
     const fireTrucksArr = [];
     for (const ft of this.fireTrucks.values()) {
       if (ft.status === 'destroyed') continue;
       if (ft.lat >= s && ft.lat <= n && ft.lng >= w && ft.lng <= e) {
         const owner = this.players.get(ft.owner_id);
+        const ftCanRegen = ft.status !== 'burning';
+        const ftRegenPerHour = ftCanRegen ? Math.floor((ft.max_hp || 2000) * 0.25) : 0;
+        const ftHp = (ftCanRegen && ft.last_hp_update && ft.hp < ft.max_hp)
+          ? calcMineHpRegen(ft.hp, ft.max_hp, ftRegenPerHour, ft.last_hp_update) : ft.hp;
         fireTrucksArr.push({
-          ...ft,
+          ...ft, hp: ftHp,
           is_mine: ft.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
@@ -757,14 +766,18 @@ class GameState {
       }
     }
 
-    // Barracks in bbox
+    // Barracks in bbox (with HP regen: 25% maxHP/hour)
     const barracksArr = [];
     for (const b of this.barracks.values()) {
       if (b.lat >= s && b.lat <= n && b.lng >= w && b.lng <= e) {
         const owner = this.players.get(b.owner_id);
+        const bkCanRegen = b.status === 'active';
+        const bkRegenPerHour = bkCanRegen ? Math.floor((b.max_hp || 3000) * 0.25) : 0;
+        const bkHp = (bkCanRegen && b.last_hp_update && b.hp < b.max_hp)
+          ? calcMineHpRegen(b.hp, b.max_hp, bkRegenPerHour, b.last_hp_update) : b.hp;
         barracksArr.push({
           id: b.id, lat: b.lat, lng: b.lng, level: b.level,
-          hp: b.hp, max_hp: b.max_hp, status: b.status,
+          hp: bkHp, max_hp: b.max_hp, status: b.status,
           cell_id: b.cell_id,
           is_mine: b.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,

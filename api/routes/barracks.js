@@ -638,6 +638,7 @@ async function handleHit(req, res) {
   }
 
   bk.hp = Math.max(0, bk.hp - damage);
+  bk.last_hp_update = new Date().toISOString();
   gameState.markDirty('barracks', bk.id);
 
   // Emit projectile
@@ -722,13 +723,15 @@ async function handleExtinguish(req, res) {
   // Restore 25% HP
   const cfg = BARRACKS_LEVELS[bk.level] || BARRACKS_LEVELS[1];
   const restoredHp = Math.round(cfg.hp * 0.25);
+  const _bkExtNow = new Date().toISOString();
   bk.status = 'active';
   bk.burning_started_at = null;
   bk.hp = restoredHp;
+  bk.last_hp_update = _bkExtNow;
   gameState.markDirty('barracks', bk.id);
 
   await supabase.from('barracks').update({
-    status: 'active', burning_started_at: null, hp: restoredHp,
+    status: 'active', burning_started_at: null, hp: restoredHp, last_hp_update: _bkExtNow,
   }).eq('id', bk.id);
 
   return res.json({ success: true, hp: restoredHp, max_hp: cfg.hp });

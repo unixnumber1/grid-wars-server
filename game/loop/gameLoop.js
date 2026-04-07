@@ -559,8 +559,9 @@ function extinguishBuilding(ff) {
       coll.status = 'normal';
       coll.burning_started_at = null;
       coll.hp = restoredHp;
+      coll.last_hp_update = nowISO;
       gameState.markDirty('collectors', coll.id);
-      supabase.from('collectors').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', coll.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+      supabase.from('collectors').update({ status: 'normal', burning_started_at: null, hp: restoredHp, last_hp_update: nowISO }).eq('id', coll.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
   } else if (ff.target_type === 'fire_truck') {
     const truck = gameState.fireTrucks.get(ff.target_id);
@@ -570,8 +571,9 @@ function extinguishBuilding(ff) {
       truck.status = 'normal';
       truck.burning_started_at = null;
       truck.hp = restoredHp;
+      truck.last_hp_update = nowISO;
       gameState.markDirty('fireTrucks', truck.id);
-      supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', truck.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+      supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp, last_hp_update: nowISO }).eq('id', truck.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
   } else if (ff.target_type === 'barracks') {
     const bk = gameState.barracks.get(ff.target_id);
@@ -581,8 +583,9 @@ function extinguishBuilding(ff) {
       bk.status = 'active';
       bk.burning_started_at = null;
       bk.hp = restoredHp;
+      bk.last_hp_update = nowISO;
       gameState.markDirty('barracks', bk.id);
-      supabase.from('barracks').update({ status: 'active', burning_started_at: null, hp: restoredHp }).eq('id', bk.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+      supabase.from('barracks').update({ status: 'active', burning_started_at: null, hp: restoredHp, last_hp_update: nowISO }).eq('id', bk.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
   }
 }

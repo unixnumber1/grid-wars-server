@@ -333,6 +333,7 @@ async function handleHit(req, res) {
   }
 
   collector.hp = Math.max(0, collector.hp - damage);
+  collector.last_hp_update = new Date().toISOString();
   gameState.markDirty('collectors', collector.id);
 
   // Emit projectile
@@ -447,13 +448,15 @@ async function handleExtinguish(req, res) {
   // Restore collector
   const cfg = COLLECTOR_LEVELS[collector.level] || COLLECTOR_LEVELS[1];
   const restoredHp = Math.round(cfg.hp * 0.25);
+  const _extNow = new Date().toISOString();
   collector.status = 'normal';
   collector.burning_started_at = null;
   collector.hp = restoredHp;
+  collector.last_hp_update = _extNow;
   gameState.markDirty('collectors', collector.id);
 
   await supabase.from('collectors').update({
-    status: 'normal', burning_started_at: null, hp: restoredHp,
+    status: 'normal', burning_started_at: null, hp: restoredHp, last_hp_update: _extNow,
   }).eq('id', collector.id);
 
   return res.json({ success: true, hp: restoredHp, max_hp: cfg.hp, diamonds: newDiamonds });
