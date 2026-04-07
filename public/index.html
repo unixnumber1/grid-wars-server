@@ -8943,7 +8943,7 @@ map.on('zoomend', () => {
   _debouncedLoad();
   // Hide owner badges when zoomed out
   const z = map.getZoom();
-  document.getElementById('map').classList.toggle('zoom-far', z < 16);
+  document.getElementById('map').classList.toggle('zoom-far', z < 14);
 });
 // Initial zoom class
 if (map.getZoom() < 16) document.getElementById('map').classList.add('zoom-far');
