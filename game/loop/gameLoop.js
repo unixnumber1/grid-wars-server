@@ -6,6 +6,7 @@ import { haversine, findSafeDropPosition } from '../../lib/haversine.js';
 import { getMineIncome, getMineHp, getMineHpRegen, calcMineHpRegen, xpForLevel, SMALL_RADIUS, LARGE_RADIUS } from '../../config/formulas.js';
 import { FIRETRUCK_LEVELS, FIRETRUCK_EXTINGUISH_DURATION, FIREFIGHTER_SPEED } from '../mechanics/fireTrucks.js';
 import { COLLECTOR_LEVELS } from '../mechanics/collectors.js';
+import { BARRACKS_LEVELS } from '../../config/constants.js';
 import { getCellsInRange } from '../../lib/grid.js';
 import { dailyMarketCheck } from '../mechanics/market.js';
 import {
@@ -572,6 +573,17 @@ function extinguishBuilding(ff) {
       gameState.markDirty('fireTrucks', truck.id);
       supabase.from('fire_trucks').update({ status: 'normal', burning_started_at: null, hp: restoredHp }).eq('id', truck.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
     }
+  } else if (ff.target_type === 'barracks') {
+    const bk = gameState.barracks.get(ff.target_id);
+    if (bk && bk.status === 'burning') {
+      const cfg = BARRACKS_LEVELS[bk.level] || BARRACKS_LEVELS[1];
+      const restoredHp = Math.round(cfg.hp * 0.25);
+      bk.status = 'active';
+      bk.burning_started_at = null;
+      bk.hp = restoredHp;
+      gameState.markDirty('barracks', bk.id);
+      supabase.from('barracks').update({ status: 'active', burning_started_at: null, hp: restoredHp }).eq('id', bk.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+    }
   }
 }
 
@@ -863,6 +875,33 @@ async function periodicCleanup(nowMs, nowISO) {
             id: globalThis.crypto.randomUUID(),
             player_id: owner.id, type: 'firetruck_destroyed',
             message: ts(ftLang, 'notif.firetruck_burned'),
+            read: false, created_at: nowISO,
+          };
+          gameState.addNotification(notif);
+          supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+        }
+      }
+    }
+
+    // Destroy burned barracks (>24h burning)
+    for (const bk of gameState.barracks.values()) {
+      if (bk.status !== 'burning' || !bk.burning_started_at) continue;
+      const burnedMs = nowMs - new Date(bk.burning_started_at).getTime();
+      if (burnedMs > 86400000) {
+        // Clear training queue
+        for (const [qId, q] of gameState.trainingQueue) {
+          if (q.barracks_id === bk.id) gameState.trainingQueue.delete(qId);
+        }
+        supabase.from('training_queue').delete().eq('barracks_id', bk.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+        gameState.barracks.delete(bk.id);
+        supabase.from('barracks').delete().eq('id', bk.id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
+        const owner = gameState.getPlayerById(bk.owner_id);
+        if (owner) {
+          const bLang = owner.language || 'en';
+          const notif = {
+            id: globalThis.crypto.randomUUID(),
+            player_id: owner.id, type: 'barracks_destroyed',
+            message: bLang === 'ru' ? '💀 Ваша казарма сгорела!' : '💀 Your barracks burned down!',
             read: false, created_at: nowISO,
           };
           gameState.addNotification(notif);

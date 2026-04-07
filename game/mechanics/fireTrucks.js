@@ -98,6 +98,15 @@ export function getBurningBuildingsInRadius(truck) {
     }
   }
 
+  // Burning barracks
+  for (const bk of gameState.barracks.values()) {
+    if (bk.owner_id !== truck.owner_id) continue;
+    if (bk.status !== 'burning') continue;
+    if (haversine(truck.lat, truck.lng, bk.lat, bk.lng) <= radius) {
+      result.push({ type: 'barracks', id: bk.id, lat: bk.lat, lng: bk.lng });
+    }
+  }
+
   return result;
 }
 

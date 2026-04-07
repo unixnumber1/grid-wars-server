@@ -3,9 +3,11 @@ import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { getCellId } from '../../lib/grid.js';
 import { gameState } from '../../lib/gameState.js';
-import { io, connectedPlayers, lastAttackTime, logActivity } from '../../server.js';
+import { io, connectedPlayers, lastAttackTime, recordAttack, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
 import { distanceMultiplier } from '../../lib/formulas.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
+import { sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { ts, getLang } from '../../config/i18n.js';
 import {
   SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS,
@@ -47,6 +49,8 @@ barracksRouter.post('/', async (req, res) => {
   if (action === 'sell-scout') return handleSellScout(req, res);
   if (action === 'mass-sell-scouts') return handleMassSellScouts(req, res);
   if (action === 'status') return handleStatus(req, res);
+  if (action === 'hit') return handleHit(req, res);
+  if (action === 'extinguish') return handleExtinguish(req, res);
   return res.status(400).json({ error: 'Unknown action' });
 });
 
@@ -163,6 +167,7 @@ async function handleSell(req, res) {
 
   const barracks = getPlayerBarracks(telegram_id);
   if (!barracks) return res.status(404).json({ error: 'Казарма не найдена' });
+  if (barracks.status === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
 
   const refund = getBarracksSellRefund(barracks.level);
   player.diamonds = (player.diamonds || 0) + refund;
@@ -582,4 +587,149 @@ async function handleMassSellScouts(req, res) {
   gameState.markDirty('players', player.id);
 
   res.json({ ok: true, crystals: totalCrystals, sold_count: soldCount, total_crystals: player.crystals });
+}
+
+// ── HIT (PvP attack on enemy barracks) ──
+async function handleHit(req, res) {
+  const { telegram_id, barracks_id, lat, lng } = req.body || {};
+  if (!telegram_id || !barracks_id || lat == null || lng == null)
+    return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const bk = gameState.barracks.get(barracks_id);
+  if (!bk) return res.status(404).json({ error: 'Barracks not found' });
+  const lang = getLang(gameState, telegram_id);
+  if (bk.owner_id === player.id) return res.status(400).json({ error: ts(lang, 'err.cant_attack_own') });
+  if (bk.hp <= 0 || bk.status === 'burning') return res.status(400).json({ error: ts(lang, 'err.already_destroyed') });
+
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, bk.lat, bk.lng);
+  const _skFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+  if (dist > LARGE_RADIUS + (_skFx.attack_radius_bonus || 0)) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
+
+  // Weapon cooldown
+  const items = gameState.getPlayerItems(player.id);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
+  const cooldownMs = WEAPON_COOLDOWNS[weaponType] ?? 0;
+  const now = Date.now();
+  const last = lastAttackTime.get(String(telegram_id)) || 0;
+  if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
+  recordAttack(telegram_id, now);
+
+  // Damage calc (same as fire truck)
+  const baseDmg = 10 + (weapon?.attack || 0);
+  const mul = distanceMultiplier(dist, LARGE_RADIUS);
+  let damage = Math.round(baseDmg * mul);
+  if (_skFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _skFx.weapon_damage_bonus));
+  let isCrit = false;
+  if (weapon?.type === 'sword') {
+    const cc = (weapon.crit_chance || 0) + (_skFx.crit_chance_bonus || 0) * 100;
+    if (Math.random() * 100 < cc) {
+      const wLvl = weapon.upgrade_level || 0;
+      let cm = 1.5;
+      if (weapon.rarity === 'mythic') cm = 1.5 + (wLvl / 90) * 0.7;
+      else if (weapon.rarity === 'legendary') cm = 1.5 + (wLvl / 100) * 1.5;
+      damage = Math.floor(damage * cm);
+      isCrit = true;
+    }
+  }
+
+  bk.hp = Math.max(0, bk.hp - damage);
+  gameState.markDirty('barracks', bk.id);
+
+  // Emit projectile
+  emitToNearby(bk.lat, bk.lng, 1000, 'projectile', {
+    from_lat: player.last_lat, from_lng: player.last_lng,
+    to_lat: bk.lat, to_lng: bk.lng,
+    damage, crit: isCrit,
+    target_type: 'barracks', target_id: bk.id,
+    weapon_type: weaponType,
+    attacker_id: isInShadow(player) ? 0 : player.id,
+  });
+
+  emitToNearby(bk.lat, bk.lng, 1000, 'barracks:hp_update', {
+    barracks_id: bk.id, hp: bk.hp, max_hp: bk.max_hp,
+  });
+
+  let destroyed = false;
+
+  if (bk.hp <= 0) {
+    destroyed = true;
+    const nowISO = new Date().toISOString();
+    bk.status = 'burning';
+    bk.burning_started_at = nowISO;
+    gameState.markDirty('barracks', bk.id);
+
+    await supabase.from('barracks').update({
+      hp: 0, status: 'burning', burning_started_at: nowISO,
+    }).eq('id', bk.id);
+
+    // Notify owner
+    const owner = gameState.getPlayerById(bk.owner_id);
+    if (owner) {
+      const oLang = owner.language || 'en';
+      const msg = oLang === 'ru' ? '🔥 Ваша казарма горит!' : '🔥 Your barracks is burning!';
+      const notif = {
+        id: globalThis.crypto.randomUUID(),
+        player_id: owner.id, type: 'barracks_burning', message: msg, read: false,
+        created_at: nowISO,
+      };
+      gameState.addNotification(notif);
+      supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[barracks] error:', e.message));
+      if (owner.telegram_id) sendTelegramNotification(owner.telegram_id, msg, buildAttackButton(bk.lat, bk.lng));
+    }
+
+    emitToNearby(bk.lat, bk.lng, 1000, 'barracks:burning', {
+      barracks_id: bk.id,
+      attacker_name: isInShadow(player) ? '???' : (player.game_username || '?'),
+    });
+
+    try { await addXp(player.id, 100); } catch (_) {}
+    logActivity(player.game_username, `burned barracks lv${bk.level}`);
+  }
+
+  return res.json({ damage, crit: isCrit, destroyed, hp: bk.hp, max_hp: bk.max_hp, status: bk.status });
+}
+
+// ── EXTINGUISH (owner puts out burning barracks) ──
+async function handleExtinguish(req, res) {
+  const { telegram_id, barracks_id } = req.body || {};
+  if (!telegram_id || !barracks_id) return res.status(400).json({ error: 'Missing fields' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const bk = gameState.barracks.get(barracks_id);
+  if (!bk || bk.owner_id !== player.id) return res.status(404).json({ error: 'Barracks not found' });
+  const lang = getLang(gameState, telegram_id);
+  if (bk.status !== 'burning') return res.status(400).json({ error: ts(lang, 'err.not_burning') });
+
+  // Distance check
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(player.last_lat, player.last_lng, bk.lat, bk.lng);
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far_short') });
+
+  // 24h timeout
+  if (Date.now() - new Date(bk.burning_started_at).getTime() > 86400000) {
+    gameState.barracks.delete(bk.id);
+    await supabase.from('barracks').delete().eq('id', bk.id);
+    return res.status(400).json({ error: ts(lang, 'err.too_late') });
+  }
+
+  // Restore 25% HP
+  const cfg = BARRACKS_LEVELS[bk.level] || BARRACKS_LEVELS[1];
+  const restoredHp = Math.round(cfg.hp * 0.25);
+  bk.status = 'active';
+  bk.burning_started_at = null;
+  bk.hp = restoredHp;
+  gameState.markDirty('barracks', bk.id);
+
+  await supabase.from('barracks').update({
+    status: 'active', burning_started_at: null, hp: restoredHp,
+  }).eq('id', bk.id);
+
+  return res.json({ success: true, hp: restoredHp, max_hp: cfg.hp });
 }
