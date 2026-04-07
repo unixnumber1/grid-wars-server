@@ -3735,8 +3735,8 @@ tg?.expand();
 // Resolved immediately — used for admin check before boot()
 const tgUser           = tg?.initDataUnsafe?.user;
 const currentTelegramId = tgUser?.id || null;
-const ADMIN_IDS         = new Set([560013667, 8752325699]);
-const ADMIN_ID          = 560013667; // primary admin
+let _isServerAdmin = false; // set from server tick response
+const ADMIN_IDS         = { has: () => _isServerAdmin }; // proxy to server-side flag
 
 // Use let so boot() can populate the resolved value for all subsequent calls
 let TG_ID   = tgUser?.id       || null;
@@ -12066,7 +12066,7 @@ function doAttackBot(botId) {
 // ─────────────────────────────────────────────
 //  Maintenance mode
 // ─────────────────────────────────────────────
-const ADMIN_TG_ID = 560013667;
+const ADMIN_TG_ID = 0; // resolved from server via _isServerAdmin
 let _maintenanceMode   = false;
 let _gameInitialised   = false;
 let _maintenanceTimer  = null;
@@ -13093,6 +13093,7 @@ async function boot() {
     if (!initRes.ok) throw new Error(data.message || data.error || 'API error');
 
     state.player      = data.player; // includes hp, max_hp, attack, kills, deaths
+    if (data.is_admin) _isServerAdmin = true;
     state.hq          = data.headquarters;
     state.mines       = data.mines;
     state.totalIncome = data.totalIncome ?? 0;
@@ -14974,8 +14975,7 @@ function setJoystickSpeed(idx) {
 
 // Remove joystick for non-admins after boot
 function _checkJoystickAdmin() {
-  const tgNum = parseInt(TG_ID, 10);
-  if (tgNum !== ADMIN_TG_ID && tgNum !== 8752325699) {
+  if (!_isServerAdmin) {
     document.getElementById('joystick-container')?.remove();
   }
 }

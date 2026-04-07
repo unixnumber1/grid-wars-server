@@ -11,7 +11,7 @@ import { getOreIncome } from '../../lib/oreNodes.js';
 import { gameState } from '../../lib/gameState.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
-import { BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS, ORE_TYPES } from '../../config/constants.js';
+import { BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS, ORE_TYPES, isAdmin } from '../../config/constants.js';
 
 const SPEED_METERS = BOT_SPEED_METERS;
 
@@ -786,6 +786,7 @@ async function handleTick(req, res) {
     shadow_active: player._shadow_until ? Date.now() < player._shadow_until : false,
     shadow_until: player._shadow_until || null,
     shadow_cooldown: player._shadow_cooldown || null,
+    ...(isAdmin(telegram_id) ? { is_admin: true } : {}),
   });
 }
 
