@@ -226,59 +226,7 @@ async function handleTick(req, res) {
 
   // Bot move and courier move are now handled by gameLoop.js — skip them here.
 
-  // ── 3. Complete upgrades ────────────────────────────────
-  let completedUpgrades = [];
-  try {
-    if (gameState.loaded) {
-      const playerMinesAll = gameState.getPlayerMines(currentPlayerId);
-      for (const mine of playerMinesAll) {
-        if (mine.pending_level != null && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) <= new Date(nowISO)) {
-          const upgCores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-          const upgCoreHp = upgCores.length > 0 ? getCoresTotalBoost(upgCores, 'hp') : 1;
-          const upgClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
-          const newMineMaxHp = Math.round(getMineHp(mine.pending_level) * upgCoreHp * upgClanDef);
-          mine.level = mine.pending_level;
-          mine.pending_level = null;
-          mine.upgrade_finish_at = null;
-          mine.hp = newMineMaxHp;
-          mine.max_hp = newMineMaxHp;
-          gameState.markDirty('mines', mine.id);
-          // Persist immediately — must await to prevent stale DB reads
-          await supabase.from('mines').update({
-            level: mine.level,
-            pending_level: null,
-            upgrade_finish_at: null,
-            hp: newMineMaxHp,
-            max_hp: newMineMaxHp,
-          }).eq('id', mine.id);
-          let xpResult = null;
-          try { xpResult = await addXp(currentPlayerId, XP_REWARDS.UPGRADE_MINE(mine.level)); } catch (_) {}
-          completedUpgrades.push({ ...mine, xp: xpResult });
-        }
-      }
-    } else {
-      // DB fallback
-      const { data: readyMines } = await supabase
-        .from('mines').select('id,owner_id,level,pending_level')
-        .eq('owner_id', currentPlayerId)
-        .not('pending_level', 'is', null)
-        .lte('upgrade_finish_at', nowISO);
-
-      if (readyMines?.length) {
-        for (const mine of readyMines) {
-          const newMineMaxHp = getMineHp(mine.pending_level);
-          const { data: updated, error: upErr } = await supabase
-            .from('mines')
-            .update({ level: mine.pending_level, pending_level: null, upgrade_finish_at: null, hp: newMineMaxHp, max_hp: newMineMaxHp })
-            .eq('id', mine.id).select().single();
-          if (upErr) continue;
-          let xpResult = null;
-          try { xpResult = await addXp(currentPlayerId, XP_REWARDS.UPGRADE_MINE(mine.pending_level)); } catch (_) {}
-          completedUpgrades.push({ ...updated, xp: xpResult });
-        }
-      }
-    }
-  } catch (e) { console.error('[tick] upgrade poll error:', e.message); }
+  // ── 3. Upgrades are now instant (no pending_level polling needed) ──
 
   // ── 4. HP regen ─────────────────────────────────────────
   const level = player.level ?? 1;
@@ -776,7 +724,6 @@ async function handleTick(req, res) {
     inventory,
     player_cores: gameState.loaded ? gameState.getPlayerCores(Number(player.telegram_id)).concat(gameState.getPlayerCores(currentPlayerId)).filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i).map(c => ({ id: c.id, core_type: c.core_type, level: c.level, mine_cell_id: c.mine_cell_id || null, slot_index: c.slot_index ?? null, on_market: c.on_market || false })) : [],
     notifications,
-    completedUpgrades,
     loot_boxes,
     spawned: spawnedBots.length,
     ..._clanBoost ? { clan_boost: _clanBoost } : {},

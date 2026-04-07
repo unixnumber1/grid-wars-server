@@ -8983,26 +8983,23 @@ async function doUpgrade(mineId, targetLevel) {
       }),
     });
     _setPlayerCoins(data.player_coins);
-    if (data.upgrading) {
-      showToast(t('toast.upgrade_pending', {level: data.pendingLevel, seconds: data.secondsLeft}));
-      // Optimistic: update mine pending state immediately
-      const mine = state.mapBuildings.mines.find(m => m.id === mineId);
+    if (data.success) {
+      // Instant upgrade — update mine state immediately
+      const mine = (state.mapBuildings?.mines || []).find(m => m.id === mineId);
       if (mine) {
-        mine.pending_level = data.pendingLevel;
-        mine.upgrade_finish_at = data.finishAt;
-        // Instantly update marker to show new level appearance
-        const key = `mine_${mineId}`;
-        if (buildingMarkers[key]) {
-          buildingMarkers[key].setIcon(mineIcon(data.pendingLevel, 'own'));
-          buildingMarkers[key]._gw_level = data.pendingLevel;
-        }
+        mine.level = data.level;
+        mine.hp = data.hp;
+        mine.max_hp = data.max_hp;
+        mine.pending_level = null;
+        mine.upgrade_finish_at = null;
+        _addOrUpdateMineMarker(mine);
       }
-      // Start floating timer immediately
-      if (mine) _startFloatingTimer(mine);
-      // Re-open popup with timer only if user is still viewing this same mine
-      const freshMine = state.mapBuildings.mines.find(m => m.id === mineId);
-      if (freshMine && _currentPopupEntityId === `mine_${mineId}`) {
-        showMinePopup(freshMine, true, false);
+      const ownMine = (state.mines || []).find(m => m.id === mineId);
+      if (ownMine) { ownMine.level = data.level; ownMine.pending_level = null; ownMine.upgrade_finish_at = null; }
+      handleXpResult(data.xp);
+      // Re-open popup with new level
+      if (_currentPopupEntityId === `mine_${mineId}` && mine) {
+        showMinePopup(mine, true, false);
       }
     }
   } catch (err) {
@@ -11431,43 +11428,6 @@ function processTickData(data) {
   });
 
   // Handle completed upgrades — group into a single toast to avoid spam
-  if (data.completedUpgrades?.length) {
-    const evolutions = [];
-    const normals = [];
-    for (const mine of data.completedUpgrades) {
-      const prevMine = state.mapBuildings?.mines?.find(m => m.id === mine.id);
-      const prevName = prevMine ? getMineAppearance(prevMine.level).name : null;
-      const newApp = getMineAppearance(mine.level);
-      if (prevName && newApp.name !== prevName) {
-        evolutions.push(`${newApp.emoji} ${newApp.name} (${t('lv')}${mine.level})`);
-      } else {
-        normals.push(mine.level);
-      }
-      handleXpResult(mine.xp);
-      // Update cached mine data so marker doesn't flicker back
-      if (prevMine) {
-        Object.assign(prevMine, { level: mine.level, pending_level: null, upgrade_finish_at: null });
-        _addOrUpdateMineMarker(prevMine);
-      }
-      const ownMine = (state.mines || []).find(m => m.id === mine.id);
-      if (ownMine) {
-        ownMine.level = mine.level;
-        ownMine.pending_level = null;
-        ownMine.upgrade_finish_at = null;
-      }
-    }
-    if (evolutions.length === 1) {
-      showToast(t('toast.evolution', {name: evolutions[0]}));
-    } else if (evolutions.length > 1) {
-      showToast(t('toast.evolutions_multi', {count: evolutions.length, names: evolutions.join(', ')}));
-    }
-    if (normals.length === 1) {
-      showToast(t('toast.mine_upgraded', {level: normals[0]}));
-    } else if (normals.length > 1) {
-      showToast(t('toast.mines_upgraded_multi', {count: normals.length}));
-    }
-  }
-
   // Show notifications as toasts — limit to 3 to avoid screen flood
   if (data.notifications?.length) {
     const notifs = data.notifications.slice(0, 3);

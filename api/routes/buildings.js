@@ -463,33 +463,35 @@ function calcSellRefund(level) {
 async function handleAttackSellMine(req, res) {
   const { telegram_id, mine_id } = req.body;
   if (!telegram_id || !mine_id) return res.status(400).json({ error: 'telegram_id and mine_id are required' });
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, coins');
-  if (playerError) return res.status(500).json({ error: playerError });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const { data: mine, error: mineError } = await supabase.from('mines').select('id,owner_id,level,cell_id,last_collected,lat,lng').eq('id', mine_id).maybeSingle();
-  if (mineError) return res.status(500).json({ error: mineError.message });
+
+  const mine = gameState.getMineById(mine_id);
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'You do not own this mine' });
-  const gsMine = gameState.loaded ? gameState.getMineById(mine_id) : null;
-  if ((gsMine?.status || mine.status) === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
-  const sellCores = gameState.loaded && mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+  if (mine.status === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
+
+  const sellCores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
   if (sellCores.length > 0) return res.status(400).json({ error: 'Сначала извлеките все ядра из постройки' });
+
   const collected = calcAccumulatedCoins(mine.level, mine.last_collected, 1, 1);
   const refund = calcSellRefund(mine.level);
   const total = collected + refund;
-  const newCoins = (player.coins ?? 0) + Math.round(total);
+  const balance = player.coins ?? 0;
+  const newCoins = balance + Math.round(total);
+
   const [{ data: coinsOk, error: playerUpdateError }, { error: deleteError }] = await Promise.all([
-    supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', player.coins ?? 0).select('id').maybeSingle(),
+    supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', balance).select('id').maybeSingle(),
     supabase.from('mines').delete().eq('id', mine_id),
   ]);
   if (playerUpdateError || deleteError) return res.status(500).json({ error: 'Failed to sell mine' });
   if (!coinsOk && !playerUpdateError) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
-  // Update gameState
-  if (gameState.loaded) {
-    gameState.removeMine(mine_id);
-    const p = gameState.getPlayerById(player.id);
-    if (p) { p.coins = newCoins; gameState.markDirty('players', p.id); }
-  }
+
+  gameState.removeMine(mine_id);
+  player.coins = newCoins;
+  gameState.markDirty('players', player.id);
+
   return res.status(200).json({ collected: Math.round(collected), refund: Math.round(refund), total: Math.round(total), player_coins: newCoins });
 }
 
@@ -535,7 +537,6 @@ async function handleUpgradePost(req, res) {
   const { telegram_id, mine_id, lat, lng, targetLevel: targetLevelParam } = req.body;
   if (!telegram_id || !mine_id) return res.status(400).json({ error: 'telegram_id and mine_id are required' });
 
-  // Read from gameState (source of truth) — prevents stale DB reads causing rollbacks
   const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
 
@@ -543,34 +544,24 @@ async function handleUpgradePost(req, res) {
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'You do not own this mine' });
 
-  // Block if upgrade already in progress
-  if (mine.pending_level != null && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date()) {
-    const secondsLeft = Math.ceil((new Date(mine.upgrade_finish_at) - new Date()) / 1000);
-    return res.status(400).json({ error: `Апгрейд ещё идёт (${secondsLeft} сек)` });
-  }
-
-  // Use server-side position for distance check
-  const gsUpg = gameState.getPlayerByTgId(Number(telegram_id));
-  if (!gsUpg?.last_lat || !gsUpg?.last_lng) return res.status(400).json({ error: 'Position unknown' });
-  const distance = haversine(gsUpg.last_lat, gsUpg.last_lng, mine.lat, mine.lng);
+  // Distance check
+  if (!player.last_lat || !player.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const distance = haversine(player.last_lat, player.last_lng, mine.lat, mine.lng);
   const _upgFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const _upgSmall = SMALL_RADIUS + (_upgFx.radius_bonus || 0);
   if (distance > _upgSmall) return res.status(400).json({ error: `Слишком далеко! Подойди ближе (${_upgSmall}м)`, distance: Math.round(distance) });
   if (mine.level >= MINE_MAX_LEVEL) return res.status(400).json({ error: 'Mine is already at max level' });
+
   const targetLevel = Math.min(parseInt(targetLevelParam) || mine.level + 1, MINE_MAX_LEVEL);
   if (targetLevel <= mine.level) return res.status(400).json({ error: 'targetLevel должен быть выше текущего уровня' });
+
   let cost = 0;
   for (let l = mine.level; l < targetLevel; l++) cost += mineUpgradeCost(l);
   const balance = player.coins ?? 0;
   if (balance < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${Math.round(cost).toLocaleString()})` });
   const newBalance = balance - cost;
-  // Upgrade time: each level costs its number in seconds (lv1→2 = 1s, lv6→7 = 6s, bulk sums up)
-  let upgradeSecs = 0;
-  for (let l = mine.level; l < targetLevel; l++) upgradeSecs += l;
-  if (upgradeSecs < 1) upgradeSecs = 1;
-  const finishAt = new Date(Date.now() + upgradeSecs * 1000);
 
-  // SEQUENTIAL: first deduct coins (optimistic lock), then update mine
+  // Deduct coins with optimistic lock
   const { data: coinsOk, error: playerUpdateError } = await supabase
     .from('players').update({ coins: newBalance })
     .eq('id', player.id).eq('coins', balance)
@@ -578,29 +569,39 @@ async function handleUpgradePost(req, res) {
   if (playerUpdateError) return res.status(500).json({ error: 'Failed to deduct coins' });
   if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
 
-  // Coins deducted — now update mine with idempotency guard
+  // Calculate new HP with cores + clan bonuses
+  const upgCores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
+  const upgCoreHp = upgCores.length > 0 ? getCoresTotalBoost(upgCores, 'hp') : 1;
+  const upgClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
+  const sHp = _upgFx ? (1 + _upgFx.mine_hp_bonus) : 1;
+  const newMaxHp = Math.round(getMineHp(targetLevel) * upgCoreHp * upgClanDef * sHp);
+
+  // Apply level immediately — no pending_level, no timer
   const { error: mineUpdateError } = await supabase
-    .from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() })
+    .from('mines').update({ level: targetLevel, pending_level: null, upgrade_finish_at: null, hp: newMaxHp, max_hp: newMaxHp })
     .eq('id', mine_id);
   if (mineUpdateError) {
     console.error('[upgrade] mine update error, rolling back coins:', mineUpdateError.message);
-    // ROLLBACK: restore coins in DB (gameState still has old balance — not yet updated)
-    const { error: rollbackErr } = await supabase
-      .from('players').update({ coins: balance })
-      .eq('id', player.id);
-    if (rollbackErr) console.error('[upgrade] CRITICAL: coin rollback failed:', rollbackErr.message);
+    await supabase.from('players').update({ coins: balance }).eq('id', player.id).eq('coins', newBalance).catch(() => {});
     return res.status(500).json({ error: 'Ошибка при обновлении шахты, попробуйте снова' });
   }
 
-  // Update gameState (only reached if BOTH DB writes succeeded)
-  mine.pending_level = targetLevel;
-  mine.upgrade_finish_at = finishAt.toISOString();
+  // Update gameState immediately
+  mine.level = targetLevel;
+  mine.pending_level = null;
+  mine.upgrade_finish_at = null;
+  mine.hp = newMaxHp;
+  mine.max_hp = newMaxHp;
   gameState.markDirty('mines', mine_id);
   player.coins = newBalance;
   gameState.markDirty('players', player.id);
 
+  // XP
+  let xpResult = null;
+  try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(targetLevel)); } catch (_) {}
+
   logPlayer(telegram_id, 'action', `Улучшил шахту до уровня ${targetLevel}`, { mine_id, cost });
-  return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: upgradeSecs, player_coins: newBalance, pendingLevel: targetLevel });
+  return res.status(200).json({ success: true, level: targetLevel, hp: newMaxHp, max_hp: newMaxHp, player_coins: newBalance, xp: xpResult });
 }
 
 // ─── Single-hit mine attack (projectile) ─────────────────────────────
