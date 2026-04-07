@@ -1288,7 +1288,7 @@
       100% { opacity: 0; transform: translateY(-40px); }
     }
 
-    .vase-marker { filter: drop-shadow(0 0 6px rgba(255,215,0,0.5)); cursor: pointer; }
+    .vase-marker { cursor: pointer; }
 
     /* Vase shatter */
     @keyframes shatter {
@@ -6481,11 +6481,12 @@ function _addOrUpdateMineMarker(mine) {
   const key      = `mine_${mine.id}`;
   const existing = buildingMarkers[key];
   const hpInfo = (mine.hp != null && mine.max_hp) ? { hp: mine.hp, max_hp: mine.max_hp } : null;
+  const _mineOwnerAvatar = !isOwn ? (mine.players?.avatar || null) : null;
   if (existing) {
     const hpChanged = existing._gw_hp !== mine.hp || existing._gw_maxHp !== mine.max_hp;
     // Recreate icon only if level or ownership changed (expensive DOM op)
     if (existing._gw_level !== displayLevel || existing._gw_iconSt !== iconSt) {
-      existing.setIcon(mineIcon(displayLevel, iconSt, hpInfo));
+      existing.setIcon(mineIcon(displayLevel, iconSt, hpInfo, _mineOwnerAvatar));
       existing._gw_level  = displayLevel;
       existing._gw_iconSt = iconSt;
       existing._gw_hp     = mine.hp;
@@ -6539,7 +6540,7 @@ function _addOrUpdateMineMarker(mine) {
     existing.off('click');
     existing.on('click', () => { if (Date.now() - _suppressMapClick < 800) return; showMinePopup(mine, isOwn, false); });
   } else {
-    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt, hpInfo), zIndexOffset: 1000 })
+    const marker = L.marker([mine.lat, mine.lng], { icon: mineIcon(displayLevel, iconSt, hpInfo, _mineOwnerAvatar), zIndexOffset: 1000 })
       .addTo(map)
       .on('click', () => { if (Date.now() - _suppressMapClick < 800) return; showMinePopup(mine, isOwn, false); });
     marker._gw_level   = displayLevel;
@@ -7946,20 +7947,20 @@ function hqIcon(isOwn, bestMineLevel, hqLevel) {
   );
 }
 
-function mineIcon(level, state, hpInfo) {
+function mineIcon(level, state, hpInfo, ownerAvatar) {
   // state: 'own' | 'capturable' | 'other'
   const emoji = getMineAppearance(level).emoji;
   const size  = 28 + Math.min(Math.floor(level / 30), 4) * 2; // subtle size growth
   const ring  = state === 'capturable' ? 'marker-capturable' : '';
-  const opacity = state === 'other' ? 'opacity:0.5;' : '';
   let hpBar = '';
   if (hpInfo && hpInfo.hp < hpInfo.max_hp) {
     const pct = Math.max(0, Math.min(100, Math.round(hpInfo.hp / hpInfo.max_hp * 100)));
     const color = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
     hpBar = `<div class="mine-hp-bar" style="width:28px;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;"><div class="mine-hp-bar-inner" style="width:${pct}%;height:100%;background:${color};border-radius:2px;transition:width 1s;"></div></div>`;
   }
+  const badge = (state !== 'own' && ownerAvatar) ? `<div style="position:absolute;top:-4px;right:-6px;font-size:10px;line-height:1">${ownerAvatar}</div>` : '';
   return makeMarkerIcon(
-    `<div class="marker-wrap ${ring}"><span style="font-size:${size}px;${opacity}">${emoji}</span>${hpBar}</div>`, 40
+    `<div class="marker-wrap ${ring}" style="position:relative"><span style="font-size:${size}px">${emoji}</span>${hpBar}${badge}</div>`, 40
   );
 }
 
@@ -11640,9 +11641,9 @@ function _formatVaseTimer(expiresAt) {
 function _vaseIcon() {
   return L.divIcon({
     className: 'leaflet-interactive',
-    html: `<div class="marker-wrap vase-marker" style="font-size:22px;line-height:1;pointer-events:auto;">🏺</div>`,
-    iconSize:   [32, 32],
-    iconAnchor: [16, 16],
+    html: `<div class="marker-wrap vase-marker" style="font-size:16px;line-height:1;pointer-events:auto;">🏺</div>`,
+    iconSize:   [24, 24],
+    iconAnchor: [12, 12],
   });
 }
 
@@ -15011,9 +15012,9 @@ let _buyTargetListing = null;
 function _marketIcon() {
   return L.divIcon({
     className: 'leaflet-interactive',
-    html: '<div class="marker-wrap" style="font-size:56px;line-height:1;filter:drop-shadow(0 0 10px rgba(255,215,0,0.6));pointer-events:auto;">🎪</div>',
-    iconSize: [64, 64],
-    iconAnchor: [32, 32],
+    html: '<div class="marker-wrap" style="font-size:36px;line-height:1;filter:drop-shadow(0 0 6px rgba(255,215,0,0.4));pointer-events:auto;">🎪</div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
   });
 }
 
@@ -19628,11 +19629,10 @@ const collectorCircles = {};
 const _myCollectorsCache = {}; // all own collectors (not viewport-limited)
 
 function collectorIcon(c) {
-  const isMine = c.is_mine;
   const isBurning = c.status === 'burning';
-  const glow = isBurning ? 'filter:drop-shadow(0 0 8px #ff4400)' : (isMine ? 'filter:drop-shadow(0 0 6px #4caf50)' : 'filter:drop-shadow(0 0 6px #f44336)');
+  const glow = isBurning ? 'filter:drop-shadow(0 0 6px rgba(255,68,0,0.8))' : '';
+  const ownerBadge = (!c.is_mine && c.owner_avatar) ? `<div style="position:absolute;top:-4px;right:-6px;font-size:10px;line-height:1">${c.owner_avatar}</div>` : '';
 
-  // HP bar below — only when damaged
   let hpBar = '';
   if (c.hp != null && c.max_hp && c.hp < c.max_hp) {
     const hpPct = Math.max(0, Math.min(100, Math.round(c.hp / c.max_hp * 100)));
@@ -19641,13 +19641,13 @@ function collectorIcon(c) {
   }
 
   return L.divIcon({
-    html: `<div class="collector-marker" style="${glow}">
-      <span style="font-size:26px">${isBurning ? '🔥' : '🧲'}</span>
-      ${hpBar}
+    html: `<div class="collector-marker" style="${glow};position:relative">
+      <span style="font-size:20px">${isBurning ? '🔥' : '🧲'}</span>
+      ${hpBar}${ownerBadge}
     </div>`,
     className: 'leaflet-interactive',
-    iconSize: [36, 48],
-    iconAnchor: [18, 24],
+    iconSize: [30, 40],
+    iconAnchor: [15, 20],
   });
 }
 
@@ -20000,21 +20000,21 @@ const FIRETRUCK_LEVELS = {
 };
 
 function firetruckIcon(ft) {
-  const isMine = ft.is_mine;
   const isBurning = ft.status === 'burning';
-  const glow = isBurning ? 'filter:drop-shadow(0 0 8px #ff4400)' : (isMine ? 'filter:drop-shadow(0 0 6px #f44336)' : 'filter:drop-shadow(0 0 6px #888)');
+  const glow = isBurning ? 'filter:drop-shadow(0 0 6px rgba(255,68,0,0.8))' : '';
   const hpPct = ft.max_hp > 0 ? Math.max(0, Math.round(ft.hp / ft.max_hp * 100)) : 0;
   const hpColor = hpPct > 50 ? '#00cc44' : hpPct > 25 ? '#ffaa00' : '#ff4444';
   const showHpBar = hpPct < 100;
+  const ownerBadge = (!ft.is_mine && ft.owner_avatar) ? `<div style="position:absolute;top:-4px;right:-6px;font-size:10px;line-height:1">${ft.owner_avatar}</div>` : '';
 
   return L.divIcon({
-    html: `<div class="collector-marker" style="${glow}">
-      <span style="font-size:26px">${isBurning ? '🔥' : '🚒'}</span>
-      ${showHpBar ? `<div class="collector-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}
+    html: `<div class="collector-marker" style="${glow};position:relative">
+      <span style="font-size:20px">${isBurning ? '🔥' : '🚒'}</span>
+      ${showHpBar ? `<div class="collector-bar"><div style="width:${hpPct}%;background:${hpColor}"></div></div>` : ''}${ownerBadge}
     </div>`,
     className: 'leaflet-interactive',
-    iconSize: [36, 44],
-    iconAnchor: [18, 22],
+    iconSize: [30, 40],
+    iconAnchor: [15, 20],
   });
 }
 
@@ -20730,14 +20730,17 @@ let _playerBarracksStatus = null;
 let _barracksPopupTab = 'train';
 
 function barracksIcon(b) {
-  const size = 36;
+  const size = 24;
+  const isBurning = b.status === 'burning';
+  const glow = isBurning ? 'filter:drop-shadow(0 0 6px rgba(255,68,0,0.8))' : '';
+  const ownerBadge = (!b.is_mine && b.owner_avatar) ? `<div style="position:absolute;top:-4px;right:-6px;font-size:10px;line-height:1">${b.owner_avatar}</div>` : '';
   return L.divIcon({
     className: '',
-    html: `<div style="display:flex;align-items:center;justify-content:center">
-      <span style="font-size:${size}px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">⛺</span>
+    html: `<div style="display:flex;align-items:center;justify-content:center;position:relative">
+      <span style="font-size:${size}px;${glow}">${isBurning ? '🔥' : '⛺'}</span>${ownerBadge}
     </div>`,
-    iconSize: [size + 6, size + 6],
-    iconAnchor: [(size + 6) / 2, (size + 6) / 2],
+    iconSize: [size + 10, size + 10],
+    iconAnchor: [(size + 10) / 2, (size + 10) / 2],
   });
 }
 
