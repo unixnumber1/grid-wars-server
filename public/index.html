@@ -11975,6 +11975,9 @@ function _startBotAutoAttack(botId) {
 }
 
 function doAttackBot(botId) {
+  const now = Date.now();
+  if (now - _pvpLastHit < _pvpCdMs) return;
+  _pvpLastHit = now;
   const bot = botData[botId];
   if (!bot) return;
   const pos = state.playerPos;
@@ -16514,7 +16517,7 @@ function doMineHit(mine) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`);
     stopCombat(); closePopupKeepHold();
   });
@@ -16541,7 +16544,7 @@ function doOreHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`);
     stopCombat(); closePopupKeepHold();
   });
@@ -16811,7 +16814,7 @@ function showCombatHUD(target, mode) {
       isHolding = true;
       atkBtn.classList.add('atk-btn-pulse');
       doHit(); // Fire first shot immediately on hold
-      _pvpAutoFire = setInterval(doHit, _pvpCdMs + 50); // +50ms buffer for server CD
+      _pvpAutoFire = setInterval(doHit, _pvpCdMs); // server enforces cooldown via 429
     }, 300);
   }
   function stopHold() {
@@ -16914,7 +16917,7 @@ function bindAttackButton(targetType, target) {
     document.getElementById('popup-overlay')?.classList.add('combat-mode');
     executePopupAttack();
     if (combatState.attackInterval) clearInterval(combatState.attackInterval);
-    combatState.attackInterval = setInterval(executePopupAttack, cd + 150);
+    combatState.attackInterval = setInterval(executePopupAttack, cd + 30);
   }
 
   function stopHold() {
@@ -16957,7 +16960,7 @@ function bindAttackButton(targetType, target) {
   if (combatState.isHolding) {
     if (combatState.attackInterval) clearInterval(combatState.attackInterval);
     executePopupAttack();
-    combatState.attackInterval = setInterval(executePopupAttack, cd + 150);
+    combatState.attackInterval = setInterval(executePopupAttack, cd + 30);
   }
 }
 
@@ -19433,7 +19436,7 @@ function doMonumentShieldHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
 }
@@ -19462,7 +19465,7 @@ function doMonumentBodyHit(target) {
     if (data.defeated) { stopCombat(); closePopupKeepHold(); showToast(t('mon.defeated')); }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     if (msg.includes('защитников') || msg.includes('Сначала') || msg.includes('мертвы')) { stopCombat(); closePopupKeepHold(); showToast('⚔️ ' + msg); return; }
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
@@ -19502,7 +19505,7 @@ function doDefenderHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
 }
@@ -19814,7 +19817,7 @@ function doCollectorHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
 }
@@ -20304,7 +20307,7 @@ function doFireTruckHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
 }
@@ -20336,7 +20339,7 @@ function doFirefighterHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
 }
@@ -20362,7 +20365,7 @@ function doScoutHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`); stopCombat(); closePopupKeepHold();
   });
 }
@@ -21396,7 +21399,7 @@ function doZombieHit(target) {
     }
   }).catch(err => {
     const msg = err.message || '';
-    if (msg.includes('429') || msg.includes('Cooldown')) return;
+    if (msg.includes('429') || msg.includes('Cooldown') || msg.includes('Слишком') || msg.includes('Too far')) return;
     showToast(`❌ ${msg}`);
   });
 }

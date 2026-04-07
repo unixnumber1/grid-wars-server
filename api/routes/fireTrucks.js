@@ -294,6 +294,10 @@ async function handleDispatch(req, res) {
   const lang = getLang(gameState, telegram_id);
   if (truck.status !== 'normal') return res.status(400).json({ error: ts(lang, 'err.truck_not_operational') });
 
+  // Distance check — player must be within SMALL_RADIUS of the fire truck
+  const dist = haversine(player.last_lat, player.last_lng, truck.lat, truck.lng);
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far', { distance: Math.round(dist), radius: SMALL_RADIUS }) });
+
   // Cooldown check
   const now = Date.now();
   if (truck.last_extinguish_at && now - new Date(truck.last_extinguish_at).getTime() < FIRETRUCK_COOLDOWN_MS) {

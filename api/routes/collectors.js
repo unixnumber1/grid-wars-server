@@ -420,6 +420,10 @@ async function handleExtinguish(req, res) {
   const lang = getLang(gameState, telegram_id);
   if (collector.status !== 'burning') return res.status(400).json({ error: ts(lang, 'err.not_burning') });
 
+  // Distance check — player must be within SMALL_RADIUS
+  const dist = haversine(player.last_lat, player.last_lng, collector.lat, collector.lng);
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: ts(lang, 'err.too_far', { distance: Math.round(dist), radius: SMALL_RADIUS }) });
+
   // Check 24h not passed
   if (Date.now() - new Date(collector.burning_started_at).getTime() > 86400000) {
     gameState.collectors.delete(collector.id);

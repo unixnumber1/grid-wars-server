@@ -427,6 +427,13 @@ async function handleAttackExtinguish(req, res) {
   if (!mine) return res.status(404).json({ error: 'Mine not found' });
   if (mine.owner_id !== player.id) return res.status(403).json({ error: 'Не ваша шахта' });
   if (mine.status !== 'burning') return res.status(400).json({ error: 'Шахта не горит' });
+
+  // Distance check — player must be within SMALL_RADIUS
+  const gsPlayer = gameState.getPlayerByTgId(telegram_id);
+  if (!gsPlayer?.last_lat || !gsPlayer?.last_lng) return res.status(400).json({ error: 'Position unknown' });
+  const dist = haversine(gsPlayer.last_lat, gsPlayer.last_lng, mine.lat, mine.lng);
+  if (dist > SMALL_RADIUS) return res.status(400).json({ error: 'Слишком далеко' });
+
   if (Date.now() - new Date(mine.burning_started_at).getTime() > 86400000) {
     await supabase.from('mines').update({ status: 'destroyed' }).eq('id', mine_id);
     if (gameState.loaded) { const gm = gameState.getMineById(mine_id); if (gm) { gm.status = 'destroyed'; gameState.markDirty('mines', mine_id); } }
