@@ -712,6 +712,7 @@ playerRouter.post('/init', async (req, res) => {
     notifications: unreadNotifs,
     skill_effects: _initSkFx || {},
     player_skills: _initSkRow || { farmer: {}, raider: {}, skill_points_used: 0 },
+    ...(isAdminId(tgId) ? { is_admin: true } : {}),
   });
 });
 
