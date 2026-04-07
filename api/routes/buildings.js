@@ -552,6 +552,12 @@ async function handleUpgradePost(req, res) {
   if (distance > _upgSmall) return res.status(400).json({ error: `Слишком далеко! Подойди ближе (${_upgSmall}м)`, distance: Math.round(distance) });
   if (mine.level >= MINE_MAX_LEVEL) return res.status(400).json({ error: 'Mine is already at max level' });
 
+  // Block if upgrade already in progress
+  if (mine.pending_level != null && mine.upgrade_finish_at && new Date(mine.upgrade_finish_at) > new Date()) {
+    const secondsLeft = Math.ceil((new Date(mine.upgrade_finish_at) - new Date()) / 1000);
+    return res.status(400).json({ error: `Апгрейд ещё идёт (${secondsLeft} сек)` });
+  }
+
   const targetLevel = Math.min(parseInt(targetLevelParam) || mine.level + 1, MINE_MAX_LEVEL);
   if (targetLevel <= mine.level) return res.status(400).json({ error: 'targetLevel должен быть выше текущего уровня' });
 
@@ -561,6 +567,12 @@ async function handleUpgradePost(req, res) {
   if (balance < cost) return res.status(400).json({ error: `Не хватает монет (нужно ${Math.round(cost).toLocaleString()})` });
   const newBalance = balance - cost;
 
+  // Upgrade time: each level costs its number in seconds
+  let upgradeSecs = 0;
+  for (let l = mine.level; l < targetLevel; l++) upgradeSecs += l;
+  if (upgradeSecs < 1) upgradeSecs = 1;
+  const finishAt = new Date(Date.now() + upgradeSecs * 1000);
+
   // Deduct coins with optimistic lock
   const { data: coinsOk, error: playerUpdateError } = await supabase
     .from('players').update({ coins: newBalance })
@@ -569,16 +581,9 @@ async function handleUpgradePost(req, res) {
   if (playerUpdateError) return res.status(500).json({ error: 'Failed to deduct coins' });
   if (!coinsOk) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
 
-  // Calculate new HP with cores + clan bonuses
-  const upgCores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
-  const upgCoreHp = upgCores.length > 0 ? getCoresTotalBoost(upgCores, 'hp') : 1;
-  const upgClanDef = getClanDefenseForMine(mine.owner_id, mine.lat, mine.lng);
-  const sHp = _upgFx ? (1 + _upgFx.mine_hp_bonus) : 1;
-  const newMaxHp = Math.round(getMineHp(targetLevel) * upgCoreHp * upgClanDef * sHp);
-
-  // Apply level immediately — no pending_level, no timer
+  // Set pending upgrade with timer
   const { error: mineUpdateError } = await supabase
-    .from('mines').update({ level: targetLevel, pending_level: null, upgrade_finish_at: null, hp: newMaxHp, max_hp: newMaxHp })
+    .from('mines').update({ pending_level: targetLevel, upgrade_finish_at: finishAt.toISOString() })
     .eq('id', mine_id);
   if (mineUpdateError) {
     console.error('[upgrade] mine update error, rolling back coins:', mineUpdateError.message);
@@ -586,22 +591,15 @@ async function handleUpgradePost(req, res) {
     return res.status(500).json({ error: 'Ошибка при обновлении шахты, попробуйте снова' });
   }
 
-  // Update gameState immediately
-  mine.level = targetLevel;
-  mine.pending_level = null;
-  mine.upgrade_finish_at = null;
-  mine.hp = newMaxHp;
-  mine.max_hp = newMaxHp;
+  // Update gameState
+  mine.pending_level = targetLevel;
+  mine.upgrade_finish_at = finishAt.toISOString();
   gameState.markDirty('mines', mine_id);
   player.coins = newBalance;
   gameState.markDirty('players', player.id);
 
-  // XP
-  let xpResult = null;
-  try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_MINE(targetLevel)); } catch (_) {}
-
   logPlayer(telegram_id, 'action', `Улучшил шахту до уровня ${targetLevel}`, { mine_id, cost });
-  return res.status(200).json({ success: true, level: targetLevel, hp: newMaxHp, max_hp: newMaxHp, player_coins: newBalance, xp: xpResult });
+  return res.status(200).json({ upgrading: true, finishAt: finishAt.toISOString(), secondsLeft: upgradeSecs, player_coins: newBalance, pendingLevel: targetLevel });
 }
 
 // ─── Single-hit mine attack (projectile) ─────────────────────────────
