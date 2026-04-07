@@ -10399,7 +10399,11 @@ async function doSellHq() {
     state.hq = null;
     updateCoinDisplay();
     closePopup();
-    showToast(t('toast.hq_demolished'));
+    if (pinMode) {
+      deactivatePin('toast.hq_demolished');
+    } else {
+      showToast(t('toast.hq_demolished'));
+    }
     loadVisibleBuildings(true);
   } catch (err) {
     showToast(`❌ ${err.message}`);
