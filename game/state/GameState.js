@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase.js';
+import { computeMineBoostData } from '../../lib/mineBoost.js';
 
 class GameState {
   constructor() {
@@ -49,6 +50,7 @@ class GameState {
     this._itemsByOwnerId = new Map();         // owner_id -> item[] (secondary index)
     this._occupiedCells = new Set();          // cell_ids with buildings (for fast isCellFree)
     this._occupiedCellsDirty = true;           // rebuild on first use
+    this._mineBoostCache = new Map();         // playerId -> { hash, data: computeMineBoostData result }
 
     // Dirty tracking
     this._dirty = {
@@ -818,6 +820,17 @@ class GameState {
     return result;
   }
 
+  // -- Mine boost data (cached, invalidated on mine build/upgrade/destroy) --
+  getMineBoostData(playerId, clanInfo) {
+    const mines = this.getPlayerMines(playerId);
+    const hash = mines.length + '_' + mines.reduce((s, m) => s + m.level, 0);
+    const cached = this._mineBoostCache.get(playerId);
+    if (cached && cached.hash === hash) return cached.data;
+    const data = computeMineBoostData(mines, clanInfo);
+    this._mineBoostCache.set(playerId, { hash, data });
+    return data;
+  }
+
   // -- Player items (inventory) --
   getPlayerItems(playerId) {
     const items = this._itemsByOwnerId.get(playerId) || [];
@@ -889,12 +902,16 @@ class GameState {
     if (mine.cell_id) this.mineByCellId.set(mine.cell_id, mine);
     this._updateBestMineLevel(mine.owner_id);
     this._occupiedCellsDirty = true;
+    this._mineBoostCache.delete(mine.owner_id); // invalidate boost cache
   }
   removeMine(id) {
     const m = this.mines.get(id);
     if (m?.cell_id) this.mineByCellId.delete(m.cell_id);
     this.mines.delete(id);
-    if (m?.owner_id) this._updateBestMineLevel(m.owner_id);
+    if (m?.owner_id) {
+      this._updateBestMineLevel(m.owner_id);
+      this._mineBoostCache.delete(m.owner_id); // invalidate boost cache
+    }
     this._occupiedCellsDirty = true;
   }
 

@@ -3,7 +3,7 @@ import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.j
 import { log } from '../../lib/log.js';
 import { getCellsInRange } from '../../lib/grid.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../../lib/bots.js';
-import { haversine } from '../../lib/haversine.js';
+import { haversine, fastDistance } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { getMineIncome, getMineCapacity, calcHpRegen, xpForLevel, getMineHp, getMineHpRegen, calcMineHpRegen, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, getMineCountBoost } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
@@ -495,16 +495,41 @@ async function handleTick(req, res) {
       _clanBoost = _mcCached.clanBoost;
       inventory = gameState.getPlayerItems(currentPlayerId).map(i => ({ ...i, equipped: !!i.equipped, on_market: !!i.on_market }));
     } else if (gameState.loaded) {
+      // Pre-compute clan defense zone for all mines at once (avoid N × haversine)
+      let _clanDefZone = null;
+      let _clanDefMultiplier = 1;
+      if (player.clan_id) {
+        const _pClan = gameState.getClanById(player.clan_id);
+        if (_pClan?.level) {
+          const _cCfg = getClanLevel(_pClan.level);
+          if (_cCfg) {
+            _clanDefMultiplier = 1 + (_cCfg.defense || 0) / 100;
+            const _cHqs = [];
+            for (const ch of gameState.clanHqs.values()) { if (ch.clan_id === player.clan_id) _cHqs.push(ch); }
+            if (_cHqs.length > 0) {
+              _clanDefZone = new Set();
+              for (const m of _rawMines) {
+                if (m.lat == null || m.lng == null) continue;
+                for (const hq of _cHqs) {
+                  if (fastDistance(m.lat, m.lng, hq.lat, hq.lng) <= _cCfg.radius) { _clanDefZone.add(m.id); break; }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const sHp = _skillFx ? (1 + _skillFx.mine_hp_bonus) : 1;
+      const sRegen = _skillFx ? (1 + _skillFx.mine_regen_bonus) : 1;
+      const sCap = _skillFx ? (1 + _skillFx.mine_capacity_bonus) : 1;
+
       playerMines = _rawMines.map(m => {
         const cores = m.cell_id ? gameState.getCoresForMine(m.cell_id) : [];
         const bHp = cores.length > 0 ? getCoresTotalBoost(cores, 'hp') : 1;
         const bRegen = cores.length > 0 ? getCoresTotalBoost(cores, 'regen') : 1;
         const bCap = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
         const bInc = cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1;
-        const clanDef = getClanDefenseForMine(m.owner_id, m.lat, m.lng);
-        const sHp = _skillFx ? (1 + _skillFx.mine_hp_bonus) : 1;
-        const sRegen = _skillFx ? (1 + _skillFx.mine_regen_bonus) : 1;
-        const sCap = _skillFx ? (1 + _skillFx.mine_capacity_bonus) : 1;
+        const clanDef = (_clanDefZone && _clanDefZone.has(m.id)) ? _clanDefMultiplier : 1;
         const cMax = Math.round(getMineHp(m.level) * bHp * clanDef * sHp);
         const rph = Math.round(getMineHpRegen(m.level) * bRegen * sRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
@@ -548,59 +573,35 @@ async function handleTick(req, res) {
       inventory = inv || [];
     }
 
-    // ── Income calculation (grid-bucketed boost — O(N) instead of O(N²)) ──
+    // ── Income calculation — O(N) with cached cell-aggregate boost ──
     {
-      // Spatial hash: bucket mines into ~10km grid cells, then only check neighbors
-      const CELL_DEG = 0.09; // ~10km per cell
-      const buckets = new Map();
-      for (const m of playerMines) {
-        if (m.lat == null || m.lng == null) continue;
-        const cx = Math.floor(m.lat / CELL_DEG);
-        const cy = Math.floor(m.lng / CELL_DEG);
-        const key = `${cx}_${cy}`;
-        if (!buckets.has(key)) buckets.set(key, []);
-        buckets.get(key).push(m);
+      // Get cached boost data from gameState (recomputed only when mines change)
+      let clanCfg = null, clanHqs = [], boostMul = 1;
+      if (player.clan_id && gameState.loaded) {
+        const pClan = gameState.getClanById(player.clan_id);
+        if (pClan) {
+          clanCfg = getClanLevel(pClan.level || 1);
+          for (const ch of gameState.clanHqs.values()) { if (ch.clan_id === player.clan_id) clanHqs.push(ch); }
+          const boostActive = pClan.boost_expires_at && new Date(pClan.boost_expires_at).getTime() > Date.now();
+          boostMul = boostActive ? (pClan.boost_multiplier || 1) : 1;
+          if (boostActive) _clanBoost = { expires_at: pClan.boost_expires_at, multiplier: pClan.boost_multiplier };
+        }
       }
 
-      let maxBoost = 1;
-      const R_DEG = MINE_BOOST_RADIUS / 111320;
-      for (const m of playerMines) {
-        if (m.lat == null || m.lng == null) continue;
-        const cx = Math.floor(m.lat / CELL_DEG);
-        const cy = Math.floor(m.lng / CELL_DEG);
-        let pts = 0;
-        // Check 3x3 neighboring cells only
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dy = -1; dy <= 1; dy++) {
-            const neighbors = buckets.get(`${cx+dx}_${cy+dy}`);
-            if (!neighbors) continue;
-            for (const other of neighbors) {
-              if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
-              if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
-                pts += (other.level || 1);
-              }
-            }
-          }
-        }
-        const boost = getMineCountBoost(pts);
-        perMineBoost.set(m.id, boost);
-        if (boost > maxBoost) maxBoost = boost;
+      const clanInfo = (clanCfg && clanHqs.length > 0) ? {
+        clanHqs: clanHqs.map(h => ({ lat: h.lat, lng: h.lng })),
+        radius: clanCfg.radius,
+        defenseMul: 1 + (clanCfg.defense || 0) / 100,
+      } : null;
+
+      const boostData = gameState.getMineBoostData(currentPlayerId, clanInfo);
+
+      for (const [id, boost] of boostData.perMineBoost) {
+        perMineBoost.set(id, boost);
       }
-      mineCountBoost = maxBoost;
+      mineCountBoost = boostData.maxBoost;
 
       try {
-        let clanCfg = null, clanHqs = [], boostMul = 1;
-        if (player.clan_id && gameState.loaded) {
-          const pClan = gameState.getClanById(player.clan_id);
-          if (pClan) {
-            clanCfg = getClanLevel(pClan.level || 1);
-            for (const ch of gameState.clanHqs.values()) { if (ch.clan_id === player.clan_id) clanHqs.push(ch); }
-            const boostActive = pClan.boost_expires_at && new Date(pClan.boost_expires_at).getTime() > Date.now();
-            boostMul = boostActive ? (pClan.boost_multiplier || 1) : 1;
-            if (boostActive) _clanBoost = { expires_at: pClan.boost_expires_at, multiplier: pClan.boost_multiplier };
-          }
-        }
-
         const _isOnline = player.last_seen ? (Date.now() - new Date(player.last_seen).getTime()) < 180000 : false;
 
         for (const m of playerMines) {
@@ -610,11 +611,11 @@ async function handleTick(req, res) {
             const cores = gameState.getCoresForMine(m.cell_id);
             if (cores.length > 0) inc *= getCoresTotalBoost(cores, 'income');
           }
-          if (clanCfg && clanHqs.length > 0 && clanHqs.some(h => haversine(m.lat, m.lng, h.lat, h.lng) <= clanCfg.radius)) {
+          if (clanCfg && boostData.inClanZone.has(m.id)) {
             inc *= (1 + (clanCfg.income || 0) / 100);
             if (boostMul > 1) inc *= boostMul;
           }
-          if (_skillFx?.landlord_bonus && _isOnline && player.last_lat && player.last_lng && haversine(player.last_lat, player.last_lng, m.lat, m.lng) <= SMALL_RADIUS) {
+          if (_skillFx?.landlord_bonus && _isOnline && player.last_lat && player.last_lng && fastDistance(player.last_lat, player.last_lng, m.lat, m.lng) <= SMALL_RADIUS) {
             inc *= 1.15;
           }
           m.income = inc;
@@ -625,7 +626,7 @@ async function handleTick(req, res) {
         totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
       }
 
-      // Cache full result (mines + income + boosts)
+      // Cache full result
       _mineCache.set(currentPlayerId, { t: Date.now(), h: _mcHash, mines: playerMines, totalIncome, mineCountBoost, clanBoost: _clanBoost });
     }
   } catch (mineErr) { console.error('[map] mines/boost error:', mineErr.message); }
