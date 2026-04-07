@@ -8462,7 +8462,7 @@ function showHqPopup(hq, isOwn) {
             <span style="font-weight:600;color:#fff">${isBurning ? '🔥' : '🧲'} #${i+1} <span style="color:#888;font-weight:400">Lv.${c.level}</span></span>
             <span style="font-size:12px;color:#888;cursor:pointer" onclick="flyToCollector('${c.id}')">${t('hq.camera')}</span>
           </div>
-          ${isBurning ? `<div style="color:#ff6600;font-size:12px;margin-top:4px">🔥 ${t('mine.burn_timer', {time: ''})} ${c.burning_started_at ? formatBurnTimer(c.burning_started_at) : t('misc.burning')}</div>` : `
+          ${isBurning ? `<div style="color:#ff6600;font-size:12px;margin-top:4px">${t('mine.burn_timer', {time: ''})} ${c.burning_started_at ? formatBurnTimer(c.burning_started_at) : t('misc.burning')}</div>` : `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
             <span style="font-size:13px;color:#FFD700">${formatCoins(coins)}</span>
             <span style="font-size:11px;color:#666">/ ${formatCoins(cap)} (${pct}%)</span>
@@ -8668,7 +8668,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     // Burning timer subtitle
     let burningSubtitle = t('mine.burning_warn');
     if (mine.status === 'burning' && mine.burning_started_at) {
-      burningSubtitle = `🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${formatBurnTimer(mine.burning_started_at)}</span>`;
+      burningSubtitle = `${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${formatBurnTimer(mine.burning_started_at)}</span>`;
     }
 
     openPopup(
@@ -8810,7 +8810,7 @@ function showMinePopup(mine, isOwn, canCapture) {
     let statusLabel = '';
     if (isBurning) {
       const burnTime = mine.burning_started_at ? formatBurnTimer(mine.burning_started_at) : '';
-      statusLabel = burnTime ? ` 🔥 ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnTime}</span>` : ` 🔥 ${t('misc.burning')}`;
+      statusLabel = burnTime ? ` ${t('mine.burn_timer', {time: ''})} <span id="burn-timer">${burnTime}</span>` : ` 🔥 ${t('misc.burning')}`;
     } else if (isUnderAttack) {
       statusLabel = ' ⚔️ ' + t('misc.under_attack');
     }
@@ -10452,7 +10452,7 @@ async function doBuildBarracks(lat, lng) {
       body: JSON.stringify({ action: 'build', telegram_id: TG_ID, lat, lng }),
     });
     if (data.ok) {
-      showToast('⛺ ' + t('barracks.title') + '!');
+      showToast(t('barracks.title') + '!');
       if (state.player) { state.player.diamonds = (state.player.diamonds || 0) - 100; updateDiamondDisplay(); }
       loadVisibleBuildings();
     }
@@ -16542,7 +16542,7 @@ function doMineHit(mine) {
   }).then(data => {
     if (data.burned) {
       stopCombat(); closePopupKeepHold();
-      let msg = '🔥 ' + t('toast.mine_burning');
+      let msg = t('toast.mine_burning');
       if (data.stolenCoins > 0) {
         msg += ` +${formatCoins(data.stolenCoins)} 💰`;
         _setPlayerCoins((state.player?.coins || 0) + data.stolenCoins);
@@ -19818,7 +19818,7 @@ function showCollectorPopup(collectorId) {
     const eBurning = c.status === 'burning';
     let eBurnHtml = '';
     if (eBurning && c.burning_started_at) {
-      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 ${t('mine.burn_timer', {time: ''})} <span id="coll-burn-timer">${formatBurnTimer(c.burning_started_at)}</span></div>`;
+      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">${t('mine.burn_timer', {time: ''})} <span id="coll-burn-timer">${formatBurnTimer(c.burning_started_at)}</span></div>`;
     } else if (eBurning) {
       eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 ${t('misc.burning')}</div>`;
     }
@@ -21274,7 +21274,7 @@ async function doTrainScout(barracksId) {
       body: JSON.stringify({ action: 'train', telegram_id: TG_ID, unit_type: 'scout' }),
     });
     if (data.ok) {
-      showToast('🤠 ' + t('barracks.train_scout') + '!');
+      showToast(t('barracks.train_scout') + '!');
       if (state.player) { state.player.crystals = (state.player.crystals || 0) - (_playerBarracksStatus?.scout_train_cost || 0); }
       showBarracksPopup(barracksId, 'train');
     }
@@ -21315,7 +21315,7 @@ async function doUpgradeScout(barracksId) {
       body: JSON.stringify({ action: 'upgrade-unit', telegram_id: TG_ID, unit_type: 'scout' }),
     });
     if (data.ok) {
-      showToast('⬆️ ' + t('barracks.scout_level', {level: data.level}));
+      showToast(t('barracks.scout_level', {level: data.level}));
       if (state.player && data.cost) { state.player.ether = (state.player.ether || 0) - data.cost; }
       showBarracksPopup(barracksId, 'upgrades');
     }
@@ -21329,7 +21329,7 @@ async function doUpgradeBarracks(barracksId) {
       body: JSON.stringify({ action: 'upgrade', telegram_id: TG_ID }),
     });
     if (data.ok) {
-      showToast('⬆️ ' + t('barracks.title') + ` Lv.${data.level}`);
+      showToast(`${t('barracks.title')} Lv.${data.level} ⬆️`);
       if (state.player) { state.player.diamonds = (state.player.diamonds || 0); updateDiamondDisplay(); }
       loadVisibleBuildings();
       showBarracksPopup(barracksId);
