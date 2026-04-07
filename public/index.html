@@ -10407,6 +10407,8 @@ async function doSellHq() {
       state.mapBuildings.headquarters = (state.mapBuildings.headquarters || []).filter(h => h.id !== myHq.id);
     }
     state.hq = null;
+    hqLat = null;
+    hqLng = null;
     updateCoinDisplay();
     closePopup();
     if (pinMode) {
