@@ -6518,10 +6518,21 @@ function _addOrUpdateMineMarker(mine) {
           barInner.style.background = color;
         }
         if (bar) bar.style.display = '';
-      } else {
-        // Full HP — hide bar
+      } else if (hpInfo && hpInfo.hp >= hpInfo.max_hp) {
+        // Fully healed — smoothly fill to 100% then hide after transition
         const bar = existing._icon.querySelector('.mine-hp-bar');
-        if (bar) bar.style.display = 'none';
+        const barInner = bar ? bar.querySelector('.mine-hp-bar-inner') : null;
+        if (barInner) {
+          barInner.style.width = '100%';
+          barInner.style.background = '#4caf50';
+          // Hide bar after the 1s transition completes
+          setTimeout(() => {
+            // Only hide if still at full HP (bar wasn't needed again)
+            if (existing._gw_hp >= existing._gw_maxHp && bar) bar.style.display = 'none';
+          }, 1100);
+        } else if (bar) {
+          bar.style.display = 'none';
+        }
       }
     }
     // Rebind click so popup shows fresh data
@@ -16772,8 +16783,16 @@ function updateMineHpBar(data) {
       fill.style.width = pct + '%';
       fill.style.background = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
     }
-    // Show bar while damaged, hide when full
-    bar.style.display = data.hp < data.max_hp ? '' : 'none';
+    // Show bar while damaged; when fully healed, fill to 100% then hide after transition
+    if (data.hp < data.max_hp) {
+      bar.style.display = '';
+    } else {
+      fill.style.width = '100%';
+      fill.style.background = '#4caf50';
+      setTimeout(() => { if (bar && marker._gw_hp >= marker._gw_maxHp) bar.style.display = 'none'; }, 1100);
+    }
+    marker._gw_hp = data.hp;
+    marker._gw_maxHp = data.max_hp;
   }
 }
 
@@ -20608,8 +20627,11 @@ function _animateMineHpBars(now) {
       barInner.style.width = pct + '%';
       barInner.style.background = color;
       if (regenedHp >= mine.max_hp) {
+        // Fill to 100% and hide after transition — don't snap-hide
+        barInner.style.width = '100%';
+        barInner.style.background = '#4caf50';
         const hpBar = marker._icon.querySelector('.mine-hp-bar');
-        if (hpBar) hpBar.style.display = 'none';
+        if (hpBar) setTimeout(() => { if (marker._gw_hp >= marker._gw_maxHp) hpBar.style.display = 'none'; }, 1100);
       }
     }
   }
