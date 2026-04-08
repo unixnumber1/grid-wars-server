@@ -10903,6 +10903,13 @@ function initSocket() {
       document.getElementById('session-kicked-screen').classList.add('open');
     });
 
+    _socket.on('server:restart', () => {
+      console.warn('[socket] Server restarting — reloading page');
+      _socket.disconnect();
+      _socket.io.opts.reconnection = false;
+      setTimeout(() => location.reload(), 2000);
+    });
+
     _socket.on('maintenance:started', () => {
       if (ADMIN_IDS.has(currentTelegramId)) return; // admin ignores maintenance
       showMaintenanceScreen();

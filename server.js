@@ -1299,3 +1299,12 @@ async function start() {
 }
 
 start();
+
+// ── Graceful shutdown: notify all clients to reload ──
+function gracefulShutdown(signal) {
+  console.log(`[server] ${signal} received — notifying clients to reload`);
+  io.emit('server:restart');
+  setTimeout(() => process.exit(0), 1500);
+}
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
