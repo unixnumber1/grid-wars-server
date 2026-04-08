@@ -114,8 +114,8 @@ export const BARRACKS_LEVELS = {
 
 // Scout unit
 export const SCOUT_TRAIN_SPEED_MUL = [0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]; // training time multiplier by scout level
-export const SCOUT_TRAIN_COST =   [0, 500, 600, 800, 1000, 1300, 1600, 2000, 2300, 2600, 3000]; // crystals by level
-export const SCOUT_UPGRADE_COST = [0, 0, 5000, 12000, 25000, 50000, 80000, 150000, 250000, 350000, 500000]; // ether by level
+export const SCOUT_TRAIN_COST =   [0, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500]; // crystals (flat cost)
+export const SCOUT_UPGRADE_COST = [0, 0, 2000, 5000, 10000, 20000, 35000, 55000, 80000, 100000, 130000]; // ether by level (~437K total)
 export const SCOUT_SPEED_KMH =    [0, 20, 22, 25, 28, 32, 36, 40, 45, 50, 55];
 export const SCOUT_CAPTURE_MIN =   [0, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2]; // minutes
 export const SCOUT_HP =            [0, 200, 350, 550, 800, 1100, 1500, 2000, 2700, 3500, 5000];

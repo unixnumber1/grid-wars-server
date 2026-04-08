@@ -7,6 +7,7 @@ import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
+import { persistNow } from '../../game/state/persist.js';
 import { STREAK_POOLS, STREAK_POOL_COUNT } from '../../config/streakRewards.js';
 import { grantReward } from './rewards.js';
 
@@ -749,37 +750,42 @@ itemsRouter.post('/', async (req, res) => {
     const { box_type } = body;
     if (!box_type || !BOX_PRICES[box_type]) return res.status(400).json({ error: 'Invalid box_type' });
     const price = BOX_PRICES[box_type];
-    const diamonds = player.diamonds ?? 0;
+
+    // Read from gameState (rule #2), not DB
+    const gsPlayer = gameState.loaded ? gameState.getPlayerByTgId(Number(telegram_id)) : null;
+    if (!gsPlayer) return res.status(404).json({ error: 'Player not found' });
+    const diamonds = gsPlayer.diamonds ?? 0;
     if (diamonds < price) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.not_enough_diamonds_short') });
-    if (gameState.loaded && !hasInventorySpace(gameState, player.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerMaxSlots(gameState, p?.id || player?.id) }) });
+    if (!hasInventorySpace(gameState, gsPlayer.id)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerMaxSlots(gameState, gsPlayer.id) }) });
+
+    // Deduct diamonds immediately in gameState (under withPlayerLock)
+    const newDiamonds = diamonds - price;
+    gsPlayer.diamonds = newDiamonds;
 
     const rarity = rollWeighted(BOX_ODDS[box_type]);
     const type = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
     const item = generateItem(type, rarity);
-    const newDiamonds = diamonds - price;
-
-    const { data: diamOk, error: updateErr } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', diamonds).select('id').maybeSingle();
-    if (updateErr) return res.status(500).json({ error: 'Failed to update diamonds' });
-    if (!diamOk && !updateErr) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
     const insertData = {
       type, rarity: item.rarity, name: item.name, emoji: item.emoji,
-      stat_value: item.stat_value, owner_id: player.id, equipped: false,
+      stat_value: item.stat_value, owner_id: gsPlayer.id, equipped: false,
       attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
       base_attack: item.base_attack || 0, base_crit_chance: item.base_crit_chance || 0,
       base_defense: item.base_defense || 0, block_chance: item.block_chance || 0, upgrade_level: 0,
     };
     let { data: newItem, error: insertErr } = await supabase.from('items').insert(insertData).select().single();
     if (insertErr) {
-      await supabase.from('players').update({ diamonds }).eq('id', player.id);
+      // Rollback diamonds in gameState
+      gsPlayer.diamonds = diamonds;
       return res.status(500).json({ error: 'Failed to create item' });
     }
-    // Update gameState
-    if (gameState.loaded) {
-      if (newItem) gameState.upsertItem(newItem);
-      const p = gameState.getPlayerById(player.id);
-      if (p) { p.diamonds = newDiamonds; gameState.markDirty('players', p.id); }
-    }
+
+    // Persist diamonds immediately (critical money operation — rule #11)
+    gameState.markDirty('players', gsPlayer.id);
+    await persistNow('players', { id: gsPlayer.id, diamonds: newDiamonds });
+
+    if (newItem) gameState.upsertItem(newItem);
+
     return res.json({
       success: true,
       item: { id: newItem.id, type, rarity: item.rarity, name: item.name, emoji: item.emoji,

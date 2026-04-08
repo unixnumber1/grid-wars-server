@@ -725,9 +725,10 @@ async function handleMineHit(req, res) {
     mine.max_hp = computedMaxHp;
     mine.burning_started_at = hpUpdateTime;
     mine.last_collected = hpUpdateTime; // coins taken
-    // Save attacker info for display on burning mine (runtime only, _ prefix)
-    mine._burned_by = { telegram_id: player.telegram_id, name: player.game_username || '???', avatar: player.avatar || '🎮' };
-    mine.attacker_id = null;
+    // Save attacker info for display on burning mine (persisted via attacker_id)
+    const _burnShadow = isInShadow(player);
+    mine._burned_by = { telegram_id: player.telegram_id, name: _burnShadow ? '???' : (player.game_username || '???'), avatar: _burnShadow ? '🎮' : (player.avatar || '🎮') };
+    mine.attacker_id = player.id;
     mine.attack_started_at = null;
     mine.attack_ends_at = null;
     mine.last_hp_update = null;
@@ -735,11 +736,11 @@ async function handleMineHit(req, res) {
     mine.upgrade_finish_at = null;
     gameState.markDirty('mines', mine_id);
 
-    // Write to DB immediately
+    // Write to DB immediately (keep attacker_id for burned_by display)
     await supabase.from('mines').update({
       status: 'burning', hp: 0, max_hp: computedMaxHp,
       burning_started_at: hpUpdateTime, last_collected: hpUpdateTime,
-      attacker_id: null, attack_started_at: null, attack_ends_at: null, last_hp_update: null,
+      attacker_id: player.id, attack_started_at: null, attack_ends_at: null, last_hp_update: null,
       pending_level: null, upgrade_finish_at: null,
     }).eq('id', mine_id);
 
@@ -799,6 +800,7 @@ async function handleMineHit(req, res) {
     mine_id, cell_id: mine.cell_id,
     hp: burned ? 0 : currentHp, max_hp: computedMaxHp,
     status: mine.status,
+    ...(burned && mine._burned_by ? { burned_by: mine._burned_by } : {}),
   });
 
   return res.json({

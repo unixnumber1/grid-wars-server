@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
 import { haversine } from '../../lib/haversine.js';
 import { getCellId } from '../../lib/grid.js';
+import { fetchWaterAreas, isInWater } from '../../lib/waterAreas.js';
 import {
   ORE_CAPTURE_RADIUS, ORE_TTL_DAYS, ORE_MIN_DISTANCE, ORE_ZONE_RADIUS,
   ORE_TYPES, MIN_ORE_PER_CITY, ORE_PER_PLAYER, MAX_ORE_PER_CITY,
@@ -202,6 +203,7 @@ function offsetPoint(lat, lng) {
 async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
   const roadPoints = await fetchSpawnPoints(cacheKey, bounds);
   const useRoads = roadPoints && roadPoints.length >= 3;
+  const waterAreas = await fetchWaterAreas(cityKey, bounds);
 
   const nowISO = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ORE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -229,6 +231,7 @@ async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
       if (haversine(lat, lng, pos.lat, pos.lng) < ORE_MIN_DISTANCE) { tooClose = true; break; }
     }
     if (tooClose) continue;
+    if (waterAreas.length > 0 && isInWater(lat, lng, waterAreas)) continue;
 
     const oreType = randomOreType();
     const level = randomOreLevel(oreType);
