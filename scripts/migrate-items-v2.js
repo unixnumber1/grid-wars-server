@@ -31,12 +31,12 @@ const AXE_STATS = {
   legendary: { attack: [1050, 1232] },
 };
 const SHIELD_STATS = {
-  common:    { defense: [60, 120]   },
-  uncommon:  { defense: [180, 280]  },
-  rare:      { defense: [380, 560]  },
-  epic:      { defense: [700, 950]  },
-  mythic:    { defense: [1600, 2000], block_chance: [10, 15] },
-  legendary: { defense: [3500, 4100], block_chance: [20, 27] },
+  common:    { defense: [90, 150]    },
+  uncommon:  { defense: [240, 370]   },
+  rare:      { defense: [510, 790]   },
+  epic:      { defense: [1050, 1550] },
+  mythic:    { defense: [3500, 5300], block_chance: [12, 20] },
+  legendary: { defense: [5400, 8100], block_chance: [22, 30] },
 };
 
 function randomInRange(min, max) {
