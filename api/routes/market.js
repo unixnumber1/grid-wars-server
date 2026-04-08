@@ -288,7 +288,7 @@ async function handleListItem(req, res) {
   // ── Item listing ──
   const { data: item, error: iErr } = await supabase
     .from('items')
-    .select('id, rarity, equipped, on_market, owner_id')
+    .select('id, rarity, equipped, on_market, owner_id, held_by_courier')
     .eq('id', item_id)
     .maybeSingle();
 
@@ -297,6 +297,7 @@ async function handleListItem(req, res) {
   if (item.owner_id !== player.id) return res.status(403).json({ error: 'Not your item' });
   if (item.equipped) return res.status(400).json({ error: 'Unequip item first' });
   if (item.on_market) return res.status(400).json({ error: 'Item already on market' });
+  if (item.held_by_courier) return res.status(400).json({ error: 'Item in transit' });
 
   const privateCode = is_private ? (validateCode(clientCode) || generateCode()) : null;
   const expiresAt = new Date(Date.now() + LISTING_TTL_HOURS * 3600 * 1000).toISOString();
@@ -605,20 +606,14 @@ async function handleBuy(req, res) {
   }
 
   // ── Item purchase ──
-  const [{ error: sellerErr }, { error: itemErr }] = await Promise.all([
-    supabase.from('players')
-      .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
-      .eq('id', listing.seller_id),
-    supabase.from('items')
-      .update({ owner_id: buyer.id, equipped: false, on_market: false })
-      .eq('id', listing.item_id),
-  ]);
 
-  if (sellerErr || itemErr) {
-    console.error('[market/buy] errors:', { sellerErr, itemErr });
-  }
+  // 1. Pay seller
+  const { error: sellerErr } = await supabase.from('players')
+    .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
+    .eq('id', listing.seller_id);
+  if (sellerErr) console.error('[market/buy] seller pay error:', sellerErr);
 
-  // Update gameState
+  // 2. Update gameState for diamonds & listing status
   if (gameState.loaded) {
     const bl = gameState.getListingById(listing_id);
     if (bl) { bl.status = 'sold'; bl.buyer_id = buyer.id; gameState.markDirty('marketListings', bl.id); }
@@ -626,16 +621,13 @@ async function handleBuy(req, res) {
     if (bp) { bp.diamonds = (buyer.diamonds ?? 0) - price; gameState.markDirty('players', bp.id); }
     const sp = gameState.getPlayerById(listing.seller_id);
     if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
-    const gi = gameState.getItemById(listing.item_id);
-    if (gi) { gi.owner_id = buyer.id; gi.equipped = false; gi.on_market = false; gameState.upsertItem(gi); gameState.markDirty('items', gi.id); }
   }
 
-  // Notify seller about the sale
   notify(listing.seller_id, 'item_sold',
     `💰 Ваш предмет продан за ${price} 💎 (получено ${sellerPayout} 💎)`,
     { listing_id: listing.id, price, payout: sellerPayout });
 
-  // Buyer position: prefer real-time coords from request, fallback to DB
+  // 3. Determine delivery method BEFORE transferring item ownership
   let courierId = null;
   const reqLat = lat != null ? parseFloat(lat) : NaN;
   const reqLng = lng != null ? parseFloat(lng) : NaN;
@@ -662,20 +654,25 @@ async function handleBuy(req, res) {
     }
   }
 
-  // If buyer is within SMALL_RADIUS of market — direct transfer, no courier
   const distToMarket = (bLat != null && marketLat != null) ? haversine(bLat, bLng, marketLat, marketLng) : Infinity;
   const directTransfer = distToMarket <= SMALL_RADIUS;
 
+  // 4. Transfer item based on delivery method
   if (directTransfer) {
     // Direct transfer — item goes straight to buyer's inventory
     await supabase.from('items')
-      .update({ on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
+      .update({ owner_id: buyer.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
       .eq('id', listing.item_id);
     if (gameState.loaded) {
       const gi = gameState.getItemById(listing.item_id);
-      if (gi) { gi.on_market = false; gi.equipped = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
+      if (gi) {
+        const updated = { ...gi, owner_id: buyer.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null };
+        gameState.upsertItem(updated);
+        gameState.markDirty('items', updated.id);
+      }
     }
   } else if (bLat != null && bLng != null && marketLat && marketLng) {
+    // Courier delivery — do NOT transfer owner_id yet, keep seller as owner until pickup
     const { data: courier } = await supabase
       .from('couriers')
       .insert({
@@ -708,12 +705,41 @@ async function handleBuy(req, res) {
           status: 'moving', created_at: new Date().toISOString(),
         });
       }
-      await supabase.from('items').update({ equipped: false, held_by_courier: courier.id, held_by_market: null }).eq('id', listing.item_id);
+      // Mark item as in-transit (owner stays seller, on_market false, held_by_courier set)
+      await supabase.from('items')
+        .update({ on_market: false, equipped: false, held_by_courier: courier.id, held_by_market: null })
+        .eq('id', listing.item_id);
+      if (gameState.loaded) {
+        const gi = gameState.getItemById(listing.item_id);
+        if (gi) { gi.on_market = false; gi.equipped = false; gi.held_by_courier = courier.id; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
+      }
     } else {
-      await supabase.from('items').update({ on_market: false, equipped: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
+      // Courier creation failed — direct transfer fallback
+      await supabase.from('items')
+        .update({ owner_id: buyer.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
+        .eq('id', listing.item_id);
+      if (gameState.loaded) {
+        const gi = gameState.getItemById(listing.item_id);
+        if (gi) {
+          const updated = { ...gi, owner_id: buyer.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null };
+          gameState.upsertItem(updated);
+          gameState.markDirty('items', updated.id);
+        }
+      }
     }
   } else {
-    await supabase.from('items').update({ on_market: false, equipped: false, held_by_courier: null, held_by_market: null }).eq('id', listing.item_id);
+    // No position — direct transfer fallback
+    await supabase.from('items')
+      .update({ owner_id: buyer.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
+      .eq('id', listing.item_id);
+    if (gameState.loaded) {
+      const gi = gameState.getItemById(listing.item_id);
+      if (gi) {
+        const updated = { ...gi, owner_id: buyer.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null };
+        gameState.upsertItem(updated);
+        gameState.markDirty('items', updated.id);
+      }
+    }
   }
 
   return res.json({
@@ -873,10 +899,10 @@ async function handleAttackCourier(req, res) {
       if (drop) gameState.upsertDrop({ ...drop, courier_id: courier.id, item_id: courier.item_id, core_id: _courierCoreId, listing_id: courier.listing_id, lat: dropPos.lat, lng: dropPos.lng, drop_type: 'loot', picked_up: false });
     }
 
-    // Item/core dropped — clear market flags
+    // Item/core dropped — keep held_by_courier to protect item until loot is picked up (or expires)
     if (courier.item_id) {
       await supabase.from('items')
-        .update({ held_by_courier: null, held_by_market: null, on_market: false })
+        .update({ held_by_market: null, on_market: false })
         .eq('id', courier.item_id);
     }
     if (_courierCoreId) {
@@ -988,7 +1014,7 @@ async function handlePickupDrop(req, res) {
     ];
     if (drop.item_id) {
       pickupOps.push(supabase.from('items')
-        .update({ on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
+        .update({ owner_id: player.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
         .eq('id', drop.item_id));
     }
     if (drop.core_id) {
@@ -1004,7 +1030,11 @@ async function handlePickupDrop(req, res) {
       if (gd) { gd.picked_up = true; gameState.markDirty('courierDrops', gd.id); }
       if (drop.item_id) {
         const gi = gameState.getItemById(drop.item_id);
-        if (gi) { gi.on_market = false; gi.equipped = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.markDirty('items', gi.id); }
+        if (gi) {
+          const updated = { ...gi, owner_id: player.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null };
+          gameState.upsertItem(updated);
+          gameState.markDirty('items', updated.id);
+        }
       }
       if (drop.core_id) {
         const core = gameState.cores.get(drop.core_id);
@@ -1079,7 +1109,11 @@ async function handlePickupDrop(req, res) {
     if (gd) { gd.picked_up = true; gameState.markDirty('courierDrops', gd.id); }
     if (drop.item_id) {
       const gi = gameState.getItemById(drop.item_id);
-      if (gi) { gi.owner_id = player.id; gi.on_market = false; gi.held_by_courier = null; gi.held_by_market = null; gameState.upsertItem(gi); gameState.markDirty('items', gi.id); }
+      if (gi) {
+          const updated = { ...gi, owner_id: player.id, on_market: false, held_by_courier: null, held_by_market: null };
+          gameState.upsertItem(updated);
+          gameState.markDirty('items', updated.id);
+        }
     }
     if (drop.core_id) {
       const core = gameState.cores.get(drop.core_id);

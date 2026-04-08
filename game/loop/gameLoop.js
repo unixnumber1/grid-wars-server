@@ -372,11 +372,8 @@ async function moveCouriers(nowMs, nowISO) {
           const cleanDrop = {};
           for (const k of Object.keys(drop)) { if (!k.startsWith('_')) cleanDrop[k] = drop[k]; }
           supabase.from('courier_drops').insert(cleanDrop).then(() => {}).catch(e => console.error('[loop] courier_drops insert error:', e.message));
-          if (dc.item_id) {
-            const item = gameState.getItemById(dc.item_id);
-            if (item) { item.held_by_courier = null; item.held_by_market = null; gameState.markDirty('items', item.id); }
-            supabase.from('items').update({ held_by_courier: null, held_by_market: null }).eq('id', dc.item_id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
-          }
+          // Note: do NOT clear held_by_courier here — item stays protected until buyer picks up the drop.
+          // held_by_courier is cleared in pickup-drop handler (or when drop expires).
           const delLang = gameState.getPlayerById(dc.owner_id)?.language || 'en';
           const notif = {
             id: globalThis.crypto.randomUUID(),

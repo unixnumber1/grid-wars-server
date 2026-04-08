@@ -847,7 +847,7 @@ class GameState {
   // -- Player items (inventory) --
   getPlayerItems(playerId) {
     const items = this._itemsByOwnerId.get(playerId) || [];
-    return items.filter(i => !i.on_market).sort((a, b) => new Date(b.obtained_at) - new Date(a.obtained_at));
+    return items.filter(i => !i.on_market && !i.held_by_courier).sort((a, b) => new Date(b.obtained_at) - new Date(a.obtained_at));
   }
 
   // -- Player notifications (unread) --
@@ -940,7 +940,7 @@ class GameState {
   getItemById(id) { return this.items.get(id) || null; }
   upsertItem(item) {
     const old = this.items.get(item.id);
-    if (old && old.owner_id !== item.owner_id) this._updateItemIndex(old, true);
+    if (old) this._updateItemIndex(old, true);   // always remove old (handles same-ref mutation)
     this.items.set(item.id, item);
     this._updateItemIndex(item, false);
   }

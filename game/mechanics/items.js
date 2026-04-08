@@ -230,7 +230,7 @@ export function getPlayerMaxSlots(gameState, playerId) {
 export function getPlayerItemCount(gameState, playerId) {
   let count = 0;
   for (const i of gameState.items.values()) {
-    if (i.owner_id === playerId && !i.on_market) count++;
+    if (i.owner_id === playerId && !i.on_market && !i.held_by_courier) count++;
   }
   return count;
 }
