@@ -135,7 +135,7 @@ adminRouter.get('/', async (req, res) => {
     .eq('key', 'maintenance_mode')
     .maybeSingle();
   if (error) return res.status(500).json({ error: error.message });
-  return res.status(200).json({ maintenance: data?.value === 'true' });
+  return res.status(200).json({ maintenance: data?.value === 'true', is_admin: isAdmin(req) });
 });
 
 // ── GET /stats ───────────────────────────────────────────────

@@ -12170,10 +12170,17 @@ async function checkMaintenance() {
   }
 
   try {
-    const res = await fetch(_basePath + '/api/admin', { signal: AbortSignal.timeout(3000) });
-    const { maintenance } = await res.json();
+    const res = await fetch(_basePath + '/api/admin', {
+      signal: AbortSignal.timeout(3000),
+      headers: _tgInitData ? { 'X-Telegram-Init-Data': _tgInitData } : {},
+    });
+    const data = await res.json();
+    const maintenance = data.maintenance;
 
-    if (maintenance) {
+    // Server confirmed admin — set flag early (before first tick)
+    if (data.is_admin) _isServerAdmin = true;
+
+    if (maintenance && !_isServerAdmin) {
       showMaintenanceScreen();
     } else {
       if (_maintenanceMode) {
@@ -12181,7 +12188,7 @@ async function checkMaintenance() {
         if (!_gameInitialised) await boot();
       }
     }
-    _maintenanceMode = !!maintenance;
+    _maintenanceMode = !_isServerAdmin && !!maintenance;
   } catch (e) {
     // silently ignore network errors
   }
@@ -19145,17 +19152,15 @@ async function doClanTransfer(targetTgId, name) {
   // Poll every 60s so users see maintenance screen go away automatically
   _maintenanceTimer = setInterval(checkMaintenance, 60000);
 
-  // Admin skips maintenance check entirely and boots straight into the game
-  if (ADMIN_IDS.has(currentTelegramId)) {
-    await boot();
-    return;
-  }
-
-  // For everyone else: check maintenance first (3s timeout — never block boot)
+  // Check maintenance + admin status from server (3s timeout — never block boot)
   try {
-    const res = await fetch(_basePath + '/api/admin', { signal: AbortSignal.timeout(3000) });
-    const { maintenance } = await res.json();
-    if (maintenance) {
+    const res = await fetch(_basePath + '/api/admin', {
+      signal: AbortSignal.timeout(3000),
+      headers: _tgInitData ? { 'X-Telegram-Init-Data': _tgInitData } : {},
+    });
+    const data = await res.json();
+    if (data.is_admin) _isServerAdmin = true;
+    if (data.maintenance && !_isServerAdmin) {
       _maintenanceMode = true;
       showMaintenanceScreen();
       return; // boot() will be called by checkMaintenance when maintenance ends
