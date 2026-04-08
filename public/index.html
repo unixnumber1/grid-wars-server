@@ -21756,10 +21756,12 @@ async function spawnZombieScout() {
     <div id="sub-tabs-row" style="display:flex;flex:1"></div>
   </div>
   <!-- Inventory toolbar: slots + actions in one row -->
-  <div id="inv-slot-bar" style="display:flex;align-items:center;gap:6px;margin:0 16px;padding:6px 12px;background:#1a1a1a;border:1px solid #222;border-top:none;border-bottom:none;box-sizing:border-box;flex-wrap:nowrap;">
-    <span id="inv-slot-count" style="font-size:12px;color:#888;white-space:nowrap;">0/200</span>
-    <button id="btn-buy-slot" onclick="buyInventorySlot()" class="inv-action-btn" style="border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:12px;white-space:nowrap;padding:4px 8px;">+1 · 5💎</button>
-    <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-shrink:0;">
+  <div id="inv-slot-bar" style="display:flex;align-items:center;justify-content:space-between;margin:0 16px;padding:6px 12px;background:#1a1a1a;border:1px solid #222;border-top:none;border-bottom:none;box-sizing:border-box;">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span id="inv-slot-count" style="font-size:12px;color:#888;white-space:nowrap;">0/200</span>
+      <button id="btn-buy-slot" onclick="buyInventorySlot()" class="inv-action-btn" style="border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:12px;white-space:nowrap;padding:4px 8px;">+1 · 5💎</button>
+    </div>
+    <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
       <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()" style="padding:4px 10px;">⚒️</button>
       <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()" style="padding:4px 10px;">🗑️</button>
     </div>
