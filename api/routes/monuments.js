@@ -600,7 +600,7 @@ async function handleOpenLootBox(req, res) {
         base_attack: itemData.base_attack || itemData.attack || 0,
         base_crit_chance: itemData.base_crit_chance || itemData.crit_chance || 0,
         base_defense: itemData.base_defense || itemData.defense || 0,
-        upgrade_level: 0,
+        upgrade_level: 0, plus: 0,
         equipped: false,
         on_market: false,
         obtained_at: new Date().toISOString(),

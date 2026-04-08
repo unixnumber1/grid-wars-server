@@ -13250,6 +13250,25 @@ async function boot() {
       }
     }
 
+    // Update popup — show once after item system migration
+    const UPDATE_VER = '2';
+    if (localStorage.getItem('gw_seen_update') !== UPDATE_VER) {
+      const uOv = document.createElement('div');
+      uOv.style.cssText = 'position:fixed;inset:0;z-index:15000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:24px;';
+      uOv.innerHTML = `<div style="text-align:center;max-width:320px;">
+        <div style="font-size:48px;margin-bottom:12px;">⚔️</div>
+        <div style="font-size:20px;font-weight:800;color:#FFD700;margin-bottom:16px;">Обновление системы предметов!</div>
+        <div style="text-align:left;color:#ccc;font-size:14px;line-height:1.6;">
+          <div style="margin-bottom:8px;">🔨 <b style="color:#fff;">Новая система крафта</b> — улучшай предметы до +3</div>
+          <div style="margin-bottom:8px;">⚡ <b style="color:#fff;">Переработанные статы</b> оружия и щитов</div>
+          <div style="margin-bottom:8px;">💎 <b style="color:#fff;">Кристаллы за прокачку</b> возвращены</div>
+          <div>🎯 <b style="color:#fff;">14 тиров предметов</b> вместо 6</div>
+        </div>
+        <button onclick="localStorage.setItem('gw_seen_update','${UPDATE_VER}');this.closest('div[style*=fixed]').remove()" style="margin-top:20px;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;">Понятно!</button>
+      </div>`;
+      document.body.appendChild(uOv);
+    }
+
     // First-time username setup
     if (data.needUsername) {
       document.getElementById('loading').style.display = 'none';

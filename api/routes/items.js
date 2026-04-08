@@ -569,7 +569,7 @@ itemsRouter.post('/', async (req, res) => {
       attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
       block_chance: item.block_chance || 0,
       base_attack: item.base_attack, base_crit_chance: item.base_crit_chance, base_defense: item.base_defense,
-      upgrade_level: 0, owner_id: p.id, equipped: false,
+      upgrade_level: 0, plus: 0, owner_id: p.id, equipped: false,
     };
     const { data: newItem, error: insErr } = await supabase.from('items').insert(insertData).select().single();
     if (insErr) {
@@ -610,7 +610,7 @@ itemsRouter.post('/', async (req, res) => {
         attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
         block_chance: item.block_chance || 0,
         base_attack: item.base_attack, base_crit_chance: item.base_crit_chance, base_defense: item.base_defense,
-        upgrade_level: 0, owner_id: p.id, equipped: false,
+        upgrade_level: 0, plus: 0, owner_id: p.id, equipped: false,
       };
       const { data: newItem, error: insErr } = await supabase.from('items').insert(insertData).select().single();
       if (insErr) {
@@ -776,7 +776,7 @@ itemsRouter.post('/', async (req, res) => {
       stat_value: item.stat_value, owner_id: gsPlayer.id, equipped: false,
       attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
       base_attack: item.base_attack || 0, base_crit_chance: item.base_crit_chance || 0,
-      base_defense: item.base_defense || 0, block_chance: item.block_chance || 0, upgrade_level: 0,
+      base_defense: item.base_defense || 0, block_chance: item.block_chance || 0, upgrade_level: 0, plus: 0,
     };
     let { data: newItem, error: insertErr } = await supabase.from('items').insert(insertData).select().single();
     if (insertErr) {

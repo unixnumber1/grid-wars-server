@@ -182,7 +182,7 @@ export async function grantReward(player, tgId, reward) {
       stat_value: item.stat_value, owner_id: player.id, equipped: false,
       attack: item.attack || 0, crit_chance: item.crit_chance || 0, defense: item.defense || 0,
       base_attack: item.base_attack || 0, base_crit_chance: item.base_crit_chance || 0,
-      base_defense: item.base_defense || 0, block_chance: item.block_chance || 0, upgrade_level: 0,
+      base_defense: item.base_defense || 0, block_chance: item.block_chance || 0, upgrade_level: 0, plus: 0,
     };
     const { data: newItem } = await supabase.from('items').insert(insertData).select().single();
     if (newItem) {

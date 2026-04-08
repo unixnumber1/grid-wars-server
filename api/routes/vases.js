@@ -113,6 +113,7 @@ async function handleBreak(req, res) {
       stat_value: rolled.stat_value,
       owner_id:   player.id,
       equipped:   false,
+      plus: 0,
     };
     const insertFull = {
       ...insertBase,
@@ -123,7 +124,7 @@ async function handleBreak(req, res) {
       base_crit_chance: rolled.base_crit_chance || 0,
       base_defense: rolled.base_defense || 0,
       block_chance: rolled.block_chance || 0,
-      upgrade_level: 0,
+      upgrade_level: 0, plus: 0,
     };
 
     ({ data: newItem } = await supabase
