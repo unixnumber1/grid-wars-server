@@ -5,10 +5,10 @@ import { randomCoreType } from './cores.js';
 
 export const XP_REWARDS = {
   BUILD_MINE:            10,
-  BUILD_HQ:              50,
+  BUILD_HQ:              0,
   COLLECT_COINS:         null,
   UPGRADE_MINE:          (newLevel) => 5 * newLevel,
-  UPGRADE_HQ:            200,
+  UPGRADE_HQ:            0,
   BREAK_VASE:            50,
 };
 
