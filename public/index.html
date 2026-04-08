@@ -1634,14 +1634,8 @@
     }
     .inv-cell:active { opacity: 0.7; }
     .inv-cell .inv-lvl {
-      position:absolute; top:2px; right:3px;
-      font-size:9px; font-weight:700; color:#ce93d8;
-      text-shadow:0 0 3px rgba(0,0,0,0.9);
-      line-height:1;
-    }
-    .inv-cell .inv-plus {
       position:absolute; bottom:2px; right:3px;
-      font-size:10px; font-weight:800; color:#FFD700;
+      font-size:9px; font-weight:700; color:#FFD700;
       text-shadow:0 0 3px rgba(0,0,0,0.9);
       line-height:1;
     }
@@ -1750,93 +1744,80 @@
     #craft-overlay {
       display: none; position: fixed; inset: 0;
       background: #0d0d1a; z-index: 8500;
-      flex-direction: column;
+      flex-direction: column; overflow-y: auto;
     }
     #craft-overlay.open { display: flex; }
     #craft-header {
-      padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);
-      position: relative; flex-shrink: 0;
+      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    #craft-header h2 { font-size: 17px; font-weight: 800; margin: 0; letter-spacing: 0.5px; }
+    #craft-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
+    #craft-header p { font-size: 12px; color: #aaa; margin: 4px 0 0; }
     #craft-close {
-      position: absolute; top: 12px; right: 14px;
-      background: none; border: none; color: #888; font-size: 22px; cursor: pointer;
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
     }
-    /* Forge area: slots + result preview */
-    .craft-forge {
-      flex-shrink: 0; padding: 12px 16px 8px;
-      background: linear-gradient(180deg, rgba(255,215,0,0.03) 0%, transparent 100%);
+    .craft-slots {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 8px; padding: 16px 20px;
     }
-    .craft-forge-slots {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      min-height: 72px;
+    .craft-slot {
+      aspect-ratio: 1; border: 2px dashed rgba(255,255,255,0.2);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; color: rgba(255,255,255,0.2); cursor: pointer;
+      background: rgba(255,255,255,0.03); transition: all 0.2s; position: relative;
     }
-    .craft-cell {
-      width: 64px; height: 64px; border: 2px dashed rgba(255,255,255,0.15);
-      border-radius: 12px; display: flex; align-items: center; justify-content: center;
-      font-size: 28px; color: rgba(255,255,255,0.15); cursor: pointer;
-      background: rgba(255,255,255,0.02); transition: all 0.25s; position: relative;
+    .craft-slot.filled { border-style: solid; color: #fff; }
+    .craft-slot.filled .craft-slot-remove {
+      position: absolute; top: -4px; right: -4px;
+      background: #ff4444; color: #fff; border-radius: 50%;
+      width: 16px; height: 16px; font-size: 10px; line-height: 16px;
+      text-align: center; pointer-events: none;
     }
-    .craft-cell.target { width: 72px; height: 72px; font-size: 32px; }
-    .craft-cell.filled { border-style: solid; color: #fff; background: rgba(255,255,255,0.05); }
-    .craft-cell .craft-x {
-      position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
-      background: rgba(255,68,68,0.9); color: #fff; border-radius: 50%;
-      font-size: 10px; line-height: 18px; text-align: center; cursor: pointer;
-      opacity: 0; transition: opacity 0.15s;
-    }
-    .craft-cell.filled:hover .craft-x,
-    .craft-cell.filled:active .craft-x { opacity: 1; }
-    .craft-cell .craft-lv-badge {
-      position: absolute; top: 2px; right: 3px;
-      font-size: 9px; font-weight: 700; color: #ce93d8;
-      text-shadow: 0 0 3px rgba(0,0,0,0.9);
-    }
-    .craft-cell .craft-plus-badge {
-      position: absolute; bottom: 2px; right: 3px;
-      font-size: 10px; font-weight: 800; color: #FFD700;
-      text-shadow: 0 0 3px rgba(0,0,0,0.9);
-    }
-    .craft-arrow {
-      font-size: 20px; color: rgba(255,215,0,0.5); flex-shrink: 0;
-    }
-    .craft-result-cell {
-      width: 64px; height: 64px; border: 2px solid rgba(255,215,0,0.25);
-      border-radius: 12px; display: flex; align-items: center; justify-content: center;
-      font-size: 13px; color: #FFD700; background: rgba(255,215,0,0.04);
-      text-align: center; line-height: 1.2; font-weight: 700;
-    }
-    .craft-refund {
-      position: absolute; top: 4px; right: -56px; white-space: nowrap;
-      padding: 3px 8px; background: rgba(156,39,176,0.15); border: 1px solid rgba(156,39,176,0.3);
-      border-radius: 6px; font-size: 11px; color: #ce93d8; font-weight: 600;
-    }
-    /* Inventory grid inside craft screen */
-    .craft-inv-label {
-      padding: 6px 16px 4px; font-size: 12px; color: #555; letter-spacing: 0.5px;
-      text-transform: uppercase; font-weight: 700; flex-shrink: 0;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-    .craft-inv-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 8px; padding: 4px 16px 80px; overflow-y: auto; flex: 1;
-      align-content: start; -webkit-overflow-scrolling: touch;
-    }
-    /* Craft inventory uses .inv-cell class from main inventory */
-    .craft-inv-grid .inv-cell.dimmed { opacity: 0.2; pointer-events: none; }
-    .craft-inv-grid .inv-cell.used { opacity: 0.15; pointer-events: none; }
-    /* Craft button — fixed at bottom */
+    #craft-info { padding: 0 20px; min-height: 40px; }
+    #craft-info .craft-warning { color: #ffaa00; font-size: 13px; }
+    #craft-info .craft-count { color: #aaa; font-size: 13px; }
+    #craft-result-preview { padding: 0 20px 16px; }
+    .craft-chances { margin: 8px 0; }
+    .craft-chance-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+    .craft-chance-bar { height: 8px; border-radius: 4px; transition: width 0.3s; }
+    .craft-chance-label { min-width: 70px; }
+    .craft-chance-pct { min-width: 35px; text-align: right; color: #aaa; }
     #craft-btn {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 8501;
-      display: none; padding: 16px; font-size: 16px; font-weight: 800;
-      border: none; cursor: pointer; letter-spacing: 0.5px;
-      background: linear-gradient(135deg, #f5c518, #e6a800); color: #000;
+      display: block; margin: 0 auto 16px; padding: 14px 40px; font-size: 16px; font-weight: 700;
+      border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #f5c518, #ff8c00); color: #000;
       transition: opacity 0.2s;
     }
-    #craft-btn.visible { display: block; }
     #craft-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    /* Hide old pick overlay — no longer used */
-    #craft-pick-overlay { display: none !important; }
+    /* Craft pick overlay */
+    #craft-pick-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 8600;
+      flex-direction: column;
+    }
+    #craft-pick-overlay.open { display: flex; }
+    #craft-pick-header {
+      padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #craft-pick-header h3 { margin: 0; font-size: 16px; }
+    #craft-pick-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+    .craft-pick-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 8px; padding: 16px 20px; overflow-y: auto; flex: 1;
+      align-content: start;
+    }
+    .craft-pick-cell {
+      height: 72px; background: rgba(255,255,255,0.05);
+      border-radius: 10px; border: 2px solid rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: opacity 0.2s; overflow: hidden;
+      font-size: 28px; line-height: 1;
+    }
+    .craft-pick-cell.disabled { opacity: 0.3; pointer-events: none; }
+    .craft-pick-cell.locked { opacity: 0.3; pointer-events: none; position: relative; }
+    .craft-pick-cell.locked::after {
+      content: '🔒'; position: absolute; font-size: 14px; bottom: 2px; right: 4px;
     }
     @keyframes craftGlow {
       0%,100% { box-shadow: 0 0 5px currentColor; }
@@ -6809,13 +6790,11 @@ function itemStatLabel(item) {
   return `+${item.stat_value}`;
 }
 
-function rarityLabel(rarity, plus) {
-  const p = plus || 0;
+function rarityLabel(rarity) {
   const name  = RARITY_NAMES_CLIENT[rarity] || rarity;
   const color = RARITY_COLORS_CLIENT[rarity] || '#888';
-  const plusTag = p > 0 ? ` +${p}` : '';
-  if (rarity === 'legendary') return `<span class="legendary-text">${name}${plusTag}</span>`;
-  return `<span style="color:${color}">${name}${plusTag}</span>`;
+  if (rarity === 'legendary') return `<span class="legendary-text">${name}</span>`;
+  return `<span style="color:${color}">${name}</span>`;
 }
 
 function showItemReveal(item, source) {
@@ -6974,9 +6953,8 @@ function _renderEquipSlots() {
 
 function _renderInventoryGrid() {
   const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) => {
-    const ra = (RARITY_ORDER[a.rarity] ?? 0) * 10 + (a.plus || 0);
-    const rb = (RARITY_ORDER[b.rarity] ?? 0) * 10 + (b.plus || 0);
-    if (rb !== ra) return rb - ra;
+    const rd = (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0);
+    if (rd !== 0) return rd;
     return (b.upgrade_level || 0) - (a.upgrade_level || 0);
   });
   const titleEl = document.getElementById('inventory-title');
@@ -6990,10 +6968,7 @@ function _renderInventoryGrid() {
     const cell = document.createElement('div');
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
     const lvl = item.upgrade_level || 0;
-    const plus = item.plus || 0;
-    const lvlBadge = lvl > 0 ? `<span class="inv-lvl">lv${lvl}</span>` : '';
-    const plusBadge = plus > 0 ? `<span class="inv-plus">+${plus}</span>` : '';
-    cell.innerHTML = `<span>${item.emoji}</span>${lvlBadge}${plusBadge}`;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${lvl > 0 ? '+' + lvl : t('lv') + '0'}</span>`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -7054,36 +7029,6 @@ function openEquipSlot(type) {
 const ITEM_SELL_PRICE = {
   common: 10, uncommon: 25, rare: 50, epic: 100, mythic: 200, legendary: 500,
 };
-
-function getMaxUpgradeLevelClient(rarity, plus = 0) {
-  const key = plus > 0 ? `${rarity}_${plus}` : rarity;
-  return {
-    common: 10, uncommon: 20, rare: 30,
-    epic: 40, epic_1: 50, epic_2: 60,
-    mythic: 70, mythic_1: 80, mythic_2: 90, mythic_3: 100,
-    legendary: 100, legendary_1: 100, legendary_2: 100, legendary_3: 100,
-  }[key] || 10;
-}
-
-// Craft recipe: determines what's needed for a target item
-function getCraftRecipeClient(rarity, plus = 0) {
-  const p = plus || 0;
-  if (p === 0 && (rarity === 'common' || rarity === 'uncommon' || rarity === 'rare')) {
-    const NEXT = { common: 'uncommon', uncommon: 'rare', rare: 'epic' };
-    return { mode: 'basic', materialCount: 2, materialRarity: rarity, materialPlus: 0, resultRarity: NEXT[rarity], resultPlus: 0 };
-  }
-  if (rarity === 'epic' && p === 0) return { mode: 'fusion', materialCount: 1, materialRarity: 'epic', materialPlus: 0, resultRarity: 'epic', resultPlus: 1 };
-  if (rarity === 'epic' && p === 1) return { mode: 'fusion', materialCount: 1, materialRarity: 'epic', materialPlus: 1, resultRarity: 'epic', resultPlus: 2 };
-  if (rarity === 'epic' && p === 2) return { mode: 'fusion', materialCount: 1, materialRarity: 'epic', materialPlus: 2, resultRarity: 'mythic', resultPlus: 0 };
-  if (rarity === 'mythic' && p === 0) return { mode: 'fusion', materialCount: 1, materialRarity: 'mythic', materialPlus: 0, resultRarity: 'mythic', resultPlus: 1 };
-  if (rarity === 'mythic' && p === 1) return { mode: 'fusion', materialCount: 1, materialRarity: 'mythic', materialPlus: 1, resultRarity: 'mythic', resultPlus: 2 };
-  if (rarity === 'mythic' && p === 2) return { mode: 'fusion', materialCount: 1, materialRarity: 'mythic', materialPlus: 2, resultRarity: 'mythic', resultPlus: 3 };
-  if (rarity === 'mythic' && p === 3) return { mode: 'legendary', materialCount: 2, materialRarity: 'mythic', materialPlus: 0, resultRarity: 'legendary', resultPlus: 0 };
-  if (rarity === 'legendary' && p === 0) return { mode: 'fusion', materialCount: 1, materialRarity: 'legendary', materialPlus: 0, resultRarity: 'legendary', resultPlus: 1 };
-  if (rarity === 'legendary' && p === 1) return { mode: 'fusion', materialCount: 1, materialRarity: 'legendary', materialPlus: 1, resultRarity: 'legendary', resultPlus: 2 };
-  if (rarity === 'legendary' && p === 2) return { mode: 'fusion', materialCount: 1, materialRarity: 'legendary', materialPlus: 2, resultRarity: 'legendary', resultPlus: 3 };
-  return null;
-}
 
 function getItemUpgradeCost(upgradeLevel) {
   if (upgradeLevel <= 10) return 200;
@@ -9187,7 +9132,7 @@ function switchMainTab(mainTab) {
       <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">${t('profile.tab.equip')}</button>
       <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">${t('profile.tab.cores')}</button>
       <button class="profile-inv-tab" id="inv-tab-other" onclick="switchInvTab('other')">${t('inv.sub_other') || 'Другое'}</button>`;
-    if (slotBar) slotBar.style.display = 'flex';
+    if (slotBar) slotBar.style.display = '';
     switchInvTab('equip');
   } else {
     subRow.innerHTML = `
@@ -14344,238 +14289,212 @@ document.querySelectorAll('.shop-info-btn').forEach(btn => {
 });
 
 // ─────────────────────────────────────────────
-//  Craft system (integrated single-screen)
+//  Craft system
 // ─────────────────────────────────────────────
+const NEXT_RARITY = { common:'uncommon', uncommon:'rare', rare:'epic', epic:'mythic', mythic:'legendary' };
 const ITEM_EMOJI_MAP = { sword:'🗡️', axe:'🪓', shield:'🛡️' };
-let _craftTarget = null;
-let _craftMaterials = [];
-let _craftRecipe = null;
-let _craftPhase = 'target'; // 'target' | 'material'
+let _craftSelected = []; // array of item objects
 
 function openCraftScreen() {
-  _craftTarget = null;
-  _craftMaterials = [];
-  _craftRecipe = null;
-  _craftPhase = 'target';
+  _craftSelected = [];
+  _renderCraftSlots();
+  _updateCraftInfo();
   document.getElementById('craft-overlay').classList.add('open');
-  _renderCraftForge();
-  _renderCraftInventory();
 }
 
 function closeCraftScreen() {
   document.getElementById('craft-overlay').classList.remove('open');
-  _craftTarget = null;
-  _craftMaterials = [];
-  _craftRecipe = null;
+  _craftSelected = [];
 }
 
-function _craftCellHtml(item, extraClass = '', onclick = '') {
-  if (!item) return `<div class="craft-cell ${extraClass}" ${onclick ? `onclick="${onclick}"` : ''}>+</div>`;
-  const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
-  const bc = rc.startsWith('linear') ? 'rgba(255,215,0,0.5)' : rc;
-  const lv = (item.upgrade_level || 0) > 0 ? `<span class="craft-lv-badge">lv${item.upgrade_level}</span>` : '';
-  const plus = (item.plus || 0) > 0 ? `<span class="craft-plus-badge">+${item.plus}</span>` : '';
-  return `<div class="craft-cell ${extraClass} filled" style="border-color:${bc}" ${onclick ? `onclick="${onclick}"` : ''}>
-    <span>${item.emoji}</span>${lv}${plus}<span class="craft-x">✕</span>
-  </div>`;
-}
-
-function _renderCraftForge() {
-  const forge = document.getElementById('craft-forge');
-  const btn = document.getElementById('craft-btn');
-  let html = '<div class="craft-forge-slots">';
-
-  // Target cell
-  html += _craftCellHtml(_craftTarget, 'target', _craftTarget ? '_craftClearTarget()' : '');
-
-  if (_craftRecipe) {
-    // Arrow → result
-    html += '<span class="craft-arrow">+</span>';
-    // Material slots
-    for (let i = 0; i < _craftRecipe.materialCount; i++) {
-      html += _craftCellHtml(_craftMaterials[i], '', _craftMaterials[i] ? `_craftRemoveMaterial(${i})` : '');
+function _renderCraftSlots() {
+  const container = document.getElementById('craft-slots');
+  container.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const slot = document.createElement('div');
+    const item = _craftSelected[i];
+    if (item) {
+      slot.className = `craft-slot filled ${rarityClass(item.rarity)}`;
+      slot.innerHTML = `<span>${item.emoji}</span><span class="craft-slot-remove">✕</span>`;
+      slot.onclick = () => { _craftSelected.splice(i, 1); _renderCraftSlots(); _updateCraftInfo(); };
+    } else {
+      slot.className = 'craft-slot';
+      slot.textContent = '+';
+      slot.onclick = () => openCraftPick();
     }
-    // Arrow → result preview
-    html += '<span class="craft-arrow">→</span>';
-    const rEmoji = _craftTarget ? (ITEM_EMOJI_MAP[_craftTarget.type] || '?') : '?';
-    const rPlusBadge = _craftRecipe.resultPlus > 0 ? `<span style="position:absolute;bottom:2px;right:3px;font-size:10px;font-weight:800;color:#FFD700;text-shadow:0 0 3px rgba(0,0,0,0.9)">+${_craftRecipe.resultPlus}</span>` : '';
-    html += `<div class="craft-result-cell" style="font-size:28px;position:relative">${rEmoji}${rPlusBadge}</div>`;
-  } else if (_craftTarget) {
-    html += '<span style="color:#ff6b6b;font-size:12px;margin-left:12px">макс</span>';
+    container.appendChild(slot);
+  }
+}
+
+function _updateCraftInfo() {
+  const infoEl = document.getElementById('craft-info');
+  const previewEl = document.getElementById('craft-result-preview');
+  const btn = document.getElementById('craft-btn');
+
+  if (_craftSelected.length === 0) {
+    infoEl.innerHTML = '<div class="craft-count">Выбрано: 0/10</div>';
+    previewEl.innerHTML = '';
+    btn.disabled = true;
+    return;
   }
 
-  html += '</div>';
+  const rarities = new Set(_craftSelected.map(i => i.rarity));
+  if (rarities.size > 1) {
+    infoEl.innerHTML = '<div class="craft-warning">⚠️ Все предметы должны быть одной редкости</div>';
+    previewEl.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
 
-  // Crystal refund line
+  const rarity = _craftSelected[0].rarity;
+  const rarName = RARITY_NAMES_CLIENT[rarity] || rarity;
+  infoEl.innerHTML = `<div class="craft-count">Выбрано: ${_craftSelected.length}/10 &nbsp; [${rarName}]</div>`;
+
+  if (_craftSelected.length < 10) {
+    previewEl.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
+
+  // All 10 same rarity — show preview
+  const nextRar = NEXT_RARITY[rarity];
+  const typeCounts = {};
+  for (const it of _craftSelected) typeCounts[it.type] = (typeCounts[it.type] || 0) + 1;
+
+  const rarColor = RARITY_COLORS_CLIENT[rarity] || '#888';
+  const barColor = rarColor.startsWith('linear') ? '#FFD700' : rarColor;
+
+  let chancesHtml = '';
+  for (const [type, count] of Object.entries(typeCounts)) {
+    const pct = count * 10;
+    const emoji = ITEM_EMOJI_MAP[type] || '';
+    const name = t('item.' + type);
+    chancesHtml += `
+      <div class="craft-chance-row">
+        <span class="craft-chance-label">${emoji} ${name}</span>
+        <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;">
+          <div class="craft-chance-bar" style="width:${pct}%;background:${barColor};"></div>
+        </div>
+        <span class="craft-chance-pct">${pct}%</span>
+      </div>
+    `;
+  }
+
+  // Calculate crystal refund for upgraded items
   let totalRefund = 0;
-  const allItems = [_craftTarget, ..._craftMaterials].filter(Boolean);
-  for (const it of allItems) {
+  for (const it of _craftSelected) {
     const lvl = it.upgrade_level || 0;
     if (lvl > 0) for (let i = 1; i <= lvl; i++) totalRefund += getItemUpgradeCost(i);
   }
-  if (totalRefund > 0) {
-    html += `<div style="text-align:center;margin-top:6px;font-size:12px;color:#ce93d8">✨ возврат: <b>+${formatNumber(totalRefund)}</b> осколков</div>`;
-  }
+  const refundHtml = totalRefund > 0
+    ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(156,39,176,0.12);border:1px solid rgba(156,39,176,0.3);border-radius:8px;font-size:13px;color:#ce93d8;">✨ ${t('craft.refund') || 'Возврат кристаллов'}: <b>+${formatNumber(totalRefund)}</b></div>`
+    : '';
 
-  forge.innerHTML = html;
-
-  // Button
-  const ready = _craftRecipe && _craftMaterials.length === _craftRecipe.materialCount;
-  btn.disabled = !ready;
-  btn.classList.toggle('visible', !!_craftRecipe);
-
-  // Phase
-  _craftPhase = (!_craftTarget) ? 'target' : (_craftRecipe && _craftMaterials.length < _craftRecipe.materialCount) ? 'material' : 'done';
+  previewEl.innerHTML = `
+    <div style="font-size:14px;color:#ccc;margin-bottom:4px;">${t('craft.result')}</div>
+    <div style="font-size:15px;font-weight:700;">✨ ${rarityLabel(nextRar)}</div>
+    <div style="font-size:12px;color:#888;margin:4px 0 8px;">${t('craft.type_chance')}</div>
+    <div class="craft-chances">${chancesHtml}</div>
+    ${refundHtml}
+  `;
+  btn.disabled = false;
 }
 
-function _renderCraftInventory() {
-  const grid = document.getElementById('craft-inv-grid');
-  const label = document.getElementById('craft-inv-label');
-  const usedIds = new Set([_craftTarget?.id, ..._craftMaterials.map(m => m.id)].filter(Boolean));
+function openCraftPick() {
+  const selectedIds = new Set(_craftSelected.map(i => i.id));
+  const lockedRarity = _craftSelected.length > 0 ? _craftSelected[0].rarity : null;
 
-  const inv = (state.inventory || []).filter(i => !i.on_market && !i.equipped).slice().sort((a, b) => {
-    const ra = (RARITY_ORDER[a.rarity] ?? 0) * 10 + (a.plus || 0);
-    const rb = (RARITY_ORDER[b.rarity] ?? 0) * 10 + (b.plus || 0);
-    return rb - ra || (b.upgrade_level || 0) - (a.upgrade_level || 0);
-  });
+  const inv = (state.inventory || []).filter(i => !i.on_market && !i.equipped).slice().sort((a, b) =>
+    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
+  );
 
-  // Label
-  if (_craftPhase === 'target') label.textContent = _lang === 'ru' ? 'ВЫБЕРИ ПРЕДМЕТ' : 'SELECT ITEM';
-  else if (_craftPhase === 'material') {
-    const req = _craftRecipe.materialRarity + (_craftRecipe.materialPlus > 0 ? '+' + _craftRecipe.materialPlus : '');
-    label.textContent = (_lang === 'ru' ? 'МАТЕРИАЛ: ' : 'MATERIAL: ') + req + ' ' + (_craftTarget?.type || '');
-  } else label.textContent = _lang === 'ru' ? 'ИНВЕНТАРЬ' : 'INVENTORY';
-
+  const grid = document.getElementById('craft-pick-grid');
   grid.innerHTML = '';
 
   for (const item of inv) {
+    if (selectedIds.has(item.id)) continue;
+
     const cell = document.createElement('div');
-    const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
-    const bc = rc.startsWith('linear') ? 'rgba(255,215,0,0.3)' : (rc + '40');
-    cell.className = `inv-cell ${rarityClass(item.rarity)}`;
+    cell.className = `craft-pick-cell ${rarityClass(item.rarity)}`;
 
-    const lv = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl">lv${item.upgrade_level}</span>` : '';
-    const plus = (item.plus || 0) > 0 ? `<span class="inv-plus">+${item.plus}</span>` : '';
-    cell.innerHTML = `<span>${item.emoji}</span>${lv}${plus}`;
-
-    if (usedIds.has(item.id)) {
-      cell.classList.add('used');
-    } else if (_craftPhase === 'target') {
-      const recipe = getCraftRecipeClient(item.rarity, item.plus || 0);
-      if (!recipe) {
-        cell.classList.add('dimmed');
-      } else {
-        cell.onclick = () => {
-          _craftTarget = item;
-          _craftMaterials = [];
-          _craftRecipe = recipe;
-          _renderCraftForge();
-          _renderCraftInventory();
-        };
-      }
-    } else if (_craftPhase === 'material') {
-      const matches = item.type === _craftTarget.type &&
-        item.rarity === _craftRecipe.materialRarity &&
-        (item.plus || 0) === _craftRecipe.materialPlus;
-      if (!matches) {
-        cell.classList.add('dimmed');
-      } else {
-        cell.onclick = () => {
-          _craftMaterials.push(item);
-          _renderCraftForge();
-          _renderCraftInventory();
-        };
-      }
+    const lvlTag = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl" style="position:absolute;bottom:2px;right:2px;font-size:10px;color:#FFD700;">+${item.upgrade_level}</span>` : '';
+    if (item.rarity === 'legendary') {
+      cell.classList.add('locked');
+      cell.style.position = 'relative';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
+    } else if (lockedRarity && item.rarity !== lockedRarity) {
+      cell.classList.add('disabled');
+      cell.style.position = 'relative';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
+    } else {
+      cell.style.position = 'relative';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
+      cell.onclick = () => {
+        _craftSelected.push(item);
+        closeCraftPick();
+        _renderCraftSlots();
+        _updateCraftInfo();
+      };
     }
     grid.appendChild(cell);
   }
 
-  if (inv.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#444;padding:40px">Нет предметов</div>`;
+  if (grid.children.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">${t('craft.no_items')}</div>`;
   }
+
+  document.getElementById('craft-pick-overlay').classList.add('open');
 }
 
-function _craftClearTarget() {
-  _craftTarget = null;
-  _craftMaterials = [];
-  _craftRecipe = null;
-  _renderCraftForge();
-  _renderCraftInventory();
-}
-
-function _craftRemoveMaterial(index) {
-  _craftMaterials.splice(index, 1);
-  _renderCraftForge();
-  _renderCraftInventory();
+function closeCraftPick() {
+  document.getElementById('craft-pick-overlay').classList.remove('open');
 }
 
 async function doCraft() {
-  if (!_craftTarget || !_craftRecipe || _craftMaterials.length !== _craftRecipe.materialCount) return;
+  if (_craftSelected.length !== 10) return;
   const btn = document.getElementById('craft-btn');
   btn.disabled = true;
-  btn.textContent = '⏳ ...';
+  btn.textContent = t('craft.crafting');
 
   try {
-    const sourceItems = [_craftTarget, ..._craftMaterials];
+    const sourceItems = _craftSelected.slice();
+    const itemIds = sourceItems.map(i => i.id);
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({
-        action: 'craft',
-        target_id: _craftTarget.id,
-        material_ids: _craftMaterials.map(m => m.id),
-      }),
+      body: JSON.stringify({ action: 'craft', item_ids: itemIds }),
     });
 
-    const consumedSet = new Set(sourceItems.map(i => i.id));
+    // Remove consumed items from state
+    const consumedSet = new Set(itemIds);
     state.inventory = (state.inventory || []).filter(i => !consumedSet.has(i.id));
     state.inventory.unshift(data.item);
 
+    // Refund crystals for upgraded items
     if (data.crystals_refunded > 0 && state.player) {
       state.player.crystals = (state.player.crystals || 0) + data.crystals_refunded;
     }
 
-    // Simple flash animation
-    await _playCraftFlash(data.item);
+    // Run full animation
+    await _playCraftAnimation(data.item, sourceItems);
 
-    _craftTarget = null;
-    _craftMaterials = [];
-    _craftRecipe = null;
-    _renderCraftForge();
-    _renderCraftInventory();
+    _craftSelected = [];
+    _renderCraftSlots();
+    _updateCraftInfo();
     _renderEquipSlots();
     _renderInventoryGrid();
     const refundMsg = data.crystals_refunded > 0 ? ` (+${formatNumber(data.crystals_refunded)} ✨)` : '';
-    const plusTag = (data.item.plus || 0) > 0 ? `+${data.item.plus} ` : '';
-    showToast(`⚒️ ${data.item.name} ${plusTag}` + refundMsg);
+    showToast(t('toast.item_crafted', {name: data.item.name}) + refundMsg);
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
-    btn.textContent = '⚒️ Скрафтить';
-    btn.disabled = true;
-    btn.classList.remove('visible');
+    btn.textContent = t('craft.btn');
+    btn.disabled = _craftSelected.length !== 10;
   }
 }
 
-async function _playCraftFlash(resultItem) {
-  const rc = RARITY_COLORS_CLIENT[resultItem.rarity] || '#888';
-  const glowColor = rc.startsWith('linear') ? '#FFD700' : rc;
+function _craftSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  const flash = document.createElement('div');
-  flash.style.cssText = `position:fixed;inset:0;z-index:99999;background:${glowColor};opacity:0;transition:opacity 0.15s;pointer-events:none;`;
-  document.body.appendChild(flash);
-  await new Promise(r => setTimeout(r, 20));
-  flash.style.opacity = '0.7';
-  try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
-  await new Promise(r => setTimeout(r, 200));
-  flash.style.transition = 'opacity 0.5s';
-  flash.style.opacity = '0';
-  await new Promise(r => setTimeout(r, 500));
-  flash.remove();
-  showItemReveal(resultItem, 'craft');
-}
-
-// Old _playCraftAnimation removed — using _playCraftFlash instead
-async function _playCraftAnimation_REMOVED(resultItem, sourceItems) {
+async function _playCraftAnimation(resultItem, sourceItems) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;';
   document.body.appendChild(overlay);
@@ -17873,10 +17792,7 @@ function _renderInventoryGridSelectable() {
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}${sel}`;
     cell.style.position = 'relative';
     const slvl = item.upgrade_level || 0;
-    const splus = item.plus || 0;
-    const slvlBadge = slvl > 0 ? `<span class="inv-lvl">lv${slvl}</span>` : '';
-    const splusBadge = splus > 0 ? `<span class="inv-plus">+${splus}</span>` : '';
-    cell.innerHTML = `<span>${item.emoji}</span>${slvlBadge}${splusBadge}`;
+    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : t('lv') + '0'}</span>`;
 
     if (canSelect) {
       cell.onclick = () => {
@@ -21769,14 +21685,13 @@ async function spawnZombieScout() {
     <div id="sub-tabs-row" style="display:flex;flex:1"></div>
   </div>
   <!-- Inventory toolbar: slots + actions in one row -->
-  <div id="inv-slot-bar" style="display:flex;align-items:center;justify-content:space-between;margin:0 16px;padding:6px 12px;background:#1a1a1a;border:1px solid #222;border-top:none;border-bottom:none;box-sizing:border-box;">
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span id="inv-slot-count" style="font-size:12px;color:#888;white-space:nowrap;">0/200</span>
-      <button id="btn-buy-slot" onclick="buyInventorySlot()" class="inv-action-btn" style="border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:12px;white-space:nowrap;padding:4px 8px;">+1 · 5💎</button>
-    </div>
-    <div id="inv-equip-actions" style="display:flex;gap:6px;align-items:center;">
-      <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()" style="padding:4px 10px;">⚒️</button>
-      <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()" style="padding:4px 10px;">🗑️</button>
+  <div id="inv-slot-bar" style="display:flex;align-items:center;gap:8px;margin:0 16px;padding:6px 16px;background:#1a1a1a;border:1px solid #222;border-top:none;border-bottom:none;box-sizing:border-box;">
+    <span id="inv-slot-count" style="font-size:12px;color:#888;white-space:nowrap;">0/200</span>
+    <button id="btn-buy-slot" onclick="buyInventorySlot()" class="inv-action-btn" style="border:1px solid rgba(255,215,0,0.3);color:#FFD700;font-size:12px;white-space:nowrap;">+1 · 5💎</button>
+    <div style="flex:1;"></div>
+    <div id="inv-equip-actions" style="display:flex;gap:8px;align-items:center;">
+      <button class="inv-action-btn craft" id="btn-craft" onclick="openCraftScreen()">⚒️</button>
+      <button class="inv-action-btn" id="btn-mass-sell" onclick="enterSelectionMode()">🗑️</button>
     </div>
   </div>
   <div class="profile-section" style="margin-bottom:16px;margin-top:0;border-top:none;border-top-left-radius:0;border-top-right-radius:0;">
@@ -21829,14 +21744,15 @@ async function spawnZombieScout() {
 
 <!-- Craft screen -->
 <div id="craft-overlay">
-  <div id="craft-header">
-    <h2>⚒️ КРАФТ</h2>
+  <div id="craft-header" style="position:relative;">
+    <h2 data-i18n="craft.title">⚒️ КРАФТ</h2>
+    <p data-i18n="craft.desc">Объедини 10 предметов одной редкости</p>
     <button id="craft-close" onclick="closeCraftScreen()">✕</button>
   </div>
-  <div class="craft-forge" id="craft-forge"></div>
-  <div class="craft-inv-label" id="craft-inv-label">ИНВЕНТАРЬ</div>
-  <div class="craft-inv-grid" id="craft-inv-grid"></div>
-  <button id="craft-btn" disabled onclick="doCraft()">⚒️ Скрафтить</button>
+  <div class="craft-slots" id="craft-slots"></div>
+  <div id="craft-info"></div>
+  <div id="craft-result-preview"></div>
+  <button id="craft-btn" disabled onclick="doCraft()" data-i18n="craft.btn">⚒️ Скрафтить</button>
 </div>
 
 <!-- Craft pick items overlay -->

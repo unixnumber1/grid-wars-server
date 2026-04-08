@@ -12,7 +12,7 @@ import { getPlayerLogs, logPlayer } from '../../lib/logger.js';
 import { playerCityCache, clearCityBoundsCache } from '../../lib/geocity.js';
 import { suspiciousActivity } from '../../security/rateLimit.js';
 import { ts, getLang } from '../../config/i18n.js';
-import { generateItem, getUpgradedStats, getMaxUpgradeLevel } from '../../game/mechanics/items.js';
+import { generateItem, getUpgradedStats } from '../../game/mechanics/items.js';
 import { CORE_TYPES } from '../../game/mechanics/cores.js';
 import { clearSpawnErrorCache, clearSpawnPointsCache } from '../../game/mechanics/oreNodes.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -579,10 +579,9 @@ adminRouter.post('/', async (req, res) => {
     const player = gameState.getPlayerById(player_id);
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
-    const plus = Math.max(0, Math.min(parseInt(req.body.plus) || 0, 3));
-    const item = generateItem(type, rarity, plus);
+    const item = generateItem(type, rarity);
     item.owner_id = player.id;
-    item.upgrade_level = Math.max(0, Math.min(parseInt(upgrade_level) || 0, getMaxUpgradeLevel(rarity, plus)));
+    item.upgrade_level = Math.max(0, Math.min(parseInt(upgrade_level) || 0, 100));
 
     // Apply upgrade stats
     const stats = getUpgradedStats(item);
@@ -591,16 +590,7 @@ adminRouter.post('/', async (req, res) => {
     item.crit_chance = stats.crit_chance;
     item.block_chance = stats.block_chance;
 
-    const insertData = {
-      type: item.type, rarity: item.rarity, plus: item.plus || 0,
-      name: item.name, emoji: item.emoji, stat_value: item.stat_value,
-      owner_id: item.owner_id, equipped: false,
-      attack: item.attack || 0, crit_chance: item.crit_chance || 0,
-      defense: item.defense || 0, block_chance: item.block_chance || 0,
-      base_attack: item.base_attack || 0, base_crit_chance: item.base_crit_chance || 0,
-      base_defense: item.base_defense || 0, upgrade_level: item.upgrade_level,
-    };
-    const { data: inserted, error: insErr } = await supabase.from('items').insert(insertData).select().single();
+    const { data: inserted, error: insErr } = await supabase.from('items').insert(item).select().single();
     if (insErr) return res.status(500).json({ error: insErr.message });
 
     gameState.items.set(inserted.id, inserted);

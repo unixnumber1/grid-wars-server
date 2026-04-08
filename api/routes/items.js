@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId } from '../../lib/supabase.js';
 import { getMaxHp } from '../../lib/formulas.js';
 import { logPlayer } from '../../lib/logger.js';
-import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted, hasInventorySpace, getPlayerItemCount, getPlayerMaxSlots, getCraftRecipe } from '../../lib/items.js';
+import { ITEM_SELL_PRICE, getItemSellPrice, generateItem, getMaxUpgradeLevel, getUpgradeCost, getTotalUpgradeCost, getUpgradedStats, BOX_ODDS, rollWeighted, hasInventorySpace, getPlayerItemCount, getPlayerMaxSlots } from '../../lib/items.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { ITEM_TYPES, STAR_PACKS } from '../../config/constants.js';
@@ -489,7 +489,7 @@ itemsRouter.post('/', async (req, res) => {
     const lang = getLang(gameState, telegram_id);
     if (!item || item.owner_id !== p.id) return res.status(404).json({ error: ts(lang, 'err.item_not_found') });
 
-    const maxLvl = getMaxUpgradeLevel(item.rarity, item.plus || 0);
+    const maxLvl = getMaxUpgradeLevel(item.rarity);
     const currentLvl = item.upgrade_level || 0;
     if (currentLvl >= maxLvl) return res.status(400).json({ error: ts(lang, 'err.max_level') });
 
@@ -794,77 +794,73 @@ itemsRouter.post('/', async (req, res) => {
     });
   }
 
-  // Craft action (new system: basic 3→1 + fusion)
+  // Craft action
   if (action === 'craft') {
-    const { target_id, material_ids } = body;
-    if (!target_id || !Array.isArray(material_ids) || material_ids.length < 1 || material_ids.length > 2) {
-      return res.status(400).json({ error: 'target_id and material_ids (1-2) required' });
+    const { item_ids } = body;
+    if (!Array.isArray(item_ids) || item_ids.length !== 10) {
+      return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_10_items') });
     }
 
-    const allIds = [target_id, ...material_ids];
-    const lang = getLang(gameState, telegram_id);
+    const NEXT_RARITY = {
+      common: 'uncommon', uncommon: 'rare', rare: 'epic',
+      epic: 'mythic', mythic: 'legendary',
+    };
 
-    // Fetch all items from gameState
-    const allItems = allIds.map(id => gameState.loaded ? gameState.getItemById(id) : null).filter(Boolean);
-    if (allItems.length !== allIds.length) return res.status(400).json({ error: ts(lang, 'err.items_not_found') });
-
-    // Validate ownership, not equipped, not on market
-    for (const it of allItems) {
-      if (it.owner_id !== player.id) return res.status(400).json({ error: ts(lang, 'err.items_not_found') });
-      if (it.equipped) return res.status(400).json({ error: ts(lang, 'err.unequip_crafting') });
-      if (it.on_market) return res.status(400).json({ error: ts(lang, 'err.item_on_market') });
+    // Fetch all 10 items
+    const { data: items, error: fetchErr } = await supabase
+      .from('items').select('id,type,rarity,equipped,on_market,owner_id,upgrade_level')
+      .in('id', item_ids).eq('owner_id', player.id);
+    if (fetchErr) return res.status(500).json({ error: 'DB error' });
+    if (!items || items.length !== 10) {
+      return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.items_not_found') });
     }
 
-    const target = allItems[0];
-    const materials = allItems.slice(1);
-
-    // Get craft recipe for target
-    const recipe = getCraftRecipe(target.rarity, target.plus || 0);
-    if (!recipe) return res.status(400).json({ error: 'Этот предмет нельзя улучшить' });
-
-    // Validate material count
-    if (materials.length !== recipe.materialCount) {
-      return res.status(400).json({ error: `Нужно ${recipe.materialCount} материал(ов)` });
+    // Check all same rarity, none equipped, none on market
+    const rarity = items[0].rarity;
+    for (const it of items) {
+      if (it.rarity !== rarity) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.same_rarity') });
+      if (it.equipped) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.unequip_crafting') });
+      if (it.on_market) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.item_on_market') });
+    }
+    if (rarity === 'legendary') {
+      return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.legendary_no_craft') });
     }
 
-    // Validate materials match recipe
-    for (const mat of materials) {
-      // Same type required for all recipes
-      if (mat.type !== target.type) return res.status(400).json({ error: 'Материал должен быть того же типа' });
-      if (mat.rarity !== recipe.materialRarity) return res.status(400).json({ error: 'Неподходящая редкость материала' });
-      if ((mat.plus || 0) !== recipe.materialPlus) return res.status(400).json({ error: 'Неподходящий уровень + материала' });
-    }
+    const nextRarity = NEXT_RARITY[rarity];
 
-    // For basic craft (3→1): materials must match target rarity/plus too
-    if (recipe.mode === 'basic') {
-      if (target.rarity !== recipe.materialRarity) return res.status(400).json({ error: 'Все предметы должны быть одной редкости' });
+    // Weighted random type based on input items
+    const typeCounts = {};
+    for (const it of items) typeCounts[it.type] = (typeCounts[it.type] || 0) + 1;
+    const roll = Math.random() * 10;
+    let cumulative = 0, resultType = null;
+    for (const [type, count] of Object.entries(typeCounts)) {
+      cumulative += count;
+      if (roll < cumulative) { resultType = type; break; }
     }
+    if (!resultType) resultType = items[0].type;
 
-    // Generate new item
-    const newItemData = generateItem(target.type, recipe.resultRarity, recipe.resultPlus);
+    const newItemData = generateItem(resultType, nextRarity);
 
     // Refund crystals for upgraded items
     let crystalsRefunded = 0;
-    for (const it of allItems) {
+    for (const it of items) {
       if (it.upgrade_level > 0) crystalsRefunded += getTotalUpgradeCost(it.upgrade_level);
     }
     if (crystalsRefunded > 0) {
-      const gsPlayer = gameState.getPlayerById(player.id);
-      if (gsPlayer) {
-        gsPlayer.crystals = (gsPlayer.crystals || 0) + crystalsRefunded;
-        gameState.markDirty('players', gsPlayer.id);
+      await supabase.from('players').update({ crystals: (player.crystals || 0) + crystalsRefunded }).eq('id', player.id);
+      if (gameState.loaded) {
+        const gp = gameState.getPlayerById(player.id);
+        if (gp) { gp.crystals = (gp.crystals || 0) + crystalsRefunded; gameState.markDirty('players', gp.id); }
       }
-      await supabase.from('players').update({ crystals: (gsPlayer?.crystals || 0) }).eq('id', player.id);
     }
 
-    // Delete consumed items
-    const { error: delErr } = await supabase.from('items').delete().in('id', allIds);
+    // Delete 10 items
+    const { error: delErr } = await supabase.from('items').delete().in('id', item_ids);
     if (delErr) return res.status(500).json({ error: 'Failed to delete items' });
 
     // Insert new item
     const insertData = {
-      type: target.type, rarity: recipe.resultRarity, plus: recipe.resultPlus,
-      name: newItemData.name, emoji: newItemData.emoji,
+      type: resultType, rarity: nextRarity, name: newItemData.name, emoji: newItemData.emoji,
       stat_value: newItemData.stat_value, owner_id: player.id, equipped: false,
       attack: newItemData.attack || 0, crit_chance: newItemData.crit_chance || 0, defense: newItemData.defense || 0,
       base_attack: newItemData.base_attack || 0, base_crit_chance: newItemData.base_crit_chance || 0,
@@ -875,16 +871,19 @@ itemsRouter.post('/', async (req, res) => {
 
     // Update gameState
     if (gameState.loaded) {
-      for (const id of allIds) gameState.removeItem(id);
+      for (const id of item_ids) gameState.removeItem(id);
       if (createdItem) gameState.upsertItem(createdItem);
     }
 
+    const typeChances = {};
+    for (const [t, c] of Object.entries(typeCounts)) typeChances[t] = c * 10;
+
     return res.json({
       success: true,
-      item: { id: createdItem.id, type: target.type, rarity: recipe.resultRarity, plus: recipe.resultPlus,
-        name: newItemData.name, emoji: newItemData.emoji, stat_value: newItemData.stat_value,
+      item: { id: createdItem.id, type: resultType, rarity: nextRarity, name: newItemData.name,
+        emoji: newItemData.emoji, stat_value: newItemData.stat_value,
         attack: newItemData.attack || 0, crit_chance: newItemData.crit_chance || 0, defense: newItemData.defense || 0 },
-      consumed: allIds.length, crystals_refunded: crystalsRefunded,
+      consumed: 10, resultType, typeChances, crystals_refunded: crystalsRefunded,
     });
   }
 
