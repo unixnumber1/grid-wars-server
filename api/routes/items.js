@@ -856,9 +856,10 @@ itemsRouter.post('/', async (req, res) => {
     // Generate new item — guarantee stats >= target for fusion crafts
     const newItemData = generateItem(target.type, recipe.resultRarity, recipe.resultPlus);
     if (recipe.mode === 'fusion') {
-      if (newItemData.attack && target.attack) newItemData.attack = Math.max(newItemData.attack, target.attack);
-      if (newItemData.defense && target.defense) newItemData.defense = Math.max(newItemData.defense, target.defense);
-      if (newItemData.crit_chance && target.crit_chance) newItemData.crit_chance = Math.max(newItemData.crit_chance, target.crit_chance);
+      // Use base_* fields to avoid inheriting upgraded (inflated) stats
+      if (newItemData.attack) newItemData.attack = Math.max(newItemData.attack, target.base_attack || 0);
+      if (newItemData.defense) newItemData.defense = Math.max(newItemData.defense, target.base_defense || 0);
+      if (newItemData.crit_chance) newItemData.crit_chance = Math.max(newItemData.crit_chance, target.base_crit_chance || 0);
       if (newItemData.block_chance && target.block_chance) newItemData.block_chance = Math.max(newItemData.block_chance, target.block_chance);
       newItemData.base_attack = newItemData.attack || 0;
       newItemData.base_defense = newItemData.defense || 0;
