@@ -116,9 +116,9 @@ async function main() {
     }
     console.log(`[migrate] ✓ Refunded ${totalRefunded} crystals to ${refundByPlayer.size} players\n`);
 
-    // ── Step 3: Regenerate all item stats ──
-    console.log('[migrate] Step 3: Regenerating item stats...');
-    const { rows: allItems } = await client.query('SELECT id, type, rarity FROM items');
+    // ── Step 3: Regenerate item stats (only plus=0 items — never touch crafted +1/+2/+3) ──
+    console.log('[migrate] Step 3: Regenerating item stats (plus=0 only)...');
+    const { rows: allItems } = await client.query('SELECT id, type, rarity FROM items WHERE plus = 0');
     console.log(`[migrate] Processing ${allItems.length} items...`);
 
     let regenerated = 0, skipped = 0;
