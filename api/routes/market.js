@@ -62,7 +62,7 @@ async function handleListings(req, res) {
     .select(`
       id, price_diamonds, is_private, private_code, created_at, expires_at,
       market_id, item_type, core_id,
-      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance),
+      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance, plus),
       seller:players!market_listings_seller_id_fkey(id, username, game_username, avatar)
     `, { count: 'exact' })
     .eq('status', 'active')
@@ -115,7 +115,7 @@ async function handleMyListings(req, res) {
     .select(`
       id, price_diamonds, is_private, private_code, status, created_at, expires_at,
       market_id, item_type, core_id,
-      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance)
+      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance, plus)
     `)
     .eq('seller_id', player.id)
     .in('status', ['active', 'pending'])
@@ -1387,7 +1387,7 @@ async function handleSearchByCode(req, res) {
     .select(`
       id, price_diamonds, is_private, created_at, expires_at,
       market_id,
-      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance),
+      items(id, type, rarity, name, emoji, stat_value, attack, crit_chance, defense, upgrade_level, block_chance, plus),
       seller:players!market_listings_seller_id_fkey(id, username, game_username, avatar)
     `)
     .eq('private_code', trimmed)

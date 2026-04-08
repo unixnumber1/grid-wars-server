@@ -20,17 +20,21 @@ const CORE_ORB_PRICE = 150;
 async function recalcBonuses(playerId, level) {
   const { data: equipped } = await supabase
     .from('items')
-    .select('id,type,attack,crit_chance,defense,stat_value')
+    .select('id,type,rarity,attack,crit_chance,defense,stat_value,upgrade_level,base_attack,base_crit_chance,base_defense,block_chance,plus')
     .eq('owner_id', playerId)
     .eq('equipped', true);
 
   const weapon = (equipped || []).find(i => i.type === 'sword' || i.type === 'axe');
   const shield = (equipped || []).find(i => i.type === 'shield');
 
-  const bonus_attack = weapon ? (weapon.attack || weapon.stat_value || 0) : 0;
-  const bonus_crit   = weapon?.type === 'sword' ? (weapon.crit_chance || 0) : 0;
-  const bonus_hp     = shield ? (shield.defense || shield.stat_value || 0) : 0;
-  const max_hp       = getMaxHp(level) + bonus_hp;
+  let bonus_attack = 0, bonus_crit = 0;
+  if (weapon) {
+    const ws = getUpgradedStats(weapon);
+    bonus_attack = ws.attack || 0;
+    bonus_crit = weapon.type === 'sword' ? (ws.crit_chance || 0) : 0;
+  }
+  const bonus_hp = shield ? (getUpgradedStats(shield).defense || 0) : 0;
+  const max_hp   = getMaxHp(level) + bonus_hp;
   return { bonus_attack, bonus_crit, bonus_hp, max_hp };
 }
 
@@ -39,9 +43,10 @@ async function handleEquip(player, body) {
   if (!item_id) return { status: 400, error: 'item_id required' };
 
   const { data: item } = await supabase
-    .from('items').select('id,type,on_market').eq('id', item_id).eq('owner_id', player.id).maybeSingle();
+    .from('items').select('id,type,on_market,held_by_courier').eq('id', item_id).eq('owner_id', player.id).maybeSingle();
   if (!item) return { status: 404, error: 'Item not found or not yours' };
   if (item.on_market) return { status: 400, error: 'Item is on market' };
+  if (item.held_by_courier) return { status: 400, error: 'Item in transit' };
 
   // Weapon types share a slot (sword OR axe)
   const isWeapon = item.type === 'sword' || item.type === 'axe';
@@ -804,15 +809,18 @@ itemsRouter.post('/', async (req, res) => {
     const allIds = [target_id, ...material_ids];
     const lang = getLang(gameState, telegram_id);
 
+    if (!gameState.loaded) return res.status(503).json({ error: 'Game not ready' });
+
     // Fetch all items from gameState
-    const allItems = allIds.map(id => gameState.loaded ? gameState.getItemById(id) : null).filter(Boolean);
+    const allItems = allIds.map(id => gameState.getItemById(id)).filter(Boolean);
     if (allItems.length !== allIds.length) return res.status(400).json({ error: ts(lang, 'err.items_not_found') });
 
-    // Validate ownership, not equipped, not on market
+    // Validate ownership, not equipped, not on market, not in transit
     for (const it of allItems) {
       if (it.owner_id !== player.id) return res.status(400).json({ error: ts(lang, 'err.items_not_found') });
       if (it.equipped) return res.status(400).json({ error: ts(lang, 'err.unequip_crafting') });
       if (it.on_market) return res.status(400).json({ error: ts(lang, 'err.item_on_market') });
+      if (it.held_by_courier) return res.status(400).json({ error: 'Item in transit' });
     }
 
     const target = allItems[0];
@@ -829,7 +837,6 @@ itemsRouter.post('/', async (req, res) => {
 
     // Validate materials match recipe
     for (const mat of materials) {
-      // Same type required for all recipes
       if (mat.type !== target.type) return res.status(400).json({ error: 'Материал должен быть того же типа' });
       if (mat.rarity !== recipe.materialRarity) return res.status(400).json({ error: 'Неподходящая редкость материала' });
       if ((mat.plus || 0) !== recipe.materialPlus) return res.status(400).json({ error: 'Неподходящий уровень + материала' });
@@ -843,25 +850,7 @@ itemsRouter.post('/', async (req, res) => {
     // Generate new item
     const newItemData = generateItem(target.type, recipe.resultRarity, recipe.resultPlus);
 
-    // Refund crystals for upgraded items
-    let crystalsRefunded = 0;
-    for (const it of allItems) {
-      if (it.upgrade_level > 0) crystalsRefunded += getTotalUpgradeCost(it.upgrade_level);
-    }
-    if (crystalsRefunded > 0) {
-      const gsPlayer = gameState.getPlayerById(player.id);
-      if (gsPlayer) {
-        gsPlayer.crystals = (gsPlayer.crystals || 0) + crystalsRefunded;
-        gameState.markDirty('players', gsPlayer.id);
-      }
-      await supabase.from('players').update({ crystals: (gsPlayer?.crystals || 0) }).eq('id', player.id);
-    }
-
-    // Delete consumed items
-    const { error: delErr } = await supabase.from('items').delete().in('id', allIds);
-    if (delErr) return res.status(500).json({ error: 'Failed to delete items' });
-
-    // Insert new item
+    // Insert new item FIRST (safe order — if fails, nothing is lost)
     const insertData = {
       type: target.type, rarity: recipe.resultRarity, plus: recipe.resultPlus,
       name: newItemData.name, emoji: newItemData.emoji,
@@ -873,11 +862,33 @@ itemsRouter.post('/', async (req, res) => {
     const { data: createdItem, error: insErr } = await supabase.from('items').insert(insertData).select().single();
     if (insErr) return res.status(500).json({ error: 'Failed to create item' });
 
-    // Update gameState
-    if (gameState.loaded) {
-      for (const id of allIds) gameState.removeItem(id);
-      if (createdItem) gameState.upsertItem(createdItem);
+    // Delete consumed items AFTER successful insert
+    const { error: delErr } = await supabase.from('items').delete().in('id', allIds);
+    if (delErr) {
+      // Rollback: delete the created item
+      await supabase.from('items').delete().eq('id', createdItem.id);
+      return res.status(500).json({ error: 'Failed to delete items' });
     }
+
+    // Refund crystals for upgraded items
+    let crystalsRefunded = 0;
+    for (const it of allItems) {
+      if (it.upgrade_level > 0) crystalsRefunded += getTotalUpgradeCost(it.upgrade_level);
+    }
+    if (crystalsRefunded > 0) {
+      const gsPlayer = gameState.getPlayerById(player.id);
+      const currentCrystals = gsPlayer?.crystals || player.crystals || 0;
+      const newCrystals = currentCrystals + crystalsRefunded;
+      if (gsPlayer) {
+        gsPlayer.crystals = newCrystals;
+        gameState.markDirty('players', gsPlayer.id);
+      }
+      await supabase.from('players').update({ crystals: newCrystals }).eq('id', player.id);
+    }
+
+    // Update gameState
+    for (const id of allIds) gameState.removeItem(id);
+    if (createdItem) gameState.upsertItem(createdItem);
 
     return res.json({
       success: true,
