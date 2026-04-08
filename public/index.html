@@ -1649,7 +1649,7 @@
       content: '✓';
       position: absolute;
       top: 2px;
-      right: 4px;
+      left: 4px;
       font-size: 10px;
       color: #00ff88;
       font-weight: 900;
@@ -15742,8 +15742,8 @@ function _renderMarketCards(listings, grid, isMine) {
       card.innerHTML = `
         ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
         <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
-        <div class="market-card-name">${item.name} <span style="color:#FFD700;font-size:11px;">lv.${item.upgrade_level || 0}</span></div>
-        <div class="market-card-rarity">${rarityLabel(item.rarity)}</div>
+        <div class="market-card-name">${item.name}${(item.plus||0) > 0 ? ` <span style="color:#FFD700;font-weight:800;">+${item.plus}</span>` : ''}${(item.upgrade_level||0) > 0 ? ` <span style="color:#ce93d8;font-size:11px;">lv${item.upgrade_level}</span>` : ''}</div>
+        <div class="market-card-rarity">${rarityLabel(item.rarity, item.plus)}</div>
         <div class="market-card-stat">${itemStatLabel(item)}</div>
         <div class="market-card-price">💎 ${l.price_diamonds}</div>
         ${!isMine && l.seller ? `<div class="market-card-seller">${l.seller.avatar || '🐺'} ${displayName(l.seller)}</div>` : ''}
@@ -15974,7 +15974,9 @@ function _renderListFlowStep1() {
     for (const item of inv) {
       const cell = document.createElement('div');
       cell.className = `market-inv-cell ${rarityClass(item.rarity)}`;
-      cell.innerHTML = `<span>${item.emoji}</span><span style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,0.8);color:#FFD700;font-size:9px;padding:1px 4px;border-radius:3px;">lv.${item.upgrade_level || 0}</span>`;
+      const lvBadge = (item.upgrade_level || 0) > 0 ? `<span style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);color:#ce93d8;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700;">lv${item.upgrade_level}</span>` : '';
+      const plusBadge = (item.plus || 0) > 0 ? `<span style="position:absolute;bottom:1px;right:2px;background:rgba(0,0,0,0.5);color:#FFD700;font-size:12px;padding:1px 3px;border-radius:3px;font-weight:800;text-shadow:0 0 4px rgba(255,215,0,0.6);">+${item.plus}</span>` : '';
+      cell.innerHTML = `<span>${item.emoji}</span>${lvBadge}${plusBadge}`;
       cell.addEventListener('click', () => _selectListItem(item));
       grid.appendChild(cell);
     }
