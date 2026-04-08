@@ -1634,8 +1634,14 @@
     }
     .inv-cell:active { opacity: 0.7; }
     .inv-cell .inv-lvl {
+      position:absolute; top:2px; right:3px;
+      font-size:9px; font-weight:700; color:#ce93d8;
+      text-shadow:0 0 3px rgba(0,0,0,0.9);
+      line-height:1;
+    }
+    .inv-cell .inv-plus {
       position:absolute; bottom:2px; right:3px;
-      font-size:9px; font-weight:700; color:#FFD700;
+      font-size:10px; font-weight:800; color:#FFD700;
       text-shadow:0 0 3px rgba(0,0,0,0.9);
       line-height:1;
     }
@@ -1781,13 +1787,15 @@
     }
     .craft-cell.filled:hover .craft-x,
     .craft-cell.filled:active .craft-x { opacity: 1; }
-    .craft-cell .craft-plus-badge {
-      position: absolute; top: 2px; left: 3px;
-      font-size: 10px; font-weight: 800; color: #FFD700;
-    }
     .craft-cell .craft-lv-badge {
+      position: absolute; top: 2px; right: 3px;
+      font-size: 9px; font-weight: 700; color: #ce93d8;
+      text-shadow: 0 0 3px rgba(0,0,0,0.9);
+    }
+    .craft-cell .craft-plus-badge {
       position: absolute; bottom: 2px; right: 3px;
-      font-size: 9px; color: #ce93d8; font-weight: 600;
+      font-size: 10px; font-weight: 800; color: #FFD700;
+      text-shadow: 0 0 3px rgba(0,0,0,0.9);
     }
     .craft-arrow {
       font-size: 20px; color: rgba(255,215,0,0.5); flex-shrink: 0;
@@ -1824,13 +1832,15 @@
     .craft-inv-cell:active { transform: scale(0.93); }
     .craft-inv-cell.dimmed { opacity: 0.2; pointer-events: none; }
     .craft-inv-cell.used { opacity: 0.15; pointer-events: none; }
-    .craft-inv-cell .ci-plus {
-      position: absolute; top: 2px; left: 4px;
-      font-size: 10px; font-weight: 800; color: #FFD700;
-    }
     .craft-inv-cell .ci-lv {
-      position: absolute; bottom: 2px; right: 4px;
-      font-size: 9px; color: #ce93d8; font-weight: 600;
+      position: absolute; top: 2px; right: 3px;
+      font-size: 9px; font-weight: 700; color: #ce93d8;
+      text-shadow: 0 0 3px rgba(0,0,0,0.9);
+    }
+    .craft-inv-cell .ci-plus {
+      position: absolute; bottom: 2px; right: 3px;
+      font-size: 10px; font-weight: 800; color: #FFD700;
+      text-shadow: 0 0 3px rgba(0,0,0,0.9);
     }
     /* Craft button — fixed at bottom */
     #craft-btn {
@@ -6981,8 +6991,9 @@ function _renderEquipSlots() {
 
 function _renderInventoryGrid() {
   const inv = (state.inventory || []).filter(i => !i.on_market).slice().sort((a, b) => {
-    const rd = (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0);
-    if (rd !== 0) return rd;
+    const ra = (RARITY_ORDER[a.rarity] ?? 0) * 10 + (a.plus || 0);
+    const rb = (RARITY_ORDER[b.rarity] ?? 0) * 10 + (b.plus || 0);
+    if (rb !== ra) return rb - ra;
     return (b.upgrade_level || 0) - (a.upgrade_level || 0);
   });
   const titleEl = document.getElementById('inventory-title');
@@ -6996,7 +7007,10 @@ function _renderInventoryGrid() {
     const cell = document.createElement('div');
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
     const lvl = item.upgrade_level || 0;
-    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${lvl > 0 ? '+' + lvl : t('lv') + '0'}</span>`;
+    const plus = item.plus || 0;
+    const lvlBadge = lvl > 0 ? `<span class="inv-lvl">lv${lvl}</span>` : '';
+    const plusBadge = plus > 0 ? `<span class="inv-plus">+${plus}</span>` : '';
+    cell.innerHTML = `<span>${item.emoji}</span>${lvlBadge}${plusBadge}`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -14361,10 +14375,10 @@ function _craftCellHtml(item, extraClass = '', onclick = '') {
   if (!item) return `<div class="craft-cell ${extraClass}" ${onclick ? `onclick="${onclick}"` : ''}>+</div>`;
   const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
   const bc = rc.startsWith('linear') ? 'rgba(255,215,0,0.5)' : rc;
-  const plus = (item.plus || 0) > 0 ? `<span class="craft-plus-badge">+${item.plus}</span>` : '';
   const lv = (item.upgrade_level || 0) > 0 ? `<span class="craft-lv-badge">lv${item.upgrade_level}</span>` : '';
+  const plus = (item.plus || 0) > 0 ? `<span class="craft-plus-badge">+${item.plus}</span>` : '';
   return `<div class="craft-cell ${extraClass} filled" style="border-color:${bc}" ${onclick ? `onclick="${onclick}"` : ''}>
-    <span>${item.emoji}</span>${plus}${lv}<span class="craft-x">✕</span>
+    <span>${item.emoji}</span>${lv}${plus}<span class="craft-x">✕</span>
   </div>`;
 }
 
@@ -14385,9 +14399,9 @@ function _renderCraftForge() {
     }
     // Arrow → result preview
     html += '<span class="craft-arrow">→</span>';
-    const rLabel = (_craftRecipe.resultPlus > 0 ? '+' + _craftRecipe.resultPlus + ' ' : '') + _craftRecipe.resultRarity.charAt(0).toUpperCase() + _craftRecipe.resultRarity.slice(1);
     const rEmoji = _craftTarget ? (ITEM_EMOJI_MAP[_craftTarget.type] || '?') : '?';
-    html += `<div class="craft-result-cell">${rEmoji}<br><span style="font-size:10px">${rLabel}</span></div>`;
+    const rPlusBadge = _craftRecipe.resultPlus > 0 ? `<span style="position:absolute;bottom:2px;right:3px;font-size:10px;font-weight:800;color:#FFD700;text-shadow:0 0 3px rgba(0,0,0,0.9)">+${_craftRecipe.resultPlus}</span>` : '';
+    html += `<div class="craft-result-cell" style="font-size:28px;position:relative">${rEmoji}${rPlusBadge}</div>`;
   } else if (_craftTarget) {
     html += '<span style="color:#ff6b6b;font-size:12px;margin-left:12px">макс</span>';
   }
@@ -17862,7 +17876,10 @@ function _renderInventoryGridSelectable() {
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}${sel}`;
     cell.style.position = 'relative';
     const slvl = item.upgrade_level || 0;
-    cell.innerHTML = `<span>${item.emoji}</span><span class="inv-lvl">${slvl > 0 ? '+' + slvl : t('lv') + '0'}</span>`;
+    const splus = item.plus || 0;
+    const slvlBadge = slvl > 0 ? `<span class="inv-lvl">lv${slvl}</span>` : '';
+    const splusBadge = splus > 0 ? `<span class="inv-plus">+${splus}</span>` : '';
+    cell.innerHTML = `<span>${item.emoji}</span>${slvlBadge}${splusBadge}`;
 
     if (canSelect) {
       cell.onclick = () => {
