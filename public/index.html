@@ -1640,10 +1640,10 @@
       line-height:1;
     }
     .inv-cell .inv-plus {
-      position:absolute; bottom:2px; right:3px;
-      font-size:10px; font-weight:800; color:#FFD700;
-      text-shadow:0 0 3px rgba(0,0,0,0.9);
-      line-height:1;
+      position:absolute; bottom:1px; right:2px;
+      font-size:12px; font-weight:800; color:#FFD700;
+      text-shadow:0 0 4px rgba(255,215,0,0.6), 0 0 2px rgba(0,0,0,0.9);
+      line-height:1; background:rgba(0,0,0,0.5); padding:1px 3px; border-radius:3px;
     }
     .inv-cell.equipped::after {
       content: '✓';
@@ -1793,9 +1793,10 @@
       text-shadow: 0 0 3px rgba(0,0,0,0.9);
     }
     .craft-cell .craft-plus-badge {
-      position: absolute; bottom: 2px; right: 3px;
-      font-size: 10px; font-weight: 800; color: #FFD700;
-      text-shadow: 0 0 3px rgba(0,0,0,0.9);
+      position: absolute; bottom: 1px; right: 2px;
+      font-size: 13px; font-weight: 800; color: #FFD700;
+      text-shadow: 0 0 6px rgba(255,215,0,0.7), 0 0 2px rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.6); padding: 1px 4px; border-radius: 4px;
     }
     .craft-arrow {
       font-size: 20px; color: rgba(255,215,0,0.5); flex-shrink: 0;
@@ -1838,12 +1839,38 @@
     /* Hide old pick overlay — no longer used */
     #craft-pick-overlay { display: none !important; }
     }
-    @keyframes craftGlow {
-      0%,100% { box-shadow: 0 0 5px currentColor; }
-      50%     { box-shadow: 0 0 20px currentColor; }
-    }
     @keyframes craftShrink {
       to { transform: scale(0); opacity: 0; }
+    }
+    @keyframes craftBurst {
+      0%   { transform: translate(0,0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--bx), var(--by)) scale(0); opacity: 0; }
+    }
+    @keyframes craftItemReveal {
+      0%   { transform: scale(0); opacity: 0; }
+      50%  { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .craft-anim-overlay {
+      position: fixed; inset: 0; z-index: 9000; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .craft-anim-flash {
+      position: absolute; inset: 0; opacity: 0; transition: opacity 0.15s;
+    }
+    .craft-anim-particle {
+      position: absolute; width: 6px; height: 6px; border-radius: 50%;
+      animation: craftBurst 0.35s ease-out forwards;
+    }
+    .craft-anim-result {
+      font-size: 48px; animation: craftItemReveal 0.35s ease-out forwards;
+      position: relative;
+    }
+    .craft-anim-plus {
+      position: absolute; bottom: -4px; right: -8px;
+      font-size: 18px; font-weight: 900; color: #FFD700;
+      text-shadow: 0 0 8px rgba(255,215,0,0.8), 0 0 3px rgba(0,0,0,0.9);
+      animation: craftItemReveal 0.35s ease-out 0.1s both;
     }
 
     /* Joystick */
@@ -6856,7 +6883,7 @@ function showItemReveal(item, source) {
   content.style.cssText = 'position:relative;z-index:1;text-align:center;max-width:300px;width:100%;';
   content.innerHTML = `
     <div style="font-size:72px;filter:drop-shadow(0 0 20px ${color});margin-bottom:12px;">${item.emoji}</div>
-    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">${item.name}</div>
+    <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">${item.name}${(item.plus||0) > 0 ? `<span style="color:#FFD700;text-shadow:0 0 8px rgba(255,215,0,0.6);margin-left:6px;">+${item.plus}</span>` : ''}</div>
     <div style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44;">${rarLabel}</div>
     <div style="margin-top:16px;text-align:left;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
       ${statsHtml}
@@ -14559,18 +14586,60 @@ async function doCraft() {
 async function _playCraftFlash(resultItem) {
   const rc = RARITY_COLORS_CLIENT[resultItem.rarity] || '#888';
   const glowColor = rc.startsWith('linear') ? '#FFD700' : rc;
+  const emoji = resultItem.emoji || ITEM_EMOJI_MAP[resultItem.type] || '?';
+  const plus = resultItem.plus || 0;
 
+  // Overlay container
+  const overlay = document.createElement('div');
+  overlay.className = 'craft-anim-overlay';
+  document.body.appendChild(overlay);
+
+  // Phase 1: Shrink craft cells (200ms)
+  document.querySelectorAll('.craft-cell.filled').forEach(el => {
+    el.style.animation = 'craftShrink 0.2s ease-in forwards';
+  });
+
+  await new Promise(r => setTimeout(r, 150));
+
+  // Phase 2: Flash + burst particles (200ms)
   const flash = document.createElement('div');
-  flash.style.cssText = `position:fixed;inset:0;z-index:99999;background:${glowColor};opacity:0;transition:opacity 0.15s;pointer-events:none;`;
-  document.body.appendChild(flash);
-  await new Promise(r => setTimeout(r, 20));
-  flash.style.opacity = '0.7';
+  flash.className = 'craft-anim-flash';
+  flash.style.background = glowColor;
+  overlay.appendChild(flash);
+  requestAnimationFrame(() => { flash.style.opacity = '0.6'; });
+
   try { Telegram.WebApp.HapticFeedback.impactOccurred('heavy'); } catch(_){}
-  await new Promise(r => setTimeout(r, 200));
-  flash.style.transition = 'opacity 0.5s';
+
+  // Spawn 14 burst particles from center
+  for (let i = 0; i < 14; i++) {
+    const angle = (i / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+    const dist = 60 + Math.random() * 80;
+    const p = document.createElement('div');
+    p.className = 'craft-anim-particle';
+    p.style.cssText = `background:${glowColor};--bx:${Math.cos(angle)*dist}px;--by:${Math.sin(angle)*dist}px;width:${4+Math.random()*5}px;height:${4+Math.random()*5}px;box-shadow:0 0 6px ${glowColor};`;
+    overlay.appendChild(p);
+  }
+
+  await new Promise(r => setTimeout(r, 100));
   flash.style.opacity = '0';
-  await new Promise(r => setTimeout(r, 500));
-  flash.remove();
+
+  // Phase 3: Result reveal (300ms)
+  const result = document.createElement('div');
+  result.className = 'craft-anim-result';
+  result.textContent = emoji;
+  if (plus > 0) {
+    const plusEl = document.createElement('span');
+    plusEl.className = 'craft-anim-plus';
+    plusEl.textContent = `+${plus}`;
+    result.appendChild(plusEl);
+  }
+  overlay.appendChild(result);
+
+  await new Promise(r => setTimeout(r, 400));
+
+  // Cleanup and show reveal screen
+  overlay.remove();
+  document.querySelectorAll('.craft-cell.filled').forEach(el => { el.style.animation = ''; });
   showItemReveal(resultItem, 'craft');
 }
 
