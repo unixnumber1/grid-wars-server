@@ -528,8 +528,9 @@ itemsRouter.post('/', async (req, res) => {
     }
 
     // Recalc bonuses if equipped
+    let bonuses = null;
     if (item.equipped) {
-      const bonuses = await recalcBonuses(p.id, p.level ?? 1);
+      bonuses = await recalcBonuses(p.id, p.level ?? 1);
       await supabase.from('players').update(bonuses).eq('id', p.id);
       if (gameState.loaded) {
         const gp = gameState.getPlayerById(p.id);
@@ -540,6 +541,7 @@ itemsRouter.post('/', async (req, res) => {
     return res.json({
       success: true, upgrade_level: newLevel, max_level: maxLvl,
       stats: upgraded, crystals_left: newCrystals, cost,
+      ...(bonuses ? { bonus_attack: bonuses.bonus_attack, bonus_crit: bonuses.bonus_crit, bonus_hp: bonuses.bonus_hp, max_hp: bonuses.max_hp } : {}),
     });
   }
 

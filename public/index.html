@@ -7022,7 +7022,7 @@ function _renderInventoryGrid() {
     const plus = item.plus || 0;
     const lvlBadge = lvl > 0 ? `<span class="inv-lvl">lv${lvl}</span>` : '';
     const plusBadge = plus > 0 ? `<span class="inv-plus">+${plus}</span>` : '';
-    cell.innerHTML = `<span>${item.emoji}</span>${lvlBadge}${plusBadge}`;
+    cell.innerHTML = `<span style="font-size:28px">${item.emoji}</span>${lvlBadge}${plusBadge}`;
     cell.onclick = () => showItemDetail(item.id);
     grid.appendChild(cell);
   }
@@ -7232,6 +7232,13 @@ async function doUpgradeItem(item) {
     if (data.stats) Object.assign(item, data.stats);
     item.upgrade_level = data.upgrade_level;
     if (state.player) state.player.crystals = data.crystals_left;
+    if (data.bonus_attack != null && state.player) {
+      state.player.bonus_attack = data.bonus_attack;
+      state.player.bonus_hp = data.bonus_hp;
+      state.player.max_hp = data.max_hp;
+      state.player.attack = 10 + (data.bonus_attack ?? 0);
+      state.player.bonus_crit = data.bonus_crit ?? 0;
+    }
     const inv = (state.inventory || []).find(i => i.id === item.id);
     if (inv) Object.assign(inv, item);
     if (window.Telegram?.WebApp?.HapticFeedback) window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
@@ -7240,6 +7247,7 @@ async function doUpgradeItem(item) {
     updateCrystalDisplay();
     _renderEquipSlots();
     _renderInventoryGrid();
+    _refreshProfileStats();
   } catch (err) {
     showToast(`❌ ${err.message}`);
   }
