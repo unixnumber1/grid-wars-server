@@ -10904,6 +10904,7 @@ function initSocket() {
     });
 
     _socket.on('server:restart', () => {
+      if (_isServerAdmin) return; // admin stays online during restarts
       console.warn('[socket] Server restarting — reloading page');
       _socket.disconnect();
       _socket.io.opts.reconnection = false;
