@@ -1757,8 +1757,13 @@
       background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
     }
     .craft-slots {
-      display: grid; grid-template-columns: repeat(5, 1fr);
-      gap: 8px; padding: 16px 20px;
+      padding: 16px 20px;
+    }
+    .craft-target-row {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;
+    }
+    .craft-material-row {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .craft-slot {
       aspect-ratio: 1; border: 2px dashed rgba(255,255,255,0.2);
@@ -6790,11 +6795,13 @@ function itemStatLabel(item) {
   return `+${item.stat_value}`;
 }
 
-function rarityLabel(rarity) {
+function rarityLabel(rarity, plus) {
+  const p = plus || 0;
   const name  = RARITY_NAMES_CLIENT[rarity] || rarity;
   const color = RARITY_COLORS_CLIENT[rarity] || '#888';
-  if (rarity === 'legendary') return `<span class="legendary-text">${name}</span>`;
-  return `<span style="color:${color}">${name}</span>`;
+  const plusTag = p > 0 ? ` +${p}` : '';
+  if (rarity === 'legendary') return `<span class="legendary-text">${name}${plusTag}</span>`;
+  return `<span style="color:${color}">${name}${plusTag}</span>`;
 }
 
 function showItemReveal(item, source) {
@@ -7029,6 +7036,36 @@ function openEquipSlot(type) {
 const ITEM_SELL_PRICE = {
   common: 10, uncommon: 25, rare: 50, epic: 100, mythic: 200, legendary: 500,
 };
+
+function getMaxUpgradeLevelClient(rarity, plus = 0) {
+  const key = plus > 0 ? `${rarity}_${plus}` : rarity;
+  return {
+    common: 10, uncommon: 20, rare: 30,
+    epic: 40, epic_1: 50, epic_2: 60,
+    mythic: 70, mythic_1: 80, mythic_2: 90, mythic_3: 100,
+    legendary: 100, legendary_1: 100, legendary_2: 100, legendary_3: 100,
+  }[key] || 10;
+}
+
+// Craft recipe: determines what's needed for a target item
+function getCraftRecipeClient(rarity, plus = 0) {
+  const p = plus || 0;
+  if (p === 0 && (rarity === 'common' || rarity === 'uncommon' || rarity === 'rare')) {
+    const NEXT = { common: 'uncommon', uncommon: 'rare', rare: 'epic' };
+    return { mode: 'basic', materialCount: 2, materialRarity: rarity, materialPlus: 0, resultRarity: NEXT[rarity], resultPlus: 0 };
+  }
+  if (rarity === 'epic' && p === 0) return { mode: 'fusion', materialCount: 1, materialRarity: 'epic', materialPlus: 0, resultRarity: 'epic', resultPlus: 1 };
+  if (rarity === 'epic' && p === 1) return { mode: 'fusion', materialCount: 1, materialRarity: 'epic', materialPlus: 1, resultRarity: 'epic', resultPlus: 2 };
+  if (rarity === 'epic' && p === 2) return { mode: 'fusion', materialCount: 1, materialRarity: 'epic', materialPlus: 2, resultRarity: 'mythic', resultPlus: 0 };
+  if (rarity === 'mythic' && p === 0) return { mode: 'fusion', materialCount: 1, materialRarity: 'mythic', materialPlus: 0, resultRarity: 'mythic', resultPlus: 1 };
+  if (rarity === 'mythic' && p === 1) return { mode: 'fusion', materialCount: 1, materialRarity: 'mythic', materialPlus: 1, resultRarity: 'mythic', resultPlus: 2 };
+  if (rarity === 'mythic' && p === 2) return { mode: 'fusion', materialCount: 1, materialRarity: 'mythic', materialPlus: 2, resultRarity: 'mythic', resultPlus: 3 };
+  if (rarity === 'mythic' && p === 3) return { mode: 'legendary', materialCount: 2, materialRarity: 'mythic', materialPlus: 0, resultRarity: 'legendary', resultPlus: 0 };
+  if (rarity === 'legendary' && p === 0) return { mode: 'fusion', materialCount: 1, materialRarity: 'legendary', materialPlus: 0, resultRarity: 'legendary', resultPlus: 1 };
+  if (rarity === 'legendary' && p === 1) return { mode: 'fusion', materialCount: 1, materialRarity: 'legendary', materialPlus: 1, resultRarity: 'legendary', resultPlus: 2 };
+  if (rarity === 'legendary' && p === 2) return { mode: 'fusion', materialCount: 1, materialRarity: 'legendary', materialPlus: 2, resultRarity: 'legendary', resultPlus: 3 };
+  return null;
+}
 
 function getItemUpgradeCost(upgradeLevel) {
   if (upgradeLevel <= 10) return 200;
@@ -14274,151 +14311,154 @@ document.querySelectorAll('.shop-info-btn').forEach(btn => {
 });
 
 // ─────────────────────────────────────────────
-//  Craft system
+//  Craft system (new: target + materials)
 // ─────────────────────────────────────────────
-const NEXT_RARITY = { common:'uncommon', uncommon:'rare', rare:'epic', epic:'mythic', mythic:'legendary' };
 const ITEM_EMOJI_MAP = { sword:'🗡️', axe:'🪓', shield:'🛡️' };
-let _craftSelected = []; // array of item objects
+let _craftTarget = null;     // target item object
+let _craftMaterials = [];    // material item objects
+let _craftRecipe = null;     // current recipe
 
 function openCraftScreen() {
-  _craftSelected = [];
-  _renderCraftSlots();
-  _updateCraftInfo();
+  _craftTarget = null;
+  _craftMaterials = [];
+  _craftRecipe = null;
+  _renderCraftUI();
   document.getElementById('craft-overlay').classList.add('open');
 }
 
 function closeCraftScreen() {
   document.getElementById('craft-overlay').classList.remove('open');
-  _craftSelected = [];
+  _craftTarget = null;
+  _craftMaterials = [];
+  _craftRecipe = null;
 }
 
-function _renderCraftSlots() {
+function _renderCraftUI() {
   const container = document.getElementById('craft-slots');
-  container.innerHTML = '';
-  for (let i = 0; i < 10; i++) {
-    const slot = document.createElement('div');
-    const item = _craftSelected[i];
-    if (item) {
-      slot.className = `craft-slot filled ${rarityClass(item.rarity)}`;
-      slot.innerHTML = `<span>${item.emoji}</span><span class="craft-slot-remove">✕</span>`;
-      slot.onclick = () => { _craftSelected.splice(i, 1); _renderCraftSlots(); _updateCraftInfo(); };
-    } else {
-      slot.className = 'craft-slot';
-      slot.textContent = '+';
-      slot.onclick = () => openCraftPick();
-    }
-    container.appendChild(slot);
-  }
-}
-
-function _updateCraftInfo() {
   const infoEl = document.getElementById('craft-info');
   const previewEl = document.getElementById('craft-result-preview');
   const btn = document.getElementById('craft-btn');
 
-  if (_craftSelected.length === 0) {
-    infoEl.innerHTML = '<div class="craft-count">Выбрано: 0/10</div>';
-    previewEl.innerHTML = '';
-    btn.disabled = true;
-    return;
+  let html = '';
+
+  // ── Target slot (top center) ──
+  html += '<div class="craft-target-row">';
+  if (_craftTarget) {
+    const rc = RARITY_COLORS_CLIENT[_craftTarget.rarity] || '#888';
+    const borderColor = rc.startsWith('linear') ? 'rgba(255,215,0,0.5)' : rc;
+    const plusTag = (_craftTarget.plus || 0) > 0 ? `<span style="color:#FFD700;font-size:11px;font-weight:700">+${_craftTarget.plus}</span>` : '';
+    const lvlTag = (_craftTarget.upgrade_level || 0) > 0 ? `<span style="color:#ce93d8;font-size:10px">lv${_craftTarget.upgrade_level}</span>` : '';
+    html += `<div class="craft-slot filled" style="border-color:${borderColor};width:72px;height:72px;font-size:32px" onclick="_clearCraftTarget()">
+      <span>${_craftTarget.emoji}</span>${plusTag}${lvlTag}
+      <span class="craft-slot-remove">✕</span>
+    </div>`;
+  } else {
+    html += `<div class="craft-slot" style="width:72px;height:72px;font-size:28px" onclick="_openCraftTargetPick()">+</div>`;
   }
 
-  const rarities = new Set(_craftSelected.map(i => i.rarity));
-  if (rarities.size > 1) {
-    infoEl.innerHTML = '<div class="craft-warning">⚠️ Все предметы должны быть одной редкости</div>';
-    previewEl.innerHTML = '';
-    btn.disabled = true;
-    return;
-  }
-
-  const rarity = _craftSelected[0].rarity;
-  const rarName = RARITY_NAMES_CLIENT[rarity] || rarity;
-  infoEl.innerHTML = `<div class="craft-count">Выбрано: ${_craftSelected.length}/10 &nbsp; [${rarName}]</div>`;
-
-  if (_craftSelected.length < 10) {
-    previewEl.innerHTML = '';
-    btn.disabled = true;
-    return;
-  }
-
-  // All 10 same rarity — show preview
-  const nextRar = NEXT_RARITY[rarity];
-  const typeCounts = {};
-  for (const it of _craftSelected) typeCounts[it.type] = (typeCounts[it.type] || 0) + 1;
-
-  const rarColor = RARITY_COLORS_CLIENT[rarity] || '#888';
-  const barColor = rarColor.startsWith('linear') ? '#FFD700' : rarColor;
-
-  let chancesHtml = '';
-  for (const [type, count] of Object.entries(typeCounts)) {
-    const pct = count * 10;
-    const emoji = ITEM_EMOJI_MAP[type] || '';
-    const name = t('item.' + type);
-    chancesHtml += `
-      <div class="craft-chance-row">
-        <span class="craft-chance-label">${emoji} ${name}</span>
-        <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;">
-          <div class="craft-chance-bar" style="width:${pct}%;background:${barColor};"></div>
-        </div>
-        <span class="craft-chance-pct">${pct}%</span>
-      </div>
-    `;
-  }
-
-  // Calculate crystal refund for upgraded items
+  // ── Crystal refund (right of target) ──
   let totalRefund = 0;
-  for (const it of _craftSelected) {
-    const lvl = it.upgrade_level || 0;
+  if (_craftTarget) {
+    const lvl = _craftTarget.upgrade_level || 0;
     if (lvl > 0) for (let i = 1; i <= lvl; i++) totalRefund += getItemUpgradeCost(i);
   }
-  const refundHtml = totalRefund > 0
-    ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(156,39,176,0.12);border:1px solid rgba(156,39,176,0.3);border-radius:8px;font-size:13px;color:#ce93d8;">✨ ${t('craft.refund') || 'Возврат кристаллов'}: <b>+${formatNumber(totalRefund)}</b></div>`
-    : '';
+  for (const mat of _craftMaterials) {
+    const lvl = mat.upgrade_level || 0;
+    if (lvl > 0) for (let i = 1; i <= lvl; i++) totalRefund += getItemUpgradeCost(i);
+  }
+  if (totalRefund > 0) {
+    html += `<div style="margin-left:12px;padding:6px 10px;background:rgba(156,39,176,0.12);border:1px solid rgba(156,39,176,0.3);border-radius:8px;font-size:12px;color:#ce93d8;">✨ +${formatNumber(totalRefund)}</div>`;
+  }
+  html += '</div>';
 
-  previewEl.innerHTML = `
-    <div style="font-size:14px;color:#ccc;margin-bottom:4px;">${t('craft.result')}</div>
-    <div style="font-size:15px;font-weight:700;">✨ ${rarityLabel(nextRar)}</div>
-    <div style="font-size:12px;color:#888;margin:4px 0 8px;">${t('craft.type_chance')}</div>
-    <div class="craft-chances">${chancesHtml}</div>
-    ${refundHtml}
-  `;
-  btn.disabled = false;
+  // ── Material slots (below, dynamic count) ──
+  if (_craftRecipe) {
+    const totalSlots = _craftRecipe.materialCount;
+    html += `<div style="text-align:center;color:#888;font-size:12px;margin:8px 0 4px">▼ ${_lang === 'ru' ? 'Материалы' : 'Materials'} (${_craftMaterials.length}/${totalSlots})</div>`;
+    html += '<div class="craft-material-row">';
+    for (let i = 0; i < totalSlots; i++) {
+      const mat = _craftMaterials[i];
+      if (mat) {
+        const rc = RARITY_COLORS_CLIENT[mat.rarity] || '#888';
+        const borderColor = rc.startsWith('linear') ? 'rgba(255,215,0,0.5)' : rc;
+        const plusTag = (mat.plus || 0) > 0 ? `<span style="color:#FFD700;font-size:10px;font-weight:700">+${mat.plus}</span>` : '';
+        html += `<div class="craft-slot filled" style="border-color:${borderColor}" onclick="_removeCraftMaterial(${i})">
+          <span>${mat.emoji}</span>${plusTag}
+          <span class="craft-slot-remove">✕</span>
+        </div>`;
+      } else {
+        html += `<div class="craft-slot" onclick="_openCraftMaterialPick()">+</div>`;
+      }
+    }
+    html += '</div>';
+  } else if (_craftTarget) {
+    html += `<div style="text-align:center;color:#ff6b6b;font-size:13px;margin:12px 0">Этот предмет нельзя улучшить</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // ── Result preview ──
+  if (_craftRecipe) {
+    const resultLabel = rarityLabel(_craftRecipe.resultRarity, _craftRecipe.resultPlus);
+    const typeEmoji = _craftTarget ? (ITEM_EMOJI_MAP[_craftTarget.type] || '') : '';
+    const typeName = _craftTarget ? (t('item.' + _craftTarget.type) || _craftTarget.type) : '';
+    previewEl.innerHTML = `
+      <div style="text-align:center;margin-top:8px">
+        <div style="font-size:12px;color:#888">${_lang === 'ru' ? 'Результат' : 'Result'}</div>
+        <div style="font-size:16px;font-weight:700;margin:4px 0">${typeEmoji} ${resultLabel}</div>
+      </div>`;
+  } else {
+    previewEl.innerHTML = '';
+  }
+
+  // ── Button state ──
+  const ready = _craftRecipe && _craftMaterials.length === _craftRecipe.materialCount;
+  btn.disabled = !ready;
+  infoEl.innerHTML = '';
 }
 
-function openCraftPick() {
-  const selectedIds = new Set(_craftSelected.map(i => i.id));
-  const lockedRarity = _craftSelected.length > 0 ? _craftSelected[0].rarity : null;
+function _clearCraftTarget() {
+  _craftTarget = null;
+  _craftMaterials = [];
+  _craftRecipe = null;
+  _renderCraftUI();
+}
 
-  const inv = (state.inventory || []).filter(i => !i.on_market && !i.equipped).slice().sort((a, b) =>
-    (RARITY_ORDER[b.rarity] ?? 0) - (RARITY_ORDER[a.rarity] ?? 0)
-  );
+function _removeCraftMaterial(index) {
+  _craftMaterials.splice(index, 1);
+  _renderCraftUI();
+}
+
+function _openCraftTargetPick() {
+  const inv = (state.inventory || []).filter(i => !i.on_market && !i.equipped).slice().sort((a, b) => {
+    const ra = (RARITY_ORDER[a.rarity] ?? 0) * 10 + (a.plus || 0);
+    const rb = (RARITY_ORDER[b.rarity] ?? 0) * 10 + (b.plus || 0);
+    return rb - ra;
+  });
 
   const grid = document.getElementById('craft-pick-grid');
   grid.innerHTML = '';
 
   for (const item of inv) {
-    if (selectedIds.has(item.id)) continue;
-
+    const recipe = getCraftRecipeClient(item.rarity, item.plus || 0);
     const cell = document.createElement('div');
     cell.className = `craft-pick-cell ${rarityClass(item.rarity)}`;
+    cell.style.position = 'relative';
 
-    const lvlTag = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl" style="position:absolute;bottom:2px;right:2px;font-size:10px;color:#FFD700;">+${item.upgrade_level}</span>` : '';
-    if (item.rarity === 'legendary') {
-      cell.classList.add('locked');
-      cell.style.position = 'relative';
-      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
-    } else if (lockedRarity && item.rarity !== lockedRarity) {
+    const plusTag = (item.plus || 0) > 0 ? `<span style="position:absolute;top:2px;left:4px;font-size:10px;color:#FFD700;font-weight:700">+${item.plus}</span>` : '';
+    const lvlTag = (item.upgrade_level || 0) > 0 ? `<span style="position:absolute;bottom:2px;right:2px;font-size:10px;color:#ce93d8;">lv${item.upgrade_level}</span>` : '';
+
+    if (!recipe) {
       cell.classList.add('disabled');
-      cell.style.position = 'relative';
-      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
+      cell.innerHTML = `<span>${item.emoji}</span>${plusTag}${lvlTag}`;
     } else {
-      cell.style.position = 'relative';
-      cell.innerHTML = `<span>${item.emoji}</span>${lvlTag}`;
+      cell.innerHTML = `<span>${item.emoji}</span>${plusTag}${lvlTag}`;
       cell.onclick = () => {
-        _craftSelected.push(item);
+        _craftTarget = item;
+        _craftMaterials = [];
+        _craftRecipe = recipe;
         closeCraftPick();
-        _renderCraftSlots();
-        _updateCraftInfo();
+        _renderCraftUI();
       };
     }
     grid.appendChild(cell);
@@ -14427,7 +14467,57 @@ function openCraftPick() {
   if (grid.children.length === 0) {
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">${t('craft.no_items')}</div>`;
   }
+  document.getElementById('craft-pick-header').querySelector('h3').textContent = _lang === 'ru' ? 'Целевой предмет' : 'Target item';
+  document.getElementById('craft-pick-overlay').classList.add('open');
+}
 
+function _openCraftMaterialPick() {
+  if (!_craftTarget || !_craftRecipe) return;
+  const usedIds = new Set([_craftTarget.id, ..._craftMaterials.map(m => m.id)]);
+
+  const inv = (state.inventory || []).filter(i => !i.on_market && !i.equipped).slice().sort((a, b) => {
+    const ra = (RARITY_ORDER[a.rarity] ?? 0) * 10 + (a.plus || 0);
+    const rb = (RARITY_ORDER[b.rarity] ?? 0) * 10 + (b.plus || 0);
+    return rb - ra;
+  });
+
+  const grid = document.getElementById('craft-pick-grid');
+  grid.innerHTML = '';
+
+  for (const item of inv) {
+    if (usedIds.has(item.id)) continue;
+
+    const cell = document.createElement('div');
+    cell.className = `craft-pick-cell ${rarityClass(item.rarity)}`;
+    cell.style.position = 'relative';
+
+    const plusTag = (item.plus || 0) > 0 ? `<span style="position:absolute;top:2px;left:4px;font-size:10px;color:#FFD700;font-weight:700">+${item.plus}</span>` : '';
+    const lvlTag = (item.upgrade_level || 0) > 0 ? `<span style="position:absolute;bottom:2px;right:2px;font-size:10px;color:#ce93d8;">lv${item.upgrade_level}</span>` : '';
+
+    // Check if item matches material requirements
+    const matches = item.type === _craftTarget.type &&
+      item.rarity === _craftRecipe.materialRarity &&
+      (item.plus || 0) === _craftRecipe.materialPlus;
+
+    if (!matches) {
+      cell.classList.add('disabled');
+      cell.innerHTML = `<span>${item.emoji}</span>${plusTag}${lvlTag}`;
+    } else {
+      cell.innerHTML = `<span>${item.emoji}</span>${plusTag}${lvlTag}`;
+      cell.onclick = () => {
+        _craftMaterials.push(item);
+        closeCraftPick();
+        _renderCraftUI();
+      };
+    }
+    grid.appendChild(cell);
+  }
+
+  if (grid.children.length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:#666;padding:40px;">${_lang === 'ru' ? 'Нет подходящих предметов' : 'No matching items'}</div>`;
+  }
+  const reqLabel = _craftRecipe.materialRarity + (_craftRecipe.materialPlus > 0 ? `+${_craftRecipe.materialPlus}` : '') + ' ' + _craftTarget.type;
+  document.getElementById('craft-pick-header').querySelector('h3').textContent = (_lang === 'ru' ? 'Материал: ' : 'Material: ') + reqLabel;
   document.getElementById('craft-pick-overlay').classList.add('open');
 }
 
@@ -14436,44 +14526,47 @@ function closeCraftPick() {
 }
 
 async function doCraft() {
-  if (_craftSelected.length !== 10) return;
+  if (!_craftTarget || !_craftRecipe || _craftMaterials.length !== _craftRecipe.materialCount) return;
   const btn = document.getElementById('craft-btn');
   btn.disabled = true;
-  btn.textContent = t('craft.crafting');
+  btn.textContent = _lang === 'ru' ? '⏳ Крафт...' : '⏳ Crafting...';
 
   try {
-    const sourceItems = _craftSelected.slice();
-    const itemIds = sourceItems.map(i => i.id);
+    const sourceItems = [_craftTarget, ..._craftMaterials];
     const data = await apiFetch('/api/items', {
       method: 'POST',
-      body: JSON.stringify({ action: 'craft', item_ids: itemIds }),
+      body: JSON.stringify({
+        action: 'craft',
+        target_id: _craftTarget.id,
+        material_ids: _craftMaterials.map(m => m.id),
+      }),
     });
 
     // Remove consumed items from state
-    const consumedSet = new Set(itemIds);
+    const consumedSet = new Set(sourceItems.map(i => i.id));
     state.inventory = (state.inventory || []).filter(i => !consumedSet.has(i.id));
     state.inventory.unshift(data.item);
 
-    // Refund crystals for upgraded items
     if (data.crystals_refunded > 0 && state.player) {
       state.player.crystals = (state.player.crystals || 0) + data.crystals_refunded;
     }
 
-    // Run full animation
     await _playCraftAnimation(data.item, sourceItems);
 
-    _craftSelected = [];
-    _renderCraftSlots();
-    _updateCraftInfo();
+    _craftTarget = null;
+    _craftMaterials = [];
+    _craftRecipe = null;
+    _renderCraftUI();
     _renderEquipSlots();
     _renderInventoryGrid();
     const refundMsg = data.crystals_refunded > 0 ? ` (+${formatNumber(data.crystals_refunded)} ✨)` : '';
-    showToast(t('toast.item_crafted', {name: data.item.name}) + refundMsg);
+    const plusTag = (data.item.plus || 0) > 0 ? `+${data.item.plus} ` : '';
+    showToast(`⚒️ ${data.item.name} ${plusTag}` + refundMsg);
   } catch (err) {
     showToast(`❌ ${err.message}`);
   } finally {
-    btn.textContent = t('craft.btn');
-    btn.disabled = _craftSelected.length !== 10;
+    btn.textContent = '⚒️ ' + (_lang === 'ru' ? 'Скрафтить' : 'Craft');
+    btn.disabled = true;
   }
 }
 
@@ -21733,7 +21826,7 @@ async function spawnZombieScout() {
 <div id="craft-overlay">
   <div id="craft-header" style="position:relative;">
     <h2 data-i18n="craft.title">⚒️ КРАФТ</h2>
-    <p data-i18n="craft.desc">Объедини 10 предметов одной редкости</p>
+    <p style="font-size:12px;color:#aaa;margin:4px 0 0">Выбери предмет для улучшения</p>
     <button id="craft-close" onclick="closeCraftScreen()">✕</button>
   </div>
   <div class="craft-slots" id="craft-slots"></div>
