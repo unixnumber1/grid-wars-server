@@ -1866,10 +1866,7 @@
     .craft-anim-result {
       font-size: 56px; animation: craftItemReveal 0.35s ease-out forwards;
       position: relative;
-      background: rgba(0,0,0,0.7); border-radius: 50%; width: 96px; height: 96px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 30px rgba(255,215,0,0.4), 0 0 60px rgba(255,215,0,0.15);
-      border: 2px solid rgba(255,215,0,0.3);
+      filter: drop-shadow(0 0 20px rgba(255,215,0,0.6));
     }
     .craft-anim-plus {
       position: absolute; bottom: -4px; right: -8px;
@@ -14628,7 +14625,7 @@ async function _playCraftFlash(resultItem) {
   await new Promise(r => setTimeout(r, 100));
   flash.style.opacity = '0';
 
-  // Phase 3: Result reveal (300ms)
+  // Phase 3: Result reveal + sparks (300ms)
   const result = document.createElement('div');
   result.className = 'craft-anim-result';
   result.textContent = emoji;
@@ -14640,7 +14637,19 @@ async function _playCraftFlash(resultItem) {
   }
   overlay.appendChild(result);
 
-  await new Promise(r => setTimeout(r, 400));
+  // Sparks radiating from the item
+  for (let i = 0; i < 18; i++) {
+    const angle = (i / 18) * Math.PI * 2;
+    const dist = 40 + Math.random() * 100;
+    const sp = document.createElement('div');
+    sp.className = 'craft-anim-particle';
+    const w = 2 + Math.random() * 4;
+    const h = 6 + Math.random() * 10;
+    sp.style.cssText = `background:#FFD700;width:${w}px;height:${h}px;border-radius:${w}px;--bx:${Math.cos(angle)*dist}px;--by:${Math.sin(angle)*dist}px;box-shadow:0 0 8px #FFD700;animation-duration:0.5s;animation-delay:${Math.random()*0.1}s;`;
+    overlay.appendChild(sp);
+  }
+
+  await new Promise(r => setTimeout(r, 450));
 
   // Cleanup and show reveal screen
   overlay.remove();
