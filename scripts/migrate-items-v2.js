@@ -19,24 +19,24 @@ const SWORD_STATS = {
   uncommon:  { attack: [35, 55],   crit_chance: [4, 7]  },
   rare:      { attack: [75, 115],  crit_chance: [6, 10] },
   epic:      { attack: [145, 210], crit_chance: [9, 12] },
-  mythic:    { attack: [350, 450], crit_chance: [13, 16] },
-  legendary: { attack: [750, 880], crit_chance: [17, 20] },
+  mythic:    { attack: [380, 420], crit_chance: [13, 16] },
+  legendary: { attack: [775, 855], crit_chance: [17, 20] },
 };
 const AXE_STATS = {
   common:    { attack: [17, 34]   },
   uncommon:  { attack: [49, 77]   },
   rare:      { attack: [105, 161] },
   epic:      { attack: [203, 294] },
-  mythic:    { attack: [490, 630] },
-  legendary: { attack: [1050, 1232] },
+  mythic:    { attack: [530, 590] },
+  legendary: { attack: [1085, 1200] },
 };
 const SHIELD_STATS = {
   common:    { defense: [90, 150]    },
   uncommon:  { defense: [240, 370]   },
   rare:      { defense: [510, 790]   },
   epic:      { defense: [1050, 1550] },
-  mythic:    { defense: [3500, 5300], block_chance: [12, 20] },
-  legendary: { defense: [5400, 8100], block_chance: [22, 30] },
+  mythic:    { defense: [3750, 4150], block_chance: [12, 20] },
+  legendary: { defense: [5850, 6450], block_chance: [22, 30] },
 };
 
 function randomInRange(min, max) {
