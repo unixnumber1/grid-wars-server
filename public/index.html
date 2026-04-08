@@ -1819,29 +1819,12 @@
     }
     .craft-inv-grid {
       display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 6px; padding: 4px 16px 80px; overflow-y: auto; flex: 1;
+      gap: 8px; padding: 4px 16px 80px; overflow-y: auto; flex: 1;
       align-content: start; -webkit-overflow-scrolling: touch;
     }
-    .craft-inv-cell {
-      height: 68px; background: rgba(255,255,255,0.04);
-      border-radius: 10px; border: 2px solid rgba(255,255,255,0.08);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: opacity 0.2s, transform 0.15s;
-      font-size: 26px; line-height: 1; position: relative; overflow: hidden;
-    }
-    .craft-inv-cell:active { transform: scale(0.93); }
-    .craft-inv-cell.dimmed { opacity: 0.2; pointer-events: none; }
-    .craft-inv-cell.used { opacity: 0.15; pointer-events: none; }
-    .craft-inv-cell .ci-lv {
-      position: absolute; top: 2px; right: 3px;
-      font-size: 9px; font-weight: 700; color: #ce93d8;
-      text-shadow: 0 0 3px rgba(0,0,0,0.9);
-    }
-    .craft-inv-cell .ci-plus {
-      position: absolute; bottom: 2px; right: 3px;
-      font-size: 10px; font-weight: 800; color: #FFD700;
-      text-shadow: 0 0 3px rgba(0,0,0,0.9);
-    }
+    /* Craft inventory uses .inv-cell class from main inventory */
+    .craft-inv-grid .inv-cell.dimmed { opacity: 0.2; pointer-events: none; }
+    .craft-inv-grid .inv-cell.used { opacity: 0.15; pointer-events: none; }
     /* Craft button — fixed at bottom */
     #craft-btn {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 8501;
@@ -14454,12 +14437,11 @@ function _renderCraftInventory() {
     const cell = document.createElement('div');
     const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
     const bc = rc.startsWith('linear') ? 'rgba(255,215,0,0.3)' : (rc + '40');
-    cell.className = 'craft-inv-cell';
-    cell.style.borderColor = bc;
+    cell.className = `inv-cell ${rarityClass(item.rarity)}`;
 
-    const plus = (item.plus || 0) > 0 ? `<span class="ci-plus">+${item.plus}</span>` : '';
-    const lv = (item.upgrade_level || 0) > 0 ? `<span class="ci-lv">lv${item.upgrade_level}</span>` : '';
-    cell.innerHTML = `<span>${item.emoji}</span>${plus}${lv}`;
+    const lv = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl">lv${item.upgrade_level}</span>` : '';
+    const plus = (item.plus || 0) > 0 ? `<span class="inv-plus">+${item.plus}</span>` : '';
+    cell.innerHTML = `<span>${item.emoji}</span>${lv}${plus}`;
 
     if (usedIds.has(item.id)) {
       cell.classList.add('used');
