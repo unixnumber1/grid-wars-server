@@ -809,6 +809,10 @@ itemsRouter.post('/', async (req, res) => {
     const allIds = [target_id, ...material_ids];
     const lang = getLang(gameState, telegram_id);
 
+    // Prevent using same item as target and material
+    const uniqueIds = new Set(allIds);
+    if (uniqueIds.size !== allIds.length) return res.status(400).json({ error: 'Duplicate items' });
+
     if (!gameState.loaded) return res.status(503).json({ error: 'Game not ready' });
 
     // Fetch all items from gameState
