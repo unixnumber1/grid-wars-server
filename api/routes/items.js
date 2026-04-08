@@ -851,8 +851,18 @@ itemsRouter.post('/', async (req, res) => {
       if (target.rarity !== recipe.materialRarity) return res.status(400).json({ error: 'Все предметы должны быть одной редкости' });
     }
 
-    // Generate new item
+    // Generate new item — guarantee stats >= target for fusion crafts
     const newItemData = generateItem(target.type, recipe.resultRarity, recipe.resultPlus);
+    if (recipe.mode === 'fusion') {
+      if (newItemData.attack && target.attack) newItemData.attack = Math.max(newItemData.attack, target.attack);
+      if (newItemData.defense && target.defense) newItemData.defense = Math.max(newItemData.defense, target.defense);
+      if (newItemData.crit_chance && target.crit_chance) newItemData.crit_chance = Math.max(newItemData.crit_chance, target.crit_chance);
+      if (newItemData.block_chance && target.block_chance) newItemData.block_chance = Math.max(newItemData.block_chance, target.block_chance);
+      newItemData.base_attack = newItemData.attack || 0;
+      newItemData.base_defense = newItemData.defense || 0;
+      newItemData.base_crit_chance = newItemData.crit_chance || 0;
+      newItemData.stat_value = newItemData.attack || newItemData.defense || 0;
+    }
 
     // Insert new item FIRST (safe order — if fails, nothing is lost)
     const insertData = {

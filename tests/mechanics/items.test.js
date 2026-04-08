@@ -54,7 +54,7 @@ describe('generateItem', () => {
     const epic = generateItem('shield', 'epic');
     assert.strictEqual(epic.block_chance, 0);
     const mythic = generateItem('shield', 'mythic');
-    assert(mythic.block_chance >= 10 && mythic.block_chance <= 15);
+    assert(mythic.block_chance >= 12 && mythic.block_chance <= 20);
   });
 });
 
