@@ -257,6 +257,7 @@ const ITEM_TYPES_ARR = ['sword', 'axe', 'shield'];
 export function rollRandomType() { return ITEM_TYPES_ARR[Math.floor(Math.random() * ITEM_TYPES_ARR.length)]; }
 
 export const BOX_ODDS = {
+  common: { common: 40, uncommon: 35, rare: 20, epic: 5 },
   rare: { rare: 75, epic: 20, mythic: 5 },
   epic: { rare: 30, epic: 50, mythic: 20 },
   mythic: { epic: 30, mythic: 65, legendary: 5 },
