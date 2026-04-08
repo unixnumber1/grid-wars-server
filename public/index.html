@@ -9187,7 +9187,7 @@ function switchMainTab(mainTab) {
       <button class="profile-inv-tab active" id="inv-tab-equip" onclick="switchInvTab('equip')">${t('profile.tab.equip')}</button>
       <button class="profile-inv-tab" id="inv-tab-cores" onclick="switchInvTab('cores')">${t('profile.tab.cores')}</button>
       <button class="profile-inv-tab" id="inv-tab-other" onclick="switchInvTab('other')">${t('inv.sub_other') || 'Другое'}</button>`;
-    if (slotBar) slotBar.style.display = '';
+    if (slotBar) slotBar.style.display = 'flex';
     switchInvTab('equip');
   } else {
     subRow.innerHTML = `
