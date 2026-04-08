@@ -11,7 +11,7 @@ import { getPlayerSkillEffects } from '../../config/skills.js';
 import {
   getZombieXp, getZombieBossXp,
   getZombieLoot, getZombieBossLoot,
-  ADMIN_TG_ID, WEAPON_COOLDOWNS,
+  isAdmin, WEAPON_COOLDOWNS,
 } from '../../config/constants.js';
 import { spawnScout, onScoutKilled, checkWaveComplete } from '../../game/mechanics/zombies.js';
 
@@ -38,7 +38,7 @@ async function handleSpawnScout(req, res) {
 
   const player = gameState.getPlayerByTgId(Number(telegram_id));
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  if (Number(telegram_id) !== ADMIN_TG_ID) return res.status(403).json({ error: 'Admin only' });
+  if (!isAdmin(telegram_id)) return res.status(403).json({ error: 'Admin only' });
 
   const lat = player.last_lat;
   const lng = player.last_lng;
