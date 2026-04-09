@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════
-//  Contest tickets — clan-locked event-based contest
-//  Active clan is selected at runtime via app_settings.
+//  Contest tickets — multi-clan event-based contest
+//  Active clans selected at runtime via app_settings.
+//  Setting value is JSON array of clan UUIDs (legacy:
+//  bare UUID string treated as single-element array).
 // ═══════════════════════════════════════════════════════
 
 import { CONTEST_RULES, CONTEST_SETTING_KEY, getContestIdForClan } from '../../config/constants.js';
@@ -8,40 +10,63 @@ import { gameState } from '../state/GameState.js';
 import { supabase } from '../../lib/supabase.js';
 
 /**
- * Returns the currently active contest clan id (UUID string) or null if disabled.
+ * Returns the currently active contest clan ids as a Set<string>.
+ * Empty set means no active contests.
  */
-export function getActiveContestClanId() {
-  const v = gameState.appSettings.get(CONTEST_SETTING_KEY);
-  return v ? String(v) : null;
+export function getActiveContestClanIds() {
+  const raw = gameState.appSettings.get(CONTEST_SETTING_KEY);
+  if (!raw) return new Set();
+  // Try JSON array first
+  if (raw.startsWith('[')) {
+    try {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.filter(Boolean).map(String));
+    } catch { /* fall through */ }
+  }
+  // Legacy: bare UUID
+  return new Set([String(raw)]);
 }
 
 /**
- * Returns the active contest_id derived from the clan, or null if disabled.
+ * Persist the active contest clan id set into app_settings + gameState.
+ * @param {Set<string>|string[]} ids
  */
-export function getActiveContestId() {
-  return getContestIdForClan(getActiveContestClanId());
+export async function setActiveContestClanIds(ids) {
+  const arr = [...new Set([...(ids || [])].map(String).filter(Boolean))];
+  const value = JSON.stringify(arr);
+  await supabase
+    .from('app_settings')
+    .upsert({ key: CONTEST_SETTING_KEY, value }, { onConflict: 'key' });
+  gameState.appSettings.set(CONTEST_SETTING_KEY, value);
+  return arr;
 }
 
 /**
- * Check if a player (by telegram_id) is currently a member of the eligible clan.
+ * Returns the player's active contest clan_id if they are an eligible member,
+ * otherwise null. The returned id is the contest clan they belong to (used to
+ * pick the right contest_id pool).
  */
-export function isInEligibleClan(telegramId) {
-  const activeClanId = getActiveContestClanId();
-  if (!activeClanId) return false;
+export function getEligibleClanIdForPlayer(telegramId) {
+  const active = getActiveContestClanIds();
+  if (active.size === 0) return null;
   const tgId = Number(telegramId);
-  if (!tgId) return false;
+  if (!tgId) return null;
   const player = gameState.playersByTgId.get(tgId);
-  if (!player || !player.clan_id) return false;
-  if (String(player.clan_id) !== activeClanId) return false;
+  if (!player || !player.clan_id) return null;
+  const playerClanId = String(player.clan_id);
+  if (!active.has(playerClanId)) return null;
   // Confirm active membership row
   for (const m of gameState.clanMembers.values()) {
-    if (String(m.clan_id) === activeClanId && m.player_id === player.id && !m.left_at) return true;
+    if (String(m.clan_id) === playerClanId && m.player_id === player.id && !m.left_at) {
+      return playerClanId;
+    }
   }
-  return false;
+  return null;
 }
 
 /**
  * Award contest tickets to a player. Fire-and-forget.
+ * Writes to the contest_id derived from the player's own clan.
  *
  * @param {number} telegramId - player telegram_id
  * @param {string} reason - 'mine_destroy' | 'ore_capture' | 'monument_kill'
@@ -49,9 +74,10 @@ export function isInEligibleClan(telegramId) {
  * @param {object} meta - extra data for audit
  */
 export async function awardContestTickets(telegramId, reason, amount, meta = {}) {
-  if (!isInEligibleClan(telegramId)) return;
   if (!amount || amount <= 0) return;
-  const contestId = getActiveContestId();
+  const clanId = getEligibleClanIdForPlayer(telegramId);
+  if (!clanId) return;
+  const contestId = getContestIdForClan(clanId);
   if (!contestId) return;
   try {
     await supabase.from('contest_tickets').insert({
@@ -67,26 +93,27 @@ export async function awardContestTickets(telegramId, reason, amount, meta = {})
 }
 
 /**
- * Award tickets for clan-treasury donation. Cumulative: every N gems = 1 ticket
- * (N = CONTEST_RULES.clanDonatePerTicket). Tracks total donated per player so
- * leftover gems carry over to the next donation.
+ * Award tickets for clan-treasury donation. Cumulative: every N gems = 1 ticket.
+ * Only awards when the donation goes into a clan that is itself an active
+ * contest clan AND the donor is a member there.
  *
  * @param {number} telegramId
  * @param {number} donateAmount - gems donated in this donation
  * @param {string} clanId - the clan being donated to
  */
 export async function awardClanDonationTickets(telegramId, donateAmount, clanId) {
-  if (!isInEligibleClan(telegramId)) return;
   if (!donateAmount || donateAmount <= 0) return;
-  const activeClanId = getActiveContestClanId();
-  if (String(clanId) !== activeClanId) return;
-  const contestId = getActiveContestId();
+  const eligibleClanId = getEligibleClanIdForPlayer(telegramId);
+  if (!eligibleClanId) return;
+  // Donor must be donating into their own contest clan (this is normally true
+  // by clan-membership invariant, but be defensive).
+  if (String(clanId) !== eligibleClanId) return;
+  const contestId = getContestIdForClan(eligibleClanId);
   if (!contestId) return;
   const perTicket = CONTEST_RULES.clanDonatePerTicket;
   if (!perTicket || perTicket <= 0) return;
 
   try {
-    // Sum prior donation rows for this player+contest
     const { data: prior } = await supabase
       .from('contest_tickets')
       .select('meta')
@@ -104,7 +131,6 @@ export async function awardClanDonationTickets(telegramId, donateAmount, clanId)
     const newTickets = Math.floor(newTotal / perTicket);
     const delta = newTickets - prevTickets;
 
-    // Always insert a row so total_donated is tracked, even when delta=0
     await supabase.from('contest_tickets').insert({
       contest_id: contestId,
       player_id: Number(telegramId),

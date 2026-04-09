@@ -8,7 +8,8 @@ import { gameState } from '../../lib/gameState.js';
 import { logActivity } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
-import { awardClanDonationTickets, getActiveContestClanId, getActiveContestId } from '../../game/mechanics/contest.js';
+import { awardClanDonationTickets, getActiveContestClanIds } from '../../game/mechanics/contest.js';
+import { getContestIdForClan } from '../../config/constants.js';
 
 export const clanRouter = Router();
 
@@ -575,11 +576,11 @@ async function handleInfo(req, res) {
     .order('created_at', { ascending: true });
   if (reqs) pendingRequests = reqs;
 
-  // Contest tickets per member if this clan is the active contest clan
+  // Contest tickets per member if this clan is one of the active contest clans
   const contestTickets = {};
   let contestActive = false;
-  if (String(getActiveContestClanId()) === String(clan_id)) {
-    const contestId = getActiveContestId();
+  if (getActiveContestClanIds().has(String(clan_id))) {
+    const contestId = getContestIdForClan(clan_id);
     if (contestId) {
       contestActive = true;
       const memberTgIds = (members || [])
