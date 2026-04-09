@@ -5,21 +5,24 @@ import { ADMIN_NOTIFY_ID, ANTISPOOF, isAdmin } from '../config/constants.js';
 import { playerCityCache } from '../lib/geocity.js';
 
 // ═══════════════════════════════════════════════════════
-//  GPS Anti-Spoof v4 — GPS fingerprint + cosmic speed only
+//  GPS Anti-Spoof v4.1 — Stage 0 fixes
 //
 //  Principles:
 //  1. Detect FAKE GPS SOFTWARE by missing altitude/speed/heading
-//  2. Only ban for absolutely impossible speeds (>500 km/h)
-//  3. Never ban for driving, GPS glitches, or jamming
-//  4. Bad accuracy → silently reject update, no penalty
+//  2. Detect impossible absolute distance (>2000km in one jump, any time)
+//  3. Detect cosmic speeds (>500 km/h) within a session
+//  4. Catch cross-session city jumps (>100km after a gap)
+//  5. PIN mode: clean slate — no synthetic HQ point, generous grace
+//  6. Bad accuracy → silently reject, no penalty
 // ═══════════════════════════════════════════════════════
 
 const {
   PIN_MAX_DISTANCE_KM, PIN_GRACE_MS,
-  MIN_UPDATE_INTERVAL_MS, POSITION_HISTORY_SIZE, SESSION_GAP_MS,
+  MIN_UPDATE_INTERVAL_MS, POSITION_HISTORY_SIZE, SESSION_GAP_MS, STALE_HISTORY_MS,
   TELEPORT_SPEED_KMH, TELEPORT_MAX_TIME_S,
   HIGH_SPEED_KMH, HIGH_SPEED_MAX_TIME_S,
   BAD_ACCURACY_THRESHOLD,
+  IMPOSSIBLE_DISTANCE_KM, CITY_JUMP_MIN_DISTANCE_KM,
   FINGERPRINT_MIN_UPDATES, FINGERPRINT_NULL_RATIO, FINGERPRINT_MIN_MOVEMENT_M,
   VIOLATION_THRESHOLD, BAN_DAYS,
 } = ANTISPOOF;
@@ -34,25 +37,26 @@ const BOOMERANG_RADIUS_M = 500;     // return within 500m = jammer, not spoofer
 const BOOMERANG_TIMEOUT_MS = 300000; // 5 minutes to return
 const CLUSTER_WINDOW_MS = 120000;    // 2 minutes — violations in same window = one incident
 
-// ── Cross-city teleport detection ──
-// Catches spoofers who close the app in city A and reopen in city B too fast
-const CITY_JUMP_MIN_DISTANCE_KM = 100; // only flag if >100km apart
-const CITY_JUMP_MAX_SPEED_KMH = 200;   // impossible by car/train in most cases
-
 // ── PIN mode ──
-
+//
+// On PIN on/off we:
+//   1) Fully delete positionHistory — no synthetic HQ anchor (was source of
+//      false positives: a fake "you were at HQ just now" point made the next
+//      real GPS update look like a 1000+ km/h teleport).
+//   2) Extend grace to 30s (was 5s — too short for client to send first real
+//      coords after unpin).
+//   3) On ACTIVATION clear suspiciousActivity entirely. Rationale: real
+//      spoofers should already have been caught by past detections; legit
+//      players using PIN should not be one stray glitch away from a ban.
+//   4) Clear gpsFingerprint (PIN coords have no real altitude/speed/heading).
 export function setPinMode(telegramId, active) {
   const now = Date.now();
   pinModeState.set(telegramId, { active, graceUntil: now + PIN_GRACE_MS });
-  // Reset position history to single point (avoids speed violation from PIN teleport)
-  // but do NOT clear suspiciousActivity — violations must persist
-  const hq = playerHqPositions.get(telegramId);
-  if (hq) {
-    positionHistory.set(telegramId, [{ lat: hq.lat, lng: hq.lng, timestamp: now, accuracy: null }]);
+  positionHistory.delete(telegramId);
+  gpsFingerprint.delete(telegramId);
+  if (active) {
+    suspiciousActivity.delete(`spoof:${telegramId}`);
   }
-  // Reset GPS fingerprint on PIN activation — PIN mode has no real GPS data,
-  // so null altitude/speed/heading is expected, not a sign of spoofing
-  if (active) gpsFingerprint.delete(telegramId);
 }
 
 function isPinModeActive(telegramId) {
@@ -134,7 +138,24 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
     const distanceKm = distance / 1000;
     const speedKmh = timeDiffS > 0 ? (distanceKm / timeDiffS) * 3600 : 0;
 
-    // ── Session gap (>60s) — reset history, but still check for impossible teleports ──
+    // ── Absolute impossible distance — fires regardless of time elapsed ──
+    // Catches the "wait 24h, teleport across continents" exploit that bypasses
+    // all speed-based checks (because speed = distance/time gets diluted).
+    if (distanceKm > IMPOSSIBLE_DISTANCE_KM) {
+      recordViolation(telegramId, {
+        timestamp: now, speed: speedKmh, distance: distanceKm,
+        from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
+        type: 'impossible_distance', timeGapS: timeDiffS,
+      });
+      // Reset history and continue — don't reject the update silently, the
+      // violation has been recorded and will contribute to ban score.
+      history.length = 0;
+      history.push({ lat, lng, timestamp: now, ...gpsData });
+      positionHistory.set(telegramId, history);
+      return { valid: true };
+    }
+
+    // ── Session gap (>60s) — reset history, but still check for cross-session jumps ──
     if (timeDiffMs > SESSION_GAP_MS) {
       // Cosmic teleport (>500km/h) — same as before
       if (speedKmh > TELEPORT_SPEED_KMH && distanceKm > 5) {
@@ -144,15 +165,14 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
           type: 'teleport',
         });
       }
-      // Cross-city jump: >100km at >200km/h across sessions
-      // Catches spoofers who close app in city A and reopen in city B
-      // (e.g., Moscow → Nizhny Novgorod in 10 min = 2400km/h, but also
-      //  catches slower jumps like 400km in 1.5 hours = 266km/h)
-      else if (distanceKm >= CITY_JUMP_MIN_DISTANCE_KM && speedKmh > CITY_JUMP_MAX_SPEED_KMH) {
+      // Cross-session city jump: any >=100km gap, time-independent.
+      // Previously required >200km/h which dropped to ~0 over long gaps,
+      // letting spoofers slip through by waiting hours between jumps.
+      else if (distanceKm >= CITY_JUMP_MIN_DISTANCE_KM) {
         recordViolation(telegramId, {
           timestamp: now, speed: speedKmh, distance: distanceKm,
           from: { lat: last.lat, lng: last.lng }, to: { lat, lng },
-          type: 'city_jump',
+          type: 'city_jump', timeGapS: timeDiffS,
         });
       }
       history.length = 0;
@@ -271,10 +291,13 @@ export function validatePosition(telegramId, lat, lng, isPinMode = false, gpsDat
 }
 
 // ── Violation Recording ──
-// All violation types contribute to auto-ban score.
-// teleport (>500km/h) = 2 pts, speed (>300km/h) = 1 pt, fake_gps = 4 pts.
-// Threshold = 15 → teleport: ~8 bans, speed: ~15 bans, fake_gps: ~4 bans.
-const TYPE_WEIGHT = { teleport: 2, fake_gps: 4, speed: 1, city_jump: 3 };
+// All violation types contribute to auto-ban score (threshold = 10).
+//   impossible_distance (>2000km jump, any time) = 8 pts → second jump = ban
+//   fake_gps (null altitude/speed/heading)        = 4 pts
+//   city_jump (>=100km cross-session)             = 6 pts → second jump = ban
+//   teleport (>500km/h within session)            = 2 pts
+//   speed (>300km/h within 30s)                   = 1 pt
+const TYPE_WEIGHT = { impossible_distance: 8, fake_gps: 4, city_jump: 6, teleport: 2, speed: 1 };
 
 function recordViolation(telegramId, violation) {
   const key = `spoof:${telegramId}`;
@@ -326,7 +349,7 @@ function recordViolation(telegramId, violation) {
   if (record.violations.length > 50) record.violations.shift();
   suspiciousActivity.set(key, record);
 
-  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород' };
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород', impossible_distance: '🌍 Невозможный прыжок' };
   const label = typeLabels[violation.type] || violation.type;
   console.log(`[ANTISPOOF] ${label} #${record.totalViolations} for ${telegramId}: speed=${violation.speed?.toFixed(0) || 0}km/h, dist=${violation.distance?.toFixed(2) || 0}km, weighted=${weightedScore.toFixed(1)}`);
   logPlayer(telegramId, 'spoof', `${label}: ${violation.speed?.toFixed(0) || 0} км/ч`, {
@@ -396,7 +419,7 @@ async function notifyAdmin(telegramId, record) {
   const city = playerCityCache.get(String(telegramId))?.city || '?';
 
   const lastV = record.violations[record.violations.length - 1];
-  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород' };
+  const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород', impossible_distance: '🌍 Невозможный прыжок' };
   const label = typeLabels[lastV?.type] || lastV?.type || '?';
 
   let message = `🚨 АВТОБАН v4 — GPS\n\n👤 ${name} (${tgTag})\n🆔 ${telegramId}\n🏙 ${city}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
@@ -480,9 +503,15 @@ export function resetPositionHistory(telegramId) {
 
 export function seedPositionFromDB(telegramId, lastLat, lastLng, lastSeen) {
   if (!lastLat || !lastLng || !lastSeen) return;
-  const existing = positionHistory.get(telegramId);
-  if (existing && existing.length > 0) return;
   const ts = new Date(lastSeen).getTime();
   if (isNaN(ts)) return;
+  const existing = positionHistory.get(telegramId);
+  // Re-seed if memory is empty OR last in-memory point is stale (>1h old).
+  // Without this, a player who reconnects from a different country could
+  // skip cross-session detection by having any leftover in-memory point.
+  if (existing && existing.length > 0) {
+    const lastTs = existing[existing.length - 1].timestamp || 0;
+    if (Date.now() - lastTs < STALE_HISTORY_MS) return;
+  }
   positionHistory.set(telegramId, [{ lat: lastLat, lng: lastLng, timestamp: ts, accuracy: null }]);
 }

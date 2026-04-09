@@ -400,12 +400,13 @@ export const WALK_WEEKLY_REWARDS = [
 export const ANTISPOOF = {
   // PIN mode
   PIN_MAX_DISTANCE_KM: 20,
-  PIN_GRACE_MS: 5000,
+  PIN_GRACE_MS: 30000,                 // 30s grace after PIN on/off (was 5s — too short, banned legit players)
 
   // Basic
   MIN_UPDATE_INTERVAL_MS: 1000,
   POSITION_HISTORY_SIZE: 30,
   SESSION_GAP_MS: 60000,              // >60s gap = session reset, no speed check
+  STALE_HISTORY_MS: 3600000,          // 1h — re-seed from DB even if memory has old point
 
   // Speed (only cosmic violations — never triggers on cars/planes)
   TELEPORT_SPEED_KMH: 500,            // instant ban threshold
@@ -413,6 +414,10 @@ export const ANTISPOOF = {
   HIGH_SPEED_KMH: 300,                // violation but not instant ban
   HIGH_SPEED_MAX_TIME_S: 30,
   BAD_ACCURACY_THRESHOLD: 300,         // reject update if accuracy > this (meters)
+
+  // Absolute distance — catches cross-continental teleports regardless of time
+  IMPOSSIBLE_DISTANCE_KM: 2000,        // any single jump > this = spoof, ignore time
+  CITY_JUMP_MIN_DISTANCE_KM: 100,      // cross-session jump distance threshold
 
   // GPS Fingerprint (fake GPS software detection)
   FINGERPRINT_MIN_UPDATES: 20,         // minimum moving samples before judging

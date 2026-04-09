@@ -110,7 +110,7 @@ async function handleAvatar(req, res) {
 }
 
 async function handleLocation(req, res) {
-  const { telegram_id, lat, lng, pin_mode, pin_unpin } = req.body;
+  const { telegram_id, lat, lng, pin_mode, pin_unpin, accuracy, altitude, gpsSpeed, heading, altitudeAccuracy } = req.body;
   if (!telegram_id || lat == null || lng == null) return res.status(400).json({ error: 'telegram_id, lat, lng are required' });
   const playerLat = parseFloat(lat), playerLng = parseFloat(lng);
   if (isNaN(playerLat) || isNaN(playerLng)) return res.status(400).json({ error: 'lat and lng must be numbers' });
@@ -124,9 +124,16 @@ async function handleLocation(req, res) {
     setPinMode(telegram_id, false);
   }
 
-  // GPS antispoof validation
+  // GPS antispoof validation — pass full GPS metadata so fingerprint check
+  // works for REST clients (was previously only effective via socket).
   const isPinMode = pin_mode === true || pin_unpin === true;
-  const validation = validatePosition(telegram_id, playerLat, playerLng, isPinMode, {});
+  const validation = validatePosition(telegram_id, playerLat, playerLng, isPinMode, {
+    accuracy: accuracy ?? null,
+    altitude: altitude ?? null,
+    altitudeAccuracy: altitudeAccuracy ?? null,
+    gpsSpeed: gpsSpeed ?? null,
+    heading: heading ?? null,
+  });
   if (!validation.valid) {
     // Don't reveal detection — silently accept for speed/teleport violations
     if (['teleport', 'high_speed', 'too_frequent', 'bad_accuracy'].includes(validation.reason)) {
