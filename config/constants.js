@@ -22,6 +22,7 @@ export const CONTEST_RULES = {
   mineDestroyTickets: 1,
   oreCaptureTickets: 1,        // только PvP-перехват у другого игрока
   monumentKillTickets: 10,     // только топ-1 по урону
+  clanDonatePerTicket: 10,     // 10 гемов в казну = 1 тикет (кумулятивно)
 };
 export const CONTEST_SETTING_KEY = 'contest_clan_id';
 export function getContestIdForClan(clanId) {

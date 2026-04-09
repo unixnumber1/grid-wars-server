@@ -8,6 +8,7 @@ import { gameState } from '../../lib/gameState.js';
 import { logActivity } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
+import { awardClanDonationTickets } from '../../game/mechanics/contest.js';
 
 export const clanRouter = Router();
 
@@ -368,6 +369,9 @@ async function handleDonate(req, res) {
       supabase.from('notifications').insert(notifs).then(() => {}).catch(e => console.error('[clan] DB error:', e.message));
     }
   }
+
+  // Contest: cumulative tickets for clan donations (every N gems = 1 ticket)
+  awardClanDonationTickets(telegram_id, donateAmount, player.clan_id).catch(() => {});
 
   return res.json({ success: true, treasury: newTreasury, player_diamonds: newDiamonds });
 }

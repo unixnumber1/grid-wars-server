@@ -475,11 +475,12 @@ adminRouter.get('/contest-stats', async (req, res) => {
 
     const byPlayer = new Map();
     for (const r of rows || []) {
-      const cur = byPlayer.get(r.player_id) || { tickets: 0, mine: 0, ore: 0, mon: 0 };
-      cur.tickets += r.amount;
+      const cur = byPlayer.get(r.player_id) || { tickets: 0, mine: 0, ore: 0, mon: 0, don: 0 };
+      cur.tickets += (r.amount || 0);
       if (r.reason === 'mine_destroy') cur.mine += r.amount;
       else if (r.reason === 'ore_capture') cur.ore += r.amount;
       else if (r.reason === 'monument_kill') cur.mon += r.amount;
+      else if (r.reason === 'clan_donate') cur.don += r.amount;
       byPlayer.set(r.player_id, cur);
     }
 
@@ -495,6 +496,7 @@ adminRouter.get('/contest-stats', async (req, res) => {
         mine: stats.mine,
         ore: stats.ore,
         mon: stats.mon,
+        don: stats.don,
       });
     }
     leaderboard.sort((a, b) => b.tickets - a.tickets);

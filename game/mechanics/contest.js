@@ -66,4 +66,55 @@ export async function awardContestTickets(telegramId, reason, amount, meta = {})
   }
 }
 
+/**
+ * Award tickets for clan-treasury donation. Cumulative: every N gems = 1 ticket
+ * (N = CONTEST_RULES.clanDonatePerTicket). Tracks total donated per player so
+ * leftover gems carry over to the next donation.
+ *
+ * @param {number} telegramId
+ * @param {number} donateAmount - gems donated in this donation
+ * @param {string} clanId - the clan being donated to
+ */
+export async function awardClanDonationTickets(telegramId, donateAmount, clanId) {
+  if (!isInEligibleClan(telegramId)) return;
+  if (!donateAmount || donateAmount <= 0) return;
+  const activeClanId = getActiveContestClanId();
+  if (String(clanId) !== activeClanId) return;
+  const contestId = getActiveContestId();
+  if (!contestId) return;
+  const perTicket = CONTEST_RULES.clanDonatePerTicket;
+  if (!perTicket || perTicket <= 0) return;
+
+  try {
+    // Sum prior donation rows for this player+contest
+    const { data: prior } = await supabase
+      .from('contest_tickets')
+      .select('meta')
+      .eq('contest_id', contestId)
+      .eq('player_id', Number(telegramId))
+      .eq('reason', 'clan_donate');
+
+    let prevDonated = 0;
+    for (const r of prior || []) {
+      const d = Number(r.meta?.donated || 0);
+      if (d > 0) prevDonated += d;
+    }
+    const newTotal = prevDonated + donateAmount;
+    const prevTickets = Math.floor(prevDonated / perTicket);
+    const newTickets = Math.floor(newTotal / perTicket);
+    const delta = newTickets - prevTickets;
+
+    // Always insert a row so total_donated is tracked, even when delta=0
+    await supabase.from('contest_tickets').insert({
+      contest_id: contestId,
+      player_id: Number(telegramId),
+      reason: 'clan_donate',
+      amount: delta,
+      meta: { donated: donateAmount, total_donated: newTotal },
+    });
+  } catch (e) {
+    console.error('[contest] donation award failed', e?.message || e);
+  }
+}
+
 export { CONTEST_RULES };
