@@ -483,6 +483,91 @@ async function notifyAdminWarning(telegramId, violation) {
   } catch (_) {}
 }
 
+// ── Hourly digest ──
+//
+// Sends an antispoof activity summary to the admin chat every hour.
+// Quiet hours: a single line confirming the system is alive.
+// Active hours: type breakdown + top 5 players by score.
+const DIGEST_WINDOW_MS = 3600000;
+
+async function _sendTelegramMessage(token, text) {
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: ADMIN_NOTIFY_ID, text }),
+    });
+  } catch (e) {
+    console.error('[ANTISPOOF] digest send error:', e.message);
+  }
+}
+
+export async function sendHourlyDigest() {
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return;
+
+  const now = Date.now();
+  const cutoff = now - DIGEST_WINDOW_MS;
+
+  // Collect all players with violations in the last hour window
+  const players = [];
+  for (const [key, record] of suspiciousActivity.entries()) {
+    if (typeof key !== 'string' || !key.startsWith('spoof:')) continue;
+    const tgId = key.substring(6);
+    const recent = (record.violations || []).filter(v => v && v.timestamp >= cutoff);
+    if (recent.length === 0) continue;
+    const byType = {};
+    for (const v of recent) byType[v.type] = (byType[v.type] || 0) + 1;
+    players.push({
+      tgId,
+      byType,
+      score: record.weightedScore || 0,
+      banned: !!record.banned,
+    });
+  }
+
+  const typeLabels = {
+    teleport: '🚀 Тлп', speed: '⚡ Скр', fake_gps: '📡 Фейк',
+    city_jump: '🏙 Мж', impossible_distance: '🌍 Прж',
+  };
+
+  if (players.length === 0) {
+    await _sendTelegramMessage(BOT_TOKEN, '🛡 Антиспуф: за последний час нарушений не было.');
+    return;
+  }
+
+  // Aggregate totals across all players
+  const totals = {};
+  let totalEvents = 0;
+  for (const p of players) {
+    for (const [type, cnt] of Object.entries(p.byType)) {
+      totals[type] = (totals[type] || 0) + cnt;
+      totalEvents += cnt;
+    }
+  }
+  const typeBreakdown = Object.entries(totals)
+    .map(([t, c]) => `${typeLabels[t] || t}:${c}`)
+    .join(' ');
+
+  let msg = `🛡 Антиспуф — последний час\n`;
+  msg += `Всего: ${totalEvents} событий, ${players.length} игроков\n`;
+  msg += `${typeBreakdown}\n\n`;
+
+  // Top 5 players by current weighted score
+  players.sort((a, b) => b.score - a.score);
+  for (const p of players.slice(0, 5)) {
+    const player = await getPlayerInfo(Number(p.tgId));
+    const name = player?.game_username || '???';
+    const banFlag = p.banned ? ' 🔴БАН' : (p.score >= VIOLATION_THRESHOLD * 0.5 ? ' ⚠️' : '');
+    const typesStr = Object.entries(p.byType)
+      .map(([t, c]) => `${typeLabels[t] || t}:${c}`)
+      .join(' ');
+    msg += `${name} (id${p.tgId})${banFlag}\n  score=${p.score.toFixed(1)}/${VIOLATION_THRESHOLD} | ${typesStr}\n`;
+  }
+
+  await _sendTelegramMessage(BOT_TOKEN, msg);
+}
+
 // ── Public API ──
 
 export function getSpoofStats(telegramId) {
