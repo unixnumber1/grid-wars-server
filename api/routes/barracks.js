@@ -25,6 +25,7 @@ import {
   getPlayerBag, getPlayerActiveScouts, getBarracksSellRefund,
 } from '../../game/mechanics/barracks.js';
 import { persistNow } from '../../game/state/persist.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const barracksRouter = Router();
 
@@ -36,22 +37,33 @@ function emitToNearby(lat, lng, radiusM, event, data) {
 }
 
 barracksRouter.post('/', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'build') return handleBuild(req, res);
-  if (action === 'upgrade') return handleUpgrade(req, res);
-  if (action === 'sell') return handleSell(req, res);
-  if (action === 'train') return handleTrain(req, res);
-  if (action === 'collect') return handleCollect(req, res);
-  if (action === 'upgrade-unit') return handleUpgradeUnit(req, res);
-  if (action === 'send-scout') return handleSendScout(req, res);
-  if (action === 'attack-scout') return handleAttackScout(req, res);
-  if (action === 'boost') return handleBoost(req, res);
-  if (action === 'sell-scout') return handleSellScout(req, res);
-  if (action === 'mass-sell-scouts') return handleMassSellScouts(req, res);
-  if (action === 'status') return handleStatus(req, res);
-  if (action === 'hit') return handleHit(req, res);
-  if (action === 'extinguish') return handleExtinguish(req, res);
-  return res.status(400).json({ error: 'Unknown action' });
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+
+  // Per-player serialization for currency / state mutations.
+  // 'status' is read-only, 'hit' is a PvP attack handled via per-player attack
+  // cooldown rather than the lock (lockable but adds latency).
+  const skipLock = action === 'status';
+  const handler = () => {
+    if (action === 'build') return handleBuild(req, res);
+    if (action === 'upgrade') return handleUpgrade(req, res);
+    if (action === 'sell') return handleSell(req, res);
+    if (action === 'train') return handleTrain(req, res);
+    if (action === 'collect') return handleCollect(req, res);
+    if (action === 'upgrade-unit') return handleUpgradeUnit(req, res);
+    if (action === 'send-scout') return handleSendScout(req, res);
+    if (action === 'attack-scout') return handleAttackScout(req, res);
+    if (action === 'boost') return handleBoost(req, res);
+    if (action === 'sell-scout') return handleSellScout(req, res);
+    if (action === 'mass-sell-scouts') return handleMassSellScouts(req, res);
+    if (action === 'status') return handleStatus(req, res);
+    if (action === 'hit') return handleHit(req, res);
+    if (action === 'extinguish') return handleExtinguish(req, res);
+    return res.status(400).json({ error: 'Unknown action' });
+  };
+
+  if (skipLock) return handler();
+  return withPlayerLock(telegram_id, handler);
 });
 
 // ── BUILD ──
@@ -286,11 +298,15 @@ async function handleBoost(req, res) {
   const barracks = getPlayerBarracks(telegram_id);
   if (!barracks) return res.status(404).json({ error: 'Казарма не найдена' });
 
-  // If entry_id specified, boost single entry; otherwise boost all
+  // If entry_id specified, boost single entry; otherwise boost all.
+  // Skip entries whose training is already finished — player should collect them
+  // instead of paying diamonds to "boost" something that's already done.
+  const nowMsBoost = Date.now();
+  const isStillTraining = q => new Date(q.finish_at).getTime() > nowMsBoost;
   const queue = getTrainingQueue(barracks.id);
   const toBoost = entry_id
-    ? queue.filter(q => q.id === entry_id && !q.ready)
-    : queue.filter(q => !q.ready);
+    ? queue.filter(q => q.id === entry_id && isStillTraining(q))
+    : queue.filter(isStillTraining);
 
   if (toBoost.length === 0) return res.status(400).json({ error: 'Нечего ускорять' });
 

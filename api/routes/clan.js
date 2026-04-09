@@ -396,7 +396,14 @@ async function handleUpgrade(req, res) {
 
   const newTreasury = (clan.treasury ?? 0) - nextConfig.cost;
   const newLevel = clan.level + 1;
-  await supabase.from('clans').update({ level: newLevel, treasury: newTreasury }).eq('id', clan.id);
+  // Atomic upgrade: only the first concurrent leader/officer succeeds.
+  // Without this lock, two concurrent upgrades both pass the level/treasury
+  // check and both bump the level (e.g. lvl 5 → 7 for the cost of one upgrade).
+  const { data: clanLocked } = await supabase.from('clans')
+    .update({ level: newLevel, treasury: newTreasury })
+    .eq('id', clan.id).eq('level', clan.level).eq('treasury', clan.treasury ?? 0)
+    .select('id').maybeSingle();
+  if (!clanLocked) return res.status(409).json({ error: ts(lang, 'err.conflict') });
 
   // Update gameState
   if (gameState.loaded) {
@@ -642,12 +649,26 @@ async function handleBoost(req, res) {
   const newTreasury = (clan.treasury ?? 0) - boostCost;
   const boostExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  await supabase.from('clans').update({
-    treasury: newTreasury,
-    boost_multiplier: boostMul,
-    boost_started_at: new Date().toISOString(),
-    boost_expires_at: boostExpiresAt,
-  }).eq('id', clan.id);
+  // Atomic boost activation: prevents two concurrent leaders/officers from
+  // double-deducting treasury or stacking boosts. Only succeeds if treasury
+  // matches and boost is not currently active.
+  const treasuryGuard = clan.treasury ?? 0;
+  const expiresGuard = clan.boost_expires_at;
+  let updateQuery = supabase.from('clans')
+    .update({
+      treasury: newTreasury,
+      boost_multiplier: boostMul,
+      boost_started_at: new Date().toISOString(),
+      boost_expires_at: boostExpiresAt,
+    })
+    .eq('id', clan.id).eq('treasury', treasuryGuard);
+  if (expiresGuard === null || expiresGuard === undefined) {
+    updateQuery = updateQuery.is('boost_expires_at', null);
+  } else {
+    updateQuery = updateQuery.eq('boost_expires_at', expiresGuard);
+  }
+  const { data: clanLocked } = await updateQuery.select('id').maybeSingle();
+  if (!clanLocked) return res.status(409).json({ error: ts(lang, 'err.conflict') });
 
   // Update gameState
   if (gameState.loaded) {

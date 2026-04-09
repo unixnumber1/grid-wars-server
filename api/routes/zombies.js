@@ -14,6 +14,7 @@ import {
   isAdmin, WEAPON_COOLDOWNS,
 } from '../../config/constants.js';
 import { spawnScout, onScoutKilled, checkWaveComplete } from '../../game/mechanics/zombies.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const zombiesRouter = Router();
 
@@ -25,10 +26,13 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
 }
 
 zombiesRouter.post('/', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'spawn-scout') return handleSpawnScout(req, res);
-  if (action === 'attack') return handleAttack(req, res);
-  return res.status(400).json({ error: 'Unknown action' });
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  return withPlayerLock(telegram_id, () => {
+    if (action === 'spawn-scout') return handleSpawnScout(req, res);
+    if (action === 'attack') return handleAttack(req, res);
+    return res.status(400).json({ error: 'Unknown action' });
+  });
 });
 
 // ── SPAWN SCOUT (admin only) ──
