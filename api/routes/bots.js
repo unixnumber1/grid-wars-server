@@ -10,6 +10,7 @@ import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { BOTS_PER_ZONE, BOT_TTL_MS, BOT_SPEED_METERS, DRAIN_LIMITS, WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { lastAttackTime, recordAttack, getAttackCooldown, connectedPlayers, io } from '../../server.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const botsRouter = Router();
 
@@ -580,23 +581,31 @@ async function routeHandler(req, res) {
   const telegram_id = req.method === 'GET' ? req.query.telegram_id : req.body?.telegram_id;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
 
+  // Per-player serialization for actions that mutate currency / kills.
+  // 'move' is a read-mostly position update — skip the lock for it.
+  const skipLock = action === 'move' || action === 'spawn';
 
-  // Include respawn_until so handleAttack can check it without extra query
-  const { player, error } = await getPlayerByTelegramId(telegram_id, 'id, level, respawn_until, coins');
-  if (error) return res.status(500).json({ error });
-  if (!player) return res.status(404).json({ error: 'Player not found' });
+  const handler = async () => {
+    // Include respawn_until so handleAttack can check it without extra query
+    const { player, error } = await getPlayerByTelegramId(telegram_id, 'id, level, respawn_until, coins');
+    if (error) return res.status(500).json({ error });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  let result;
-  if      (action === 'spawn')  result = await handleSpawn(player, req.body);
-  else if (action === 'move')   result = await handleMove(player, req.body);
-  else if (action === 'attack') result = await handleAttack(player, req.body);
-  else if (action === 'repel')  result = await handleRepel(player, req.body);
-  else if (action === 'lure')   result = await handleLure(player, req.body);
-  else return res.status(400).json({ error: `Unknown action: ${action}` });
+    let result;
+    if      (action === 'spawn')  result = await handleSpawn(player, req.body);
+    else if (action === 'move')   result = await handleMove(player, req.body);
+    else if (action === 'attack') result = await handleAttack(player, req.body);
+    else if (action === 'repel')  result = await handleRepel(player, req.body);
+    else if (action === 'lure')   result = await handleLure(player, req.body);
+    else return res.status(400).json({ error: `Unknown action: ${action}` });
 
-  const { status = 200, error: resultError, ...data } = result;
-  if (resultError) return res.status(status).json({ error: resultError });
-  return res.status(status).json(data);
+    const { status = 200, error: resultError, ...data } = result;
+    if (resultError) return res.status(status).json({ error: resultError });
+    return res.status(status).json(data);
+  };
+
+  if (skipLock) return handler();
+  return withPlayerLock(telegram_id, handler);
 }
 
 botsRouter.get('/', routeHandler);

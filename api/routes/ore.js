@@ -57,17 +57,23 @@ oreRouter.post('/', async (req, res) => {
     const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
     const selectedCurrency = oreTypeCfg.dualCurrency ? 'both' : ((currency === 'ether') ? 'ether' : 'shards');
 
+    // Atomic claim: only the first concurrent request to flip owner_id null→player wins.
+    // Prevents two players from different sessions both claiming the same broken ore.
+    const claimedISO = new Date().toISOString();
+    const { data: oreClaimed } = await supabase.from('ore_nodes').update({
+      owner_id: player.id, hp: ore.max_hp,
+      last_collected: claimedISO, currency: selectedCurrency,
+    }).eq('id', ore.id).is('owner_id', null).select('id').maybeSingle();
+    if (!oreClaimed) {
+      return res.status(409).json({ error: ts(lang, 'err.ore_occupied') });
+    }
+
     ore.owner_id = player.id;
     ore.hp = ore.max_hp;
-    ore.last_collected = new Date().toISOString();
+    ore.last_collected = claimedISO;
     ore.currency = selectedCurrency;
-    ore._claimed_at = new Date().toISOString(); // runtime-only: for eruption tracking
+    ore._claimed_at = claimedISO;
     gameState.markDirty('oreNodes', ore.id);
-
-    await supabase.from('ore_nodes').update({
-      owner_id: player.id, hp: ore.max_hp,
-      last_collected: ore.last_collected, currency: selectedCurrency,
-    }).eq('id', ore.id);
 
     _oreClaimCooldown.set(String(telegram_id), Date.now());
     logActivity(player.game_username, `захватил рудник ${oreTypeCfg.emoji} Ур.${ore.level}`);

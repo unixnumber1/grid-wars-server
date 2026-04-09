@@ -872,6 +872,15 @@ async function handleAttackCourier(req, res) {
   const killed = newHp <= 0;
 
   if (killed) {
+    // Atomic kill: only first attacker to flip status moving→killed wins.
+    // Prevents two attackers each creating a loot drop for the same courier
+    // (item duplication exploit).
+    const { data: courierKilled } = await supabase.from('couriers')
+      .update({ status: 'killed', hp: 0 })
+      .eq('id', courier_id).eq('status', 'moving')
+      .select('id').maybeSingle();
+    if (!courierKilled) return res.status(409).json({ error: 'Курьер уже убит' });
+
     const dropPos = findSafeDropPosition(courier.current_lat, courier.current_lng, gameState);
     const { data: drop } = await supabase
       .from('courier_drops')
@@ -887,10 +896,6 @@ async function handleAttackCourier(req, res) {
       })
       .select('id')
       .single();
-
-    await supabase.from('couriers')
-      .update({ status: 'killed', hp: 0 })
-      .eq('id', courier_id);
 
     // Update gameState
     if (gameState.loaded) {
@@ -1007,11 +1012,15 @@ async function handlePickupDrop(req, res) {
     if (courierOwner !== player.id) {
       return res.status(403).json({ error: 'Это не ваша посылка' });
     }
-    const pickupOps = [
-      supabase.from('courier_drops')
-        .update({ picked_up: true, picked_by: player.id })
-        .eq('id', drop_id),
-    ];
+    // Atomic claim: only the first request to flip picked_up=false→true wins.
+    // Prevents concurrent pickup duplication exploit.
+    const { data: dropClaimed } = await supabase.from('courier_drops')
+      .update({ picked_up: true, picked_by: player.id })
+      .eq('id', drop_id).eq('picked_up', false)
+      .select('id').maybeSingle();
+    if (!dropClaimed) return res.status(409).json({ error: 'Уже подобрано' });
+
+    const pickupOps = [];
     if (drop.item_id) {
       pickupOps.push(supabase.from('items')
         .update({ owner_id: player.id, on_market: false, equipped: false, held_by_courier: null, held_by_market: null })
@@ -1022,7 +1031,7 @@ async function handlePickupDrop(req, res) {
         .update({ owner_id: Number(telegram_id), on_market: false, mine_cell_id: null, slot_index: null })
         .eq('id', drop.core_id));
     }
-    await Promise.all(pickupOps);
+    if (pickupOps.length) await Promise.all(pickupOps);
 
     // Update gameState
     if (gameState.loaded) {
@@ -1069,7 +1078,12 @@ async function handlePickupDrop(req, res) {
     }
     const coins = gd?._coins || gd?.coins || drop.coins || 0;
 
-    await supabase.from('courier_drops').update({ picked_up: true, picked_by: player.id }).eq('id', drop_id);
+    // Atomic claim: only first request wins
+    const { data: coinClaimed } = await supabase.from('courier_drops')
+      .update({ picked_up: true, picked_by: player.id })
+      .eq('id', drop_id).eq('picked_up', false)
+      .select('id').maybeSingle();
+    if (!coinClaimed) return res.status(409).json({ error: 'Уже подобрано' });
     if (gd) { gd.picked_up = true; }
 
     // Give coins to player
@@ -1086,11 +1100,15 @@ async function handlePickupDrop(req, res) {
   }
 
   // ── Loot drop: anyone can pick up ──
-  const lootOps = [
-    supabase.from('courier_drops')
-      .update({ picked_up: true, picked_by: player.id })
-      .eq('id', drop_id),
-  ];
+  // Atomic claim: only the first request to flip picked_up=false→true wins.
+  // Prevents concurrent pickup duplication exploit (cross-player race).
+  const { data: lootClaimed } = await supabase.from('courier_drops')
+    .update({ picked_up: true, picked_by: player.id })
+    .eq('id', drop_id).eq('picked_up', false)
+    .select('id').maybeSingle();
+  if (!lootClaimed) return res.status(409).json({ error: 'Уже подобрано' });
+
+  const lootOps = [];
   if (drop.item_id) {
     lootOps.push(supabase.from('items')
       .update({ owner_id: player.id, on_market: false, held_by_courier: null, held_by_market: null })
@@ -1101,7 +1119,7 @@ async function handlePickupDrop(req, res) {
       .update({ owner_id: Number(telegram_id), on_market: false, mine_cell_id: null, slot_index: null })
       .eq('id', drop.core_id));
   }
-  await Promise.all(lootOps);
+  if (lootOps.length) await Promise.all(lootOps);
 
   // Update gameState
   if (gameState.loaded) {

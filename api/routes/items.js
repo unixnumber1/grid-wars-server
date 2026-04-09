@@ -391,6 +391,33 @@ export async function handleStarsWebhook(req, res) {
       return res.json({ ok: true });
     }
 
+    // Idempotency: Telegram retries webhooks on network failures, and a malicious
+    // proxy could replay them. Use telegram_payment_charge_id (unique per payment)
+    // to ensure a single transaction is processed exactly once.
+    const chargeId = payment.telegram_payment_charge_id || payment.provider_payment_charge_id;
+    if (chargeId) {
+      const settingKey = `stars_charge:${chargeId}`;
+      // Atomic insert via upsert with onConflict that does nothing — if the row
+      // already exists, we know the payment was already processed.
+      try {
+        const { data: settingRow } = await supabase.from('app_settings')
+          .select('value').eq('key', settingKey).maybeSingle();
+        if (settingRow) {
+          console.log('[stars] DUPLICATE webhook ignored, charge_id:', chargeId);
+          return res.json({ ok: true });
+        }
+        await supabase.from('app_settings').insert({
+          key: settingKey,
+          value: new Date().toISOString(),
+        });
+      } catch (e) {
+        // If insert collides (race between two concurrent webhook deliveries),
+        // the unique constraint will throw. Treat as duplicate.
+        console.log('[stars] charge_id collision, treating as duplicate:', chargeId);
+        return res.json({ ok: true });
+      }
+    }
+
     if (payload.product && payload.product.startsWith('diamonds_')) {
       // Validate diamond amount against STAR_PACKS by actual payment amount (cannot be forged via webhook)
       const pack = STAR_PACKS.find(p => p.stars === payment.total_amount);
