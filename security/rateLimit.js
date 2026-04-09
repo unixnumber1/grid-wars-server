@@ -21,7 +21,11 @@ setInterval(() => {
 
 const LIMITS = {
   default:  { max: 312, window: 60000 },
-  attack:   { max: 180, window: 60000 },
+  // attack: 240/min = 4 hits/sec ceiling. Max-skill sword (400ms CD with 20%
+  // attack_speed_bonus) sustains ~158/min via the client's 95%-CD pacing,
+  // leaving ~50% headroom for jitter and bursts. Sticky block fires only
+  // at 720/min — clearly abusive.
+  attack:   { max: 240, window: 60000 },
   tick:     { max: 78,  window: 60000 },
   build:    { max: 208, window: 60000 },
   collect:  { max: 156, window: 60000 },

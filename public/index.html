@@ -17255,10 +17255,12 @@ async function _atkFetch(path, opts) {
     }
     if (!res.ok) return null;
     if (data.effective_cd) _pvpCdMs = data.effective_cd;
-    // Pace requests to the server's cooldown — small lead time for network jitter,
-    // never under 50ms. Previously hardcoded to 50ms which spammed the rate limiter
-    // and caused stuttering after ~9 seconds of holding the attack button.
-    _scheduleNextHit(Math.max(50, _pvpCdMs - 50));
+    // Pace requests to the server's cooldown — 5% lead time for network jitter,
+    // never under 50ms. Previously hardcoded to 50ms which spammed the rate
+    // limiter and caused stuttering after ~9s of holding the attack button.
+    // 5% lead scales with CD: ~25ms at 500ms CD, ~20ms at 400ms (max-skill sword),
+    // staying safely under the rate-limit ceiling for all weapon/skill combos.
+    _scheduleNextHit(Math.max(50, Math.floor(_pvpCdMs * 0.95)));
     return data;
   } catch (e) {
     _atkInFlight = false;
@@ -17552,7 +17554,9 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
   const wasHolding = combatState.isHolding;
 
   const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  _pvpCdMs = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
+  _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
 
   bindAttackButton(targetType, target);
   if (wasHolding) combatState.isHolding = true;
