@@ -3406,6 +3406,7 @@
         <div class="settings-section-title">&#x1F517; РЕФЕРАЛЫ</div>
         <button class="settings-action-btn s-purple" onclick="openReferralStats()">&#x1F4CA; Лидерборд рефереров</button>
         <div id="admin-referral-summary" style="margin-top:8px;font-size:12px;color:#888"></div>
+        <button class="settings-action-btn s-purple" onclick="openContestStats()" style="margin-top:8px">&#x1F3C6; Конкурс</button>
       </div>
     </div>
   </div>
@@ -12444,6 +12445,98 @@ async function openReferralStats() {
       }
     }
     html += `</div></div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+// ── Contest stats (admin) ──
+async function openContestStats() {
+  try {
+    const data = await apiFetch('/api/admin/contest-stats');
+    const { contest_id, clan_name, leaderboard, total_participants, total_tickets } = data;
+
+    const renderList = (lb) => {
+      if (!lb || lb.length === 0) return `<div style="text-align:center;color:#666;padding:20px">Пока нет участников</div>`;
+      let h = '';
+      for (let i = 0; i < lb.length; i++) {
+        const e = lb[i];
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+        h += `<div style="background:#252538;border-radius:10px;padding:10px 12px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:16px">${medal}</span>
+              <span style="font-size:18px">${e.avatar || '🎮'}</span>
+              <div>
+                <div style="font-weight:600;color:#fff;font-size:13px">${e.username}</div>
+                <div style="font-size:11px;color:#888">Lv.${e.level} • ID: ${e.telegram_id}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:#FFD700;font-size:14px">🎟 ${e.tickets}</div>
+              <div style="font-size:11px;color:#888">⛏${e.mine} 🪨${e.ore} 🗿${e.mon}</div>
+            </div>
+          </div>
+        </div>`;
+      }
+      return h;
+    };
+
+    let html = `<div id="contest-stats-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9500;display:flex;align-items:flex-end;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:16px;font-weight:600;color:#fff">🏆 Конкурс — клан «${clan_name}»</div>
+          <button onclick="this.closest('[style*=fixed]').remove()" class="popup-close">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <div style="flex:1;background:#252538;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#fff">${total_participants}</div>
+            <div style="font-size:11px;color:#888">Участников</div>
+          </div>
+          <div style="flex:1;background:#252538;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#FFD700">🎟 ${total_tickets}</div>
+            <div style="font-size:11px;color:#888">Тикетов</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#666;margin-bottom:10px;text-align:center">${contest_id}</div>
+        <button onclick="runContestDraw()" style="width:100%;background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;border:none;border-radius:10px;padding:12px;margin-bottom:14px;cursor:pointer;font-size:14px">🎲 Провести розыгрыш</button>
+        <div id="contest-list">${renderList(leaderboard)}</div>
+      </div>
+    </div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+  } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+async function runContestDraw() {
+  try {
+    const data = await apiFetch('/api/admin/contest-draw', { method: 'POST', body: JSON.stringify({}) });
+    const { winners } = data;
+    if (!winners || winners.length === 0) { showToast('Нет участников для розыгрыша'); return; }
+
+    let html = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9600;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:#1a1a2e;border-radius:16px;width:90%;max-width:400px;padding:24px;text-align:center;border:2px solid #FFD700">
+        <div style="font-size:22px;font-weight:700;color:#FFD700;margin-bottom:16px">🎉 Победители розыгрыша</div>`;
+    const medals = ['🥇','🥈','🥉'];
+    for (let i = 0; i < winners.length; i++) {
+      const w = winners[i];
+      html += `<div style="background:#252538;border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:32px">${medals[i] || '🏆'}</div>
+        <div style="font-size:24px">${w.avatar}</div>
+        <div style="flex:1;text-align:left">
+          <div style="font-weight:700;color:#fff;font-size:15px">${w.username}</div>
+          <div style="font-size:11px;color:#888">Lv.${w.level} • ID: ${w.telegram_id}</div>
+        </div>
+        <div style="font-weight:700;color:#FFD700;font-size:14px">🎟 ${w.tickets}</div>
+      </div>`;
+    }
+    html += `<button onclick="this.closest('[style*=fixed]').remove()" style="margin-top:8px;background:#3a3a4e;color:#fff;border:none;border-radius:10px;padding:10px 24px;cursor:pointer;font-size:14px">Закрыть</button>
+      </div>
+    </div>`;
 
     const div = document.createElement('div');
     div.innerHTML = html;

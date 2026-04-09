@@ -11,7 +11,9 @@ import {
   MONUMENT_DEFENDER_ATTACK_CD, WAVE_EMOJIS,
   MONUMENT_GEMS_LOOT, MONUMENT_ITEMS_LOOT,
   MONUMENT_RESPAWN_HOURS_PER_LEVEL,
+  ACTIVE_CONTEST,
 } from '../../config/constants.js';
+import { awardContestTickets } from './contest.js';
 
 // ── Emojis for defenders ──
 export const MONUMENT_EMOJIS = ['🐲','⛄️','😡','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','👁️','🧠','🧟','🧌','🧞'];
@@ -198,6 +200,17 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     .sort((a, b) => b.damage - a.damage);
 
   if (participants.length === 0) return;
+
+  // Contest: 10 tickets to top-1 damage dealer
+  {
+    const top = participants[0];
+    const topPlayer = gameState.getPlayerByTgId(top.player_id) || gameState.getPlayerById(top.player_id);
+    if (topPlayer?.telegram_id) {
+      awardContestTickets(topPlayer.telegram_id, 'monument_kill', ACTIVE_CONTEST.rules.monumentKillTickets, {
+        monument_id: monument.id, monument_level: monument.level, damage: top.damage,
+      }).catch(() => {});
+    }
+  }
 
   const totalDamage = participants.reduce((s, p) => s + p.damage, 0);
   const gemsConfig = MONUMENT_GEMS_LOOT[monument.level];

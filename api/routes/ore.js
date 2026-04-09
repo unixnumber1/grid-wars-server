@@ -11,6 +11,8 @@ import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS, ORE_TYPES } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
+import { awardContestTickets } from '../../game/mechanics/contest.js';
+import { ACTIVE_CONTEST } from '../../config/constants.js';
 
 export const oreRouter = Router();
 const _oreClaimCooldown = new Map();
@@ -217,6 +219,13 @@ oreRouter.post('/', async (req, res) => {
           gameState.addNotification(notif);
           supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[ore] DB error:', e.message));
         }
+      }
+
+      // Contest: ticket for PvP-breaking another player's ore node
+      if (oldOwnerId && oldOwnerId !== player.id) {
+        awardContestTickets(player.telegram_id, 'ore_capture', ACTIVE_CONTEST.rules.oreCaptureTickets, {
+          ore_id: ore.id, ore_type: ore.ore_type, ore_level: ore.level, prev_owner_id: oldOwnerId,
+        }).catch(() => {});
       }
 
       const _oreShadow = isInShadow(player);

@@ -14,6 +14,19 @@ export const ADMIN_NOTIFY_ID = 8752325699; // notifications (bans, monuments, pa
 export const ADMIN_TG_IDS = new Set([560013667, 8752325699]);
 export function isAdmin(tgId) { return ADMIN_TG_IDS.has(Number(tgId)); }
 
+// ── Contest ──
+export const ACTIVE_CONTEST = {
+  id: 'clan_eblany_2026_04',
+  clanName: 'ебланы',
+  enabled: true,
+  rules: {
+    mineDestroyMinLevel: 40,
+    mineDestroyTickets: 1,
+    oreCaptureTickets: 1,        // только PvP-перехват у другого игрока
+    monumentKillTickets: 10,     // только топ-1 по урону
+  },
+};
+
 // ── H3 grid ──
 export const H3_RESOLUTION = 10;       // ~65m hexes
 export const MINE_DISK_K = 12;

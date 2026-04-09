@@ -19,7 +19,7 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gridDisk } from 'h3-js';
 
 export const adminRouter = Router();
-import { isAdmin as isAdminId } from '../../config/constants.js';
+import { isAdmin as isAdminId, ACTIVE_CONTEST } from '../../config/constants.js';
 const ADMIN_TG_ID = 560013667;
 
 function isAdmin(req) {
@@ -403,6 +403,100 @@ adminRouter.get('/referral-stats', async (req, res) => {
     return res.json({ leaderboard, total_referrals: rows.length, total_gems: totalGems });
   } catch (err) {
     console.error('[admin/referral-stats]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Contest stats ─────────────────────────────────────────────
+adminRouter.get('/contest-stats', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { data: rows } = await supabase
+      .from('contest_tickets')
+      .select('player_id, reason, amount')
+      .eq('contest_id', ACTIVE_CONTEST.id);
+
+    const byPlayer = new Map();
+    for (const r of rows || []) {
+      const cur = byPlayer.get(r.player_id) || { tickets: 0, mine: 0, ore: 0, mon: 0 };
+      cur.tickets += r.amount;
+      if (r.reason === 'mine_destroy') cur.mine += r.amount;
+      else if (r.reason === 'ore_capture') cur.ore += r.amount;
+      else if (r.reason === 'monument_kill') cur.mon += r.amount;
+      byPlayer.set(r.player_id, cur);
+    }
+
+    const leaderboard = [];
+    for (const [tgId, stats] of byPlayer) {
+      const p = gameState.loaded ? gameState.getPlayerByTgId(Number(tgId)) : null;
+      leaderboard.push({
+        telegram_id: Number(tgId),
+        username: p?.game_username || p?.username || String(tgId),
+        avatar: p?.avatar || '🎮',
+        level: p?.level || 0,
+        tickets: stats.tickets,
+        mine: stats.mine,
+        ore: stats.ore,
+        mon: stats.mon,
+      });
+    }
+    leaderboard.sort((a, b) => b.tickets - a.tickets);
+
+    return res.json({
+      contest_id: ACTIVE_CONTEST.id,
+      clan_name: ACTIVE_CONTEST.clanName,
+      enabled: ACTIVE_CONTEST.enabled,
+      total_participants: leaderboard.length,
+      total_tickets: leaderboard.reduce((s, x) => s + x.tickets, 0),
+      leaderboard,
+    });
+  } catch (err) {
+    console.error('[admin/contest-stats]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Contest draw — pick 3 weighted random winners ────────────
+adminRouter.post('/contest-draw', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { data: rows } = await supabase
+      .from('contest_tickets')
+      .select('player_id, amount')
+      .eq('contest_id', ACTIVE_CONTEST.id);
+
+    const byPlayer = new Map();
+    for (const r of rows || []) {
+      byPlayer.set(r.player_id, (byPlayer.get(r.player_id) || 0) + r.amount);
+    }
+    const pool = [...byPlayer.entries()].map(([player_id, tickets]) => ({ player_id: Number(player_id), tickets }));
+    if (pool.length === 0) return res.json({ winners: [] });
+
+    // Weighted random without replacement
+    const winners = [];
+    for (let i = 0; i < 3 && pool.length > 0; i++) {
+      const total = pool.reduce((s, p) => s + p.tickets, 0);
+      let r = Math.random() * total;
+      let idx = 0;
+      for (let j = 0; j < pool.length; j++) {
+        r -= pool[j].tickets;
+        if (r <= 0) { idx = j; break; }
+      }
+      const w = pool.splice(idx, 1)[0];
+      const p = gameState.loaded ? gameState.getPlayerByTgId(w.player_id) : null;
+      winners.push({
+        position: i + 1,
+        telegram_id: w.player_id,
+        tickets: w.tickets,
+        username: p?.game_username || p?.username || String(w.player_id),
+        avatar: p?.avatar || '🎮',
+        level: p?.level || 0,
+      });
+    }
+
+    return res.json({ contest_id: ACTIVE_CONTEST.id, winners });
+  } catch (err) {
+    console.error('[admin/contest-draw]', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
