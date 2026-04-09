@@ -492,13 +492,17 @@ const DIGEST_WINDOW_MS = 3600000;
 
 async function _sendTelegramMessage(token, text) {
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: ADMIN_NOTIFY_ID, text }),
     });
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      console.error('[ANTISPOOF] digest send non-ok:', r.status, body.slice(0, 200));
+    }
   } catch (e) {
-    console.error('[ANTISPOOF] digest send error:', e.message);
+    console.error('[ANTISPOOF] digest send error:', e.message, e.cause?.message || '');
   }
 }
 
