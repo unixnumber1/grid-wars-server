@@ -203,6 +203,7 @@ async function handleHit(req, res) {
   // Calculate damage
   const items = gameState.getPlayerItems(player.id);
   const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
@@ -231,7 +232,7 @@ async function handleHit(req, res) {
     to_lat: truck.lat, to_lng: truck.lng,
     damage, crit: isCrit,
     target_type: 'fire_truck', target_id: truck.id,
-    weapon_type: weaponType,
+    weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     attacker_id: isInShadow(player) ? 0 : player.id,
   });
 
@@ -456,6 +457,7 @@ async function handleHitFirefighter(req, res) {
   // Calculate damage
   const items = gameState.getPlayerItems(player.id);
   const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const _skFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = 0.8 + Math.random() * 0.4;
@@ -483,7 +485,7 @@ async function handleHitFirefighter(req, res) {
     to_lat: ff.current_lat, to_lng: ff.current_lng,
     damage, crit: isCrit,
     target_type: 'firefighter', target_id: ff.id,
-    weapon_type: weaponType,
+    weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     attacker_id: isInShadow(player) ? 0 : player.id,
   });
 

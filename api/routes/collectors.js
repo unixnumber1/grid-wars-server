@@ -313,6 +313,7 @@ async function handleHit(req, res) {
   // Calculate damage
   const items = gameState.getPlayerItems(player.id);
   const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weaponType = weapon ? weapon.type : 'none';
   const baseDmg = 10 + (weapon?.attack || 0);
   const mul = distanceMultiplier(dist, LARGE_RADIUS);
   let damage = Math.round(baseDmg * mul);
@@ -341,7 +342,7 @@ async function handleHit(req, res) {
     to_lat: collector.lat, to_lng: collector.lng,
     damage, crit: isCrit,
     target_type: 'collector', target_id: collector.id,
-    weapon_type: weaponType,
+    weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     attacker_id: isInShadow(player) ? 0 : player.id,
   });
 
