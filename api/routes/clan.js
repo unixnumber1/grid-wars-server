@@ -8,7 +8,7 @@ import { gameState } from '../../lib/gameState.js';
 import { logActivity } from '../../server.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
-import { awardClanDonationTickets } from '../../game/mechanics/contest.js';
+import { awardClanDonationTickets, getActiveContestClanId, getActiveContestId } from '../../game/mechanics/contest.js';
 
 export const clanRouter = Router();
 
@@ -575,9 +575,38 @@ async function handleInfo(req, res) {
     .order('created_at', { ascending: true });
   if (reqs) pendingRequests = reqs;
 
+  // Contest tickets per member if this clan is the active contest clan
+  const contestTickets = {};
+  let contestActive = false;
+  if (String(getActiveContestClanId()) === String(clan_id)) {
+    const contestId = getActiveContestId();
+    if (contestId) {
+      contestActive = true;
+      const memberTgIds = (members || [])
+        .map(m => m.players?.telegram_id)
+        .filter(v => v != null)
+        .map(Number);
+      if (memberTgIds.length > 0) {
+        const { data: ticketRows } = await supabase
+          .from('contest_tickets')
+          .select('player_id, amount')
+          .eq('contest_id', contestId)
+          .in('player_id', memberTgIds);
+        for (const r of ticketRows || []) {
+          contestTickets[r.player_id] = (contestTickets[r.player_id] || 0) + (r.amount || 0);
+        }
+      }
+    }
+  }
+
   return res.json({
     clan: { ...clan, ...config, member_count: (members || []).length, leader_name: leader?.game_username || leader?.username || '???' },
-    members: (members || []).map(m => ({ ...m, mine_count: mineCountMap[m.player_id] || 0 })),
+    members: (members || []).map(m => ({
+      ...m,
+      mine_count: mineCountMap[m.player_id] || 0,
+      contest_tickets: m.players?.telegram_id ? (contestTickets[Number(m.players.telegram_id)] || 0) : 0,
+    })),
+    contest_active: contestActive,
     headquarters: hqs || [],
     pending_requests: pendingRequests,
   });

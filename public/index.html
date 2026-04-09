@@ -18839,7 +18839,7 @@ async function _renderMembersTab(body) {
         <div class="cs-member-avatar">${avatar}</div>
         <div class="cs-member-info">
           <div class="cs-member-name" style="display:flex;align-items:center;">${onlineDot}${name}</div>
-          <div class="cs-member-meta">Ур.${p.level || 1}${isOwnClan ? ` · 💎 ${m.donated_month || 0}` : ''}</div>
+          <div class="cs-member-meta">Ур.${p.level || 1}${isOwnClan ? ` · 💎 ${m.donated_month || 0}${_clanScreenData?.contest_active ? ` · 🎟 ${m.contest_tickets || 0}` : ''}` : ''}</div>
         </div>
         <div class="cs-member-role">${roleIcon} ${roleLabel}</div>
         ${canManage ? `<button style="font-size:18px;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;cursor:pointer;line-height:1;" onclick="event.stopPropagation();_showMemberActions('${p.telegram_id}','${m.role}','${escapedName}')">⋯</button>` : ''}
