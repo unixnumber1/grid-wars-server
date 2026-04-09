@@ -10,7 +10,7 @@ import { getCoresTotalBoost } from '../../lib/cores.js';
 import { getOreIncome } from '../../lib/oreNodes.js';
 import { gameState } from '../../lib/gameState.js';
 import { getClanLevel, getClanDefenseForMine } from '../../lib/clans.js';
-import { getPlayerSkillEffects } from '../../config/skills.js';
+import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS, ORE_TYPES, isAdmin } from '../../config/constants.js';
 
 const SPEED_METERS = BOT_SPEED_METERS;
@@ -404,7 +404,13 @@ async function handleTick(req, res) {
           can_capture: playerRange ? m.owner_id !== currentPlayerId && playerRange.has(m.cell_id) : false,
         };
       }).filter(Boolean);
-      mapData.online_players = (allOnline || []).filter(p => p.id !== currentPlayerId);
+      // Filter out players in Shadow mode (invisibility skill) — never expose
+      // their position or username via the map state. Self always passes through.
+      mapData.online_players = (allOnline || []).filter(p => {
+        if (p.id === currentPlayerId) return false;
+        const gp = gameState.loaded ? gameState.getPlayerById(p.id) : null;
+        return !isInShadow(gp);
+      });
       mapData.bots = allBots || [];
       mapData.vases = allVases || [];
       mapData.couriers = allCouriers || [];
@@ -1005,7 +1011,12 @@ mapRouter.get('/', async (req, res) => {
     };
   }).filter(Boolean);
 
-  const online_players = (allOnline || []).filter((p) => p.id !== currentPlayerId);
+  // Filter out shadow-mode players from the public online list
+  const online_players = (allOnline || []).filter((p) => {
+    if (p.id === currentPlayerId) return false;
+    const gp = gameState.loaded ? gameState.getPlayerById(p.id) : null;
+    return !isInShadow(gp);
+  });
   const bots    = allBots    || [];
   const vases   = allVases   || [];
   const couriers     = allCouriers || [];

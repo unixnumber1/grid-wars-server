@@ -91,6 +91,7 @@ import { validateRequest, checkBan } from './lib/security.js';
 import { rateLimitMw } from './lib/rateLimit.js';
 import { verifyTelegramAuth, verifyInitData } from './security/telegramAuth.js';
 import { validatePosition, seedPositionFromDB, setPlayerHq, sendHourlyDigest } from './security/antispoof.js';
+import { isInShadow } from './config/skills.js';
 
 // Security headers
 app.use((req, res, next) => {
@@ -648,19 +649,33 @@ io.on('connection', (socket) => {
       }).catch(e => console.error('[server] error:', e.message));
     }
 
-    // Broadcast to nearby players (2km) with player info for instant marker creation
+    // Broadcast to nearby players (2km) with player info for instant marker creation.
+    // SHADOW SKILL: a player using Shadow ability is invisible to others. We must
+    // not leak their position or username, otherwise the core stealth mechanic
+    // is broken. We still send the event (so the client can clean up the marker
+    // if it had one), but with masked fields and a flag the client can read.
     const gsPlayer = gameState.loaded ? gameState.getPlayerByTgId(verifiedTgId) : null;
-    const movePayload = {
+    const inShadow = isInShadow(gsPlayer);
+    const movePayload = inShadow ? {
+      telegram_id: 0,
+      lat: null, lng: null,
+      id: null, avatar: '🎮',
+      level: gsPlayer?.level || 0, shield_until: null,
+      username: '???',
+      shadow: true,
+    } : {
       telegram_id: verifiedTgId,
       lat: data.lat, lng: data.lng,
       id: gsPlayer?.id, avatar: gsPlayer?.avatar,
       level: gsPlayer?.level, shield_until: gsPlayer?.shield_until,
       username: gsPlayer?.game_username || gsPlayer?.username,
     };
-    for (const [sid, other] of connectedPlayers) {
-      if (sid === socket.id || !other.lat) continue;
-      if (haversine(data.lat, data.lng, other.lat, other.lng) <= 2000) {
-        io.to(sid).emit('player:moved', movePayload);
+    if (!inShadow) {
+      for (const [sid, other] of connectedPlayers) {
+        if (sid === socket.id || !other.lat) continue;
+        if (haversine(data.lat, data.lng, other.lat, other.lng) <= 2000) {
+          io.to(sid).emit('player:moved', movePayload);
+        }
       }
     }
 

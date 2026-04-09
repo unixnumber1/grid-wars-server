@@ -7628,6 +7628,19 @@ function setLoadingText(t) {
 }
 
 const _tgInitData = tg?.initData || '';
+// Escape user-controlled strings before injecting into innerHTML.
+// Used for usernames, clan names, item names, etc. — anything that originates
+// from another player and could contain HTML/JavaScript.
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function apiFetch(path, opts = {}) {
   if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -16864,14 +16877,14 @@ function playBattleAnimation(data) {
 
           // Attacker hits
           const critA = round.attackerCrit ? ` <span class="crit">${t('pvp.crit')}</span>` : '';
-          el.innerHTML += `<div class="pvp-hit-line" style="color:#2979ff;">${atk.username || 'Player'} ${t('pvp.deals', {n: round.attackerDmg})}</div>${critA}`;
+          el.innerHTML += `<div class="pvp-hit-line" style="color:#2979ff;">${escapeHtml(atk.username || 'Player')} ${t('pvp.deals', {n: round.attackerDmg})}</div>${critA}`;
           defHp = round.defenderHpAfter ?? defHp;
           if (defBar) defBar.style.width = Math.max(0, (defHp / defMaxHp) * 100) + '%';
           if (defLabel) defLabel.textContent = `${Math.max(0, defHp)} HP`;
 
           if (round.defenderDmg != null) {
             const critD = round.defenderCrit ? ` <span class="crit">${t('pvp.crit')}</span>` : '';
-            el.innerHTML += `<div class="pvp-hit-line" style="color:#ff4444;">${def.username || 'Player'} ${t('pvp.deals', {n: round.defenderDmg})}</div>${critD}`;
+            el.innerHTML += `<div class="pvp-hit-line" style="color:#ff4444;">${escapeHtml(def.username || 'Player')} ${t('pvp.deals', {n: round.defenderDmg})}</div>${critD}`;
             atkHp = round.attackerHpAfter ?? atkHp;
             if (atkBar) atkBar.style.width = Math.max(0, (atkHp / atkMaxHp) * 100) + '%';
             if (atkLabel) atkLabel.textContent = `${Math.max(0, atkHp)} HP`;
