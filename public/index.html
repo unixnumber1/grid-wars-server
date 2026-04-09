@@ -17247,13 +17247,18 @@ async function _atkFetch(path, opts) {
     const data = await res.json();
     _atkInFlight = false;
     if (res.status === 429) {
-      // Server cooldown — retry after specified time
-      _scheduleNextHit(data.retry_after || _pvpCdMs);
+      // Server cooldown — retry_after may be in ms (rate limit) or absent (weapon CD).
+      // Always wait at least the full weapon CD to avoid hammering the rate limiter.
+      const ra = Number(data.retry_after) || 0;
+      _scheduleNextHit(Math.max(_pvpCdMs, ra));
       return null;
     }
     if (!res.ok) return null;
     if (data.effective_cd) _pvpCdMs = data.effective_cd;
-    _scheduleNextHit(50); // success — fire next hit after short delay (server enforces CD)
+    // Pace requests to the server's cooldown — small lead time for network jitter,
+    // never under 50ms. Previously hardcoded to 50ms which spammed the rate limiter
+    // and caused stuttering after ~9 seconds of holding the attack button.
+    _scheduleNextHit(Math.max(50, _pvpCdMs - 50));
     return data;
   } catch (e) {
     _atkInFlight = false;

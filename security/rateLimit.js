@@ -55,7 +55,7 @@ export function rateLimitMw(type = 'default') {
       requestCounts.set(key, current);
       return res.status(429).json({
         error: 'Слишком много запросов. Подождите.',
-        retry_after: Math.ceil((current.stickyUntil - now) / 1000),
+        retry_after: Math.max(0, current.stickyUntil - now), // milliseconds
       });
     }
 
@@ -106,7 +106,7 @@ export function rateLimitMw(type = 'default') {
       suspiciousActivity.set(String(telegramId), v);
       return res.status(429).json({
         error: 'Слишком много запросов. Подождите немного.',
-        retry_after: Math.ceil((current.resetAt - now) / 1000),
+        retry_after: Math.max(0, current.resetAt - now), // milliseconds
       });
     }
 
