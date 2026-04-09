@@ -15,17 +15,18 @@ export const ADMIN_TG_IDS = new Set([560013667, 8752325699]);
 export function isAdmin(tgId) { return ADMIN_TG_IDS.has(Number(tgId)); }
 
 // ── Contest ──
-export const ACTIVE_CONTEST = {
-  id: 'clan_eblany_2026_04',
-  clanName: 'ебланы',
-  enabled: true,
-  rules: {
-    mineDestroyMinLevel: 40,
-    mineDestroyTickets: 1,
-    oreCaptureTickets: 1,        // только PvP-перехват у другого игрока
-    monumentKillTickets: 10,     // только топ-1 по урону
-  },
+// Active clan is selected at runtime by admin via app_settings (key='contest_clan_id').
+// contest_id is derived as `clan_<clan_id>` so each clan has its own ticket pool.
+export const CONTEST_RULES = {
+  mineDestroyMinLevel: 40,
+  mineDestroyTickets: 1,
+  oreCaptureTickets: 1,        // только PvP-перехват у другого игрока
+  monumentKillTickets: 10,     // только топ-1 по урону
 };
+export const CONTEST_SETTING_KEY = 'contest_clan_id';
+export function getContestIdForClan(clanId) {
+  return clanId ? `clan_${clanId}` : null;
+}
 
 // ── H3 grid ──
 export const H3_RESOLUTION = 10;       // ~65m hexes

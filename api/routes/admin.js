@@ -19,7 +19,7 @@ import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import { gridDisk } from 'h3-js';
 
 export const adminRouter = Router();
-import { isAdmin as isAdminId, ACTIVE_CONTEST } from '../../config/constants.js';
+import { isAdmin as isAdminId, CONTEST_RULES, CONTEST_SETTING_KEY, getContestIdForClan } from '../../config/constants.js';
 const ADMIN_TG_ID = 560013667;
 
 function isAdmin(req) {
@@ -407,14 +407,71 @@ adminRouter.get('/referral-stats', async (req, res) => {
   }
 });
 
+// ── Contest helpers ───────────────────────────────────────────
+function _getActiveContestClan() {
+  const clanId = gameState.appSettings.get(CONTEST_SETTING_KEY) || null;
+  if (!clanId) return { clan_id: null, clan: null, contest_id: null };
+  const clan = gameState.clans.get(clanId) || null;
+  return { clan_id: clanId, clan, contest_id: getContestIdForClan(clanId) };
+}
+
+// ── Contest: list all clans (for admin picker) ───────────────
+adminRouter.get('/contest-clans', (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  const memberCounts = new Map();
+  for (const m of gameState.clanMembers.values()) {
+    if (m.left_at) continue;
+    memberCounts.set(String(m.clan_id), (memberCounts.get(String(m.clan_id)) || 0) + 1);
+  }
+  const clans = [...gameState.clans.values()].map(c => ({
+    id: c.id,
+    name: c.name,
+    symbol: c.symbol || '',
+    color: c.color || '',
+    level: c.level || 1,
+    members: memberCounts.get(String(c.id)) || 0,
+  })).sort((a, b) => b.members - a.members || a.name.localeCompare(b.name));
+  const active = _getActiveContestClan();
+  return res.json({ clans, active_clan_id: active.clan_id });
+});
+
+// ── Contest: set / clear active clan ─────────────────────────
+adminRouter.post('/contest-set-clan', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  const { clan_id } = req.body || {};
+  try {
+    if (clan_id === null || clan_id === '' || clan_id === undefined) {
+      // Disable
+      await supabase.from('app_settings').upsert({ key: CONTEST_SETTING_KEY, value: '' }, { onConflict: 'key' });
+      gameState.appSettings.set(CONTEST_SETTING_KEY, '');
+      return res.json({ success: true, clan_id: null, contest_id: null });
+    }
+    const clan = gameState.clans.get(String(clan_id));
+    if (!clan) return res.status(404).json({ error: 'Clan not found' });
+    await supabase.from('app_settings').upsert({ key: CONTEST_SETTING_KEY, value: String(clan_id) }, { onConflict: 'key' });
+    gameState.appSettings.set(CONTEST_SETTING_KEY, String(clan_id));
+    return res.json({ success: true, clan_id: String(clan_id), contest_id: getContestIdForClan(clan_id), clan_name: clan.name });
+  } catch (err) {
+    console.error('[admin/contest-set-clan]', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Contest stats ─────────────────────────────────────────────
 adminRouter.get('/contest-stats', async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
   try {
+    const { clan_id, clan, contest_id } = _getActiveContestClan();
+    if (!contest_id) {
+      return res.json({
+        contest_id: null, clan_id: null, clan_name: null, enabled: false,
+        total_participants: 0, total_tickets: 0, leaderboard: [], rules: CONTEST_RULES,
+      });
+    }
     const { data: rows } = await supabase
       .from('contest_tickets')
       .select('player_id, reason, amount')
-      .eq('contest_id', ACTIVE_CONTEST.id);
+      .eq('contest_id', contest_id);
 
     const byPlayer = new Map();
     for (const r of rows || []) {
@@ -443,12 +500,11 @@ adminRouter.get('/contest-stats', async (req, res) => {
     leaderboard.sort((a, b) => b.tickets - a.tickets);
 
     return res.json({
-      contest_id: ACTIVE_CONTEST.id,
-      clan_name: ACTIVE_CONTEST.clanName,
-      enabled: ACTIVE_CONTEST.enabled,
+      contest_id, clan_id, clan_name: clan?.name || null, enabled: true,
       total_participants: leaderboard.length,
       total_tickets: leaderboard.reduce((s, x) => s + x.tickets, 0),
       leaderboard,
+      rules: CONTEST_RULES,
     });
   } catch (err) {
     console.error('[admin/contest-stats]', err.message);
@@ -460,10 +516,13 @@ adminRouter.get('/contest-stats', async (req, res) => {
 adminRouter.post('/contest-draw', async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
   try {
+    const { contest_id } = _getActiveContestClan();
+    if (!contest_id) return res.status(400).json({ error: 'Конкурс не активен — выберите клан' });
+
     const { data: rows } = await supabase
       .from('contest_tickets')
       .select('player_id, amount')
-      .eq('contest_id', ACTIVE_CONTEST.id);
+      .eq('contest_id', contest_id);
 
     const byPlayer = new Map();
     for (const r of rows || []) {
@@ -472,7 +531,6 @@ adminRouter.post('/contest-draw', async (req, res) => {
     const pool = [...byPlayer.entries()].map(([player_id, tickets]) => ({ player_id: Number(player_id), tickets }));
     if (pool.length === 0) return res.json({ winners: [] });
 
-    // Weighted random without replacement
     const winners = [];
     for (let i = 0; i < 3 && pool.length > 0; i++) {
       const total = pool.reduce((s, p) => s + p.tickets, 0);
@@ -494,7 +552,7 @@ adminRouter.post('/contest-draw', async (req, res) => {
       });
     }
 
-    return res.json({ contest_id: ACTIVE_CONTEST.id, winners });
+    return res.json({ contest_id, winners });
   } catch (err) {
     console.error('[admin/contest-draw]', err.message);
     return res.status(500).json({ error: err.message });

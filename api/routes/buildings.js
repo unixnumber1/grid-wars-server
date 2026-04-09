@@ -15,8 +15,7 @@ import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 import { setPinMode, setPlayerHq } from '../../security/antispoof.js';
-import { awardContestTickets } from '../../game/mechanics/contest.js';
-import { ACTIVE_CONTEST } from '../../config/constants.js';
+import { awardContestTickets, CONTEST_RULES } from '../../game/mechanics/contest.js';
 
 export const buildingsRouter = Router();
 
@@ -764,8 +763,8 @@ async function handleMineHit(req, res) {
     }
 
     // Contest: ticket for destroying enemy mine of level >= mineDestroyMinLevel
-    if (mine.level >= ACTIVE_CONTEST.rules.mineDestroyMinLevel && mine.owner_id !== player.id) {
-      awardContestTickets(player.telegram_id, 'mine_destroy', ACTIVE_CONTEST.rules.mineDestroyTickets, {
+    if (mine.level >= CONTEST_RULES.mineDestroyMinLevel && mine.owner_id !== player.id) {
+      awardContestTickets(player.telegram_id, 'mine_destroy', CONTEST_RULES.mineDestroyTickets, {
         mine_id, mine_level: mine.level, owner_id: mine.owner_id,
       }).catch(() => {});
     }
