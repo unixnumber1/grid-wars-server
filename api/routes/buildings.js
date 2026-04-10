@@ -139,11 +139,17 @@ async function handleHqSell(player, telegramId, res) {
 
 async function handleMineBuild(req, res) {
   const { telegram_id } = req.body;
-  const playerActualLat = parseFloat(req.body.player_lat ?? req.body.lat);
-  const playerActualLng = parseFloat(req.body.player_lng ?? req.body.lng);
   const mineLat = parseFloat(req.body.mine_lat ?? req.body.lat);
   const mineLng = parseFloat(req.body.mine_lng ?? req.body.lng);
-  if (!telegram_id || isNaN(mineLat) || isNaN(mineLng) || isNaN(playerActualLat) || isNaN(playerActualLng)) return res.status(400).json({ error: 'telegram_id, player position and mine position are required' });
+  if (!telegram_id || isNaN(mineLat) || isNaN(mineLng)) return res.status(400).json({ error: 'telegram_id and mine position are required' });
+
+  // SECURITY: use server-authoritative position, NOT body coords.
+  // Previously used req.body.player_lat/lng which an attacker could forge
+  // to build mines anywhere on the map without physically being there.
+  const playerPos = (await import('../../lib/playerPosition.js')).getVerifiedPlayerPos(telegram_id);
+  if (!playerPos) return res.status(400).json({ error: 'Обновите позицию' });
+  const playerActualLat = playerPos.lat;
+  const playerActualLng = playerPos.lng;
   const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, level');
   if (playerError) return res.status(500).json({ error: playerError });
   if (!player) return res.status(404).json({ error: 'Player not found' });

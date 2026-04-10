@@ -106,6 +106,33 @@ app.use(validateRequest);
 app.use('/api', verifyTelegramAuth);
 app.use('/api', checkBan);
 
+// Position freshness gate — reject distance-dependent actions when the player's
+// last validated position is stale (>60s). Prevents spoofers from parking their
+// virtual position somewhere and then acting without sending ongoing location
+// updates (which would expose them to antispoof detection).
+const POSITION_ACTIONS = new Set([
+  'build', 'collect', 'hit', 'break', 'claim', 'attack', 'extinguish', 'dispatch',
+  'deliver', 'pickup-drop', 'attack-courier', 'lure', 'repel',
+  'attack-shield', 'attack-monument', 'attack-defender', 'open-loot-box',
+  'send-scout', 'attack-scout', 'hit-firefighter', 'spawn-scout',
+]);
+const POSITION_MAX_AGE_MS = 60000;
+app.use('/api', (req, res, next) => {
+  if (req.method !== 'POST') return next();
+  const action = req.body?.action;
+  if (!action || !POSITION_ACTIONS.has(action)) return next();
+  const tgId = req.body?.telegram_id;
+  if (!tgId) return next();
+  if (!gameState.loaded) return next();
+  const player = gameState.getPlayerByTgId(Number(tgId));
+  if (!player?.last_seen) return next(); // first connection — let route handle null-position
+  const age = Date.now() - new Date(player.last_seen).getTime();
+  if (age > POSITION_MAX_AGE_MS) {
+    return res.status(400).json({ error: 'Обновите позицию', stale: true });
+  }
+  next();
+});
+
 // Rate limiting per route type
 app.use('/api/map', rateLimitMw('tick'));
 app.use('/api/player', rateLimitMw('location'));
