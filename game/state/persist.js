@@ -155,6 +155,11 @@ async function batchPersist() {
 // Immediate persist for critical operations (money, PvP, etc.)
 export async function persistNow(table, data) {
   try {
+    // Guard: skip players with null telegram_id
+    if (table === 'players') {
+      if (Array.isArray(data)) data = data.filter(d => d.telegram_id);
+      else if (!data?.telegram_id) return false;
+    }
     const { error } = await supabase.from(table).upsert(data, { onConflict: 'id' });
     if (error) console.error(`[persist:now] ${table} error:`, error.message);
     return !error;
