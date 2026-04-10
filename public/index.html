@@ -17271,7 +17271,15 @@ function _scheduleNextHit(retryAfterMs) {
 }
 
 // Attack fetch — handles 429 cooldown with retry, schedules next hit from response
+let _lastAtkSentAt = 0;
 async function _atkFetch(path, opts) {
+  // Client-side cooldown guard: don't waste rate limit on requests that will be 429'd
+  const now = Date.now();
+  if (now - _lastAtkSentAt < _pvpCdMs * 0.75) {
+    _scheduleNextHit(_pvpCdMs - (now - _lastAtkSentAt));
+    return null;
+  }
+  _lastAtkSentAt = now;
   _atkInFlight = true;
   try {
     if (!opts.signal) opts.signal = AbortSignal.timeout(15000);
