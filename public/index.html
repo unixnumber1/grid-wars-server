@@ -19875,7 +19875,7 @@ function showMonumentPopup(monumentId) {
       actions.push({ label: t('mon.attack_monument'), cls: 'danger', action: () => doStartMonumentCombat(monumentId, 'body') });
     }
   }
-  openPopup(`🏛️ ${m.name}`, '', stats, actions);
+  openPopup(`${m.emoji || '🏛️'} ${m.name}`, '', stats, actions);
 }
 
 // ── Defender popup — direct attack (no combat mode) ──
@@ -19928,7 +19928,7 @@ function doStartMonumentCombat(monumentId, mode) {
   const maxHp = mode === 'shield' ? m.max_shield_hp : m.max_hp;
   const barColor = mode === 'shield' ? '#4488ff' : '#ff4444';
   const target = { id: monumentId, level: m.level, name: m.name, _monumentMode: mode };
-  openCombatPopup(`🏛️ ${m.name || 'Монумент'} Lv.${m.level}`, monumentId, targetType, target, { hp, maxHp, barColor });
+  openCombatPopup(`${m.emoji || '🏛️'} ${m.name || 'Монумент'} Lv.${m.level}`, monumentId, targetType, target, { hp, maxHp, barColor });
 }
 
 function doStartDefenderCombat(monumentId) {
