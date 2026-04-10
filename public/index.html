@@ -141,7 +141,7 @@
       width: 42px;
       height: 42px;
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       background: rgba(255,255,255,0.06);
       color: #ddd;
       font-size: 20px;
@@ -297,7 +297,7 @@
       border: 1px solid #333;
       color: #e0e0e0;
       padding: 8px 14px;
-      border-radius: 10px;
+      border-radius: var(--btn-radius);
       font-size: 13px;
       cursor: pointer;
       white-space: nowrap;
@@ -347,14 +347,14 @@
     }
 
     #popup-card h2 { font-size: 16px; margin-bottom: 4px; }
-    #popup-card .subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
+    #popup-card .subtitle { font-size: 12px; color: #999; margin-bottom: 16px; }
 
     .popup-stat {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #252538;
-      border-radius: 10px;
+      background: var(--card-bg);
+      border-radius: var(--card-radius);
       padding: 10px 12px;
       font-size: 13px;
       color: #ccc;
@@ -397,8 +397,10 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-width: 260px;
+      max-width: 280px;
       pointer-events: none;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     /* Leaflet marker overrides */
@@ -536,9 +538,9 @@
     }
 
     .settings-card {
-      background: #252538;
+      background: var(--card-bg);
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px;
+      border-radius: var(--card-radius);
       padding: 14px 16px;
       margin-bottom: 12px;
     }
@@ -549,7 +551,7 @@
     .monument-request-section .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
     .level-selector { display: flex; gap: 6px; flex-wrap: wrap; }
     .level-option { width: 36px; height: 36px; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; cursor: pointer; color: #888; }
-    .level-option.selected { background: #2196f3; border-color: #2196f3; color: #fff; }
+    .level-option.selected { background: rgba(255,215,0,0.2); border-color: #FFD700; color: #FFD700; }
 
     .settings-action-btn {
       border-radius: 12px;
@@ -712,7 +714,7 @@
     /* Profile overlay */
     #profile-overlay {
       display: none; position: fixed; inset: 0;
-      background: #0a0a1a; z-index: 5100;
+      background: #0d0d0d; z-index: 5100;
       flex-direction: column; overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -720,10 +722,10 @@
     .profile-topbar {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px));
-      border-bottom: 1px solid #222; flex-shrink: 0; background: #0a0a1a;
+      border-bottom: 1px solid #222; flex-shrink: 0; background: #0d0d0d;
     }
     .profile-topbar-title { font-size: 16px; font-weight: 700; color: #fff; }
-    .btn-back { background: none; border: none; color: #4488ff; font-size: 14px; cursor: pointer; padding: 4px 8px; }
+    .btn-back { background: none; border: none; color: #888; font-size: 14px; cursor: pointer; padding: 4px 8px; }
     .profile-card { margin: 16px; border-radius: 16px; overflow: hidden; position: relative; min-height: 140px; }
     .profile-card-bg { position: absolute; inset: 0; opacity: 0.7; }
     .profile-card-content { position: relative; z-index: 1; padding: 20px; text-align: center; }
@@ -826,8 +828,8 @@
 
     /* Build menu cards */
     .build-card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 12px;
       padding: 14px 14px 12px;
       margin-bottom: 8px;
@@ -880,6 +882,7 @@
       gap: 20px;
       text-align: center;
       padding: 32px;
+      padding-top: calc(32px + env(safe-area-inset-top, 0px));
     }
     #maintenance-screen.open { display: flex; }
 
@@ -894,6 +897,7 @@
       justify-content: center;
       text-align: center;
       padding: 32px;
+      padding-top: calc(32px + env(safe-area-inset-top, 0px));
     }
     #session-kicked-screen.open { display: flex; }
 
@@ -1056,7 +1060,7 @@
     .walk-ms-btn {
       padding: 3px 10px;
       border: none;
-      border-radius: 6px;
+      border-radius: 10px;
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
@@ -1165,6 +1169,7 @@
       inset: 0;
       background: radial-gradient(circle at center, rgb(80,0,0), rgb(0,0,0));
       z-index: 99999;
+      padding-top: env(safe-area-inset-top, 0px);
       flex-direction: column;
       align-items: center;
       justify-content: center;
@@ -1547,7 +1552,7 @@
     .popup-close { background:none; border:none; color:#666; font-size:20px; cursor:pointer; padding:4px; -webkit-tap-highlight-color:transparent; }
     .inv-main-tabs { display:flex; gap:6px; margin:0 16px 0; }
     .inv-main-tab { flex:1; padding:10px; background:#111; border:1px solid #222; border-radius:10px; color:#666; font-size:14px; font-weight:600; cursor:pointer; text-align:center; -webkit-tap-highlight-color:transparent; }
-    .inv-main-tab.active { background:#1a1a2e; border-color:#4488ff; color:#fff; }
+    .inv-main-tab.active { background:#1a1a2e; border-color:#FFD700; color:#FFD700; }
     .hq-btn:disabled { opacity:0.5; cursor:not-allowed; }
     .skill-popup { position:fixed; bottom:0; left:0; right:0; background:#0f0f1e; border-top:1px solid #222; border-radius:16px 16px 0 0; padding:20px 16px 32px; z-index:9500; animation:slideUpSk 0.2s ease-out; }
     @keyframes slideUpSk { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -1691,7 +1696,7 @@
     /* Item detail bottom sheet inside profile modal */
     /* ── Item detail card ── */
     #item-detail-overlay {
-      display:none; position:fixed; inset:0; z-index:8000;
+      display:none; position:fixed; inset:0; z-index:8500;
       background:rgba(0,0,0,0.85); backdrop-filter:blur(8px);
       flex-direction:column; align-items:center; justify-content:center;
     }
