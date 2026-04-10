@@ -473,6 +473,7 @@ async function handleAttackDefender(req, res) {
   if (defender.hp <= 0) {
     killed = true;
     defender.alive = false;
+    defender._died_at = Date.now();
 
     // Persist defender death
     supabase.from('monument_defenders').update({ alive: false, hp: 0 }).eq('id', defender.id).then(() => {}).catch(e => console.error('[monuments] DB error:', e.message));

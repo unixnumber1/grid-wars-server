@@ -598,6 +598,11 @@ function extinguishBuilding(ff) {
 function updateDefenders(nowMs) {
   if (gameState.monumentDefenders.size === 0) return;
 
+  // Purge dead defenders older than 60s
+  for (const [id, d] of gameState.monumentDefenders) {
+    if (!d.alive && d._died_at && nowMs - d._died_at > 60000) gameState.monumentDefenders.delete(id);
+  }
+
   // Cache online players
   const raidPlayers = new Map();
   for (const [sid, info] of _connectedPlayers) {
@@ -762,7 +767,7 @@ function updateDefenders(nowMs) {
         default: d._state = 'patrol';
       }
 
-      if (moved) gameState.markDirty('monumentDefenders', d.id);
+      if (moved && d._tick_count % 5 === 0) gameState.markDirty('monumentDefenders', d.id);
     }
   }
 

@@ -98,6 +98,7 @@ async function batchPersist() {
       // Skip rows with null NOT-NULL columns to avoid infinite retry
       if (key === 'clanHqs' && !obj.clan_id) continue;
       if ((key === 'mines' || key === 'players') && !obj.created_at) continue;
+      if (key === 'players' && !obj.telegram_id) continue;
       // Safety: never send items without upgrade_level (prevents reset to 0)
       if (key === 'items' && obj.upgrade_level == null) obj.upgrade_level = 0;
       // Strip runtime-only fields (prefixed with _) that don't exist in DB
