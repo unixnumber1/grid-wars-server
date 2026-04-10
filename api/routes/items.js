@@ -14,7 +14,7 @@ import { grantReward } from './rewards.js';
 export const itemsRouter = Router();
 
 // ── Shop box constants ────────────────────────────────────────
-const BOX_PRICES = { common: 3, rare: 8, epic: 35, mythic: 150 };
+const BOX_PRICES = { common: 3, rare: 10, epic: 40, mythic: 150 };
 const CORE_ORB_PRICE = 150;
 
 async function recalcBonuses(playerId, level) {
