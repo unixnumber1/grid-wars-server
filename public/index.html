@@ -11278,7 +11278,6 @@ function initSocket() {
       const m = monumentData[data.monument_id];
       if (m) {
         m.hp = data.hp; m.max_hp = data.max_hp;
-        if (data.wave_shield_hp != null) m.wave_shield_hp = data.wave_shield_hp;
         updateMonumentMarkerIcon(data.monument_id, true);
       }
       if (combatState.currentTarget?.type === 'monument_body' && combatState.currentTarget.id === data.monument_id)
@@ -19530,27 +19529,15 @@ function monumentIcon(m) {
   const size = 50 + m.level * 3;
   const emojiSize = size * 0.5;
 
-  // Dome: blue for shield phase, orange-gold for wave phase with defenders
-  const hasWaveShield = (m.phase === 'wave' || m.phase === 'open') && m.wave_shield_hp > 0;
-  const domeHtml = m.phase === 'shield'
-    ? `<div class="monument-dome"></div>`
-    : hasWaveShield
-      ? `<div class="monument-dome-wave"></div>`
-      : '';
+  // Dome: blue for shield phase only
+  const domeHtml = m.phase === 'shield' ? `<div class="monument-dome"></div>` : '';
 
-  // Bars: shield/wave-shield/HP
+  // Bars: shield or HP
   let barsHtml = '';
   if (m.phase === 'shield' && m.shield_hp < m.max_shield_hp) {
     const shPct = m.max_shield_hp > 0 ? Math.max(0, m.shield_hp / m.max_shield_hp * 100) : 0;
     barsHtml = `<div class="monument-bars">
       <div class="monument-bar-wrap"><div class="monument-bar-fill bar-shield" style="width:${shPct}%"></div></div>
-    </div>`;
-  } else if (hasWaveShield) {
-    const wsPct = m.max_shield_hp > 0 ? Math.min(100, Math.round(m.wave_shield_hp / m.max_shield_hp * 100)) : 100;
-    const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
-    barsHtml = `<div class="monument-bars">
-      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-wave-shield" style="width:${wsPct}%"></div></div>
-      <div class="monument-bar-wrap"><div class="monument-bar-fill bar-hp" style="width:${hpPct}%"></div></div>
     </div>`;
   } else if ((m.phase === 'open' || m.phase === 'wave') && m.hp < m.max_hp) {
     const hpPct = m.max_hp > 0 ? Math.max(0, m.hp / m.max_hp * 100) : 0;
@@ -19843,11 +19830,6 @@ function showMonumentPopup(monumentId) {
     const pct = m.max_shield_hp > 0 ? Math.round(m.shield_hp / m.max_shield_hp * 100) : 0;
     stats.push([t('mon.shield_hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div id="mon-popup-shield-bar" style="height:100%;width:${pct}%;background:#4488ff;border-radius:4px;transition:width .3s"></div></div><span id="mon-popup-shield-text">${formatNumber(m.shield_hp)}/${formatNumber(m.max_shield_hp)}</span></div>`]);
   } else if (m.phase === 'open' || m.phase === 'wave') {
-    // Wave shield (orange-gold) while defenders alive
-    if (hasDefenders && m.wave_shield_hp > 0) {
-      const wsPct = m.max_shield_hp > 0 ? Math.min(100, Math.round(m.wave_shield_hp / m.max_shield_hp * 100)) : 100;
-      stats.push(['🛡️ Щит волны', `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div id="mon-popup-waveshield-bar" style="height:100%;width:${wsPct}%;background:linear-gradient(90deg,#ff8c00,#ffd700);border-radius:4px;transition:width .3s"></div></div><span id="mon-popup-waveshield-text">${formatNumber(m.wave_shield_hp)}/${formatNumber(m.max_shield_hp)}</span></div>`]);
-    }
     const hpPct = m.max_hp > 0 ? Math.round(m.hp / m.max_hp * 100) : 0;
     stats.push([t('mon.hp'), `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;background:#222;border-radius:4px;height:8px;overflow:hidden"><div id="mon-popup-hp-bar" style="height:100%;width:${hpPct}%;background:#ff4444;border-radius:4px;transition:width .3s"></div></div><span id="mon-popup-hp-text">${formatNumber(m.hp)}/${formatNumber(m.max_hp)}</span></div>`]);
     if (hasDefenders) {

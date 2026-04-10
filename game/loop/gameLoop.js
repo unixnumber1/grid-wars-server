@@ -659,8 +659,8 @@ function updateDefenders(nowMs) {
     // ── State machine ──
     switch (d._state) {
       case 'patrol': {
-        // Orbit around monument
-        d._patrol_angle += 0.15; // ~8.6° per tick
+        // Orbit around monument with per-defender speed variation
+        d._patrol_angle += d._patrol_speed || 0.12;
         const pDist = cfg.patrolDist;
         const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
         const tgtLat = monument.lat + (pDist / 111320) * Math.cos(d._patrol_angle);
@@ -668,13 +668,15 @@ function updateDefenders(nowMs) {
         _defMoveToward(d, tgtLat, tgtLng, cfg.speed);
         moved = true;
 
-        // Check aggro
+        // Check aggro — if found, immediately start chasing (no wasted tick)
         if (nearbyPlayers.length > 0) {
           const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
           if (target) {
             d._target_player_id = target.tgId;
             d._state = 'chase';
             d._flank_ticks = 0;
+            // Move toward target in same tick
+            _defMoveToward(d, target.lat, target.lng, cfg.speed);
           }
         }
         break;
@@ -816,7 +818,7 @@ function _defPickTarget(defender, role, monument, players, cfg) {
   return best || players[0];
 }
 
-// Move defender toward target coordinates
+// Move defender toward target coordinates with slight jitter for natural movement
 function _defMoveToward(d, tgtLat, tgtLng, speedMs) {
   const dist = haversine(d.lat, d.lng, tgtLat, tgtLng);
   if (dist < 3) return;
@@ -826,8 +828,8 @@ function _defMoveToward(d, tgtLat, tgtLng, speedMs) {
   const degDist = Math.sqrt(dLat * dLat + dLng * dLng);
   if (degDist < 1e-7) return;
   const ratio = Math.min(1, (stepM / 111320) / degDist);
-  d.lat += dLat * ratio;
-  d.lng += dLng * ratio;
+  d.lat += dLat * ratio + (Math.random() - 0.5) * 0.00003;
+  d.lng += dLng * ratio + (Math.random() - 0.5) * 0.00003;
 }
 
 // ── Move zombies toward player, scouts wander ──

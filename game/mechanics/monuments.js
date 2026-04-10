@@ -123,6 +123,23 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
   const hunterCount = count - guardianCount;
   const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
 
+  // Pre-pick targets from raid participants for instant aggro
+  const dmgMap = gameState.monumentDamage.get(monument.id);
+  const targets = [];
+  if (dmgMap && connectedPlayers) {
+    for (const [tgId] of dmgMap) {
+      for (const [, info] of connectedPlayers) {
+        if (String(info.telegram_id) === String(tgId) && info.lat && info.lng) {
+          const p = gameState.getPlayerByTgId(Number(tgId));
+          if (p && p.hp > 0 && !p.is_dead) {
+            targets.push({ tgId: Number(tgId), lat: p.last_lat || info.lat, lng: p.last_lng || info.lng });
+          }
+          break;
+        }
+      }
+    }
+  }
+
   const defenders = [];
   let gIdx = 0, hIdx = 0;
 
@@ -132,16 +149,29 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
     const cfg = DEFENDER_ROLES[role];
     const roleHp = Math.round(baseHp * cfg.hpMul);
 
-    // Distribute patrol angles evenly within each role group
     const roleCount = isGuardian ? guardianCount : hunterCount;
     const roleIdx = isGuardian ? gIdx++ : hIdx++;
     const patrolAngle = (2 * Math.PI * roleIdx / roleCount) + (isGuardian ? 0 : Math.PI / roleCount);
 
-    // Spawn at patrol orbit position
     const spawnDist = cfg.patrolDist + (Math.random() - 0.5) * 20;
     const lat = monument.lat + (spawnDist / 111320) * Math.cos(patrolAngle);
     const lng = monument.lng + (spawnDist / (111320 * cosLat)) * Math.sin(patrolAngle);
     const emoji = cfg.emojis[Math.floor(Math.random() * cfg.emojis.length)];
+
+    // Pick target at spawn: guardians → closest to monument, hunters → round-robin
+    let spawnTarget = null;
+    if (targets.length > 0) {
+      if (isGuardian) {
+        let best = null, bestDist = Infinity;
+        for (const t of targets) {
+          const d = Math.abs(t.lat - monument.lat) + Math.abs(t.lng - monument.lng);
+          if (d < bestDist) { bestDist = d; best = t; }
+        }
+        spawnTarget = best;
+      } else {
+        spawnTarget = targets[roleIdx % targets.length];
+      }
+    }
 
     const defender = {
       id: globalThis.crypto.randomUUID(),
@@ -158,12 +188,13 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
       speed: cfg.speed,
       attack_cd: cfg.attackCd,
       attack_range: cfg.attackRange,
-      // Runtime AI state (prefixed _ so persist skips them)
-      _state: 'patrol',
+      // Runtime AI state — start in chase if targets exist, otherwise patrol
+      _state: spawnTarget ? 'chase' : 'patrol',
       _patrol_angle: patrolAngle,
+      _patrol_speed: 0.1 + Math.random() * 0.1, // varied orbit speed per defender
       _target_lat: null,
       _target_lng: null,
-      _target_player_id: null,
+      _target_player_id: spawnTarget ? spawnTarget.tgId : null,
       _threat: new Map(),
       _flank_ticks: 0,
       _flee_ticks: 0,

@@ -862,23 +862,13 @@ function startMonumentLoop() {
             .filter(d => d.monument_id === id && d.alive);
 
           if (aliveDefenders.length > 0) {
-            // Regen HP: wave1=1%/s, wave2=2%/s, wave3=3%/s (* 5s tick)
-            const waveNum = monument.waves_triggered?.length || 1;
-            const regenPct = waveNum * 0.01; // 1%/2%/3% per second
-            const regenAmount = monument.max_hp * regenPct * 5;
+            // Flat 1% HP regen per second for all waves (* 5s tick)
+            const regenAmount = monument.max_hp * 0.01 * 5;
             monument.hp = Math.min(monument.max_hp, monument.hp + regenAmount);
-
-            // Wave shield = max_shield_hp while defenders alive
-            const shieldCfg = MONUMENT_LEVELS ? MONUMENT_LEVELS[monument.level] : null;
-            const waveShieldMax = shieldCfg?.max_shield_hp || monument.max_shield_hp || 0;
-            if (!monument._wave_shield_hp || monument._wave_shield_hp < waveShieldMax) {
-              monument._wave_shield_hp = waveShieldMax;
-            }
 
             gameState.markDirty('monuments', id);
             emitToNearbyMonument(monument.lat, monument.lng, 1000, 'monument:hp_update', {
               monument_id: id, hp: monument.hp, max_hp: monument.max_hp, regen: true,
-              wave_shield_hp: monument._wave_shield_hp, wave_shield_max: waveShieldMax,
             });
 
             // Safety timeout: if wave phase > 30min with no nearby players, clear wave
