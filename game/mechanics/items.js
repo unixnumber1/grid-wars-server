@@ -282,7 +282,7 @@ export function rollRarity() {
 
 export function rollItem() { return generateItem(rollRandomType(), rollRarity()); }
 
-const VASE_WEIGHTS = { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1, legendary: 0.1 };
+const VASE_WEIGHTS = { common: 40, uncommon: 35, rare: 20, epic: 4, mythic: 1, legendary: 0.05 };
 export function rollVaseItem() {
   const type = rollRandomType();
   const total = Object.values(VASE_WEIGHTS).reduce((a, b) => a + b, 0);
