@@ -15574,10 +15574,16 @@ function renderCouriers(couriers) {
       courierInterp[c.id].speed = c.speed || 0.0002;
       courierInterp[c.id].hp = c.hp;
       courierInterp[c.id].max_hp = c.max_hp;
-      // Snap display to server position so couriers don't freeze when app is backgrounded
-      courierInterp[c.id].displayLat = c.current_lat;
-      courierInterp[c.id].displayLng = c.current_lng;
-      courierMarkers[c.id].setLatLng([c.current_lat, c.current_lng]);
+      // Only snap if client drifted too far (app was backgrounded); otherwise let animation continue smoothly
+      const _cdx = c.current_lat - courierInterp[c.id].displayLat;
+      const _cdy = c.current_lng - courierInterp[c.id].displayLng;
+      const _cdrift = Math.sqrt(_cdx * _cdx + _cdy * _cdy);
+      const _cmaxDrift = (c.speed || 0.0002) / 4 * 12;
+      if (_cdrift > _cmaxDrift) {
+        courierInterp[c.id].displayLat = c.current_lat;
+        courierInterp[c.id].displayLng = c.current_lng;
+        courierMarkers[c.id].setLatLng([c.current_lat, c.current_lng]);
+      }
       // Only rebuild icon if HP changed (avoid DOM flicker)
       const ci = courierInterp[c.id];
       if (ci._prevHp !== c.hp || ci._prevMaxHp !== c.max_hp) {
