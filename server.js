@@ -1093,9 +1093,9 @@ async function start() {
   // Load monument module (lazy to avoid circular imports)
   require_monuments = await import('./lib/monuments.js');
 
-  // Monument game loop (every 5 seconds) + defender AI (every 1 second)
+  // Monument game loop (every 5 seconds). Defender AI is now in gameLoop.js (1s tick)
   startMonumentLoop();
-  startDefenderLoop();
+  // startDefenderLoop(); — replaced by updateDefenders() in gameLoop.js 1s interval
 
   // ── City-based spawn cycle (ore only — vases spawn at midnight MSK) ──
   async function citySpawnCycle() {

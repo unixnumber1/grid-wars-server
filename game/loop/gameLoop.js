@@ -34,9 +34,10 @@ export function startGameLoop(io, connectedPlayers) {
   _connectedPlayers = connectedPlayers;
   log('[gameLoop] Starting game loop, interval:', TICK_INTERVAL, 'ms');
 
-  // Smooth shield regen every 1s (separate from main 5s tick)
+  // Smooth shield regen + defender AI every 1s (separate from main 5s tick)
   setInterval(() => {
     processMonumentShieldRegen();
+    updateDefenders(Date.now());
   }, 1000);
 
   setInterval(async () => {
@@ -60,8 +61,7 @@ export function startGameLoop(io, connectedPlayers) {
       // ── 3e. Move scouts + check training queue ────────────
       moveScouts(nowMs);
 
-      // ── 3d. Monument defender AI (state machine + active attacks) ─
-      updateDefenders(nowMs);
+      // ── 3d. Defender AI — moved to 1s interval for smooth movement ──
 
       // ── 3b. Move zombies + check timeout ──────────────────
       moveZombies(nowMs, connectedPlayers);
@@ -655,7 +655,7 @@ function updateDefenders(nowMs) {
       if (!d._spread_angle) d._spread_angle = (2 * Math.PI * di / defs.length) + (Math.random() - 0.5) * 0.5;
       if (!d._speed_mul) d._speed_mul = 0.8 + Math.random() * 0.4; // ±20% speed variation
       if (!d._wobble_phase) d._wobble_phase = Math.random() * Math.PI * 2;
-      d._wobble_phase += 0.7; // advance wobble each tick
+      d._wobble_phase += 0.15; // advance wobble each 1s tick
       if (!d._tick_count) d._tick_count = 0;
       d._tick_count++;
 
@@ -672,7 +672,7 @@ function updateDefenders(nowMs) {
 
       switch (d._state) {
         case 'patrol': {
-          d._patrol_angle += (d._patrol_speed || 0.12);
+          d._patrol_angle += (d._patrol_speed || 0.12) * 0.2; // scaled for 1s tick
           const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
           const tgtLat = monument.lat + (cfg.patrolDist / 111320) * Math.cos(d._patrol_angle);
           const tgtLng = monument.lng + (cfg.patrolDist / (111320 * cosLat)) * Math.sin(d._patrol_angle);
@@ -718,7 +718,7 @@ function updateDefenders(nowMs) {
           if (distToTarget > cfg.attackRange * 2) { d._state = 'chase'; d._flank_ticks = 0; break; }
 
           // Circle around target while attacking (advance spread angle)
-          d._spread_angle += 0.3;
+          d._spread_angle += 0.06; // orbit advance per 1s tick
           const orbitDist = 12 + (di % 4) * 5;
           const cosLat = Math.cos(target.lat * Math.PI / 180) || 0.001;
           const orbitLat = target.lat + (orbitDist / 111320) * Math.cos(d._spread_angle);
@@ -803,18 +803,17 @@ function _defPickTarget(defender, role, monument, players, cfg) {
   return best || players[Math.floor(Math.random() * players.length)];
 }
 
-// Move with sinusoidal wobble for natural-looking paths
+// Move with sinusoidal wobble for natural-looking paths (1s tick)
 function _defMove(d, tgtLat, tgtLng, speedMs) {
   const dist = haversine(d.lat, d.lng, tgtLat, tgtLng);
   if (dist < 2) return;
-  const stepM = Math.min(speedMs * 5, dist);
+  const stepM = Math.min(speedMs * 1, dist); // 1s tick
   const dLat = tgtLat - d.lat;
   const dLng = tgtLng - d.lng;
   const degDist = Math.sqrt(dLat * dLat + dLng * dLng);
   if (degDist < 1e-7) return;
   const ratio = Math.min(1, (stepM / 111320) / degDist);
-  // Perpendicular wobble for organic feel
-  const wobble = Math.sin((d._wobble_phase || 0)) * 0.00004;
+  const wobble = Math.sin((d._wobble_phase || 0)) * 0.000015;
   d.lat += dLat * ratio + dLng * wobble;
   d.lng += dLng * ratio - dLat * wobble;
 }
