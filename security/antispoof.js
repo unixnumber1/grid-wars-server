@@ -364,35 +364,44 @@ function recordViolation(telegramId, violation) {
 }
 
 // ── Auto-Ban ──
+// CRITICAL: update gameState FIRST (synchronous), THEN persist to DB.
+// Previously the DB write came first via `await import(...)` + `await supabase.update(...)`,
+// and the batch persist loop (every 30s) could run in between and OVERWRITE the DB
+// with the stale gameState (is_banned=false), erasing the ban entirely. This caused
+// 4 confirmed auto-ban failures on production.
 async function autoBan(telegramId, record) {
   if (isAdmin(telegramId)) return;
   try {
-    const { supabase } = await import('../lib/supabase.js');
     const banUntil = new Date(Date.now() + BAN_DAYS * 24 * 60 * 60 * 1000);
+    const banReason = 'GPS спуфинг (автобан v4)';
+    const banUntilISO = banUntil.toISOString();
 
+    // 1) Update gameState IMMEDIATELY (synchronous — no await, no import delay).
+    //    gameState is already imported at the top of this file via '../state/GameState.js'.
+    //    The persist loop will see is_banned=true on next cycle and write it to DB.
+    const p = gameState.getPlayerByTgId(Number(telegramId));
+    if (p) {
+      p.is_banned = true;
+      p.ban_reason = banReason;
+      p.ban_until = banUntilISO;
+      gameState.markDirty('players', p.id);
+    }
+
+    // 2) Also write to DB directly as a safety net (in case persist hasn't run yet
+    //    and the checkBan middleware reads from DB on the next request).
+    const { supabase } = await import('../lib/supabase.js');
     await supabase.from('players').update({
       is_banned: true,
-      ban_reason: 'GPS спуфинг (автобан v4)',
-      ban_until: banUntil.toISOString(),
-    }).eq('telegram_id', telegramId);
-
-    const { gameState } = await import('../lib/gameState.js');
-    if (gameState.loaded) {
-      const p = gameState.getPlayerByTgId(telegramId);
-      if (p) {
-        p.is_banned = true;
-        p.ban_reason = 'GPS спуфинг (автобан v4)';
-        p.ban_until = banUntil.toISOString();
-        gameState.markDirty('players', p.id);
-      }
-    }
+      ban_reason: banReason,
+      ban_until: banUntilISO,
+    }).eq('telegram_id', Number(telegramId));
 
     record.banned = true;
     suspiciousActivity.set(`spoof:${telegramId}`, record);
 
     console.log(`[ANTISPOOF] AUTO-BAN: ${telegramId} (weighted=${record.weightedScore.toFixed(1)}, total=${record.totalViolations})`);
     logPlayer(telegramId, 'ban', `Автобан v4: GPS спуфинг (score ${record.weightedScore.toFixed(1)})`, {
-      violations: record.totalViolations, ban_until: banUntil.toISOString(),
+      violations: record.totalViolations, ban_until: banUntilISO,
     });
 
     notifyAdmin(telegramId, record);
