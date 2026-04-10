@@ -111,6 +111,10 @@
       position: relative;
       color: #fff;
     }
+    .hud-right-btn:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.18);
+    }
     .hud-right-btn:active {
       background: rgba(255,215,0,0.12);
       border-color: rgba(255,215,0,0.3);
@@ -156,6 +160,7 @@
       -webkit-tap-highlight-color: transparent;
       position: relative;
     }
+    .burger-item:hover { background: rgba(255,255,255,0.10); }
     .burger-item:active { background: rgba(255,215,0,0.12); color: #FFD700;
     }
     .hud-right-btn .notif-badge {
@@ -312,12 +317,16 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    .btn:hover { background: #252525; }
     .btn:active { background: #2a2a2a; }
     .btn.primary { background: #2a4a2a; border-color: #3d7a3d; color: #6fcf6f; }
+    .btn.primary:hover { background: #234223; }
     .btn.primary:active { background: #1e3a1e; }
     .btn.danger { background: #4a1e1e; border-color: #8a3030; color: #e06060; }
+    .btn.danger:hover { background: #421a1a; }
     .btn.danger:active { background: #3a1010; }
     .btn.yellow { background: #3a3000; border-color: #806a00; color: #f5c518; }
+    .btn.yellow:hover { background: #332a00; }
     .btn.yellow:active { background: #2a2200; }
     .btn.selected { background: #2a4a2a; border-color: #4caf50; color: #4caf50; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -404,7 +413,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-width: 280px;
+      max-width: min(340px, calc(100vw - 24px));
       pointer-events: none;
       word-wrap: break-word;
       overflow-wrap: break-word;
@@ -419,8 +428,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       cursor: pointer;
       filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8));
     }
@@ -557,7 +566,7 @@
     .monument-request-section .section-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.4; }
     .monument-request-section .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
     .level-selector { display: flex; gap: 6px; flex-wrap: wrap; }
-    .level-option { width: 36px; height: 36px; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; cursor: pointer; color: #888; }
+    .level-option { width: 42px; height: 42px; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; cursor: pointer; color: #888; }
     .level-option.selected { background: rgba(255,215,0,0.2); border-color: #FFD700; color: #FFD700; }
 
     .settings-action-btn {
@@ -1065,10 +1074,10 @@
       min-height: 16px;
     }
     .walk-ms-btn {
-      padding: 3px 10px;
+      padding: 6px 14px;
       border: none;
       border-radius: 10px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
       background: #FFD700;
@@ -1907,7 +1916,7 @@
     }
     #joystick-speed { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
     .speed-dot {
-      width: 10px; height: 10px; border-radius: 50%;
+      width: 18px; height: 18px; border-radius: 50%;
       background: rgba(255,255,255,0.3); cursor: pointer; transition: background 0.2s;
     }
     .speed-dot.active { background: #00e676; }
@@ -6496,6 +6505,15 @@ let state = {
   inventory: [],       // player's items from /api/player/init
 };
 
+// Async action guards (prevent double-tap on purchases)
+let _buyMythicBusy = false;
+let _buyCorePackBusy = false;
+let _investSkillBusy = false;
+let _buySlotBusy = false;
+let _upgradeItemBusy = false;
+let _claimWalkBusy = false;
+let _placeHqBusy = false;
+
 // Passive income interpolation
 let _localCoins = 0;
 let _incomePerSecond = 0;
@@ -7071,9 +7089,11 @@ function updateSlotCounter() {
 }
 
 async function buyInventorySlot() {
+  if (_buySlotBusy) return;
   const maxSlots = 200 + (state.player?.extra_slots || 0);
   if (maxSlots >= 600) { showToast('❌ Максимум слотов'); return; }
   if ((state.player?.diamonds || 0) < 5) { showToast('❌ Нужно 5 💎'); return; }
+  _buySlotBusy = true;
   try {
     const data = await apiFetch('/api/items', { method: 'POST', body: JSON.stringify({ action: 'buy-slot' }) });
     if (data.ok) {
@@ -7083,7 +7103,7 @@ async function buyInventorySlot() {
       updateCoinDisplay();
       showToast(`✅ +1 слот (${200 + state.player.extra_slots}/600)`);
     }
-  } catch (err) { showToast(`❌ ${err.message}`); }
+  } catch (err) { showToast(`❌ ${err.message}`); } finally { _buySlotBusy = false; }
 }
 
 // Opens inventory for a specific slot type (from tapping empty/equipped slot)
@@ -7246,6 +7266,8 @@ function closeItemDetail() {
 }
 
 async function doUpgradeItem(item) {
+  if (_upgradeItemBusy) return;
+  _upgradeItemBusy = true;
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
@@ -7272,7 +7294,7 @@ async function doUpgradeItem(item) {
     _refreshProfileStats();
   } catch (err) {
     showToast(`❌ ${err.message}`);
-  }
+  } finally { _upgradeItemBusy = false; }
 }
 
 function updateCrystalDisplay() {
@@ -7853,7 +7875,7 @@ function deactivatePin(toastKey) {
     apiFetch('/api/player/init', {
       method: 'POST',
       body: JSON.stringify({ action: 'location', lat: target.lat, lng: target.lng, pin_unpin: true }),
-    }).catch(() => {});
+    }).catch((err) => { showToast(`❌ ${err.message || 'Ошибка отвязки PIN'}`); });
   }
   loadVisibleBuildings();
   updatePinButton();
@@ -7875,7 +7897,7 @@ async function doTeleportToHq() {
     apiFetch('/api/player/init', {
       method: 'POST',
       body: JSON.stringify({ action: 'location', lat: hqLat, lng: hqLng, pin_mode: true }),
-    }).catch(() => {});
+    }).catch((err) => { showToast(`❌ ${err.message || 'Ошибка телепорта'}`); });
     loadVisibleBuildings();
     updatePinButton();
     showToast(t('toast.teleport_hq'));
@@ -9588,6 +9610,8 @@ function onSkillBlockClick(blockId, treeName) {
 }
 
 async function investInSkill(blockId, treeName) {
+  if (_investSkillBusy) return;
+  _investSkillBusy = true;
   try {
     const res = await apiFetch('/api/skills', { method:'POST', body:JSON.stringify({
       action: 'invest', block_id: blockId, tree: treeName
@@ -9621,7 +9645,7 @@ async function investInSkill(blockId, treeName) {
     }
     // Re-open popup with updated data
     onSkillBlockClick(blockId, treeName);
-  } catch(e) { showToast('❌ ' + e.message); }
+  } catch(e) { showToast('❌ ' + e.message); } finally { _investSkillBusy = false; }
 }
 
 function confirmResetSkills() {
@@ -10712,8 +10736,12 @@ async function doCollect() {
 //  HQ placement
 // ─────────────────────────────────────────────
 document.getElementById('btn-place-hq').addEventListener('click', async () => {
+  if (_placeHqBusy) return;
   const pos = state.playerPos;
   if (!pos) return showToast(t('toast.no_gps_waiting'));
+  const btn = document.getElementById('btn-place-hq');
+  _placeHqBusy = true;
+  btn.disabled = true;
   try {
     const data = await apiFetch('/api/buildings/headquarters', {
       method: 'POST',
@@ -10738,6 +10766,9 @@ document.getElementById('btn-place-hq').addEventListener('click', async () => {
     loadVisibleBuildings(true);
   } catch (err) {
     showToast(`❌ ${err.message}`);
+  } finally {
+    _placeHqBusy = false;
+    btn.disabled = false;
   }
 });
 
@@ -13365,6 +13396,9 @@ document.getElementById('change-username-input').addEventListener('input', funct
   document.getElementById('btn-change-username-confirm').disabled = !valid;
   document.getElementById('change-username-error').textContent = '';
 });
+document.getElementById('change-username-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !document.getElementById('btn-change-username-confirm').disabled) doChangeUsername();
+});
 document.getElementById('btn-change-username-confirm').addEventListener('click', doChangeUsername);
 
 function openChangeUsername() {
@@ -13388,6 +13422,8 @@ async function doChangeUsername() {
   const errEl = document.getElementById('change-username-error');
   const btn   = document.getElementById('btn-change-username-confirm');
   const username = input.value.trim();
+  const changes = state.player?.username_changes ?? 0;
+  if (changes >= 1 && !confirm(`Смена ника стоит 50 💎. Продолжить?`)) return;
   btn.disabled = true;
   errEl.textContent = '';
 
@@ -14358,7 +14394,9 @@ function showBundleInfo(theme) {
 }
 
 async function buyMythic(weaponType) {
+  if (_buyMythicBusy) return;
   if (!confirm(t('shop.buy_mythic', { type: t('item.' + weaponType) }))) return;
+  _buyMythicBusy = true;
   try {
     const data = await apiFetch('/api/items', {
       method: 'POST',
@@ -14372,7 +14410,7 @@ async function buyMythic(weaponType) {
     if (data.item) showItemReveal(data.item, 'mythic');
   } catch (err) {
     showToast(`❌ ${err.message}`);
-  }
+  } finally { _buyMythicBusy = false; }
 }
 
 function showBoxOdds(boxType) {
@@ -14585,7 +14623,9 @@ function _renderCorePacks() {
 }
 
 async function buyCorePack(packIndex) {
+  if (_buyCorePackBusy) return;
   if (!confirm(t('shop.core_pack_buy'))) return;
+  _buyCorePackBusy = true;
   const CORE_PACKS = [
     { label: '💰 Бизнесмен', cores: [{type:'income',count:3},{type:'capacity',count:2}], ether: 5000, price: 1200 },
     { label: '🛡️ Защитник', cores: [{type:'hp',count:3},{type:'regen',count:2}], ether: 5000, price: 900 },
@@ -14617,7 +14657,7 @@ async function buyCorePack(packIndex) {
     showToast(t('toast.cores_received', {count: data.cores.length, ether: etherMsg}));
   } catch (err) {
     showToast(`❌ ${err.message}`);
-  }
+  } finally { _buyCorePackBusy = false; }
 }
 
 document.getElementById('btn-shop-hud').addEventListener('click', openShop);
@@ -16296,7 +16336,7 @@ document.getElementById('btn-market-hud').addEventListener('click', async () => 
       const p = state.playerPos;
       const data = await apiFetch(`/api/map?north=${p.lat+2}&south=${p.lat-2}&east=${p.lng+2}&west=${p.lng-2}&view=markets`);
       allMarkets = data.markets || [];
-    } catch (e) { /* silent */ }
+    } catch (e) { showToast(`❌ ${e.message || 'Ошибка загрузки рынков'}`); return; }
   }
 
   if (allMarkets.length === 0) {
@@ -16317,9 +16357,9 @@ document.getElementById('btn-market-hud').addEventListener('click', async () => 
   showToast(t('toast.nearest_market', {dist: Math.round(nearestDist)}));
 
   // After fly, show popup
-  setTimeout(() => {
+  map.once('moveend', () => {
     _showMarketPopup(nearest);
-  }, 1300);
+  });
 });
 
 // Market event listeners — deferred until DOM is ready
@@ -17373,7 +17413,10 @@ function showCombatHUD(target, mode) {
   let holdTimer = null;
   let isHolding = false;
 
+  let _holdActive = false; // guard against touch+mouse double fire
   function startHold() {
+    if (_holdActive) return;
+    _holdActive = true;
     isHolding = false;
     holdTimer = setTimeout(() => {
       isHolding = true;
@@ -17384,6 +17427,8 @@ function showCombatHUD(target, mode) {
     }, 300);
   }
   function stopHold() {
+    if (!_holdActive) return;
+    _holdActive = false;
     const wasHolding = isHolding;
     isHolding = false;
     _atkHolding = false;
@@ -17398,10 +17443,10 @@ function showCombatHUD(target, mode) {
 
   atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); }, { passive: false });
   atkBtn.addEventListener('touchend', (e) => { stopHold(); }, { passive: false });
-  atkBtn.addEventListener('touchcancel', () => { isHolding = false; _atkHolding = false; _atkDoHit = null; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('touchcancel', () => { _holdActive = false; isHolding = false; _atkHolding = false; _atkDoHit = null; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('mousedown', startHold);
   atkBtn.addEventListener('mouseup', stopHold);
-  atkBtn.addEventListener('mouseleave', () => { isHolding = false; _atkHolding = false; _atkDoHit = null; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
+  atkBtn.addEventListener('mouseleave', () => { _holdActive = false; isHolding = false; _atkHolding = false; _atkDoHit = null; atkBtn.classList.remove('atk-btn-pulse'); clearTimeout(holdTimer); if (_pvpAutoFire) { clearTimeout(_pvpAutoFire); _pvpAutoFire = null; } });
   atkBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
@@ -18148,6 +18193,8 @@ function _renderWalkTab(data) {
 }
 
 async function claimWalkReward(type, tier) {
+  if (_claimWalkBusy) return;
+  _claimWalkBusy = true;
   const action = type === 'daily' ? 'claim-daily' : 'claim-weekly';
   try {
     const data = await apiFetch('/api/walking', {
@@ -18169,7 +18216,7 @@ async function claimWalkReward(type, tier) {
     _loadWalkTab();
   } catch (err) {
     showToast(`❌ ${err.message}`);
-  }
+  } finally { _claimWalkBusy = false; }
 }
 
 async function buyStars(diamonds = 100, stars = 15) {
