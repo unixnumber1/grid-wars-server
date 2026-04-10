@@ -6986,7 +6986,7 @@ function _renderEquipSlots() {
   if (weapon) {
     const wl = weapon.upgrade_level || 0;
     weaponSlot.className = `char-equip-slot filled ${rarityClass(weapon.rarity)}`;
-    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span><span class="inv-lvl">${wl > 0 ? '+' + wl : t('lv') + '0'}</span>`;
+    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span>${wl > 0 ? `<span class="inv-lvl">${t('lv')}${wl}</span>` : ''}`;
   } else {
     weaponSlot.className = 'char-equip-slot';
     weaponSlot.innerHTML = '<span class="slot-empty">⚔️</span>';
@@ -6995,7 +6995,7 @@ function _renderEquipSlots() {
   if (shield) {
     const sl = shield.upgrade_level || 0;
     shieldSlot.className = `char-equip-slot filled ${rarityClass(shield.rarity)}`;
-    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span><span class="inv-lvl">${sl > 0 ? '+' + sl : t('lv') + '0'}</span>`;
+    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span>${sl > 0 ? `<span class="inv-lvl">${t('lv')}${sl}</span>` : ''}`;
   } else {
     shieldSlot.className = 'char-equip-slot';
     shieldSlot.innerHTML = '<span class="slot-empty">🛡️</span>';
@@ -7021,7 +7021,7 @@ function _renderInventoryGrid() {
     cell.className = `inv-cell ${rarityClass(item.rarity)}${item.equipped ? ' equipped' : ''}`;
     const lvl = item.upgrade_level || 0;
     const plus = item.plus || 0;
-    const lvlBadge = lvl > 0 ? `<span class="inv-lvl">lv${lvl}</span>` : '';
+    const lvlBadge = lvl > 0 ? `<span class="inv-lvl">${t('lv')}${lvl}</span>` : '';
     const plusBadge = plus > 0 ? `<span class="inv-plus">+${plus}</span>` : '';
     cell.innerHTML = `<span style="font-size:28px">${item.emoji}</span>${lvlBadge}${plusBadge}`;
     cell.onclick = () => showItemDetail(item.id);
@@ -14647,7 +14647,7 @@ function _craftCellHtml(item, extraClass = '', onclick = '') {
   if (!item) return `<div class="craft-cell ${extraClass}" ${onclick ? `onclick="${onclick}"` : ''}>+</div>`;
   const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
   const bc = rc.startsWith('linear') ? 'rgba(255,215,0,0.5)' : rc;
-  const lv = (item.upgrade_level || 0) > 0 ? `<span class="craft-lv-badge">lv${item.upgrade_level}</span>` : '';
+  const lv = (item.upgrade_level || 0) > 0 ? `<span class="craft-lv-badge">${t('lv')}${item.upgrade_level}</span>` : '';
   const plus = (item.plus || 0) > 0 ? `<span class="craft-plus-badge">+${item.plus}</span>` : '';
   return `<div class="craft-cell ${extraClass} filled" style="border-color:${bc}" ${onclick ? `onclick="${onclick}"` : ''}>
     <span>${item.emoji}</span>${lv}${plus}<span class="craft-x">✕</span>
@@ -14728,7 +14728,7 @@ function _renderCraftInventory() {
     const bc = rc.startsWith('linear') ? 'rgba(255,215,0,0.3)' : (rc + '40');
     cell.className = `inv-cell ${rarityClass(item.rarity)}`;
 
-    const lv = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl">lv${item.upgrade_level}</span>` : '';
+    const lv = (item.upgrade_level || 0) > 0 ? `<span class="inv-lvl">${t('lv')}${item.upgrade_level}</span>` : '';
     const plus = (item.plus || 0) > 0 ? `<span class="inv-plus">+${item.plus}</span>` : '';
     cell.innerHTML = `<span>${item.emoji}</span>${lv}${plus}`;
 
@@ -15968,7 +15968,7 @@ function _renderMarketCards(listings, grid, isMine) {
       card.innerHTML = `
         ${l.is_private ? '<div class="market-card-lock">🔒</div>' : ''}
         <div class="market-card-emoji" style="${glowStyle}">${item.emoji}</div>
-        <div class="market-card-name">${item.name}${(item.plus||0) > 0 ? ` <span style="color:#FFD700;font-weight:800;">+${item.plus}</span>` : ''}${(item.upgrade_level||0) > 0 ? ` <span style="color:#ce93d8;font-size:11px;">lv${item.upgrade_level}</span>` : ''}</div>
+        <div class="market-card-name">${item.name}${(item.plus||0) > 0 ? ` <span style="color:#FFD700;font-weight:800;">+${item.plus}</span>` : ''}${(item.upgrade_level||0) > 0 ? ` <span style="color:#ce93d8;font-size:11px;">${t('lv')}${item.upgrade_level}</span>` : ''}</div>
         <div class="market-card-rarity">${rarityLabel(item.rarity, item.plus)}</div>
         <div class="market-card-stat">${itemStatLabel(item)}</div>
         <div class="market-card-price">💎 ${l.price_diamonds}</div>
@@ -16200,7 +16200,7 @@ function _renderListFlowStep1() {
     for (const item of inv) {
       const cell = document.createElement('div');
       cell.className = `market-inv-cell ${rarityClass(item.rarity)}`;
-      const lvBadge = (item.upgrade_level || 0) > 0 ? `<span style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);color:#ce93d8;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700;">lv${item.upgrade_level}</span>` : '';
+      const lvBadge = (item.upgrade_level || 0) > 0 ? `<span style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.8);color:#ce93d8;font-size:9px;padding:1px 4px;border-radius:3px;font-weight:700;">${t('lv')}${item.upgrade_level}</span>` : '';
       const plusBadge = (item.plus || 0) > 0 ? `<span style="position:absolute;bottom:1px;right:2px;background:rgba(0,0,0,0.5);color:#FFD700;font-size:12px;padding:1px 3px;border-radius:3px;font-weight:800;text-shadow:0 0 4px rgba(255,215,0,0.6);">+${item.plus}</span>` : '';
       cell.innerHTML = `<span>${item.emoji}</span>${lvBadge}${plusBadge}`;
       cell.addEventListener('click', () => _selectListItem(item));
@@ -16662,7 +16662,7 @@ async function openPlayerProfile(targetTgId) {
           <div class="build-item-icon">${i.emoji || (i.type === 'shield' ? '🛡️' : '⚔️')}</div>
           <div>
             <div class="build-item-name">${RARITY_NAMES_CLIENT[i.rarity] || i.rarity} ${i.type === 'sword' ? '⚔️' : i.type === 'axe' ? '🪓' : '🛡️'}</div>
-            ${i.upgrade_level > 0 ? `<div class="build-item-level">+${i.upgrade_level}</div>` : ''}
+            ${i.upgrade_level > 0 ? `<div class="build-item-level">${t('lv')}${i.upgrade_level}</div>` : ''}
           </div>
         </div>`).join('')
       : '<div class="no-build">—</div>';
@@ -18213,7 +18213,7 @@ function _renderInventoryGridSelectable() {
     cell.style.position = 'relative';
     const slvl = item.upgrade_level || 0;
     const splus = item.plus || 0;
-    const slvlBadge = slvl > 0 ? `<span class="inv-lvl">lv${slvl}</span>` : '';
+    const slvlBadge = slvl > 0 ? `<span class="inv-lvl">${t('lv')}${slvl}</span>` : '';
     const splusBadge = splus > 0 ? `<span class="inv-plus">+${splus}</span>` : '';
     cell.innerHTML = `<span>${item.emoji}</span>${slvlBadge}${splusBadge}`;
 

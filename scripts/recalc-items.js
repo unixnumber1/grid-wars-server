@@ -61,14 +61,14 @@ const SHIELD_RANGES = {
   epic:        { defense: [1050, 1550]  },
   epic_1:      { defense: [1400, 2050]  },
   epic_2:      { defense: [1850, 2700]  },
-  mythic:      { defense: [3750, 4150]  },
-  mythic_1:    { defense: [4200, 4650]  },
-  mythic_2:    { defense: [4700, 5200]  },
-  mythic_3:    { defense: [5250, 5800]  },
-  legendary:   { defense: [5850, 6450]  },
-  legendary_1: { defense: [6500, 7150]  },
-  legendary_2: { defense: [7200, 7900]  },
-  legendary_3: { defense: [7950, 8500]  },
+  mythic:      { defense: [3750, 4150],  block_chance: [12, 20] },
+  mythic_1:    { defense: [4200, 4650],  block_chance: [14, 22] },
+  mythic_2:    { defense: [4700, 5200],  block_chance: [16, 24] },
+  mythic_3:    { defense: [5250, 5800],  block_chance: [18, 26] },
+  legendary:   { defense: [5850, 6450],  block_chance: [22, 30] },
+  legendary_1: { defense: [6500, 7150],  block_chance: [24, 32] },
+  legendary_2: { defense: [7200, 7900],  block_chance: [26, 34] },
+  legendary_3: { defense: [7950, 8500],  block_chance: [28, 36] },
 };
 
 const STAT_RANGES = { sword: SWORD_RANGES, axe: AXE_RANGES, shield: SHIELD_RANGES };
@@ -86,8 +86,8 @@ function clampOrKeep(value, range, label, itemId) {
   if (!range) return value;
   const [lo, hi] = range;
   if (value >= lo && value <= hi) return value; // within range, keep original roll
-  const fixed = mid(range);
-  console.log(`  [${itemId}] ${label}: ${value} out of [${lo},${hi}] → fixed to ${fixed}`);
+  const fixed = value < lo ? lo : hi;
+  console.log(`  [${itemId}] ${label}: ${value} out of [${lo},${hi}] → clamped to ${fixed}`);
   return fixed;
 }
 
@@ -100,6 +100,7 @@ async function main() {
   console.log(`Found ${items.length} items to check${DRY_RUN ? ' (DRY RUN)' : ''}`);
 
   let updated = 0, corrupted = 0, skipped = 0;
+  const perRarity = {};
 
   for (const item of items) {
     const plus = item.plus || 0;
@@ -127,6 +128,11 @@ async function main() {
       const oldBase = newBaseDefense;
       newBaseDefense = clampOrKeep(newBaseDefense, range.defense, 'base_defense', item.id);
       if (newBaseDefense !== oldBase) changed = true;
+      if (range.block_chance) {
+        const oldBlock = item.block_chance || 0;
+        const newBlock = clampOrKeep(oldBlock, range.block_chance, 'block_chance', item.id);
+        if (newBlock !== oldBlock) { item.block_chance = newBlock; changed = true; }
+      }
     }
 
     // Recalculate upgraded stats from (possibly fixed) base
@@ -145,18 +151,22 @@ async function main() {
       (item.base_crit_chance || 0) !== newBaseCrit ||
       (item.base_defense || 0) !== newBaseDefense
     ) {
-      if (changed) corrupted++;
+      if (changed) {
+        corrupted++;
+        const rk = _sk(item.rarity, item.plus || 0);
+        perRarity[rk] = (perRarity[rk] || 0) + 1;
+      }
 
       if (!DRY_RUN) {
         await pool.query(
           `UPDATE items SET
             base_attack = $1, base_crit_chance = $2, base_defense = $3,
             attack = $4, crit_chance = $5, defense = $6,
-            stat_value = $7
-          WHERE id = $8`,
+            stat_value = $7, block_chance = $8
+          WHERE id = $9`,
           [newBaseAttack, newBaseCrit, newBaseDefense,
            correctAttack, correctCrit, correctDefense,
-           correctStatValue, item.id]
+           correctStatValue, item.block_chance || 0, item.id]
         );
       }
       updated++;
@@ -164,6 +174,12 @@ async function main() {
   }
 
   console.log(`\nItems updated: ${updated}, corrupted bases fixed: ${corrupted}, skipped: ${skipped}`);
+  if (Object.keys(perRarity).length > 0) {
+    console.log('\nCorrupted items by rarity:');
+    for (const [rk, cnt] of Object.entries(perRarity).sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${rk}: ${cnt}`);
+    }
+  }
 
   if (DRY_RUN) {
     console.log('(DRY RUN — no changes written)');

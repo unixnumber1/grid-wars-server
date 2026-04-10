@@ -880,19 +880,18 @@ itemsRouter.post('/', async (req, res) => {
       if (target.rarity !== recipe.materialRarity) return res.status(400).json({ error: 'Все предметы должны быть одной редкости' });
     }
 
-    // Generate new item — guarantee stats >= target for fusion crafts
+    // Generate new item — guarantee stats >= best base stats of ALL consumed items
     const newItemData = generateItem(target.type, recipe.resultRarity, recipe.resultPlus);
-    if (recipe.mode === 'fusion') {
-      // Use base_* fields to avoid inheriting upgraded (inflated) stats
-      if (newItemData.attack) newItemData.attack = Math.max(newItemData.attack, target.base_attack || 0);
-      if (newItemData.defense) newItemData.defense = Math.max(newItemData.defense, target.base_defense || 0);
-      if (newItemData.crit_chance) newItemData.crit_chance = Math.max(newItemData.crit_chance, target.base_crit_chance || 0);
-      if (newItemData.block_chance && target.block_chance) newItemData.block_chance = Math.max(newItemData.block_chance, target.block_chance);
-      newItemData.base_attack = newItemData.attack || 0;
-      newItemData.base_defense = newItemData.defense || 0;
-      newItemData.base_crit_chance = newItemData.crit_chance || 0;
-      newItemData.stat_value = newItemData.attack || newItemData.defense || 0;
+    for (const it of allItems) {
+      if (newItemData.attack)      newItemData.attack      = Math.max(newItemData.attack,      it.base_attack || 0);
+      if (newItemData.defense)     newItemData.defense     = Math.max(newItemData.defense,     it.base_defense || 0);
+      if (newItemData.crit_chance) newItemData.crit_chance = Math.max(newItemData.crit_chance, it.base_crit_chance || 0);
+      if (newItemData.block_chance && it.block_chance) newItemData.block_chance = Math.max(newItemData.block_chance, it.block_chance);
     }
+    newItemData.base_attack      = newItemData.attack || 0;
+    newItemData.base_defense     = newItemData.defense || 0;
+    newItemData.base_crit_chance = newItemData.crit_chance || 0;
+    newItemData.stat_value       = newItemData.attack || newItemData.defense || 0;
 
     // Insert new item FIRST (safe order — if fails, nothing is lost)
     const insertData = {
