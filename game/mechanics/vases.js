@@ -77,7 +77,7 @@ function offsetPoint(lat, lng) {
 }
 
 // ── Spawn vases for a city by bounding box ──
-export async function spawnVasesForCity(cityKey, bounds, playerCount) {
+export async function spawnVasesForCity(cityKey, bounds, playerCount, playerPositions) {
   const [minLat, maxLat, minLng, maxLng] = bounds;
 
   const existingInCity = [...gameState.vases.values()].filter(v =>
@@ -100,7 +100,9 @@ export async function spawnVasesForCity(cityKey, bounds, playerCount) {
   const allPositions = existingInCity.map(v => ({ lat: v.lat, lng: v.lng }));
 
   const batch = [];
-  for (let attempt = 0; attempt < toSpawn * 3 && batch.length < toSpawn; attempt++) {
+  const MAX_ATTEMPTS = toSpawn * 10;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS && batch.length < toSpawn; attempt++) {
     let lat, lng;
 
     if (useRoads) {
@@ -109,7 +111,7 @@ export async function spawnVasesForCity(cityKey, bounds, playerCount) {
       lat = off.lat;
       lng = off.lng;
     } else {
-      // Fallback: random in bbox (vases are less critical than ores)
+      // Fallback: random in bbox
       lat = minLat + Math.random() * (maxLat - minLat);
       lng = minLng + Math.random() * (maxLng - minLng);
     }
@@ -130,6 +132,31 @@ export async function spawnVasesForCity(cityKey, bounds, playerCount) {
     });
   }
 
+  // Player-centered fallback: if less than half target spawned, fill gaps around player positions
+  if (batch.length < toSpawn / 2 && playerPositions && playerPositions.length > 0) {
+    const remaining = toSpawn - batch.length;
+    const PAD = 0.009; // ~1km radius around each player
+    for (let attempt = 0; attempt < remaining * 10 && batch.length < toSpawn; attempt++) {
+      const pp = playerPositions[Math.floor(Math.random() * playerPositions.length)];
+      const lat = pp.lat - PAD + Math.random() * PAD * 2;
+      const lng = pp.lng - PAD + Math.random() * PAD * 2;
+
+      let tooClose = false;
+      for (const pos of allPositions) {
+        if (haversine(lat, lng, pos.lat, pos.lng) < VASE_MIN_DISTANCE) { tooClose = true; break; }
+      }
+      if (tooClose) continue;
+      if (waterAreas.length > 0 && isInWater(lat, lng, waterAreas)) continue;
+
+      allPositions.push({ lat, lng });
+      batch.push({
+        lat, lng,
+        diamonds_reward: Math.floor(Math.random() * 5) + 1,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+    }
+  }
+
   if (batch.length > 0) {
     for (let i = 0; i < batch.length; i += 200) {
       const chunk = batch.slice(i, i + 200);
@@ -139,7 +166,7 @@ export async function spawnVasesForCity(cityKey, bounds, playerCount) {
     }
   }
 
-  console.log(`[VASES] ${cityKey}: spawned ${batch.length}${useRoads ? ' (roads)' : ' (random fallback)'}`);
+  console.log(`[VASES] ${cityKey}: spawned ${batch.length}${useRoads ? ' (roads)' : ' (random fallback)'}${batch.length < toSpawn ? ` (target was ${toSpawn})` : ''}`);
   return batch.length;
 }
 

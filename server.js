@@ -1275,15 +1275,25 @@ async function start() {
         const cb = await getCityBounds(cityKey);
         if (!cb?.boundingbox) continue;
 
-        // Main city bounds spawn
-        await spawnVasesForCity(cityKey, cb.boundingbox, pc);
+        // Collect player positions for player-centered fallback
+        const playersInCity = cityPlayersCache.get(cityKey);
+        const playerPositions = [];
+        if (playersInCity) {
+          for (const tgId of playersInCity) {
+            const gsPlayer = gameState.getPlayerByTgId(Number(tgId));
+            const lat = gsPlayer?.last_lat || playerCityCache.get(tgId)?.lat;
+            const lng = gsPlayer?.last_lng || playerCityCache.get(tgId)?.lng;
+            if (lat && lng) playerPositions.push({ lat, lng });
+          }
+        }
+
+        // Main city bounds spawn (with player-centered fallback)
+        await spawnVasesForCity(cityKey, cb.boundingbox, pc, playerPositions);
 
         // Check for uncovered players (no vase within 3km) and spawn sub-zones
-        const playersInCity = cityPlayersCache.get(cityKey);
         if (playersInCity) {
           const PAD = 0.018; // ~2km
           for (const tgId of playersInCity) {
-            // Use actual gameState position (more accurate than geocity cache)
             const gsPlayer = gameState.getPlayerByTgId(Number(tgId));
             const lat = gsPlayer?.last_lat || playerCityCache.get(tgId)?.lat;
             const lng = gsPlayer?.last_lng || playerCityCache.get(tgId)?.lng;
@@ -1309,6 +1319,48 @@ async function start() {
       console.error('[VASES] Daily spawn/cleanup error:', e.message);
     }
   }, 300000); // 5 min
+
+  // Vase mid-day top-up: every 6 hours (06:00, 12:00, 18:00 MSK) replenish if below 50% target
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const mskNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      const mskHour = mskNow.getHours();
+      if (![6, 12, 18].includes(mskHour) || mskNow.getMinutes() > 5) return;
+      const topUpKey = `vase_topup_${mskNow.getFullYear()}_${mskNow.getMonth()}_${mskNow.getDate()}_${mskHour}`;
+      if (global._lastVaseTopUp === topUpKey) return;
+      global._lastVaseTopUp = topUpKey;
+
+      console.log('[VASES] Mid-day top-up starting...');
+      const { getAllCityKeys, getCityBounds, getCityPlayerCount, playerCityCache, cityPlayersCache } = await import('./lib/geocity.js');
+      const { spawnVasesForCity } = await import('./lib/vases.js');
+
+      let totalSpawned = 0;
+      for (const cityKey of getAllCityKeys()) {
+        const pc = getCityPlayerCount(cityKey);
+        if (pc <= 0) continue;
+        const cb = await getCityBounds(cityKey);
+        if (!cb?.boundingbox) continue;
+
+        const playersInCity = cityPlayersCache.get(cityKey);
+        const playerPositions = [];
+        if (playersInCity) {
+          for (const tgId of playersInCity) {
+            const gsPlayer = gameState.getPlayerByTgId(Number(tgId));
+            const lat = gsPlayer?.last_lat || playerCityCache.get(tgId)?.lat;
+            const lng = gsPlayer?.last_lng || playerCityCache.get(tgId)?.lng;
+            if (lat && lng) playerPositions.push({ lat, lng });
+          }
+        }
+
+        totalSpawned += await spawnVasesForCity(cityKey, cb.boundingbox, pc, playerPositions);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      console.log(`[VASES] Mid-day top-up complete: spawned ${totalSpawned}`);
+    } catch (e) {
+      console.error('[VASES] Mid-day top-up error:', e.message);
+    }
+  }, 300000); // 5 min check
 
   // Monthly ore reset check (every 5 min)
   setInterval(async () => {
