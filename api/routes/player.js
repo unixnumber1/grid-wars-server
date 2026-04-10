@@ -790,7 +790,7 @@ playerRouter.get('/profile', async (req, res) => {
       deaths: target.deaths ?? 0,
       total_mines: playerMines.length,
       best_mine: bestMine ? { level: bestMine.level } : null,
-      equipped_items: equippedItems.map(i => ({ type: i.type, rarity: i.rarity, emoji: i.emoji, upgrade_level: i.upgrade_level || 0 })),
+      equipped_items: equippedItems.map(i => ({ type: i.type, rarity: i.rarity, plus: i.plus || 0, emoji: i.emoji, upgrade_level: i.upgrade_level || 0 })),
       badges: badges || [],
       monuments_raided: monumentsRaided || 0,
     },
