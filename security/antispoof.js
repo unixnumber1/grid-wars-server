@@ -59,7 +59,7 @@ export function setPinMode(telegramId, active) {
   }
 }
 
-function isPinModeActive(telegramId) {
+export function isPinModeActive(telegramId) {
   const state = pinModeState.get(telegramId);
   if (!state) return false;
   if (state.active) return true;

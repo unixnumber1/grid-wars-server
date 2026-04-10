@@ -90,7 +90,7 @@ const io = new Server(httpServer, {
 import { validateRequest, checkBan } from './lib/security.js';
 import { rateLimitMw } from './lib/rateLimit.js';
 import { verifyTelegramAuth, verifyInitData } from './security/telegramAuth.js';
-import { validatePosition, seedPositionFromDB, setPlayerHq, sendHourlyDigest } from './security/antispoof.js';
+import { validatePosition, seedPositionFromDB, setPlayerHq, sendHourlyDigest, isPinModeActive } from './security/antispoof.js';
 import { isInShadow } from './config/skills.js';
 
 // Security headers
@@ -647,24 +647,30 @@ io.on('connection', (socket) => {
     });
     if (!validation.valid) return;
 
-    // ── Walking distance tracking ──
-    const prev = player._walkPrevPos;
-    if (prev) {
-      const dt = Date.now() - prev.t;
-      if (dt > 0) {
-        const dist = haversine(prev.lat, prev.lng, data.lat, data.lng);
-        const speedKmh = (dist / dt) * 3600; // m/ms → km/h
-        if (speedKmh <= 25 && dist >= 2 && dist <= 2000) {
-          const gsP = gameState.loaded ? gameState.getPlayerByTgId(verifiedTgId) : null;
-          if (gsP) {
-            gsP.walk_daily_m = (gsP.walk_daily_m || 0) + dist;
-            gsP.walk_weekly_m = (gsP.walk_weekly_m || 0) + dist;
-            gameState.markDirty('players', gsP.id);
+    // ── Walking distance tracking (skip PIN mode teleports) ──
+    const pinActive = isPinModeActive(verifiedTgId);
+    if (pinActive) {
+      // Reset prev pos so PIN→real transition doesn't count as walked distance
+      player._walkPrevPos = null;
+    } else {
+      const prev = player._walkPrevPos;
+      if (prev) {
+        const dt = Date.now() - prev.t;
+        if (dt > 0) {
+          const dist = haversine(prev.lat, prev.lng, data.lat, data.lng);
+          const speedKmh = (dist / dt) * 3600; // m/ms → km/h
+          if (speedKmh <= 25 && dist >= 2 && dist <= 2000) {
+            const gsP = gameState.loaded ? gameState.getPlayerByTgId(verifiedTgId) : null;
+            if (gsP) {
+              gsP.walk_daily_m = (gsP.walk_daily_m || 0) + dist;
+              gsP.walk_weekly_m = (gsP.walk_weekly_m || 0) + dist;
+              gameState.markDirty('players', gsP.id);
+            }
           }
         }
       }
+      player._walkPrevPos = { lat: data.lat, lng: data.lng, t: Date.now() };
     }
-    player._walkPrevPos = { lat: data.lat, lng: data.lng, t: Date.now() };
 
     player.lat = data.lat;
     player.lng = data.lng;

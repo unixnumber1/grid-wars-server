@@ -18213,6 +18213,21 @@ async function claimWalkReward(type, tier) {
       const etherEl = document.getElementById('ether-display');
       if (etherEl) etherEl.textContent = `🌀 ${state.player.ether}`;
     }
+    // Show box open animation for items (like shop purchases)
+    if (data.reward?.items && data.reward.items.length > 0) {
+      for (const item of data.reward.items) {
+        state.inventory = state.inventory || [];
+        state.inventory.unshift(item);
+        const boxType = item.rarity || 'rare';
+        await _animateBoxOpenPromise(boxType, item);
+      }
+    }
+    // Show core reveal animation for cores (like core orb purchase)
+    if (data.reward?.cores && data.reward.cores.length > 0) {
+      for (const core of data.reward.cores) {
+        await showCoreRevealPromise(core);
+      }
+    }
     _loadWalkTab();
   } catch (err) {
     showToast(`❌ ${err.message}`);
