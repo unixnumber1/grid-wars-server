@@ -598,10 +598,14 @@ function extinguishBuilding(ff) {
 function updateDefenders(nowMs) {
   if (gameState.monumentDefenders.size === 0) return;
 
-  // Purge dead defenders older than 60s
+  // Purge dead defenders (with _died_at > 60s, or without _died_at > mark now)
+  let hasAlive = false;
   for (const [id, d] of gameState.monumentDefenders) {
-    if (!d.alive && d._died_at && nowMs - d._died_at > 60000) gameState.monumentDefenders.delete(id);
+    if (d.alive) { hasAlive = true; continue; }
+    if (!d._died_at) { d._died_at = nowMs; continue; } // mark old dead defenders
+    if (nowMs - d._died_at > 60000) gameState.monumentDefenders.delete(id);
   }
+  if (!hasAlive) return; // skip expensive logic when no alive defenders
 
   // Cache online players
   const raidPlayers = new Map();
