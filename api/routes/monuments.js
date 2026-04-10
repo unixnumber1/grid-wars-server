@@ -475,7 +475,7 @@ async function handleAttackDefender(req, res) {
     // Persist defender death
     supabase.from('monument_defenders').update({ alive: false, hp: 0 }).eq('id', defender.id).then(() => {}).catch(e => console.error('[monuments] DB error:', e.message));
 
-    emitToNearbyPlayers(defender.lat, defender.lng, 1000, 'monument:defender_killed', {
+    emitToRaidParticipants(defender.monument_id, 'monument:defender_killed', {
       defender_id: defender.id,
       killer_name: player.game_username || '?',
       monument_id: defender.monument_id,

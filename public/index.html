@@ -19630,8 +19630,7 @@ function renderMonumentDefenders(defenders) {
   const _defBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(defenderMarkers)) {
     if (!activeIds.has(id)) {
-      const pos = defenderMarkers[id].getLatLng();
-      if (!_defBounds.contains(pos)) { map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id]; }
+      map.removeLayer(defenderMarkers[id]); delete defenderMarkers[id]; delete defenderData[id];
     }
   }
   for (const d of defenders) {

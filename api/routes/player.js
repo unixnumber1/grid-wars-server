@@ -692,10 +692,13 @@ playerRouter.post('/init', async (req, res) => {
       }
     }
   } catch (_) {}
-  const totalIncome = (mines || []).reduce((sum, m) => sum + getMineIncome(m.level), 0);
+  const totalIncome = (mines || []).reduce((sum, m) => (m.status === 'burning' || m.status === 'destroyed') ? sum : sum + getMineIncome(m.level), 0);
   const needUsername = !player.game_username;
   const unreadNotifs = notifications || [];
-  if (unreadNotifs.length > 0) { supabase.from('notifications').update({ read: true }).in('id', unreadNotifs.map(n => n.id)).then(() => {}).catch(e => console.error('[player] DB error:', e.message)); }
+  if (unreadNotifs.length > 0) {
+    if (gameState.loaded) gameState.markNotificationsRead(unreadNotifs.map(n => n.id));
+    supabase.from('notifications').update({ read: true }).in('id', unreadNotifs.map(n => n.id)).then(() => {}).catch(e => console.error('[player] DB error:', e.message));
+  }
   // Fire-and-forget: ensure market near player's HQ (or position)
   if (player.last_lat && player.last_lng) {
     ensureMarketNearPlayer(player.last_lat, player.last_lng, player.id).catch(e => console.error('[player] market spawn error:', e.message));

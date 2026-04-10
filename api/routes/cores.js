@@ -129,6 +129,17 @@ async function handleUpgrade(req, res) {
 
   if (core.on_market) return res.status(400).json({ error: 'Core is listed on market' });
 
+  // Distance check if core is installed in a mine
+  if (core.mine_cell_id) {
+    const mine = [...gameState.mines.values()].find(m => m.cell_id === core.mine_cell_id);
+    if (mine && player.last_lat && player.last_lng) {
+      const dist = haversine(player.last_lat, player.last_lng, mine.lat, mine.lng);
+      const _fx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
+      if (dist > SMALL_RADIUS + (_fx.radius_bonus || 0))
+        return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.too_far_short') });
+    }
+  }
+
   const cost = getCoreUpgradeCost(core.level);
   const { data: freshE } = await supabase.from('players').select('ether').eq('id', player.id).single();
   const playerEther = freshE?.ether ?? player.ether ?? 0;

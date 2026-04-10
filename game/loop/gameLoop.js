@@ -455,10 +455,16 @@ function moveScouts(nowMs) {
             }).eq('id', ore.id).then(() => {}).catch(e => console.error('[SCOUTS] DB error:', e.message));
 
             if (_io) {
-              _io.emit('scout:captured', {
-                id, ore_id: ore.id, owner_id: scout.owner_id,
-                ore_type: ore.ore_type, ore_level: ore.level,
-              });
+              // Send capture notification only to the scout owner (not all players)
+              for (const [sid, info] of _connectedPlayers) {
+                if (String(info.telegram_id) === String(scout.owner_id)) {
+                  _io.to(sid).emit('scout:captured', {
+                    id, ore_id: ore.id, owner_id: scout.owner_id,
+                    ore_type: ore.ore_type, ore_level: ore.level,
+                  });
+                  break;
+                }
+              }
               // Emit ore:captured so frontend ore marker updates immediately
               if (_connectedPlayers) {
                 for (const [sid, info] of _connectedPlayers) {
@@ -1045,6 +1051,9 @@ function buildPlayerState(playerInfo, nowMs, nowISO) {
   let notifications = [];
   if (playerInfo.player_db_id) {
     notifications = gameState.getPlayerNotifications(playerInfo.player_db_id, 10);
+    if (notifications.length > 0) {
+      gameState.markNotificationsRead(notifications.map(n => n.id));
+    }
   }
 
   return { notifications };

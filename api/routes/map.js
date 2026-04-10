@@ -586,6 +586,7 @@ async function handleTick(req, res) {
         const _isOnline = player.last_seen ? (Date.now() - new Date(player.last_seen).getTime()) < 180000 : false;
 
         for (const m of playerMines) {
+          if (m.status === 'burning' || m.status === 'destroyed') { m.income = 0; continue; }
           let inc = getMineIncome(m.level) * (perMineBoost.get(m.id) || 1);
           if (_skillFx?.mine_income_bonus) inc *= (1 + _skillFx.mine_income_bonus);
           if (gameState.loaded && m.cell_id) {
@@ -604,7 +605,7 @@ async function handleTick(req, res) {
         totalIncome = playerMines.reduce((sum, m) => sum + m.income, 0);
       } catch (incErr) {
         console.error('[tick] income calc error:', incErr.message);
-        totalIncome = playerMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+        totalIncome = playerMines.reduce((sum, m) => (m.status === 'burning' || m.status === 'destroyed') ? sum : sum + getMineIncome(m.level), 0);
       }
 
       // Cache full result

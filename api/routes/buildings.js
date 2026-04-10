@@ -317,7 +317,7 @@ async function handleMineCollect(req, res) {
   }
   let xpResult = null;
   if (totalXpGained > 0) { try { xpResult = await addXp(player.id, totalXpGained); } catch (e) { console.error('[xp] addXp error:', e.message); } }
-  const totalIncome = allMines.reduce((sum, m) => sum + getMineIncome(m.level), 0);
+  const totalIncome = allMines.reduce((sum, m) => (m.status === 'burning' || m.status === 'destroyed') ? sum : sum + getMineIncome(m.level), 0);
   return res.status(200).json({ collected: collectedAmount, total_accumulated: collectedAmount, player_coins: newCoins, xp: xpResult, xp_events: xpEvents, totalIncome, collected_mine_ids: mines.map(m => m.id) });
 }
 
