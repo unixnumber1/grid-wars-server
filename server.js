@@ -777,13 +777,14 @@ function startMonumentLoop() {
       try {
         // Respawn with level progression
         if (monument.phase === 'defeated' && monument.respawn_at) {
-          if (new Date() > new Date(monument.respawn_at)) {
+          const respawnTime = new Date(monument.respawn_at).getTime();
+          if (now >= respawnTime) {
             // Apply pending level (lv1→lv2, ..., lv10→lv1)
-            if (monument._pending_level) {
-              monument.level = monument._pending_level;
-              delete monument._pending_level;
-            }
+            const newLevel = monument._pending_level || (monument.level >= 10 ? 1 : monument.level + 1);
+            monument.level = newLevel;
+            delete monument._pending_level;
             const cfg = MONUMENT_LEVELS[monument.level];
+            if (!cfg) { console.error(`[MONUMENTS] No config for level ${monument.level}, skipping respawn`); continue; }
             monument.phase = 'shield';
             monument.hp = cfg.hp;
             monument.max_hp = cfg.hp;
@@ -796,6 +797,13 @@ function startMonumentLoop() {
             monument.invulnerable = false;
             gameState.markDirty('monuments', id);
             gameState.monumentDamage.delete(id);
+            // Persist immediately to prevent stale data on restart
+            supabase.from('monuments').update({
+              phase: 'shield', level: newLevel, hp: cfg.hp, max_hp: cfg.hp,
+              shield_hp: cfg.max_shield_hp, max_shield_hp: cfg.max_shield_hp,
+              respawn_at: null, raid_started_at: null, shield_broken_at: null,
+              waves_triggered: [], invulnerable: false,
+            }).eq('id', id).then(() => {}).catch(e => console.error('[MONUMENTS] respawn persist error:', e.message));
             io.emit('monument:shield_restored', { monument_id: id, level: monument.level });
             console.log(`[MONUMENTS] Respawned as lv${monument.level} "${monument.name}"`);
           }
