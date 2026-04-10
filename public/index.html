@@ -15543,28 +15543,24 @@ function renderCouriers(couriers) {
   const activeIds = new Set((couriers || []).map(c => c.id));
   for (const id of Object.keys(courierMarkers)) {
     if (!activeIds.has(id)) {
-      const pos = courierMarkers[id].getLatLng();
-      const pPos = state.playerPos;
-      if (pPos && haversine(pPos.lat, pPos.lng, pos.lat, pos.lng) > 5000) {
-        courierLayer.removeLayer(courierMarkers[id]);
-        delete courierMarkers[id];
-        delete courierData[id];
-        delete courierInterp[id];
-      }
+      courierLayer.removeLayer(courierMarkers[id]);
+      delete courierMarkers[id];
+      delete courierData[id];
+      delete courierInterp[id];
     }
   }
   for (const c of (couriers || [])) {
     courierData[c.id] = c;
     if (courierMarkers[c.id]) {
-      // Update target for interpolation — don't jump position
       courierInterp[c.id].targetLat = c.target_lat;
       courierInterp[c.id].targetLng = c.target_lng;
       courierInterp[c.id].speed = c.speed || 0.0002;
       courierInterp[c.id].hp = c.hp;
       courierInterp[c.id].max_hp = c.max_hp;
-      // Sync server position (will be smoothly approached)
-      courierInterp[c.id].serverLat = c.current_lat;
-      courierInterp[c.id].serverLng = c.current_lng;
+      // Snap display to server position so couriers don't freeze when app is backgrounded
+      courierInterp[c.id].displayLat = c.current_lat;
+      courierInterp[c.id].displayLng = c.current_lng;
+      courierMarkers[c.id].setLatLng([c.current_lat, c.current_lng]);
       // Only rebuild icon if HP changed (avoid DOM flicker)
       const ci = courierInterp[c.id];
       if (ci._prevHp !== c.hp || ci._prevMaxHp !== c.max_hp) {
@@ -15584,7 +15580,6 @@ function renderCouriers(couriers) {
       courierInterp[c.id] = {
         displayLat: c.current_lat, displayLng: c.current_lng,
         targetLat: c.target_lat, targetLng: c.target_lng,
-        serverLat: c.current_lat, serverLng: c.current_lng,
         speed: c.speed || 0.0002,
         hp: c.hp, max_hp: c.max_hp,
         _prevHp: c.hp, _prevMaxHp: c.max_hp,
