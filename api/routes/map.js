@@ -527,6 +527,7 @@ async function handleTick(req, res) {
           hp_regen: rph,
           income: getMineIncome(m.level) * bInc,
           capacity: Math.round(getMineCapacity(m.level) * bCap * sCap),
+          banked_coins: m.coins || 0,
         };
       });
       inventory = gameState.getPlayerItems(currentPlayerId).map(i => ({ ...i, equipped: !!i.equipped, on_market: !!i.on_market }));
@@ -549,7 +550,7 @@ async function handleTick(req, res) {
         const rph = Math.round(getMineHpRegen(m.level) * bRegen * sRegen);
         const rawHp = Math.min(m.hp ?? cMax, cMax);
         const canRegen = !m.status || m.status === 'normal' || m.status === 'under_attack';
-        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level) * bInc, capacity: Math.round(getMineCapacity(m.level) * bCap * sCap) };
+        return { ...m, max_hp: cMax, hp: canRegen ? calcMineHpRegen(rawHp, cMax, rph, m.last_hp_update) : rawHp, hp_regen: rph, income: getMineIncome(m.level) * bInc, capacity: Math.round(getMineCapacity(m.level) * bCap * sCap), banked_coins: m.coins || 0 };
       });
       inventory = inv || [];
     }
@@ -997,7 +998,7 @@ mapRouter.get('/', async (req, res) => {
       cell_id: m.cell_id, last_collected: m.last_collected,
       upgrade_finish_at: m.upgrade_finish_at, pending_level: m.pending_level,
       hp: regenedHp, max_hp: computedMaxHp, hp_regen: regenPerHour,
-      income: getMineIncome(m.level), capacity: Math.round(getMineCapacity(m.level) * bCap),
+      income: getMineIncome(m.level), capacity: Math.round(getMineCapacity(m.level) * bCap), banked_coins: m.coins || 0,
       status: m.status || 'normal', burning_started_at: m.burning_started_at,
       attacker_id: m.attacker_id, attack_ends_at: m.attack_ends_at,
       burned_by: m._burned_by || (m.status === 'burning' && m.attacker_id ? (() => {

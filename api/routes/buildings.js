@@ -271,7 +271,8 @@ async function handleMineCollect(req, res) {
     }
     // Skill capacity bonus
     const _skCapMul = 1 + (_colFx.mine_capacity_bonus || 0);
-    const acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost * _skCapMul);
+    const banked = mine.coins || 0;
+    const acc = calcAccumulatedCoins(mine.level, mine.last_collected, incBoost, capBoost * _skCapMul) + banked;
     mineCoinsMap.set(mine.id, acc);
     totalCoins += acc;
   }
@@ -279,7 +280,7 @@ async function handleMineCollect(req, res) {
   const newCoins = currentCoins + Math.round(totalCoins);
   const [{ data: coinsOk, error: playerUpdateError }, { error: minesUpdateError }] = await Promise.all([
     supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', currentCoins).select('id').maybeSingle(),
-    supabase.from('mines').update({ last_collected: now }).in('id', mines.map(m => m.id)),
+    supabase.from('mines').update({ last_collected: now, coins: 0 }).in('id', mines.map(m => m.id)),
   ]);
   if (playerUpdateError || minesUpdateError) return res.status(500).json({ error: 'Failed to collect coins' });
   if (!coinsOk && !playerUpdateError) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
@@ -289,7 +290,7 @@ async function handleMineCollect(req, res) {
     if (p) { p.coins = newCoins; gameState.markDirty('players', p.id); }
     for (const m of mines) {
       const gm = gameState.getMineById(m.id);
-      if (gm) { gm.last_collected = now; gameState.markDirty('mines', m.id); }
+      if (gm) { gm.last_collected = now; gm.coins = 0; gameState.markDirty('mines', m.id); }
     }
   }
   const collectedAmount = Math.round(totalCoins);
@@ -490,7 +491,7 @@ async function handleAttackSellMine(req, res) {
   const sellCores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
   if (sellCores.length > 0) return res.status(400).json({ error: 'Сначала извлеките все ядра из постройки' });
 
-  const collected = calcAccumulatedCoins(mine.level, mine.last_collected, 1, 1);
+  const collected = calcAccumulatedCoins(mine.level, mine.last_collected, 1, 1) + (mine.coins || 0);
   const refund = calcSellRefund(mine.level);
   const total = collected + refund;
   const balance = player.coins ?? 0;
@@ -725,13 +726,14 @@ async function handleMineHit(req, res) {
     // Calculate accumulated coins in the destroyed mine (attacker loot)
     const lootIncBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'income') : 1;
     const lootCapBoost = mineCores.length > 0 ? getCoresTotalBoost(mineCores, 'capacity') : 1;
-    stolenCoins = calcAccumulatedCoins(mine.level, mine.last_collected, lootIncBoost, lootCapBoost);
+    stolenCoins = calcAccumulatedCoins(mine.level, mine.last_collected, lootIncBoost, lootCapBoost) + (mine.coins || 0);
 
     mine.status = 'burning';
     mine.hp = 0;
     mine.max_hp = computedMaxHp;
     mine.burning_started_at = hpUpdateTime;
     mine.last_collected = hpUpdateTime; // coins taken
+    mine.coins = 0;
     // Save attacker info for display on burning mine (persisted via attacker_id)
     const _burnShadow = isInShadow(player);
     mine._burned_by = { telegram_id: player.telegram_id, name: _burnShadow ? '???' : (player.game_username || '???'), avatar: _burnShadow ? '🎮' : (player.avatar || '🎮') };

@@ -3,12 +3,23 @@ import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
 import { gameState } from '../../lib/gameState.js';
 import { CORE_TYPES, MAX_CORE_SLOTS, getUnlockedSlots, getCoreMultiplier, getCoreUpgradeCost, getCoresTotalBoost } from '../../lib/cores.js';
-import { SMALL_RADIUS, getMineIncome } from '../../lib/formulas.js';
+import { SMALL_RADIUS, getMineIncome, calcAccumulatedCoins } from '../../lib/formulas.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 
 export const coresRouter = Router();
+
+// Snapshot accumulated coins into mine.coins before core boost changes
+function snapshotMineCoins(mine, cellId) {
+  if (!mine || mine.status === 'burning' || mine.status === 'destroyed') return;
+  if (!mine.last_collected || mine.level <= 0) return;
+  const boosts = getMineBoosts(cellId);
+  const accumulated = calcAccumulatedCoins(mine.level, mine.last_collected, boosts.income, boosts.capacity);
+  if (accumulated > 0) mine.coins = (mine.coins || 0) + accumulated;
+  mine.last_collected = new Date().toISOString();
+  gameState.markDirty('mines', mine.id);
+}
 
 function getMineBoosts(cellId) {
   const cores = gameState.getCoresForMine(cellId);
@@ -74,6 +85,9 @@ async function handleInstall(req, res) {
   let slot = 0;
   while (usedSlots.has(slot)) slot++;
 
+  // Snapshot accumulated coins before boost changes
+  snapshotMineCoins(mine, mine.cell_id);
+
   // Add to index AFTER mutating (old mine_cell_id was null, so no removal needed)
   core.mine_cell_id = mine.cell_id;
   core.slot_index = slot;
@@ -82,7 +96,7 @@ async function handleInstall(req, res) {
 
   await supabase.from('cores').update({ mine_cell_id: mine.cell_id, slot_index: slot }).eq('id', core.id);
 
-  return res.json({ success: true, core, slot, mine_id: mine.id, mine_cell_id: mine.cell_id, mine_boosts: getMineBoosts(mine.cell_id) });
+  return res.json({ success: true, core, slot, mine_id: mine.id, mine_cell_id: mine.cell_id, mine_boosts: getMineBoosts(mine.cell_id), snapshot_coins: mine.coins || 0, snapshot_last_collected: mine.last_collected });
 }
 
 // ── uninstall: remove core from mine back to inventory ──
@@ -102,6 +116,10 @@ async function handleUninstall(req, res) {
 
   const oldCellId = core.mine_cell_id;
   const mineObj = [...gameState.mines.values()].find(m => m.cell_id === oldCellId);
+
+  // Snapshot accumulated coins before boost changes
+  if (mineObj) snapshotMineCoins(mineObj, oldCellId);
+
   // Remove from index BEFORE mutating (same object reference in gameState.cores)
   gameState._updateCoreIndex(core, true);
   core.mine_cell_id = null;
@@ -110,7 +128,7 @@ async function handleUninstall(req, res) {
 
   await supabase.from('cores').update({ mine_cell_id: null, slot_index: null }).eq('id', core.id);
 
-  return res.json({ success: true, core, mine_id: mineObj?.id, mine_cell_id: oldCellId, mine_boosts: getMineBoosts(oldCellId) });
+  return res.json({ success: true, core, mine_id: mineObj?.id, mine_cell_id: oldCellId, mine_boosts: getMineBoosts(oldCellId), snapshot_coins: mineObj?.coins || 0, snapshot_last_collected: mineObj?.last_collected });
 }
 
 // ── upgrade: level up a core for ether ──
@@ -153,6 +171,12 @@ async function handleUpgrade(req, res) {
   player.ether = newEther;
   gameState.markDirty('players', player.id);
 
+  // Snapshot accumulated coins before boost changes
+  if (core.mine_cell_id) {
+    const upgMine = [...gameState.mines.values()].find(m => m.cell_id === core.mine_cell_id);
+    if (upgMine) snapshotMineCoins(upgMine, core.mine_cell_id);
+  }
+
   // Level up core
   core.level = (core.level || 0) + 1;
   gameState.markDirty('cores', core.id);
@@ -166,7 +190,7 @@ async function handleUpgrade(req, res) {
     new_level: core.level,
     multiplier: getCoreMultiplier(core.level),
     ether_left: player.ether,
-    ...(upgradeBoosts && { mine_id: upgMineObj?.id, mine_cell_id: core.mine_cell_id, mine_boosts: upgradeBoosts }),
+    ...(upgradeBoosts && { mine_id: upgMineObj?.id, mine_cell_id: core.mine_cell_id, mine_boosts: upgradeBoosts, snapshot_coins: upgMineObj?.coins || 0, snapshot_last_collected: upgMineObj?.last_collected }),
   });
 }
 

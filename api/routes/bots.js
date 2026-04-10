@@ -265,9 +265,11 @@ async function handleMove(player, body) {
 
   // Update last_collected on drained mines (resets their coin accumulation)
   if (minesToDrain.size > 0) {
-    await Promise.all([...minesToDrain.keys()].map(mineId =>
-      supabase.from('mines').update({ last_collected: now }).eq('id', mineId)
-    ));
+    await Promise.all([...minesToDrain.keys()].map(mineId => {
+      const gm = gameState.mines.get(mineId);
+      if (gm) { gm.last_collected = now; gm.coins = 0; gameState.markDirty('mines', mineId); }
+      return supabase.from('mines').update({ last_collected: now, coins: 0 }).eq('id', mineId);
+    }));
   }
 
   // Purge expired bots

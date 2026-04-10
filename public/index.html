@@ -8727,7 +8727,7 @@ function showMinePopup(mine, isOwn, canCapture) {
   const capBoost    = mineCores.length > 0 ? mineCores.filter(c => c.core_type === 'capacity').reduce((s, c) => s + getCoreMultiplier(c.level), 0) || 1 : 1;
   const _skCapMul   = 1 + (state.skill_effects?.mine_capacity_bonus || 0);
   const capacity    = Math.round(getMineCapacity(mine.level) * capBoost * _skCapMul);
-  const accumulated = mine.level > 0 ? calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost * _skCapMul) : 0;
+  const accumulated = mine.level > 0 ? Math.min(calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost * _skCapMul) + (mine.banked_coins || 0), capacity) : 0;
   const isFull      = mine.level > 0 && accumulated >= capacity;
 
   // Distance check
@@ -8903,7 +8903,7 @@ function showMinePopup(mine, isOwn, canCapture) {
       _accumulatedCoinsTimer = setInterval(() => {
         const el = document.getElementById('accumulated-coins-val');
         if (!el) { clearInterval(_accumulatedCoinsTimer); _accumulatedCoinsTimer = null; return; }
-        const acc = calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost * _skCapMul);
+        const acc = Math.min(calcAccumulated(mine.level, mine.last_collected, mine.income, capBoost * _skCapMul) + (mine.banked_coins || 0), capacity);
         const full = acc >= capacity;
         el.textContent = formatCoins(acc);
         el.style.color = full ? '#ff4444' : '';
@@ -10460,6 +10460,11 @@ function applyMineBoosts(data) {
       if (mine.income && oldIncBoost > 0) {
         mine.income = (mine.income / oldIncBoost) * newIncBoost;
       }
+      // Server snapshots accumulated coins before boost change — apply to local state
+      if (data.snapshot_coins != null) {
+        mine.banked_coins = data.snapshot_coins;
+        mine.last_collected = data.snapshot_last_collected || new Date().toISOString();
+      }
     }
   }
 }
@@ -10676,10 +10681,10 @@ async function doCollect() {
       const now = new Date().toISOString();
       const collectedIds = new Set(data.collected_mine_ids || []);
       for (const mine of (state.mines || [])) {
-        if (collectedIds.has(mine.id)) mine.last_collected = now;
+        if (collectedIds.has(mine.id)) { mine.last_collected = now; mine.banked_coins = 0; }
       }
       for (const mine of (state.mapBuildings.mines || [])) {
-        if (collectedIds.has(mine.id)) mine.last_collected = now;
+        if (collectedIds.has(mine.id)) { mine.last_collected = now; mine.banked_coins = 0; }
       }
     } else {
       showToast(t('toast.nothing_to_collect'));
