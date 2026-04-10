@@ -598,8 +598,8 @@ function extinguishBuilding(ff) {
 function updateDefenders(nowMs) {
   if (gameState.monumentDefenders.size === 0) return;
 
-  // Cache raid participant positions (online players who dealt damage to any monument)
-  const raidPlayers = new Map(); // tgId → { lat, lng, sid, playerId, hp }
+  // Cache online players
+  const raidPlayers = new Map();
   for (const [sid, info] of _connectedPlayers) {
     if (!info.telegram_id || !info.lat || !info.lng) continue;
     const p = gameState.getPlayerByTgId(Number(info.telegram_id));
@@ -610,22 +610,23 @@ function updateDefenders(nowMs) {
     });
   }
 
-  const attacks = []; // { defender, target (raidPlayer entry) }
-
+  // Group defenders by monument for spread-angle assignment
+  const defByMon = new Map();
   for (const [id, d] of gameState.monumentDefenders) {
     if (!d.alive) continue;
-    const monument = gameState.monuments.get(d.monument_id);
+    let arr = defByMon.get(d.monument_id);
+    if (!arr) { arr = []; defByMon.set(d.monument_id, arr); }
+    arr.push(d);
+  }
+
+  const attacks = [];
+
+  for (const [monId, defs] of defByMon) {
+    const monument = gameState.monuments.get(monId);
     if (!monument) continue;
-    const role = d.role || 'hunter';
-    const cfg = DEFENDER_ROLES[role] || DEFENDER_ROLES.hunter;
 
-    // Ensure runtime fields exist (after server restart they're lost)
-    if (!d._state) d._state = 'patrol';
-    if (d._patrol_angle == null) d._patrol_angle = Math.random() * Math.PI * 2;
-    if (!d._threat) d._threat = new Map();
-
-    // Get raid participants for THIS monument
-    const dmgMap = gameState.monumentDamage.get(monument.id);
+    // Gather players for this monument
+    const dmgMap = gameState.monumentDamage.get(monId);
     const nearbyPlayers = [];
     if (dmgMap) {
       for (const [tgId] of dmgMap) {
@@ -633,152 +634,139 @@ function updateDefenders(nowMs) {
         if (pp) nearbyPlayers.push(pp);
       }
     }
-    // Also add players close to monument who haven't attacked yet
     for (const [tgId, pp] of raidPlayers) {
       if (nearbyPlayers.find(n => n.tgId === tgId)) continue;
-      if (haversine(pp.lat, pp.lng, monument.lat, monument.lng) <= cfg.aggroRange) {
-        nearbyPlayers.push(pp);
-      }
-    }
-
-    // Threat decay
-    for (const [tgId, score] of d._threat) {
-      const newScore = score * 0.9;
-      if (newScore < 1) d._threat.delete(tgId);
-      else d._threat.set(tgId, newScore);
-    }
-    // Passive threat for nearby players
-    for (const pp of nearbyPlayers) {
-      d._threat.set(pp.tgId, (d._threat.get(pp.tgId) || 0) + 1);
+      if (haversine(pp.lat, pp.lng, monument.lat, monument.lng) <= 400) nearbyPlayers.push(pp);
     }
 
     const playerCount = nearbyPlayers.length;
     const soloScale = playerCount <= 1 ? 0.7 : 1;
-    let moved = false;
 
-    // ── State machine ──
-    switch (d._state) {
-      case 'patrol': {
-        // Orbit around monument with per-defender speed variation
-        d._patrol_angle += d._patrol_speed || 0.12;
-        const pDist = cfg.patrolDist;
-        const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
-        const tgtLat = monument.lat + (pDist / 111320) * Math.cos(d._patrol_angle);
-        const tgtLng = monument.lng + (pDist / (111320 * cosLat)) * Math.sin(d._patrol_angle);
-        _defMoveToward(d, tgtLat, tgtLng, cfg.speed);
-        moved = true;
+    // Assign spread angles so defenders don't clump (unique per defender in this monument)
+    for (let di = 0; di < defs.length; di++) {
+      const d = defs[di];
+      const role = d.role || 'hunter';
+      const cfg = DEFENDER_ROLES[role] || DEFENDER_ROLES.hunter;
 
-        // Check aggro — if found, immediately start chasing (no wasted tick)
-        if (nearbyPlayers.length > 0) {
-          const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
-          if (target) {
-            d._target_player_id = target.tgId;
-            d._state = 'chase';
-            d._flank_ticks = 0;
-            // Move toward target in same tick
-            _defMoveToward(d, target.lat, target.lng, cfg.speed);
-          }
-        }
-        break;
+      // Init runtime fields
+      if (!d._state) d._state = 'patrol';
+      if (d._patrol_angle == null) d._patrol_angle = Math.random() * Math.PI * 2;
+      if (!d._threat) d._threat = new Map();
+      if (!d._spread_angle) d._spread_angle = (2 * Math.PI * di / defs.length) + (Math.random() - 0.5) * 0.5;
+      if (!d._speed_mul) d._speed_mul = 0.8 + Math.random() * 0.4; // ±20% speed variation
+      if (!d._wobble_phase) d._wobble_phase = Math.random() * Math.PI * 2;
+      d._wobble_phase += 0.7; // advance wobble each tick
+      if (!d._tick_count) d._tick_count = 0;
+      d._tick_count++;
+
+      const mySpeed = cfg.speed * d._speed_mul;
+
+      // Threat maintenance
+      for (const [tgId, score] of d._threat) {
+        const ns = score * 0.9;
+        if (ns < 1) d._threat.delete(tgId); else d._threat.set(tgId, ns);
       }
+      for (const pp of nearbyPlayers) d._threat.set(pp.tgId, (d._threat.get(pp.tgId) || 0) + 1);
 
-      case 'chase': {
-        const target = raidPlayers.get(d._target_player_id);
-        if (!target || target.hp <= 0) { d._state = 'return'; break; }
+      let moved = false;
 
-        const distToMon = haversine(target.lat, target.lng, monument.lat, monument.lng);
-        if (distToMon > cfg.leashRange) { d._state = 'return'; break; }
-
-        const distToTarget = haversine(d.lat, d.lng, target.lat, target.lng);
-
-        if (distToTarget <= cfg.attackRange) {
-          d._state = 'attack';
-          break;
-        }
-
-        // Hunter flanking: first 3 ticks add perpendicular offset
-        if (role === 'hunter' && d._flank_ticks < 3) {
-          d._flank_ticks++;
-          const dLat = target.lat - d.lat;
-          const dLng = target.lng - d.lng;
-          // Perpendicular offset (rotate 90°)
-          const perpLat = target.lat + dLng * 0.3;
-          const perpLng = target.lng - dLat * 0.3;
-          _defMoveToward(d, perpLat, perpLng, cfg.speed);
-        } else {
-          _defMoveToward(d, target.lat, target.lng, cfg.speed);
-        }
-        moved = true;
-        break;
-      }
-
-      case 'attack': {
-        const target = raidPlayers.get(d._target_player_id);
-        if (!target || target.hp <= 0) { d._state = 'return'; break; }
-
-        const distToTarget = haversine(d.lat, d.lng, target.lat, target.lng);
-        if (distToTarget > cfg.attackRange * 1.5) { d._state = 'chase'; d._flank_ticks = 0; break; }
-
-        // Track target slowly (stay in melee)
-        if (distToTarget > 10) {
-          _defMoveToward(d, target.lat, target.lng, cfg.speed * 0.5);
+      switch (d._state) {
+        case 'patrol': {
+          d._patrol_angle += (d._patrol_speed || 0.12);
+          const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
+          const tgtLat = monument.lat + (cfg.patrolDist / 111320) * Math.cos(d._patrol_angle);
+          const tgtLng = monument.lng + (cfg.patrolDist / (111320 * cosLat)) * Math.sin(d._patrol_angle);
+          _defMove(d, tgtLat, tgtLng, mySpeed);
           moved = true;
-        }
-
-        // Deal damage on cooldown
-        if (nowMs - (d.last_attack || 0) >= cfg.attackCd) {
-          d.last_attack = nowMs;
-          const dmg = Math.round(d.attack * soloScale * (0.8 + Math.random() * 0.4));
-          attacks.push({ defender: d, target, damage: dmg });
-        }
-
-        // Hunter flee at < 20% HP
-        if (role === 'hunter' && d.hp < d.max_hp * 0.2) {
-          d._state = 'flee';
-          d._flee_ticks = 0;
-        }
-        break;
-      }
-
-      case 'return': {
-        const distToMon = haversine(d.lat, d.lng, monument.lat, monument.lng);
-        if (distToMon <= cfg.patrolDist + 15) {
-          d._state = 'patrol';
-          d._target_player_id = null;
+          if (nearbyPlayers.length > 0) {
+            const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
+            if (target) { d._target_player_id = target.tgId; d._state = 'chase'; d._flank_ticks = 0; }
+          }
           break;
         }
-        _defMoveToward(d, monument.lat, monument.lng, cfg.speed);
-        moved = true;
 
-        // Re-aggro if new threat during return
-        if (nearbyPlayers.length > 0) {
-          const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
-          if (target && haversine(target.lat, target.lng, monument.lat, monument.lng) <= cfg.aggroRange) {
-            d._target_player_id = target.tgId;
-            d._state = 'chase';
-            d._flank_ticks = 0;
-          }
+        case 'chase': {
+          const target = raidPlayers.get(d._target_player_id);
+          if (!target || target.hp <= 0) { d._state = 'return'; break; }
+          if (haversine(target.lat, target.lng, monument.lat, monument.lng) > cfg.leashRange) { d._state = 'return'; break; }
+
+          const distToTarget = haversine(d.lat, d.lng, target.lat, target.lng);
+          if (distToTarget <= cfg.attackRange) { d._state = 'attack'; /* fall through to attack movement */ }
+
+          // Offset target: each defender aims for a unique spot AROUND the player (spread ring)
+          const spreadDist = 15 + (di % 3) * 8; // 15m, 23m, 31m rings
+          const cosLat = Math.cos(target.lat * Math.PI / 180) || 0.001;
+          const offsetLat = target.lat + (spreadDist / 111320) * Math.cos(d._spread_angle);
+          const offsetLng = target.lng + (spreadDist / (111320 * cosLat)) * Math.sin(d._spread_angle);
+
+          // Curved approach: sinusoidal perpendicular wobble
+          const dLat = offsetLat - d.lat;
+          const dLng = offsetLng - d.lng;
+          const wobble = Math.sin(d._wobble_phase) * 0.00015;
+          const curveLat = offsetLat + dLng * wobble;
+          const curveLng = offsetLng - dLat * wobble;
+
+          _defMove(d, curveLat, curveLng, mySpeed);
+          moved = true;
+          break;
         }
-        break;
+
+        case 'attack': {
+          const target = raidPlayers.get(d._target_player_id);
+          if (!target || target.hp <= 0) { d._state = 'return'; break; }
+          const distToTarget = haversine(d.lat, d.lng, target.lat, target.lng);
+          if (distToTarget > cfg.attackRange * 2) { d._state = 'chase'; d._flank_ticks = 0; break; }
+
+          // Circle around target while attacking (advance spread angle)
+          d._spread_angle += 0.3;
+          const orbitDist = 12 + (di % 4) * 5;
+          const cosLat = Math.cos(target.lat * Math.PI / 180) || 0.001;
+          const orbitLat = target.lat + (orbitDist / 111320) * Math.cos(d._spread_angle);
+          const orbitLng = target.lng + (orbitDist / (111320 * cosLat)) * Math.sin(d._spread_angle);
+          _defMove(d, orbitLat, orbitLng, mySpeed * 0.6);
+          moved = true;
+
+          // Deal damage on cooldown
+          if (distToTarget <= cfg.attackRange && nowMs - (d.last_attack || 0) >= cfg.attackCd) {
+            d.last_attack = nowMs;
+            attacks.push({ defender: d, target, damage: Math.round(d.attack * soloScale * (0.8 + Math.random() * 0.4)) });
+          }
+
+          // Hunter flee at < 20% HP
+          if (role === 'hunter' && d.hp < d.max_hp * 0.2) { d._state = 'flee'; d._flee_ticks = 0; }
+          break;
+        }
+
+        case 'return': {
+          const distToMon = haversine(d.lat, d.lng, monument.lat, monument.lng);
+          if (distToMon <= cfg.patrolDist + 15) { d._state = 'patrol'; d._target_player_id = null; break; }
+          _defMove(d, monument.lat, monument.lng, mySpeed);
+          moved = true;
+          if (nearbyPlayers.length > 0) {
+            const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
+            if (target && haversine(target.lat, target.lng, monument.lat, monument.lng) <= cfg.aggroRange) {
+              d._target_player_id = target.tgId; d._state = 'chase'; d._flank_ticks = 0;
+            }
+          }
+          break;
+        }
+
+        case 'flee': {
+          d._flee_ticks = (d._flee_ticks || 0) + 1;
+          _defMove(d, monument.lat, monument.lng, mySpeed * 1.3);
+          moved = true;
+          if (d._flee_ticks >= 3) d._state = 'return';
+          break;
+        }
+
+        default: d._state = 'patrol';
       }
 
-      case 'flee': {
-        d._flee_ticks = (d._flee_ticks || 0) + 1;
-        // Run away from nearest player toward monument
-        _defMoveToward(d, monument.lat, monument.lng, cfg.speed * 1.3);
-        moved = true;
-        if (d._flee_ticks >= 3) { d._state = 'return'; }
-        break;
-      }
-
-      default:
-        d._state = 'patrol';
+      if (moved) gameState.markDirty('monumentDefenders', d.id);
     }
-
-    if (moved) gameState.markDirty('monumentDefenders', id);
   }
 
-  // Process defender attacks (like zombie attacks)
+  // Process attacks
   for (const atk of attacks) {
     const player = gameState.getPlayerByTgId(atk.target.tgId);
     if (!player || player.hp <= 0) continue;
@@ -788,10 +776,8 @@ function updateDefenders(nowMs) {
     gameState.markDirty('players', player.id);
     if (_io) {
       _io.to(atk.target.sid).emit('defender:attack_player', {
-        defender_id: atk.defender.id,
-        damage: atk.damage,
-        player_hp: player.hp,
-        player_max_hp: player.maxHp || 1000,
+        defender_id: atk.defender.id, damage: atk.damage,
+        player_hp: player.hp, player_max_hp: atk.target.maxHp || 1000,
       });
     }
   }
@@ -799,9 +785,8 @@ function updateDefenders(nowMs) {
 
 // Pick target based on role
 function _defPickTarget(defender, role, monument, players, cfg) {
-  if (players.length === 0) return null;
+  if (!players.length) return null;
   if (role === 'guardian') {
-    // Guardian: closest player to monument
     let best = null, bestDist = Infinity;
     for (const p of players) {
       const d = haversine(p.lat, p.lng, monument.lat, monument.lng);
@@ -809,27 +794,29 @@ function _defPickTarget(defender, role, monument, players, cfg) {
     }
     return best;
   }
-  // Hunter: highest threat
+  // Hunter: highest threat, fallback to random
   let best = null, bestThreat = -1;
   for (const p of players) {
     const t = defender._threat?.get(p.tgId) || 0;
     if (t > bestThreat) { bestThreat = t; best = p; }
   }
-  return best || players[0];
+  return best || players[Math.floor(Math.random() * players.length)];
 }
 
-// Move defender toward target coordinates with slight jitter for natural movement
-function _defMoveToward(d, tgtLat, tgtLng, speedMs) {
+// Move with sinusoidal wobble for natural-looking paths
+function _defMove(d, tgtLat, tgtLng, speedMs) {
   const dist = haversine(d.lat, d.lng, tgtLat, tgtLng);
-  if (dist < 3) return;
-  const stepM = Math.min(speedMs * 5, dist); // 5s tick
+  if (dist < 2) return;
+  const stepM = Math.min(speedMs * 5, dist);
   const dLat = tgtLat - d.lat;
   const dLng = tgtLng - d.lng;
   const degDist = Math.sqrt(dLat * dLat + dLng * dLng);
   if (degDist < 1e-7) return;
   const ratio = Math.min(1, (stepM / 111320) / degDist);
-  d.lat += dLat * ratio + (Math.random() - 0.5) * 0.00003;
-  d.lng += dLng * ratio + (Math.random() - 0.5) * 0.00003;
+  // Perpendicular wobble for organic feel
+  const wobble = Math.sin((d._wobble_phase || 0)) * 0.00004;
+  d.lat += dLat * ratio + dLng * wobble;
+  d.lng += dLng * ratio - dLat * wobble;
 }
 
 // ── Move zombies toward player, scouts wander ──
