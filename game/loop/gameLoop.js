@@ -694,7 +694,7 @@ function updateDefenders(nowMs) {
           if (distToTarget <= cfg.attackRange) { d._state = 'attack'; /* fall through to attack movement */ }
 
           // Offset target: each defender aims for a unique spot AROUND the player (spread ring)
-          const spreadDist = 15 + (di % 3) * 8; // 15m, 23m, 31m rings
+          const spreadDist = 25 + (di % 3) * 10; // 25m, 35m, 45m rings
           const cosLat = Math.cos(target.lat * Math.PI / 180) || 0.001;
           const offsetLat = target.lat + (spreadDist / 111320) * Math.cos(d._spread_angle);
           const offsetLng = target.lng + (spreadDist / (111320 * cosLat)) * Math.sin(d._spread_angle);
@@ -719,7 +719,7 @@ function updateDefenders(nowMs) {
 
           // Circle around target while attacking (advance spread angle)
           d._spread_angle += 0.06; // orbit advance per 1s tick
-          const orbitDist = 12 + (di % 4) * 5;
+          const orbitDist = 20 + (di % 4) * 8; // 20m, 28m, 36m, 44m
           const cosLat = Math.cos(target.lat * Math.PI / 180) || 0.001;
           const orbitLat = target.lat + (orbitDist / 111320) * Math.cos(d._spread_angle);
           const orbitLng = target.lng + (orbitDist / (111320 * cosLat)) * Math.sin(d._spread_angle);
