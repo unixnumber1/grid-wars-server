@@ -11451,6 +11451,7 @@ function initSocket() {
     });
     _socket.on('zombie:horde_timeout', () => { showToast('💨 Орда разошлась!'); for (const [, m] of zombieMarkers) map.removeLayer(m); zombieMarkers.clear(); });
     _socket.on('zombie:attack_player', (data) => { if (state.player) { state.player.hp = data.player_hp; _resetHpRegenBase(); updateHpBar(); } });
+    _socket.on('defender:attack_player', (data) => { if (state.player) { state.player.hp = data.player_hp; _resetHpRegenBase(); updateHpBar(); } });
 
     _socket.on('disconnect', () => {
       // Disconnected from server
@@ -19572,10 +19573,13 @@ function monumentIcon(m) {
 
 function defenderIcon(d) {
   const hpPct = d.max_hp > 0 ? (d.hp / d.max_hp * 100) : 0;
+  const isGuardian = d.role === 'guardian';
+  const barColor = isGuardian ? '#ff9800' : '#ff3333';
+  const glow = isGuardian ? '0 0 6px #ff9800' : '0 0 6px #ff3333';
   return L.divIcon({
-    html: `<div class="defender-marker">
+    html: `<div class="defender-marker" style="text-shadow:${glow}">
       <span style="font-size:28px">${d.emoji}</span>
-      <div class="defender-hp-bar"><div style="width:${Math.max(0,hpPct)}%;background:#ff6600"></div></div>
+      <div class="defender-hp-bar"><div style="width:${Math.max(0,hpPct)}%;background:${barColor}"></div></div>
     </div>`,
     className: 'leaflet-interactive',
     iconSize: [40, 50],

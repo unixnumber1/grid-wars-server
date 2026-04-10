@@ -323,13 +323,11 @@ async function handleAttackMonument(req, res) {
     }
   }
 
-  // Defenders alive → 0 damage to monument (but projectile still shows)
-  // Aggro all defenders toward attacker regardless of distance
+  // Defenders alive → 0 damage to monument, add threat to attacker
   if (defendersAlive) {
     for (const d of aliveDefenders) {
-      d._target_lat = player.last_lat;
-      d._target_lng = player.last_lng;
-      d._target_player_id = telegram_id;
+      if (!d._threat) d._threat = new Map();
+      d._threat.set(Number(telegram_id), (d._threat.get(Number(telegram_id)) || 0) + damage + 50);
     }
     damage = 0;
     isCrit = false;
@@ -456,6 +454,10 @@ async function handleAttackDefender(req, res) {
 
   // Apply damage to defender
   defender.hp = Math.max(0, defender.hp - damage);
+
+  // Add threat from attacker (attacking a defender generates 2× threat)
+  if (!defender._threat) defender._threat = new Map();
+  defender._threat.set(Number(telegram_id), (defender._threat.get(Number(telegram_id)) || 0) + damage * 2);
 
   // Emit projectile
   emitToNearbyPlayers(defender.lat, defender.lng, 1000, 'projectile', {

@@ -241,6 +241,41 @@ export const WAVE_EMOJIS = {
   3: ['☠️','💀','🧛🏻‍♂️','🐲','👾'],
 };
 
+// ── Defender AI roles ──
+export const DEFENDER_ROLES = {
+  guardian: {
+    hpMul: 1.5,        // ×1.5 base HP
+    speed: 8,           // m/s
+    damage: 80,         // per hit
+    attackCd: 3000,     // 3s cooldown
+    attackRange: 30,    // meters
+    aggroRange: 200,    // aggro when player < 200m from monument
+    leashRange: 250,    // return if target > 250m from monument
+    patrolDist: 40,     // orbit distance from monument
+    emojis: ['🛡️','⚔️','🗡️'],
+  },
+  hunter: {
+    hpMul: 0.8,         // ×0.8 base HP
+    speed: 18,          // m/s (fast)
+    damage: 50,         // per hit
+    attackCd: 1500,     // 1.5s cooldown
+    attackRange: 40,    // meters
+    aggroRange: 400,    // aggro from further away
+    leashRange: 500,    // chase further before returning
+    patrolDist: 120,    // orbit further out
+    emojis: ['👹','🐺','💀','👾','🧟'],
+  },
+};
+export const WAVE_COMPOSITION = {
+  1: [0.6, 0.4],   // wave 1: defensive (60% guardian, 40% hunter)
+  2: [0.35, 0.65], // wave 2: aggressive
+  3: [0.25, 0.75], // wave 3: very aggressive
+};
+export const DEFENDER_DAMAGE_SCALE = {
+  1:0.4, 2:0.5, 3:0.7, 4:0.9, 5:1.0,
+  6:1.2, 7:1.5, 8:1.8, 9:2.0, 10:2.5,
+};
+
 // ── Clans ──
 export const CLAN_HQ_COST = 10_000_000;
 export const CLAN_CREATE_COST = 0;

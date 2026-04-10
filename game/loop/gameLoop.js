@@ -14,6 +14,7 @@ import {
   TICK_INTERVAL, BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS,
   ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE,
   ORE_TYPES, VOLCANO_ERUPTION_MAX_CHANCE, VOLCANO_ERUPTION_RAMP_DAYS,
+  DEFENDER_ROLES, DEFENDER_DAMAGE_SCALE,
 } from '../../config/constants.js';
 import { getOreIncome, getEruptionTickChance } from '../mechanics/oreNodes.js';
 import { ts } from '../../config/i18n.js';
@@ -59,8 +60,8 @@ export function startGameLoop(io, connectedPlayers) {
       // ── 3e. Move scouts + check training queue ────────────
       moveScouts(nowMs);
 
-      // ── 3d. Move monument defenders toward aggroed players ─
-      moveDefenders();
+      // ── 3d. Monument defender AI (state machine + active attacks) ─
+      updateDefenders(nowMs);
 
       // ── 3b. Move zombies + check timeout ──────────────────
       moveZombies(nowMs, connectedPlayers);
@@ -593,25 +594,240 @@ function extinguishBuilding(ff) {
   }
 }
 
-// ── Move monument defenders toward aggroed players ──
-function moveDefenders() {
-  for (const [id, d] of gameState.monumentDefenders) {
-    if (!d.alive || d._target_lat == null || d._target_lng == null) continue;
-    const dist = haversine(d.lat, d.lng, d._target_lat, d._target_lng);
-    if (dist < 15) continue; // close enough, stop
-    // Move ~30m per tick (5s), speed comparable to player walk
-    const stepM = 30;
-    const cosLat = Math.cos(d.lat * Math.PI / 180) || 0.001;
-    const dLat = d._target_lat - d.lat;
-    const dLng = d._target_lng - d.lng;
-    const degDist = Math.sqrt(dLat * dLat + dLng * dLng);
-    if (degDist < 0.0000001) continue;
-    const stepDeg = stepM / 111320;
-    const ratio = Math.min(1, stepDeg / degDist);
-    d.lat += dLat * ratio;
-    d.lng += dLng * ratio;
-    gameState.markDirty('monumentDefenders', id);
+// ── Monument defender AI (state machine + active attacks) ──
+function updateDefenders(nowMs) {
+  if (gameState.monumentDefenders.size === 0) return;
+
+  // Cache raid participant positions (online players who dealt damage to any monument)
+  const raidPlayers = new Map(); // tgId → { lat, lng, sid, playerId, hp }
+  for (const [sid, info] of _connectedPlayers) {
+    if (!info.telegram_id || !info.lat || !info.lng) continue;
+    const p = gameState.getPlayerByTgId(Number(info.telegram_id));
+    if (!p || p.hp <= 0 || p.is_dead) continue;
+    raidPlayers.set(Number(info.telegram_id), {
+      lat: p.last_lat || info.lat, lng: p.last_lng || info.lng,
+      sid, playerId: p.id, hp: p.hp, maxHp: p.max_hp || 1000, tgId: Number(info.telegram_id),
+    });
   }
+
+  const attacks = []; // { defender, target (raidPlayer entry) }
+
+  for (const [id, d] of gameState.monumentDefenders) {
+    if (!d.alive) continue;
+    const monument = gameState.monuments.get(d.monument_id);
+    if (!monument) continue;
+    const role = d.role || 'hunter';
+    const cfg = DEFENDER_ROLES[role] || DEFENDER_ROLES.hunter;
+
+    // Ensure runtime fields exist (after server restart they're lost)
+    if (!d._state) d._state = 'patrol';
+    if (d._patrol_angle == null) d._patrol_angle = Math.random() * Math.PI * 2;
+    if (!d._threat) d._threat = new Map();
+
+    // Get raid participants for THIS monument
+    const dmgMap = gameState.monumentDamage.get(monument.id);
+    const nearbyPlayers = [];
+    if (dmgMap) {
+      for (const [tgId] of dmgMap) {
+        const pp = raidPlayers.get(Number(tgId));
+        if (pp) nearbyPlayers.push(pp);
+      }
+    }
+    // Also add players close to monument who haven't attacked yet
+    for (const [tgId, pp] of raidPlayers) {
+      if (nearbyPlayers.find(n => n.tgId === tgId)) continue;
+      if (haversine(pp.lat, pp.lng, monument.lat, monument.lng) <= cfg.aggroRange) {
+        nearbyPlayers.push(pp);
+      }
+    }
+
+    // Threat decay
+    for (const [tgId, score] of d._threat) {
+      const newScore = score * 0.9;
+      if (newScore < 1) d._threat.delete(tgId);
+      else d._threat.set(tgId, newScore);
+    }
+    // Passive threat for nearby players
+    for (const pp of nearbyPlayers) {
+      d._threat.set(pp.tgId, (d._threat.get(pp.tgId) || 0) + 1);
+    }
+
+    const playerCount = nearbyPlayers.length;
+    const soloScale = playerCount <= 1 ? 0.7 : 1;
+    let moved = false;
+
+    // ── State machine ──
+    switch (d._state) {
+      case 'patrol': {
+        // Orbit around monument
+        d._patrol_angle += 0.15; // ~8.6° per tick
+        const pDist = cfg.patrolDist;
+        const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
+        const tgtLat = monument.lat + (pDist / 111320) * Math.cos(d._patrol_angle);
+        const tgtLng = monument.lng + (pDist / (111320 * cosLat)) * Math.sin(d._patrol_angle);
+        _defMoveToward(d, tgtLat, tgtLng, cfg.speed);
+        moved = true;
+
+        // Check aggro
+        if (nearbyPlayers.length > 0) {
+          const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
+          if (target) {
+            d._target_player_id = target.tgId;
+            d._state = 'chase';
+            d._flank_ticks = 0;
+          }
+        }
+        break;
+      }
+
+      case 'chase': {
+        const target = raidPlayers.get(d._target_player_id);
+        if (!target || target.hp <= 0) { d._state = 'return'; break; }
+
+        const distToMon = haversine(target.lat, target.lng, monument.lat, monument.lng);
+        if (distToMon > cfg.leashRange) { d._state = 'return'; break; }
+
+        const distToTarget = haversine(d.lat, d.lng, target.lat, target.lng);
+
+        if (distToTarget <= cfg.attackRange) {
+          d._state = 'attack';
+          break;
+        }
+
+        // Hunter flanking: first 3 ticks add perpendicular offset
+        if (role === 'hunter' && d._flank_ticks < 3) {
+          d._flank_ticks++;
+          const dLat = target.lat - d.lat;
+          const dLng = target.lng - d.lng;
+          // Perpendicular offset (rotate 90°)
+          const perpLat = target.lat + dLng * 0.3;
+          const perpLng = target.lng - dLat * 0.3;
+          _defMoveToward(d, perpLat, perpLng, cfg.speed);
+        } else {
+          _defMoveToward(d, target.lat, target.lng, cfg.speed);
+        }
+        moved = true;
+        break;
+      }
+
+      case 'attack': {
+        const target = raidPlayers.get(d._target_player_id);
+        if (!target || target.hp <= 0) { d._state = 'return'; break; }
+
+        const distToTarget = haversine(d.lat, d.lng, target.lat, target.lng);
+        if (distToTarget > cfg.attackRange * 1.5) { d._state = 'chase'; d._flank_ticks = 0; break; }
+
+        // Track target slowly (stay in melee)
+        if (distToTarget > 10) {
+          _defMoveToward(d, target.lat, target.lng, cfg.speed * 0.5);
+          moved = true;
+        }
+
+        // Deal damage on cooldown
+        if (nowMs - (d.last_attack || 0) >= cfg.attackCd) {
+          d.last_attack = nowMs;
+          const dmg = Math.round(d.attack * soloScale * (0.8 + Math.random() * 0.4));
+          attacks.push({ defender: d, target, damage: dmg });
+        }
+
+        // Hunter flee at < 20% HP
+        if (role === 'hunter' && d.hp < d.max_hp * 0.2) {
+          d._state = 'flee';
+          d._flee_ticks = 0;
+        }
+        break;
+      }
+
+      case 'return': {
+        const distToMon = haversine(d.lat, d.lng, monument.lat, monument.lng);
+        if (distToMon <= cfg.patrolDist + 15) {
+          d._state = 'patrol';
+          d._target_player_id = null;
+          break;
+        }
+        _defMoveToward(d, monument.lat, monument.lng, cfg.speed);
+        moved = true;
+
+        // Re-aggro if new threat during return
+        if (nearbyPlayers.length > 0) {
+          const target = _defPickTarget(d, role, monument, nearbyPlayers, cfg);
+          if (target && haversine(target.lat, target.lng, monument.lat, monument.lng) <= cfg.aggroRange) {
+            d._target_player_id = target.tgId;
+            d._state = 'chase';
+            d._flank_ticks = 0;
+          }
+        }
+        break;
+      }
+
+      case 'flee': {
+        d._flee_ticks = (d._flee_ticks || 0) + 1;
+        // Run away from nearest player toward monument
+        _defMoveToward(d, monument.lat, monument.lng, cfg.speed * 1.3);
+        moved = true;
+        if (d._flee_ticks >= 3) { d._state = 'return'; }
+        break;
+      }
+
+      default:
+        d._state = 'patrol';
+    }
+
+    if (moved) gameState.markDirty('monumentDefenders', id);
+  }
+
+  // Process defender attacks (like zombie attacks)
+  for (const atk of attacks) {
+    const player = gameState.getPlayerByTgId(atk.target.tgId);
+    if (!player || player.hp <= 0) continue;
+    if (player.hp == null) player.hp = player.max_hp || 1000;
+    player.hp = Math.max(0, player.hp - atk.damage);
+    player.last_hp_regen = new Date().toISOString();
+    gameState.markDirty('players', player.id);
+    if (_io) {
+      _io.to(atk.target.sid).emit('defender:attack_player', {
+        defender_id: atk.defender.id,
+        damage: atk.damage,
+        player_hp: player.hp,
+        player_max_hp: player.maxHp || 1000,
+      });
+    }
+  }
+}
+
+// Pick target based on role
+function _defPickTarget(defender, role, monument, players, cfg) {
+  if (players.length === 0) return null;
+  if (role === 'guardian') {
+    // Guardian: closest player to monument
+    let best = null, bestDist = Infinity;
+    for (const p of players) {
+      const d = haversine(p.lat, p.lng, monument.lat, monument.lng);
+      if (d < bestDist && d <= cfg.aggroRange) { bestDist = d; best = p; }
+    }
+    return best;
+  }
+  // Hunter: highest threat
+  let best = null, bestThreat = -1;
+  for (const p of players) {
+    const t = defender._threat?.get(p.tgId) || 0;
+    if (t > bestThreat) { bestThreat = t; best = p; }
+  }
+  return best || players[0];
+}
+
+// Move defender toward target coordinates
+function _defMoveToward(d, tgtLat, tgtLng, speedMs) {
+  const dist = haversine(d.lat, d.lng, tgtLat, tgtLng);
+  if (dist < 3) return;
+  const stepM = Math.min(speedMs * 5, dist); // 5s tick
+  const dLat = tgtLat - d.lat;
+  const dLng = tgtLng - d.lng;
+  const degDist = Math.sqrt(dLat * dLat + dLng * dLng);
+  if (degDist < 1e-7) return;
+  const ratio = Math.min(1, (stepM / 111320) / degDist);
+  d.lat += dLat * ratio;
+  d.lng += dLng * ratio;
 }
 
 // ── Move zombies toward player, scouts wander ──

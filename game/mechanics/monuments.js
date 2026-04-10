@@ -9,6 +9,7 @@ import {
   MONUMENT_WAVE_COUNTS, MONUMENT_DEFENDER_HP, MONUMENT_DEFENDER_DAMAGE,
   MONUMENT_DEFENDER_SPEED, MONUMENT_WAVE_REGEN_PERCENT, MONUMENT_WAVE_TRIGGERS,
   MONUMENT_DEFENDER_ATTACK_CD, WAVE_EMOJIS,
+  DEFENDER_ROLES, WAVE_COMPOSITION, DEFENDER_DAMAGE_SCALE,
   MONUMENT_GEMS_LOOT, MONUMENT_ITEMS_LOOT,
   MONUMENT_RESPAWN_HOURS_PER_LEVEL,
 } from '../../config/constants.js';
@@ -112,48 +113,77 @@ export function checkWaveComplete(monument, gameState, io, connectedPlayers) {
   return true;
 }
 
-// ── Spawn a wave of defenders ──
+// ── Spawn a wave of defenders with roles ──
 export async function spawnDefenderWave(monument, waveNumber, io, connectedPlayers) {
   const waveCounts = MONUMENT_WAVE_COUNTS[monument.level] || MONUMENT_WAVE_COUNTS[1];
   const count = waveCounts[waveNumber - 1] || waveCounts[0];
-  const defHp = MONUMENT_DEFENDER_HP[monument.level] || MONUMENT_DEFENDER_HP[1];
-  const waveEmojiList = WAVE_EMOJIS[waveNumber] || WAVE_EMOJIS[1];
+  const baseHp = MONUMENT_DEFENDER_HP[monument.level] || MONUMENT_DEFENDER_HP[1];
+  const comp = WAVE_COMPOSITION[waveNumber] || WAVE_COMPOSITION[1];
+  const guardianCount = Math.max(1, Math.round(count * comp[0]));
+  const hunterCount = count - guardianCount;
+  const cosLat = Math.cos(monument.lat * Math.PI / 180) || 0.001;
 
   const defenders = [];
+  let gIdx = 0, hIdx = 0;
+
   for (let i = 0; i < count; i++) {
-    const emoji = waveEmojiList[Math.floor(Math.random() * waveEmojiList.length)];
-    const angle = Math.random() * 2 * Math.PI;
-    const dist = 50 + Math.random() * 150;
-    const cosLat = Math.cos(monument.lat * Math.PI / 180);
-    const lat = monument.lat + (dist / 111320) * Math.cos(angle);
-    const lng = monument.lng + (dist / (111320 * cosLat)) * Math.sin(angle);
+    const isGuardian = i < guardianCount;
+    const role = isGuardian ? 'guardian' : 'hunter';
+    const cfg = DEFENDER_ROLES[role];
+    const roleHp = Math.round(baseHp * cfg.hpMul);
+
+    // Distribute patrol angles evenly within each role group
+    const roleCount = isGuardian ? guardianCount : hunterCount;
+    const roleIdx = isGuardian ? gIdx++ : hIdx++;
+    const patrolAngle = (2 * Math.PI * roleIdx / roleCount) + (isGuardian ? 0 : Math.PI / roleCount);
+
+    // Spawn at patrol orbit position
+    const spawnDist = cfg.patrolDist + (Math.random() - 0.5) * 20;
+    const lat = monument.lat + (spawnDist / 111320) * Math.cos(patrolAngle);
+    const lng = monument.lng + (spawnDist / (111320 * cosLat)) * Math.sin(patrolAngle);
+    const emoji = cfg.emojis[Math.floor(Math.random() * cfg.emojis.length)];
 
     const defender = {
       id: globalThis.crypto.randomUUID(),
       monument_id: monument.id,
+      role,
       emoji,
-      hp: defHp,
-      max_hp: defHp,
-      attack: MONUMENT_DEFENDER_DAMAGE,
+      hp: roleHp,
+      max_hp: roleHp,
+      attack: Math.round(cfg.damage * (DEFENDER_DAMAGE_SCALE[monument.level] || 1)),
       wave: waveNumber,
       lat, lng,
       alive: true,
       last_attack: 0,
-      speed: MONUMENT_DEFENDER_SPEED,
-      attack_cd: MONUMENT_DEFENDER_ATTACK_CD,
+      speed: cfg.speed,
+      attack_cd: cfg.attackCd,
+      attack_range: cfg.attackRange,
+      // Runtime AI state (prefixed _ so persist skips them)
+      _state: 'patrol',
+      _patrol_angle: patrolAngle,
+      _target_lat: null,
+      _target_lng: null,
+      _target_player_id: null,
+      _threat: new Map(),
+      _flank_ticks: 0,
+      _flee_ticks: 0,
     };
     defenders.push(defender);
     gameState.monumentDefenders.set(defender.id, defender);
   }
 
-  // Set monument to wave phase
   monument.phase = 'wave';
   monument.invulnerable = true;
   monument._wave_started_at = Date.now();
   gameState.markDirty('monuments', monument.id);
 
-  // Save to DB (fire-and-forget)
-  supabase.from('monument_defenders').insert(defenders).then(() => {}).catch(e => console.error('[MONUMENTS] defender insert error:', e.message));
+  // Persist (strip runtime fields)
+  const dbRows = defenders.map(d => {
+    const row = {};
+    for (const k of Object.keys(d)) { if (!k.startsWith('_')) row[k] = d[k]; }
+    return row;
+  });
+  supabase.from('monument_defenders').insert(dbRows).then(() => {}).catch(e => console.error('[MONUMENTS] defender insert error:', e.message));
 
   // Emit to raid participants
   if (io && connectedPlayers) {
@@ -166,14 +196,14 @@ export async function spawnDefenderWave(monument, waveNumber, io, connectedPlaye
             monument_id: monument.id,
             wave: waveNumber,
             message: `⚠️ Волна ${waveNumber}! ${count} защитников!`,
-            defenders: defenders.map(d => ({ id: d.id, emoji: d.emoji, lat: d.lat, lng: d.lng, hp: d.hp, max_hp: d.max_hp })),
+            defenders: defenders.map(d => ({ id: d.id, role: d.role, emoji: d.emoji, lat: d.lat, lng: d.lng, hp: d.hp, max_hp: d.max_hp })),
           });
         }
       }
     }
   }
 
-  console.log(`[MONUMENTS] Wave ${waveNumber} spawned for monument lv${monument.level}: ${count} defenders (HP: ${defHp})`);
+  console.log(`[MONUMENTS] Wave ${waveNumber} for lv${monument.level}: ${guardianCount} guardians + ${hunterCount} hunters (baseHP: ${baseHp})`);
   return defenders;
 }
 
