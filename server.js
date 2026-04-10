@@ -1326,7 +1326,7 @@ async function start() {
       const now = new Date();
       const mskNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
       const mskHour = mskNow.getHours();
-      if (![6, 12, 18].includes(mskHour) || mskNow.getMinutes() > 5) return;
+      if (![12].includes(mskHour) || mskNow.getMinutes() > 5) return;
       const topUpKey = `vase_topup_${mskNow.getFullYear()}_${mskNow.getMonth()}_${mskNow.getDate()}_${mskHour}`;
       if (global._lastVaseTopUp === topUpKey) return;
       global._lastVaseTopUp = topUpKey;
