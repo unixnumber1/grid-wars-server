@@ -1437,8 +1437,14 @@
     .char-equip-slot .slot-empty { color: rgba(255,255,255,0.25); }
     .char-equip-slot .inv-lvl {
       position:absolute; bottom:1px; right:2px;
-      font-size:8px; font-weight:700; color:#FFD700;
+      font-size:8px; font-weight:700; color:#ce93d8;
       text-shadow:0 0 3px rgba(0,0,0,0.9);
+      line-height:1;
+    }
+    .char-equip-slot .inv-plus {
+      position:absolute; top:1px; right:2px;
+      font-size:10px; font-weight:800; color:#FFD700;
+      text-shadow:0 0 4px rgba(255,215,0,0.6);
       line-height:1;
     }
 
@@ -6887,7 +6893,7 @@ function showItemReveal(item, source) {
   content.innerHTML = `
     <div style="font-size:72px;filter:drop-shadow(0 0 20px ${color});margin-bottom:12px;">${item.emoji}</div>
     <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">${item.name}${(item.plus||0) > 0 ? `<span style="color:#FFD700;text-shadow:0 0 8px rgba(255,215,0,0.6);margin-left:6px;">+${item.plus}</span>` : ''}</div>
-    <div style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44;">${rarLabel}</div>
+    <div style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;background:${color}22;color:${color};border:1px solid ${color}44;">${rarityLabel(item.rarity, item.plus)}</div>
     <div style="margin-top:16px;text-align:left;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px 14px;">
       ${statsHtml}
     </div>
@@ -6986,7 +6992,8 @@ function _renderEquipSlots() {
   if (weapon) {
     const wl = weapon.upgrade_level || 0;
     weaponSlot.className = `char-equip-slot filled ${rarityClass(weapon.rarity)}`;
-    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span>${wl > 0 ? `<span class="inv-lvl">${t('lv')}${wl}</span>` : ''}`;
+    const wp = weapon.plus || 0;
+    weaponSlot.innerHTML = `<span style="font-size:28px">${weapon.emoji}</span>${wl > 0 ? `<span class="inv-lvl">${t('lv')}${wl}</span>` : ''}${wp > 0 ? `<span class="inv-plus">+${wp}</span>` : ''}`;
   } else {
     weaponSlot.className = 'char-equip-slot';
     weaponSlot.innerHTML = '<span class="slot-empty">⚔️</span>';
@@ -6995,7 +7002,8 @@ function _renderEquipSlots() {
   if (shield) {
     const sl = shield.upgrade_level || 0;
     shieldSlot.className = `char-equip-slot filled ${rarityClass(shield.rarity)}`;
-    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span>${sl > 0 ? `<span class="inv-lvl">${t('lv')}${sl}</span>` : ''}`;
+    const sp = shield.plus || 0;
+    shieldSlot.innerHTML = `<span style="font-size:28px">${shield.emoji}</span>${sl > 0 ? `<span class="inv-lvl">${t('lv')}${sl}</span>` : ''}${sp > 0 ? `<span class="inv-plus">+${sp}</span>` : ''}`;
   } else {
     shieldSlot.className = 'char-equip-slot';
     shieldSlot.innerHTML = '<span class="slot-empty">🛡️</span>';
@@ -7211,9 +7219,10 @@ function openItemDetailPopup(item) {
   const isGrad = rarColor.startsWith('linear');
   const colorStyle = isGrad ? 'color:#FFD700' : `color:${rarColor}`;
 
+  const itemPlus = item.plus || 0;
   openPopup(
-    `${item.emoji} ${item.name}`,
-    `<span style="${colorStyle}">${rarLabel}</span> ${typeLabel}`,
+    `${item.emoji} ${item.name}${itemPlus > 0 ? ` <span style="color:#FFD700">+${itemPlus}</span>` : ''}`,
+    `${rarityLabel(item.rarity, item.plus)} ${typeLabel}`,
     stats,
     actions
   );
@@ -11930,7 +11939,7 @@ function _showVaseDropPopup(item, diamonds) {
 
   document.getElementById('vase-drop-emoji').textContent    = item.emoji;
   document.getElementById('vase-drop-name').textContent     = item.name;
-  document.getElementById('vase-drop-rarity').innerHTML     = rarityLabel(item.rarity);
+  document.getElementById('vase-drop-rarity').innerHTML     = rarityLabel(item.rarity, item.plus);
   document.getElementById('vase-drop-stat').textContent     = itemStatLabel(item);
   document.getElementById('vase-drop-diamonds').textContent = t('vase.diamonds', {n: diamonds});
 
@@ -15766,7 +15775,7 @@ function showDropPopup(dropId) {
     if (item) {
       const rc = RARITY_COLORS_CLIENT[item.rarity] || '#888';
       const glow = rc.startsWith('linear') ? '' : 'filter:drop-shadow(0 0 12px ' + rc + ')';
-      stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px;${glow}">${item.emoji}</div><div style="font-size:14px;font-weight:700;margin:4px 0">${item.name} ${rarityLabel(item.rarity)}</div><div style="font-size:12px;color:#ccc">${itemStatLabel(item)}</div></div>`]);
+      stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px;${glow}">${item.emoji}</div><div style="font-size:14px;font-weight:700;margin:4px 0">${item.name} ${rarityLabel(item.rarity, item.plus)}</div><div style="font-size:12px;color:#ccc">${itemStatLabel(item)}</div></div>`]);
     } else if (drop.drop_type === 'coin_delivery') {
       const coins = drop.coins || drop._coins || 0;
       stats.push(['__fullwidth__', `<div style="text-align:center;margin:4px 0"><div style="font-size:40px">💰</div><div style="font-size:16px;font-weight:700;color:#FFD700;margin:4px 0">${formatCoins(coins)} монет</div></div>`]);
@@ -16661,7 +16670,7 @@ async function openPlayerProfile(targetTgId) {
         <div class="build-item rarity-${i.rarity}">
           <div class="build-item-icon">${i.emoji || (i.type === 'shield' ? '🛡️' : '⚔️')}</div>
           <div>
-            <div class="build-item-name">${RARITY_NAMES_CLIENT[i.rarity] || i.rarity} ${i.type === 'sword' ? '⚔️' : i.type === 'axe' ? '🪓' : '🛡️'}</div>
+            <div class="build-item-name">${RARITY_NAMES_CLIENT[i.rarity] || i.rarity}${(i.plus||0) > 0 ? ` <span style="color:#FFD700">+${i.plus}</span>` : ''} ${i.type === 'sword' ? '⚔️' : i.type === 'axe' ? '🪓' : '🛡️'}</div>
             ${i.upgrade_level > 0 ? `<div class="build-item-level">${t('lv')}${i.upgrade_level}</div>` : ''}
           </div>
         </div>`).join('')
