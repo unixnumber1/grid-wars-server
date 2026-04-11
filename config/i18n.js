@@ -261,6 +261,19 @@ const TRANSLATIONS = {
     // ── Market ──
     'market.replaced_mine': '🏪 Рынок заменил вашу шахту Ур.{level}!',
     'market.default_name': 'Рынок',
+
+    // ── Reports ──
+    'report.title': 'Жалоба на игрока',
+    'report.reason': 'Причина',
+    'report.description': 'Опишите проблему',
+    'report.send': 'Отправить',
+    'report.cancel': 'Отмена',
+    'report.sent': '✅ Жалоба отправлена',
+    'report.duplicate': 'Вы уже отправили жалобу на этого игрока',
+    'report.spoofing': 'Спуфинг GPS',
+    'report.stalking': 'Сталкинг',
+    'report.threats': 'Угрозы',
+    'report.suspicious': 'Подозрительная игра',
   },
 
   en: {
@@ -521,6 +534,19 @@ const TRANSLATIONS = {
     // ── Market ──
     'market.replaced_mine': '🏪 Market replaced your mine Lv.{level}!',
     'market.default_name': 'Market',
+
+    // ── Reports ──
+    'report.title': 'Report Player',
+    'report.reason': 'Reason',
+    'report.description': 'Describe the issue',
+    'report.send': 'Submit',
+    'report.cancel': 'Cancel',
+    'report.sent': '✅ Report submitted',
+    'report.duplicate': 'You already reported this player',
+    'report.spoofing': 'GPS Spoofing',
+    'report.stalking': 'Stalking',
+    'report.threats': 'Threats',
+    'report.suspicious': 'Suspicious gameplay',
   },
 };
 
