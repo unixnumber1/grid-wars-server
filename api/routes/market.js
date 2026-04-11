@@ -490,8 +490,9 @@ async function handleBuy(req, res) {
 
   // ── Core purchase: courier delivery (same as items) ──
   if (listing.item_type === 'core' && listing.core_id) {
+    const { data: freshSeller } = await supabase.from('players').select('diamonds').eq('id', listing.seller_id).single();
     await supabase.from('players')
-      .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
+      .update({ diamonds: (freshSeller?.diamonds ?? 0) + sellerPayout })
       .eq('id', listing.seller_id);
 
     // Update gameState for diamonds
@@ -607,9 +608,10 @@ async function handleBuy(req, res) {
 
   // ── Item purchase ──
 
-  // 1. Pay seller
+  // 1. Pay seller (fresh read to avoid stale balance)
+  const { data: freshSellerItem } = await supabase.from('players').select('diamonds').eq('id', listing.seller_id).single();
   const { error: sellerErr } = await supabase.from('players')
-    .update({ diamonds: (seller?.diamonds ?? 0) + sellerPayout })
+    .update({ diamonds: (freshSellerItem?.diamonds ?? 0) + sellerPayout })
     .eq('id', listing.seller_id);
   if (sellerErr) console.error('[market/buy] seller pay error:', sellerErr);
 
