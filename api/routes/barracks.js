@@ -657,7 +657,7 @@ async function handleHit(req, res) {
   gameState.markDirty('barracks', bk.id);
 
   // Emit projectile
-  emitToNearby(bk.lat, bk.lng, 1000, 'projectile', {
+  emitToNearby(bk.lat, bk.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: bk.lat, to_lng: bk.lng,
     damage, crit: isCrit,

@@ -486,8 +486,8 @@ async function handlePvpAttack(req, res) {
 
   const _hitShadow = isInShadow(attacker);
 
-  // Emit projectile to nearby sockets (1km)
-  emitToNearbyPlayers(pLat, pLng, 1000, 'projectile', {
+  // Emit projectile to nearby sockets (1.5km — wider radius for observer coverage)
+  emitToNearbyPlayers(pLat, pLng, 1500, 'projectile', {
     from_lat: pLat, from_lng: pLng,
     to_lat: defLat, to_lng: defLng,
     damage, crit: isCrit,

@@ -17617,7 +17617,10 @@ async function _atkFetch(path, opts) {
       _scheduleNextHit(Math.max(_pvpCdMs, ra));
       return null;
     }
-    if (!res.ok) return null;
+    if (!res.ok) {
+      _scheduleNextHit(_pvpCdMs);
+      return null;
+    }
     if (data.effective_cd) _pvpCdMs = data.effective_cd;
     // Pace requests to the server's cooldown — 5% lead time for network jitter,
     // never under 50ms. Previously hardcoded to 50ms which spammed the rate

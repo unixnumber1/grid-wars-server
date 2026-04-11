@@ -495,7 +495,7 @@ async function handleAttack(player, body) {
 
   // Emit projectile to nearby players
   if (gsPlayer?.last_lat && gsPlayer?.last_lng) {
-    emitToNearbyPlayers(gsPlayer.last_lat, gsPlayer.last_lng, 1000, 'projectile', {
+    emitToNearbyPlayers(gsPlayer.last_lat, gsPlayer.last_lng, 1500, 'projectile', {
       from_lat: gsPlayer.last_lat, from_lng: gsPlayer.last_lng,
       to_lat: bot.lat, to_lng: bot.lng,
       damage, crit: isCrit,

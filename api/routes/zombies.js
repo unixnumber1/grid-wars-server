@@ -125,7 +125,7 @@ async function handleAttack(req, res) {
   gameState.markDirty('zombieHordes', horde.id);
 
   // Emit projectile
-  emitToNearbyPlayers(zombie.lat, zombie.lng, 1000, 'projectile', {
+  emitToNearbyPlayers(zombie.lat, zombie.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: zombie.lat, to_lng: zombie.lng,
     damage, crit: isCrit,

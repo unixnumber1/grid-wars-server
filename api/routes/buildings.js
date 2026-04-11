@@ -801,8 +801,8 @@ async function handleMineHit(req, res) {
     gameState.markDirty('mines', mine_id);
   }
 
-  // Emit projectile to nearby sockets (1km)
-  emitToNearbyPlayers(player.last_lat, player.last_lng, 1000, 'projectile', {
+  // Emit projectile to nearby sockets (1.5km from target for wider observer coverage)
+  emitToNearbyPlayers(mine.lat, mine.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: mine.lat, to_lng: mine.lng,
     damage, crit: isCrit, execution: isExecution,

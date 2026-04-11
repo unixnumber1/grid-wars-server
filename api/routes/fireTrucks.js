@@ -236,7 +236,7 @@ async function handleHit(req, res) {
   gameState.markDirty('fireTrucks', truck.id);
 
   // Emit projectile
-  emitToNearbyPlayers(truck.lat, truck.lng, 1000, 'projectile', {
+  emitToNearbyPlayers(truck.lat, truck.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: truck.lat, to_lng: truck.lng,
     damage, crit: isCrit,
@@ -490,7 +490,7 @@ async function handleHitFirefighter(req, res) {
   ff.hp = Math.max(0, ff.hp - damage);
 
   // Emit projectile
-  emitToNearbyPlayers(ff.current_lat, ff.current_lng, 1000, 'projectile', {
+  emitToNearbyPlayers(ff.current_lat, ff.current_lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: ff.current_lat, to_lng: ff.current_lng,
     damage, crit: isCrit,

@@ -345,7 +345,7 @@ async function handleHit(req, res) {
   gameState.markDirty('collectors', collector.id);
 
   // Emit projectile
-  emitToNearbyPlayers(collector.lat, collector.lng, 1000, 'projectile', {
+  emitToNearbyPlayers(collector.lat, collector.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: collector.lat, to_lng: collector.lng,
     damage, crit: isCrit,

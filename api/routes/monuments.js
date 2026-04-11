@@ -214,7 +214,7 @@ async function handleAttackShield(req, res) {
   gameState.markDirty('monuments', monument.id);
 
   // Emit projectile
-  emitToNearbyPlayers(monument.lat, monument.lng, 1000, 'projectile', {
+  emitToNearbyPlayers(monument.lat, monument.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: monument.lat, to_lng: monument.lng,
     damage, crit: isCrit,
@@ -347,7 +347,7 @@ async function handleAttackMonument(req, res) {
   dmgMap.set(tgId, (dmgMap.get(tgId) || 0) + damage);
 
   // Emit projectile
-  emitToNearbyPlayers(monument.lat, monument.lng, 1000, 'projectile', {
+  emitToNearbyPlayers(monument.lat, monument.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: monument.lat, to_lng: monument.lng,
     damage, crit: isCrit, execution: isExecution,
@@ -460,7 +460,7 @@ async function handleAttackDefender(req, res) {
   defender._threat.set(Number(telegram_id), (defender._threat.get(Number(telegram_id)) || 0) + damage * 2);
 
   // Emit projectile
-  emitToNearbyPlayers(defender.lat, defender.lng, 1000, 'projectile', {
+  emitToNearbyPlayers(defender.lat, defender.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: defender.lat, to_lng: defender.lng,
     damage, crit: isCrit,
