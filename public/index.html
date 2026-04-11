@@ -10196,6 +10196,35 @@ function showClaimAllSummary(levels, granted) {
   });
 }
 
+function showRewardPopup(reward) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;animation:fadeIn 0.3s ease;';
+
+    let lines = '';
+    if (reward.diamonds > 0) lines += `<div style="font-size:22px;margin:6px 0;color:#fff;font-weight:600;">💎 +${reward.diamonds}</div>`;
+    if (reward.shards > 0) lines += `<div style="font-size:22px;margin:6px 0;color:#fff;font-weight:600;">✨ +${reward.shards}</div>`;
+    if (reward.ether > 0) lines += `<div style="font-size:22px;margin:6px 0;color:#fff;font-weight:600;">🌀 +${reward.ether}</div>`;
+
+    ov.innerHTML = `
+      <div style="text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;animation:bounceIn 0.5s ease;">🎁</div>
+        <div style="font-size:20px;font-weight:800;color:#FFD700;margin-bottom:16px;">${_lang === 'ru' ? 'Награда получена!' : 'Reward received!'}</div>
+        <div>${lines}</div>
+        <button style="margin-top:28px;width:80%;max-width:260px;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;">${t('misc.continue')}</button>
+      </div>
+    `;
+    document.body.appendChild(ov);
+    try { Telegram.WebApp.HapticFeedback.impactOccurred('light'); } catch(_){}
+
+    ov.querySelector('button').addEventListener('click', () => {
+      ov.style.transition = 'opacity 0.3s';
+      ov.style.opacity = '0';
+      setTimeout(() => { ov.remove(); resolve(); }, 300);
+    });
+  });
+}
+
 function updateRewardsDot(count) {
   const tabDot = document.getElementById('rewards-tab-dot');
   if (tabDot) tabDot.style.display = count > 0 ? 'block' : 'none';
@@ -18021,9 +18050,35 @@ async function claimStreak() {
     });
     const msg = t('toast.streak_day').replace('{day}', data.day);
     showToast(msg);
-    if (data.reward?.cores?.length > 0) showToast(t('toast.streak_core'));
-    if (data.streakComplete) showToast(t('streak.complete'));
     if (data.reward?.diamonds) { state.player.diamonds = (state.player.diamonds || 0) + data.reward.diamonds; updateDiamondDisplay(); }
+    if (data.reward?.shards) {
+      state.player.crystals = (state.player.crystals || 0) + data.reward.shards;
+      const crEl = document.getElementById('crystal-display');
+      if (crEl) crEl.textContent = `✨ ${state.player.crystals}`;
+    }
+    if (data.reward?.ether) {
+      state.player.ether = (state.player.ether || 0) + data.reward.ether;
+      const etherEl = document.getElementById('ether-display');
+      if (etherEl) etherEl.textContent = `🌀 ${state.player.ether}`;
+    }
+    if (data.reward?.items && data.reward.items.length > 0) {
+      for (const item of data.reward.items) {
+        state.inventory = state.inventory || [];
+        state.inventory.unshift(item);
+        const boxType = item.rarity || 'epic';
+        await _animateBoxOpenPromise(boxType, item);
+      }
+    }
+    if (data.reward?.cores && data.reward.cores.length > 0) {
+      for (const core of data.reward.cores) {
+        await showCoreRevealPromise(core);
+      }
+    }
+    const _hasVisual = (data.reward?.items?.length > 0) || (data.reward?.cores?.length > 0);
+    if (!_hasVisual && (data.reward?.diamonds || data.reward?.shards || data.reward?.ether)) {
+      await showRewardPopup(data.reward);
+    }
+    if (data.streakComplete) showToast(t('streak.complete'));
     // Refresh panel
     const check = await apiFetch('/api/items', { method: 'POST', body: JSON.stringify({ action: 'streak-check' }) });
     _streakData = check;
@@ -18227,6 +18282,10 @@ async function claimWalkReward(type, tier) {
       for (const core of data.reward.cores) {
         await showCoreRevealPromise(core);
       }
+    }
+    const _hasVisualWalk = (data.reward?.items?.length > 0) || (data.reward?.cores?.length > 0);
+    if (!_hasVisualWalk && (data.reward?.diamonds || data.reward?.shards || data.reward?.ether)) {
+      await showRewardPopup(data.reward);
     }
     _loadWalkTab();
   } catch (err) {
