@@ -49,6 +49,7 @@ class GameState {
     this._bestMineLevelByPlayer = new Map();  // player_id -> max mine level (cached)
     this._coresByMineCellId = new Map();      // mine_cell_id -> core[] (secondary index)
     this._itemsByOwnerId = new Map();         // owner_id -> item[] (secondary index)
+    this._minesByOwnerId = new Map();           // owner_id -> mine[] (secondary index)
     this._occupiedCells = new Set();          // cell_ids with buildings (for fast isCellFree)
     this._occupiedCellsDirty = true;           // rebuild on first use
     this._mineBoostCache = new Map();         // playerId -> { hash, data: computeMineBoostData result }
@@ -158,6 +159,10 @@ class GameState {
     for (const m of (mines || [])) {
       this.mines.set(m.id, m);
       if (m.cell_id) this.mineByCellId.set(m.cell_id, m);
+      // Owner index
+      let ownerArr = this._minesByOwnerId.get(m.owner_id);
+      if (!ownerArr) { ownerArr = []; this._minesByOwnerId.set(m.owner_id, ownerArr); }
+      ownerArr.push(m);
     }
     // Simple maps
     for (const b of (bots || []))          this.bots.set(b.id, b);
@@ -826,11 +831,9 @@ class GameState {
 
   // -- Player mines (for income calc) --
   getPlayerMines(playerId) {
-    const result = [];
-    for (const m of this.mines.values()) {
-      if (m.owner_id === playerId && m.status !== 'destroyed') result.push(m);
-    }
-    return result;
+    const arr = this._minesByOwnerId.get(playerId);
+    if (!arr) return [];
+    return arr.filter(m => m.status !== 'destroyed');
   }
 
   // -- Mine boost data (cached, invalidated on mine build/upgrade/destroy) --
@@ -911,8 +914,26 @@ class GameState {
   getMineById(id) { return this.mines.get(id) || null; }
   getMineByCellId(cellId) { return this.mineByCellId.get(cellId) || null; }
   upsertMine(mine) {
+    const old = this.mines.get(mine.id);
     this.mines.set(mine.id, mine);
     if (mine.cell_id) this.mineByCellId.set(mine.cell_id, mine);
+    // Update owner index
+    if (old && old.owner_id !== mine.owner_id) {
+      const oldArr = this._minesByOwnerId.get(old.owner_id);
+      if (oldArr) this._minesByOwnerId.set(old.owner_id, oldArr.filter(m => m.id !== mine.id));
+    }
+    if (!old || old.owner_id !== mine.owner_id) {
+      let arr = this._minesByOwnerId.get(mine.owner_id);
+      if (!arr) { arr = []; this._minesByOwnerId.set(mine.owner_id, arr); }
+      arr.push(mine);
+    } else {
+      // Same owner — replace in-place
+      const arr = this._minesByOwnerId.get(mine.owner_id);
+      if (arr) {
+        const idx = arr.findIndex(m => m.id === mine.id);
+        if (idx >= 0) arr[idx] = mine; else arr.push(mine);
+      }
+    }
     this._updateBestMineLevel(mine.owner_id);
     this._occupiedCellsDirty = true;
     this._mineBoostCache.delete(mine.owner_id); // invalidate boost cache
@@ -922,6 +943,8 @@ class GameState {
     if (m?.cell_id) this.mineByCellId.delete(m.cell_id);
     this.mines.delete(id);
     if (m?.owner_id) {
+      const arr = this._minesByOwnerId.get(m.owner_id);
+      if (arr) this._minesByOwnerId.set(m.owner_id, arr.filter(x => x.id !== id));
       this._updateBestMineLevel(m.owner_id);
       this._mineBoostCache.delete(m.owner_id); // invalidate boost cache
     }

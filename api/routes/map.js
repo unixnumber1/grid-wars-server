@@ -463,7 +463,7 @@ async function handleTick(req, res) {
   const _mcCached = _mineCache.get(currentPlayerId);
 
   try {
-    if (gameState.loaded && _mcCached && Date.now() - _mcCached.t < 10000 && _mcCached.h === _mcHash) {
+    if (gameState.loaded && _mcCached && Date.now() - _mcCached.t < 30000 && _mcCached.h === _mcHash) {
       // Cache hit — use cached mines with fresh HP regen only
       playerMines = _mcCached.mines.map(cm => {
         const gm = gameState.mines.get(cm.id);
