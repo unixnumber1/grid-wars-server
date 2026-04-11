@@ -187,7 +187,12 @@ export async function grantReward(player, tgId, reward) {
     const { data: newItem } = await supabase.from('items').insert(insertData).select().single();
     if (newItem) {
       if (gameState.loaded) gameState.upsertItem(newItem);
-      result.items.push({ id: newItem.id, type: itemType, rarity: item.rarity, name: item.name, emoji: item.emoji });
+      result.items.push({
+        id: newItem.id, type: itemType, rarity: item.rarity, name: item.name, emoji: item.emoji,
+        attack: newItem.attack || 0, crit_chance: newItem.crit_chance || 0,
+        defense: newItem.defense || 0, block_chance: newItem.block_chance || 0,
+        plus: newItem.plus || 0, upgrade_level: newItem.upgrade_level || 0,
+      });
     }
   }
 

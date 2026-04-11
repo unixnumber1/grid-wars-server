@@ -9942,7 +9942,7 @@ async function claimReward(level) {
       for (let i = 0; i < granted.items.length; i++) {
         const item = granted.items[i];
         const boxType = boxTypes[i] || 'rare';
-        await _animateBoxOpenPromise(boxType, item);
+        await _animateBoxOpen(boxType, item);
         if (state.inventory) state.inventory.push({ ...item, equipped: false, on_market: false, upgrade_level: 0 });
       }
       _renderInventoryGrid();
@@ -14335,12 +14335,12 @@ async function claimFreeEpicBox() {
       banner.style.padding = '0';
       setTimeout(() => { banner.style.display = 'none'; }, 400);
     }
-    // Show box open animation
+    // Show box open animation (same as shop purchase)
     if (data.reward?.items && data.reward.items.length > 0) {
       for (const item of data.reward.items) {
         state.inventory = state.inventory || [];
         state.inventory.unshift(item);
-        await _animateBoxOpenPromise('epic', item);
+        await _animateBoxOpen('epic', item);
       }
     }
   } catch (err) {
@@ -18136,7 +18136,7 @@ async function claimStreak() {
         state.inventory = state.inventory || [];
         state.inventory.unshift(item);
         const boxType = item.rarity || 'epic';
-        await _animateBoxOpenPromise(boxType, item);
+        await _animateBoxOpen(boxType, item);
       }
     }
     if (data.reward?.cores && data.reward.cores.length > 0) {
@@ -18344,7 +18344,7 @@ async function claimWalkReward(type, tier) {
         state.inventory = state.inventory || [];
         state.inventory.unshift(item);
         const boxType = item.rarity || 'rare';
-        await _animateBoxOpenPromise(boxType, item);
+        await _animateBoxOpen(boxType, item);
       }
     }
     // Show core reveal animation for cores (like core orb purchase)
