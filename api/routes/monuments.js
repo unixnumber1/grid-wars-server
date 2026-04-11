@@ -556,11 +556,16 @@ async function handleOpenLootBox(req, res) {
     // Invalidate loot box cache for this player so tick doesn't re-show opened box
     if (mapRouter._lbCache) mapRouter._lbCache.delete(Number(telegram_id));
 
-    // Grant gems — read fresh from DB to avoid stale gameState
+    // Grant gems — read fresh from DB with optimistic lock
     const { data: freshPlayer } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
     const currentDiamonds = freshPlayer?.diamonds ?? player.diamonds ?? 0;
     const newDiamonds = currentDiamonds + box.gems;
-    await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
+    const { data: gemOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', currentDiamonds).select('id').maybeSingle();
+    if (!gemOk) {
+      // Retry once with fresh read
+      const { data: retry } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
+      await supabase.from('players').update({ diamonds: (retry?.diamonds ?? 0) + box.gems }).eq('id', player.id);
+    }
     player.diamonds = newDiamonds;
     gameState.markDirty('players', player.id);
 

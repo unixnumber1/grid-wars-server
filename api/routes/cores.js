@@ -219,14 +219,16 @@ async function handleSell(req, res) {
     sellPrice = Math.max(10, Math.floor(invested * 0.1));
   }
 
-  // Grant ether
-  player.ether = (player.ether || 0) + sellPrice;
-  gameState.markDirty('players', player.id);
-
-  // Remove core
+  // Remove core (with ownership guard in DB)
   gameState.cores.delete(core_id);
-  await supabase.from('cores').delete().eq('id', core_id);
-  await supabase.from('players').update({ ether: player.ether }).eq('id', player.id);
+  await supabase.from('cores').delete().eq('id', core_id).eq('owner_id', Number(player.telegram_id));
+
+  // Grant ether (fresh read for accuracy)
+  const { data: freshE } = await supabase.from('players').select('ether').eq('id', player.id).single();
+  const newEther = (freshE?.ether ?? 0) + sellPrice;
+  player.ether = newEther;
+  gameState.markDirty('players', player.id);
+  await supabase.from('players').update({ ether: newEther }).eq('id', player.id);
 
   return res.json({ success: true, sell_price: sellPrice, ether: player.ether });
 }
@@ -268,8 +270,11 @@ async function handleMassSell(req, res) {
   player.ether = (player.ether || 0) + totalEther;
   gameState.markDirty('players', player.id);
 
-  await supabase.from('cores').delete().in('id', soldIds);
-  await supabase.from('players').update({ ether: player.ether }).eq('id', player.id);
+  await supabase.from('cores').delete().in('id', soldIds).eq('owner_id', Number(player.telegram_id));
+  const { data: freshE } = await supabase.from('players').select('ether').eq('id', player.id).single();
+  const newEther = (freshE?.ether ?? 0) + totalEther;
+  player.ether = newEther;
+  await supabase.from('players').update({ ether: newEther }).eq('id', player.id);
 
   return res.json({
     success: true,
