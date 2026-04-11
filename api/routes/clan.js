@@ -338,12 +338,11 @@ async function handleDonate(req, res) {
   const newDiamonds = currentDiamonds - donateAmount;
   const newTreasury = (clan.treasury ?? 0) + donateAmount;
 
-  const [{ data: dOk }, { error: tErr }] = await Promise.all([
+  const [{ data: dOk }, { data: tOk }] = await Promise.all([
     supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', currentDiamonds).select('id').maybeSingle(),
-    supabase.from('clans').update({ treasury: newTreasury }).eq('id', clan.id),
+    supabase.from('clans').update({ treasury: newTreasury }).eq('id', clan.id).eq('treasury', clan.treasury ?? 0).select('id').maybeSingle(),
   ]);
-  if (!dOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
-  if (tErr) return res.status(500).json({ error: tErr.message });
+  if (!dOk || !tOk) return res.status(409).json({ error: ts(lang, 'err.conflict') });
 
   // Update gameState
   if (gameState.loaded) {
