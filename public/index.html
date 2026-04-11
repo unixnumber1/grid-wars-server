@@ -8387,14 +8387,10 @@ function renderBuildings() {
       onlineMarkers[p.id] = marker;
     }
   }
-  const _playerBounds = map.getBounds().pad(0.5);
   for (const id of Object.keys(onlineMarkers)) {
     if (!activePlayerIds.has(id)) {
-      const pos = onlineMarkers[id].getLatLng();
-      if (!_playerBounds.contains(pos)) {
-        map.removeLayer(onlineMarkers[id]);
-        delete onlineMarkers[id];
-      }
+      map.removeLayer(onlineMarkers[id]);
+      delete onlineMarkers[id];
     }
   }
 }
@@ -11159,6 +11155,7 @@ function initSocket() {
     _socket.on('mine:hp_update', (data) => {
       // data: {mine_id, cell_id, hp, max_hp, status}
       updateMineHpBar(data);
+      updateMineAttackStatus();
       if (combatState.currentTarget?.type === 'mine' && combatState.currentTarget.id === data.mine_id)
         updatePopupHp(data.hp, data.max_hp);
     });
@@ -17281,8 +17278,11 @@ function fireProjectile(fromLatLng, toLatLng) {
 }
 
 function animateCombatProjectile(data) {
+  if (!data?.from_lat || !data?.from_lng || !data?.to_lat || !data?.to_lng) return;
+  try {
   const from = map.latLngToContainerPoint(L.latLng(data.from_lat, data.from_lng));
   const to = map.latLngToContainerPoint(L.latLng(data.to_lat, data.to_lng));
+  if (isNaN(from.x) || isNaN(from.y) || isNaN(to.x) || isNaN(to.y)) return;
 
   const el = document.createElement('div');
   el.className = 'combat-projectile';
@@ -17353,6 +17353,7 @@ function animateCombatProjectile(data) {
     }
   }
   requestAnimationFrame(anim);
+  } catch(e) { console.warn('[projectile] animation error:', e); }
 }
 
 function updateMineHpBar(data) {
@@ -17385,8 +17386,10 @@ function updateMineHpBar(data) {
       fill.style.width = pct + '%';
       fill.style.background = pct > 60 ? '#4caf50' : pct > 30 ? '#ff9800' : '#f44336';
     }
-    // Show bar while damaged; when fully healed, fill to 100% then hide after transition
-    if (data.hp < data.max_hp) {
+    // Show bar while damaged; hide when burning/destroyed or fully healed
+    if (data.status === 'burning' || data.status === 'destroyed') {
+      bar.style.display = 'none';
+    } else if (data.hp < data.max_hp) {
       bar.style.display = '';
     } else {
       fill.style.width = '100%';
