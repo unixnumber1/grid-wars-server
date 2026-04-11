@@ -18252,8 +18252,28 @@ function _renderWalkTab(data) {
   const wt = data.weekly_thresholds;
   const wr = data.weekly_rewards;
 
-  const dailyPct = Math.min(100, (dailyM / dt[dt.length - 1]) * 100);
-  const weeklyPct = Math.min(100, (weeklyM / wt[wt.length - 1]) * 100);
+  // Progress bar % synced with milestone dot positions.
+  // With flex:1 + space-between, dots are centered in equal columns:
+  // 3 items → dot centers at 1/6, 3/6, 5/6 of bar width (≈16.7%, 50%, 83.3%).
+  // Bar must reach each dot center exactly when threshold is met.
+  function _calcBarPct(meters, thresholds) {
+    const n = thresholds.length;
+    if (n === 0) return 0;
+    // Dot center positions (flex:1 centers)
+    const dotPct = thresholds.map((_, i) => (2 * i + 1) / (2 * n) * 100);
+    if (meters >= thresholds[n - 1]) return dotPct[n - 1];
+    for (let i = 0; i < n; i++) {
+      if (meters < thresholds[i]) {
+        const prevM = i === 0 ? 0 : thresholds[i - 1];
+        const prevPct = i === 0 ? 0 : dotPct[i - 1];
+        const frac = (meters - prevM) / (thresholds[i] - prevM);
+        return prevPct + frac * (dotPct[i] - prevPct);
+      }
+    }
+    return dotPct[n - 1];
+  }
+  const dailyPct = _calcBarPct(dailyM, dt);
+  const weeklyPct = _calcBarPct(weeklyM, wt);
 
   let html = '';
 
