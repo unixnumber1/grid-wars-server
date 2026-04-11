@@ -124,7 +124,7 @@ async function handleBuild(req, res) {
   };
 
   gameState.barracks.set(barracks.id, barracks);
-  gameState.markDirty('barracks', barracks.id);
+  await supabase.from('barracks').insert(barracks);
 
   // Also create default unit_upgrade row for scout
   const upgradeKey = `${Number(telegram_id)}_scout`;
@@ -136,7 +136,7 @@ async function handleBuild(req, res) {
       level: 1,
     };
     gameState.unitUpgrades.set(upgradeKey, upgrade);
-    gameState.markDirty('unitUpgrades', upgradeKey);
+    await supabase.from('unit_upgrades').insert(upgrade);
   }
 
   logActivity(telegram_id, 'barracks_build', { level: 1, lat: tapLat, lng: tapLng });
@@ -244,7 +244,7 @@ async function handleTrain(req, res) {
   };
 
   gameState.trainingQueue.set(entry.id, entry);
-  gameState.markDirty('trainingQueue', entry.id);
+  await supabase.from('training_queue').insert(entry);
 
   logActivity(telegram_id, 'scout_train', { level: scoutLevel, cost: trainCost });
   res.json({ ok: true, entry, queue_size: queueCount + 1, max_slots: maxSlots });
@@ -274,7 +274,7 @@ async function handleCollect(req, res) {
         created_at: new Date().toISOString(),
       };
       gameState.unitBag.set(unit.id, unit);
-      gameState.markDirty('unitBag', unit.id);
+      await supabase.from('unit_bag').insert(unit);
 
       // Mark as collected
       entry.collected = true;
@@ -443,7 +443,7 @@ async function handleSendScout(req, res) {
   };
 
   gameState.activeScouts.set(activeScout.id, activeScout);
-  gameState.markDirty('activeScouts', activeScout.id);
+  await supabase.from('active_scouts').insert(activeScout);
 
   // Emit to nearby
   emitToNearby(player.last_lat, player.last_lng, 5000, 'scout:spawned', {
@@ -495,7 +495,7 @@ async function handleAttackScout(req, res) {
 
     // Reward attacker
     player.crystals = (player.crystals || 0) + SCOUT_KILL_REWARD_CRYSTALS;
-    gameState.markDirty('players', player.id);
+    await persistNow('players', { id: player.id, crystals: player.crystals });
     addXp(player, 50);
 
     emitToNearby(scout.current_lat, scout.current_lng, 5000, 'scout:killed', {
@@ -571,7 +571,7 @@ async function handleSellScout(req, res) {
   const sellPrice = Math.floor(trainCost * 0.1);
 
   player.crystals = (player.crystals || 0) + sellPrice;
-  gameState.markDirty('players', player.id);
+  await persistNow('players', { id: player.id, crystals: player.crystals });
 
   gameState.unitBag.delete(scout_id);
   supabase.from('unit_bag').delete().eq('id', scout_id).then(() => {}).catch(() => {});
@@ -599,7 +599,7 @@ async function handleMassSellScouts(req, res) {
   }
 
   player.crystals = (player.crystals || 0) + totalCrystals;
-  gameState.markDirty('players', player.id);
+  await persistNow('players', { id: player.id, crystals: player.crystals });
 
   res.json({ ok: true, crystals: totalCrystals, sold_count: soldCount, total_crystals: player.crystals });
 }
