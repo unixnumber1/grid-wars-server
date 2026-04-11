@@ -19141,7 +19141,14 @@ async function _renderMembersTab(body) {
     }
     html += `</div>`;
   }
-  for (const m of members) {
+  // Sort: leader first, then officer, then by level descending
+  const _rolePriority = { leader: 0, officer: 1, member: 2 };
+  const sortedMembers = [...members].sort((a, b) => {
+    const ra = _rolePriority[a.role] ?? 3, rb = _rolePriority[b.role] ?? 3;
+    if (ra !== rb) return ra - rb;
+    return ((b.players?.level || 1) - (a.players?.level || 1));
+  });
+  for (const m of sortedMembers) {
     const p = m.players || {};
     const name = p.game_username || p.username || '???';
     const avatar = p.avatar || '🐺';
