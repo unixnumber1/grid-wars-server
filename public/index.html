@@ -17302,7 +17302,7 @@ async function doAttackMine(mineId) {
 
 function doMineHit(mine) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
 
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) {
@@ -17339,7 +17339,7 @@ function doMineHit(mine) {
 
 function doOreHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   _atkFetch('/api/ore', {
@@ -18071,7 +18071,7 @@ function removeMonumentDeathOverlay() {
 
 function doPvpHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
 
   const popupCd = document.getElementById('popup-atk-cd');
   const hudCd = document.getElementById('combat-cd-overlay');
@@ -20372,7 +20372,7 @@ const _origShowCombatHUD = showCombatHUD;
 // ── Hit handlers for monuments ──
 function doMonumentShieldHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
 
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
@@ -20405,7 +20405,7 @@ function doMonumentShieldHit(target) {
 
 function doMonumentBodyHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
 
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
@@ -20433,7 +20433,7 @@ function doMonumentBodyHit(target) {
 
 function doDefenderHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
 
   const popupCd = document.getElementById('popup-atk-cd');
   const hudCd = document.getElementById('combat-cd-overlay');
@@ -20769,7 +20769,7 @@ function doStartCollectorCombat(collectorId) {
 
 function doCollectorHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   _atkFetch('/api/collectors', {
@@ -21268,7 +21268,7 @@ function doStartFireTruckCombat(ftId) {
 
 function doFireTruckHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   _atkFetch('/api/fire-trucks', {
@@ -21306,7 +21306,7 @@ async function doBarracksExtinguish(barracksId) {
 
 function doBarracksHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   _atkFetch('/api/barracks', {
@@ -21336,7 +21336,7 @@ function doStartFirefighterCombat(ffId) {
 
 function doFirefighterHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   _atkFetch('/api/fire-trucks', {
@@ -21360,7 +21360,7 @@ function doFirefighterHit(target) {
 
 function doScoutHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
   const cdOverlay = document.getElementById('popup-atk-cd') || document.getElementById('combat-cd-overlay');
   if (cdOverlay) { cdOverlay.classList.add('active'); setTimeout(() => cdOverlay.classList.remove('active'), _pvpCdMs); }
   _atkFetch('/api/barracks', {
@@ -22423,7 +22423,7 @@ function showZombiePopup(zombieId) {
 
 function doZombieHit(target) {
   const pos = state.playerPos;
-  if (!pos) return;
+  if (!pos) { _scheduleNextHit(_pvpCdMs); return; }
 
   const popupCd = document.getElementById('popup-atk-cd');
   if (popupCd) { popupCd.classList.add('active'); setTimeout(() => popupCd.classList.remove('active'), _pvpCdMs); }
