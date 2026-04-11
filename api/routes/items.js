@@ -442,7 +442,7 @@ export async function handleStarsWebhook(req, res) {
         }
         await supabase.from('app_settings').insert({
           key: settingKey,
-          value: new Date().toISOString(),
+          value: JSON.stringify({ telegram_id: payload.telegram_id, diamonds: payload.diamonds, stars: payment.total_amount, at: new Date().toISOString() }),
         });
       } catch (e) {
         // If insert collides (race between two concurrent webhook deliveries),
