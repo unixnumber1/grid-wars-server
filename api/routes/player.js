@@ -305,6 +305,7 @@ async function handlePvpAttack(req, res) {
   // Look up attacker & defender in gameState
   const attacker = gameState.getPlayerByTgId(telegram_id);
   if (!attacker) return res.status(404).json({ error: 'Attacker not found' });
+  if (attacker.is_dead) return res.status(400).json({ error: 'Вы мертвы' });
   const defender = gameState.getPlayerByTgId(target_telegram_id);
   if (!defender) return res.status(404).json({ error: 'Defender not found' });
 

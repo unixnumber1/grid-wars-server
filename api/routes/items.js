@@ -797,7 +797,7 @@ itemsRouter.post('/', async (req, res) => {
 
     // Remove all items and update crystals in one batch
     await Promise.all([
-      supabase.from('items').delete().in('id', soldIds),
+      supabase.from('items').delete().in('id', soldIds).eq('owner_id', p.id),
       supabase.from('players').update({ crystals: newCrystals }).eq('id', p.id),
     ]);
 
@@ -942,7 +942,7 @@ itemsRouter.post('/', async (req, res) => {
     if (insErr) return res.status(500).json({ error: 'Failed to create item' });
 
     // Delete consumed items AFTER successful insert
-    const { error: delErr } = await supabase.from('items').delete().in('id', allIds);
+    const { error: delErr } = await supabase.from('items').delete().in('id', allIds).eq('owner_id', player.id);
     if (delErr) {
       // Rollback: delete the created item
       await supabase.from('items').delete().eq('id', createdItem.id);

@@ -151,7 +151,7 @@ async function handleSell(req, res) {
 
   const truck = gameState.fireTrucks.get(fire_truck_id);
   if (!truck || truck.owner_id !== player.id) return res.status(404).json({ error: 'Fire truck not found' });
-  if (truck.status === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
+  if (truck.status === 'burning' || truck.status === 'destroyed') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
 
   const refund = getSellRefundDiamonds(truck.level);
   const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
@@ -320,11 +320,12 @@ async function handleDispatch(req, res) {
     const actualCoins = Number(freshP?.coins ?? player.coins ?? 0);
     if (actualCoins < coinsCost) return res.status(400).json({ error: ts(lang, 'err.not_enough_coins', { cost: coinsCost }) });
 
-    // Deduct coins immediately
+    // Deduct coins immediately (optimistic lock)
     const newCoins = actualCoins - coinsCost;
+    const { data: lockOk } = await supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', actualCoins).select('id').maybeSingle();
+    if (!lockOk) return res.status(409).json({ error: 'Conflict, retry' });
     player.coins = newCoins;
     gameState.markDirty('players', player.id);
-    await supabase.from('players').update({ coins: newCoins }).eq('id', player.id);
   }
 
   // Set cooldown
