@@ -187,9 +187,14 @@ async function handleDeliver(req, res) {
   if (_dFx.instant_collector) {
     collector.stored_coins = 0;
     gameState.markDirty('collectors', collector.id);
-    player.coins = (player.coins || 0) + net;
+    // Optimistic lock on coins to prevent race conditions
+    const { data: freshCoins } = await supabase.from('players').select('coins').eq('id', player.id).single();
+    const oldCoins = freshCoins?.coins ?? player.coins ?? 0;
+    const newCoins = oldCoins + net;
+    const { data: lockOk } = await supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', oldCoins).select('id').maybeSingle();
+    if (!lockOk) return res.status(409).json({ error: 'Conflict, retry' });
+    player.coins = newCoins;
     gameState.markDirty('players', player.id);
-    await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
     await supabase.from('collectors').update({ stored_coins: 0 }).eq('id', collector.id);
     return res.json({ success: true, gross, commission: 0, net, instant: true });
   }
@@ -267,11 +272,14 @@ async function handleSell(req, res) {
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
 
-  // If has stored coins, add to player
+  // If has stored coins, add to player with optimistic lock
   if (collector.stored_coins > 0) {
-    player.coins = (player.coins || 0) + collector.stored_coins;
+    const { data: freshC } = await supabase.from('players').select('coins').eq('id', player.id).single();
+    const oldCoins = freshC?.coins ?? player.coins ?? 0;
+    const newCoins = oldCoins + collector.stored_coins;
+    player.coins = newCoins;
     gameState.markDirty('players', player.id);
-    await supabase.from('players').update({ coins: player.coins, diamonds: newDiamonds }).eq('id', player.id);
+    await supabase.from('players').update({ coins: newCoins, diamonds: newDiamonds }).eq('id', player.id);
   } else {
     await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
   }

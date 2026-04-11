@@ -59,7 +59,7 @@ export function getCollectorMines(collector) {
   const radius = COLLECTOR_RADIUS * (1 + (fx.collector_radius_bonus || 0));
   for (const m of gameState.mines.values()) {
     if (m.owner_id !== collector.owner_id) continue;
-    if (m.status === 'destroyed') continue;
+    if (m.status === 'destroyed' || m.status === 'burning') continue;
     if (haversine(collector.lat, collector.lng, m.lat, m.lng) <= radius) {
       mines.push(m);
     }
@@ -147,7 +147,7 @@ export function autoUpgradeMines(collector) {
 
   while (collector.stored_coins > 0) {
     const mine = getCollectorMines(collector)
-      .filter(m => m.level < maxLevel && (!m.status || m.status === 'normal') && !m.upgrade_finish_at)
+      .filter(m => m.level < maxLevel && m.status === 'normal' && !m.upgrade_finish_at)
       .sort((a, b) => a.level - b.level)[0];
 
     if (!mine) break;
@@ -183,7 +183,7 @@ export function autoCollectAll() {
   for (const collector of gameState.collectors.values()) {
     try {
       if (collector.hp <= 0) continue;
-      if (collector.status === 'burning') continue;
+      if (collector.status === 'burning' || collector.status === 'destroyed') continue;
 
       // Check per-collector interval based on level
       const intervalMs = COLLECTOR_INTERVAL_MS[collector.level] || COLLECTOR_INTERVAL_MS[1];
