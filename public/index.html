@@ -6672,7 +6672,8 @@ function _addOrUpdateMineMarker(mine) {
     ? mine.pending_level : mine.level;
   const key      = `mine_${mine.id}`;
   const existing = buildingMarkers[key];
-  const hpInfo = (mine.hp != null && mine.max_hp) ? { hp: mine.hp, max_hp: mine.max_hp } : null;
+  const isBurning = mine.status === 'burning' || mine.status === 'destroyed';
+  const hpInfo = (!isBurning && mine.hp != null && mine.max_hp) ? { hp: mine.hp, max_hp: mine.max_hp } : null;
   const _mineOwnerAvatar = mine.players?.avatar || (isOwn ? (state.player?.avatar || null) : null);
   if (existing) {
     const hpChanged = existing._gw_hp !== mine.hp || existing._gw_maxHp !== mine.max_hp;
@@ -6687,7 +6688,11 @@ function _addOrUpdateMineMarker(mine) {
       // Update HP bar in-place without recreating the icon (prevents flicker)
       existing._gw_hp  = mine.hp;
       existing._gw_maxHp = mine.max_hp;
-      if (hpInfo && hpInfo.hp < hpInfo.max_hp) {
+      // Hide HP bar for burning/destroyed mines
+      if (!hpInfo) {
+        const bar = existing._icon.querySelector('.mine-hp-bar');
+        if (bar) bar.style.display = 'none';
+      } else if (hpInfo && hpInfo.hp < hpInfo.max_hp) {
         let bar = existing._icon.querySelector('.mine-hp-bar');
         let barInner = bar ? bar.querySelector('.mine-hp-bar-inner') : null;
         if (!bar) {
