@@ -99,6 +99,7 @@ export function autoCollect(collector) {
   }
 
   let totalCollected = 0;
+  const collectedMines = [];
 
   for (const mine of minesInRange) {
     const cores = mine.cell_id ? gameState.getCoresForMine(mine.cell_id) : [];
@@ -113,8 +114,9 @@ export function autoCollect(collector) {
     const room = capacity - collector.stored_coins - totalCollected;
     if (room <= 0) break;
 
-    totalCollected += Math.min(accumulated, room);
-    // Do NOT touch mine.last_collected — it belongs to manual player collect + XP
+    const taken = Math.min(accumulated, room);
+    totalCollected += taken;
+    collectedMines.push(mine);
   }
 
   if (totalCollected > 0) {
@@ -123,6 +125,14 @@ export function autoCollect(collector) {
   // Always update timestamp so we don't accumulate stale elapsed time
   collector.last_collected_at = new Date(now).toISOString();
   gameState.markDirty('collectors', collector.id);
+
+  // Reset mine timers so manual collect won't double-count the same period
+  const nowISO = new Date(now).toISOString();
+  for (const mine of collectedMines) {
+    mine.last_collected = nowISO;
+    mine.coins = 0;
+    gameState.markDirty('mines', mine.id);
+  }
 
   return totalCollected;
 }
