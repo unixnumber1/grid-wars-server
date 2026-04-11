@@ -10,6 +10,7 @@ import { ts, getLang } from '../../config/i18n.js';
 import { SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS } from '../../config/constants.js';
 import { distanceMultiplier } from '../../lib/formulas.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
+import { withPlayerLock } from '../../lib/playerLock.js';
 import {
   FIRETRUCK_BUILD_COST, FIRETRUCK_COOLDOWN_MS, FIRETRUCK_LEVELS,
   FIREFIGHTER_HP, FIREFIGHTER_SPEED,
@@ -26,15 +27,21 @@ function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
 }
 
 fireTrucksRouter.post('/', async (req, res) => {
-  const { action } = req.body || {};
-  if (action === 'build') return handleBuild(req, res);
-  if (action === 'upgrade') return handleUpgrade(req, res);
-  if (action === 'sell') return handleSell(req, res);
-  if (action === 'hit') return handleHit(req, res);
-  if (action === 'dispatch') return handleDispatch(req, res);
-  if (action === 'extinguish-self') return handleExtinguishSelf(req, res);
-  if (action === 'hit-firefighter') return handleHitFirefighter(req, res);
-  return res.status(400).json({ error: 'Unknown action' });
+  const { action, telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+  // hit/hit-firefighter use per-player attack cooldown, skip lock for latency
+  const skipLock = action === 'hit' || action === 'hit-firefighter';
+  const handler = () => {
+    if (action === 'build') return handleBuild(req, res);
+    if (action === 'upgrade') return handleUpgrade(req, res);
+    if (action === 'sell') return handleSell(req, res);
+    if (action === 'hit') return handleHit(req, res);
+    if (action === 'dispatch') return handleDispatch(req, res);
+    if (action === 'extinguish-self') return handleExtinguishSelf(req, res);
+    if (action === 'hit-firefighter') return handleHitFirefighter(req, res);
+    return res.status(400).json({ error: 'Unknown action' });
+  };
+  return skipLock ? handler() : withPlayerLock(telegram_id, handler);
 });
 
 // ── BUILD ──

@@ -169,7 +169,10 @@ async function handleAttack(req, res) {
       } else {
         player.ether = (player.ether || 0) + loot.count;
       }
-      gameState.markDirty('players', player.id);
+      const lootFields = loot.currency === 'shards'
+        ? { crystals: player.crystals }
+        : { ether: player.ether };
+      await supabase.from('players').update(lootFields).eq('id', player.id);
     }
 
     // Emit kill
