@@ -337,6 +337,40 @@ async function handleStreakClaim(req, res) {
   });
 }
 
+// ── Free Epic Box (one-time gift) ──────────────────────────
+async function handleFreeEpicBoxCheck(req, res) {
+  const { telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+
+  const key = `free_epic_box:${telegram_id}`;
+  const claimed = gameState.getSetting(key);
+  return res.json({ claimed: !!claimed });
+}
+
+async function handleFreeEpicBoxClaim(req, res) {
+  const { telegram_id } = req.body || {};
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
+
+  return withPlayerLock(telegram_id, async () => {
+    const key = `free_epic_box:${telegram_id}`;
+    const already = gameState.getSetting(key);
+    if (already) return res.status(400).json({ error: 'Already claimed' });
+
+    const player = gameState.getPlayerByTgId(Number(telegram_id));
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    // Mark as claimed FIRST (prevents race conditions)
+    await supabase.from('app_settings').insert({ key, value: new Date().toISOString() });
+    gameState.setSetting(key, new Date().toISOString());
+
+    // Grant epic box via shared reward function
+    const granted = await grantReward(player, telegram_id, { boxes: ['epic'] });
+
+    logPlayer(telegram_id, 'action', 'Получил бесплатный эпический ящик 🎁');
+    return res.json({ success: true, reward: granted });
+  });
+}
+
 // STAR_PACKS imported from config/constants.js via ITEM_TYPES import line
 
 async function handleStarsInvoice(req, res) {
@@ -484,6 +518,8 @@ itemsRouter.post('/', async (req, res) => {
   if (action === 'stars-invoice')  return handleStarsInvoice(req, res);
   if (action === 'streak-check')   return handleStreakCheck(req, res);
   if (action === 'streak-claim')   return handleStreakClaim(req, res);
+  if (action === 'free-epic-box-check') return handleFreeEpicBoxCheck(req, res);
+  if (action === 'free-epic-box-claim') return handleFreeEpicBoxClaim(req, res);
 
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id required' });
   return withPlayerLock(telegram_id, async () => {
