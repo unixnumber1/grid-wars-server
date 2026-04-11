@@ -731,6 +731,8 @@ io.on('connection', (socket) => {
       if (playerSessions.get(player.telegram_id) === socket.id) {
         playerSessions.delete(player.telegram_id);
       }
+      // Clean up attack cooldown to prevent memory leak
+      lastAttackTime.delete(String(player.telegram_id));
       if (gameState.loaded) {
         const p = gameState.getPlayerByTgId(player.telegram_id);
         if (p) {

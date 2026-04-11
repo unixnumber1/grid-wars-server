@@ -162,10 +162,12 @@ async function handleSell(req, res) {
 
   const refund = getSellRefundDiamonds(truck.level);
   const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
-  const newDiamonds = (freshP?.diamonds ?? player.diamonds ?? 0) + refund;
+  const actualDiamonds = freshP?.diamonds ?? player.diamonds ?? 0;
+  const newDiamonds = actualDiamonds + refund;
+  const { data: diamOk } = await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id).eq('diamonds', actualDiamonds).select('id').maybeSingle();
+  if (!diamOk) return res.status(409).json({ error: 'Conflict, retry' });
   player.diamonds = newDiamonds;
   gameState.markDirty('players', player.id);
-  await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
 
   // Kill active firefighters from this truck
   for (const [id, ff] of gameState.firefighters) {
