@@ -126,12 +126,13 @@ export function autoCollect(collector) {
   collector.last_collected_at = new Date(now).toISOString();
   gameState.markDirty('collectors', collector.id);
 
-  // Reset mine timers in-memory so manual collect won't double-count the same period.
-  // No markDirty — these are transient updates; persist happens on manual collect or server restart.
+  // Reset mine timers so manual collect won't double-count the same period.
+  // Must persist to survive server restarts (~10 mines per collector, not all player mines).
   const nowISO = new Date(now).toISOString();
   for (const mine of collectedMines) {
     mine.last_collected = nowISO;
     mine.coins = 0;
+    gameState.markDirty('mines', mine.id);
   }
 
   return totalCollected;
