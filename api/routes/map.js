@@ -242,11 +242,13 @@ async function handleTick(req, res) {
           mine.upgrade_finish_at = null;
           mine.hp = newMineMaxHp;
           mine.max_hp = newMineMaxHp;
-          gameState.markDirty('mines', mine.id);
-          supabase.from('mines').update({
+          // Persist immediately and synchronously — prevents race with batch persist
+          // that could overwrite level with stale value
+          await supabase.from('mines').update({
             level: mine.level, pending_level: null, upgrade_finish_at: null,
             hp: newMineMaxHp, max_hp: newMineMaxHp,
-          }).eq('id', mine.id).then(() => {}).catch(e => console.error('[tick] upgrade persist error:', e.message));
+          }).eq('id', mine.id);
+          // Don't markDirty — already persisted, avoids stale upsert from batch persist
           let xpResult = null;
           try { xpResult = await addXp(currentPlayerId, XP_REWARDS.UPGRADE_MINE(mine.level)); } catch (_) {}
           completedUpgrades.push({ ...mine, xp: xpResult });
