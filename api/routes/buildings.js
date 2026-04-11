@@ -112,7 +112,8 @@ async function handleHqSell(player, telegramId, res) {
   const refund = Math.floor(totalCost * 0.25);
 
   if (refund > 0) {
-    player.coins = (player.coins ?? 0) + refund;
+    const { data: freshHq } = await supabase.from('players').select('coins').eq('id', player.id).single();
+    player.coins = (Number(freshHq?.coins) || 0) + refund;
     await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
     gameState.markDirty('players', player.id);
   }

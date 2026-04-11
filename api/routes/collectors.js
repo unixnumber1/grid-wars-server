@@ -372,11 +372,13 @@ async function handleHit(req, res) {
     collector.stored_coins = 0;
     gameState.markDirty('collectors', collector.id);
 
-    // Transfer coins to attacker
+    // Transfer coins to attacker (fresh read for accuracy)
     if (stolenCoins > 0) {
-      player.coins = (player.coins || 0) + stolenCoins;
+      const { data: freshAtk } = await supabase.from('players').select('coins').eq('id', player.id).single();
+      const atkCoins = (Number(freshAtk?.coins) || 0) + stolenCoins;
+      player.coins = atkCoins;
       gameState.markDirty('players', player.id);
-      await supabase.from('players').update({ coins: player.coins }).eq('id', player.id);
+      await supabase.from('players').update({ coins: atkCoins }).eq('id', player.id);
     }
 
     // Persist burning status immediately
