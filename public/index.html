@@ -3776,7 +3776,7 @@
     <!-- Items tab (mythic gear + core packs) -->
     <div id="shop-tab-items" class="shop-tab-content">
       <div style="font-size:15px;font-weight:700;color:#ff6d00;margin-bottom:12px;" data-i18n="shop.mythic_gear">🔥 Мифическое снаряжение</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div class="shop-item" onclick="buyMythic('sword')" style="--glow:rgba(255,109,0,0.5);--btn-bg:rgba(255,109,0,0.15);--btn-color:#ff6d00;">
           <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('sword')">i</button>
           <div class="shop-item-glow">🗡️</div>
@@ -3791,6 +3791,13 @@
           <div class="shop-item-sub">ATK 520</div>
           <button class="shop-item-btn">💎 600</button>
         </div>
+        <div class="shop-item" onclick="buyMythic('bow')" style="--glow:rgba(255,109,0,0.5);--btn-bg:rgba(255,109,0,0.15);--btn-color:#ff6d00;">
+          <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('bow')">i</button>
+          <div class="shop-item-glow">🏹</div>
+          <div class="shop-item-name" data-i18n="shop.bow">Лук</div>
+          <div class="shop-item-sub">ATK 240</div>
+          <button class="shop-item-btn">💎 600</button>
+        </div>
         <div class="shop-item" onclick="buyMythic('shield')" style="--glow:rgba(255,109,0,0.5);--btn-bg:rgba(255,109,0,0.15);--btn-color:#ff6d00;">
           <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicInfo('shield')">i</button>
           <div class="shop-item-glow">🛡️</div>
@@ -3801,12 +3808,12 @@
       </div>
       <div class="shop-item-wide" onclick="buyMythicSet()" style="margin-top:10px;--glow:rgba(255,109,0,0.5);--btn-bg:linear-gradient(135deg,#ff6d00,#e65100);--btn-color:#fff;">
         <button class="shop-box-info-btn" onclick="event.stopPropagation();showMythicSetInfo()" style="top:8px;right:8px;">i</button>
-        <div class="shop-item-glow">🗡️🪓🛡️</div>
+        <div class="shop-item-glow">🗡️🪓🏹🛡️</div>
         <div class="shop-item-wide-info">
           <div class="shop-item-wide-name" data-i18n="shop.mythic_bundle">Мифический комплект</div>
-          <div class="shop-item-wide-sub" data-i18n="shop.savings">экономия 300 💎</div>
+          <div class="shop-item-wide-sub" data-i18n="shop.savings">экономия 400 💎</div>
         </div>
-        <button class="shop-item-wide-btn" style="background:linear-gradient(135deg,#ff6d00,#e65100);">💎 1,500</button>
+        <button class="shop-item-wide-btn" style="background:linear-gradient(135deg,#ff6d00,#e65100);">💎 2,000</button>
       </div>
       <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
         <div style="font-size:15px;font-weight:700;color:#7DF9FF;margin-bottom:12px;" data-i18n="shop.core_packs_title">🔮 Паки ядер</div>
@@ -3864,7 +3871,7 @@
   <div id="box-odds-card">
     <h3 id="box-odds-title"></h3>
     <div id="box-odds-rows"></div>
-    <div class="odds-footer" data-i18n="shop.odds_footer">Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты\nЛегендарные: недоступны</div>
+    <div class="odds-footer" data-i18n="shop.odds_footer">Предметы: 🗡️ мечи, 🪓 топоры, 🏹 луки, 🛡️ щиты\nЛегендарные: недоступны</div>
     <button id="box-odds-close" data-i18n="misc.close">Закрыть</button>
   </div>
 </div>
@@ -4404,6 +4411,8 @@ const I18N = {
     'shop.sword': 'Меч',
     'shop.axe': 'Топор',
     'shop.shield': 'Щит',
+    'shop.bow': 'Лук',
+    'shop.piercing': 'Пробитие',
     'shop.mythic_bundle': 'Мифический комплект',
     'shop.savings': '(экономия 300)',
     'shop.core_packs_title': 'Паки ядер',
@@ -4800,12 +4809,12 @@ const I18N = {
     'core.drop_mult': 'Множитель: x{mul} (Lv.{level})',
 
     // === Shop extras 2 ===
-    'shop.odds_footer': 'Предметы: 🗡️ мечи, 🪓 топоры, 🛡️ щиты\nЛегендарные: недоступны',
-    'shop.box_content': 'Содержимое: ⚔️ Меч · 🪓 Топор · 🛡️ Щит',
+    'shop.odds_footer': 'Предметы: 🗡️ мечи, 🪓 топоры, 🏹 луки, 🛡️ щиты\nЛегендарные: недоступны',
+    'shop.box_content': 'Содержимое: ⚔️ Меч · 🪓 Топор · 🏹 Лук · 🛡️ Щит',
     'shop.box_random': 'Случайный предмет одного из типов',
     'shop.mythic_stats': 'Характеристики мифического предмета',
     'shop.buy_mythic': 'Купить мифический {type} за 600 💎?',
-    'shop.buy_mythic_set': 'Купить мифический комплект (меч + топор + щит) за 1500 💎?',
+    'shop.buy_mythic_set': 'Купить мифический комплект (меч + топор + лук + щит) за 2000 💎?',
     'shop.daily_claimed': 'Получено ✓',
     'shop.daily_timer': '⏰ {h}ч {m}м {s}с',
     'shop.attack_stat': '⚔️ Атака',
@@ -4828,6 +4837,7 @@ const I18N = {
     'item.sword': 'Меч',
     'item.axe': 'Топор',
     'item.shield': 'Щит',
+    'item.bow': 'Лук',
 
     // === Map styles ===
     'map.style.standard': 'Стандарт',
@@ -5056,6 +5066,8 @@ const I18N = {
     'itembonus.axe_legend': 'Казнь врага < 50% HP — шанс 13-20%',
     'itembonus.shield_mythic': 'Блок удара — шанс 10-25%',
     'itembonus.shield_legend': 'Блок удара — шанс 20-41%',
+    'itembonus.bow_mythic': 'Пробитие — шанс 8-18% (игнор падения урона на дистанции)',
+    'itembonus.bow_legend': 'Пробитие — шанс 15-28% (игнор падения урона на дистанции)',
     'itembonus.prefix': '{prefix} бонус:',
 
     // === Inventory Actions ===
@@ -5646,6 +5658,8 @@ const I18N = {
     'shop.sword': 'Sword',
     'shop.axe': 'Axe',
     'shop.shield': 'Shield',
+    'shop.bow': 'Bow',
+    'shop.piercing': 'Piercing',
     'shop.mythic_bundle': 'Mythic Bundle',
     'shop.savings': '(save 300)',
     'shop.core_packs_title': 'Core Packs',
@@ -6042,12 +6056,12 @@ const I18N = {
     'core.drop_mult': 'Multiplier: x{mul} (Lv.{level})',
 
     // === Shop extras 2 ===
-    'shop.odds_footer': 'Items: 🗡️ swords, 🪓 axes, 🛡️ shields\nLegendary: unavailable',
-    'shop.box_content': 'Contents: ⚔️ Sword · 🪓 Axe · 🛡️ Shield',
+    'shop.odds_footer': 'Items: 🗡️ swords, 🪓 axes, 🏹 bows, 🛡️ shields\nLegendary: unavailable',
+    'shop.box_content': 'Contents: ⚔️ Sword · 🪓 Axe · 🏹 Bow · 🛡️ Shield',
     'shop.box_random': 'Random item of one type',
     'shop.mythic_stats': 'Mythic item stats',
     'shop.buy_mythic': 'Buy mythic {type} for 600 💎?',
-    'shop.buy_mythic_set': 'Buy mythic bundle (sword + axe + shield) for 1500 💎?',
+    'shop.buy_mythic_set': 'Buy mythic bundle (sword + axe + bow + shield) for 2000 💎?',
     'shop.daily_claimed': 'Claimed ✓',
     'shop.daily_timer': '⏰ {h}h {m}m {s}s',
     'shop.attack_stat': '⚔️ Attack',
@@ -6070,6 +6084,7 @@ const I18N = {
     'item.sword': 'Sword',
     'item.axe': 'Axe',
     'item.shield': 'Shield',
+    'item.bow': 'Bow',
 
     // === Map styles ===
     'map.style.standard': 'Standard',
@@ -6298,6 +6313,8 @@ const I18N = {
     'itembonus.axe_legend': 'Execute enemy < 50% HP — 13-20% chance',
     'itembonus.shield_mythic': 'Block attack — 10-25% chance',
     'itembonus.shield_legend': 'Block attack — 20-41% chance',
+    'itembonus.bow_mythic': 'Piercing — 8-18% chance (ignores distance falloff)',
+    'itembonus.bow_legend': 'Piercing — 15-28% chance (ignores distance falloff)',
     'itembonus.prefix': '{prefix} bonus:',
 
     // === Inventory Actions ===
@@ -6985,6 +7002,10 @@ function itemStatLabel(item) {
     const def = item.defense || item.stat_value || 0;
     return `🛡️ +${def} HP`;
   }
+  if (item.type === 'bow') {
+    const atk = item.attack || item.stat_value || 0;
+    return `🏹 +${atk} ${t('itemstat.damage_col')}`;
+  }
   return `+${item.stat_value}`;
 }
 
@@ -7008,6 +7029,7 @@ function showItemReveal(item, source) {
     if (item.type === 'sword') bonusText = item.rarity === 'mythic' ? t('itembonus.sword_mythic') : t('itembonus.sword_legend');
     if (item.type === 'axe') bonusText = item.rarity === 'mythic' ? t('itembonus.axe_mythic') : t('itembonus.axe_legend');
     if (item.type === 'shield') bonusText = item.rarity === 'mythic' ? t('itembonus.shield_mythic') : t('itembonus.shield_legend');
+    if (item.type === 'bow') bonusText = item.rarity === 'mythic' ? t('itembonus.bow_mythic') : t('itembonus.bow_legend');
     if (bonusText) {
       bonusHtml = `<div style="margin-top:16px;padding:12px 16px;background:rgba(0,0,0,0.5);border:1px solid ${color}44;border-radius:12px;">
         <div style="font-size:13px;color:${color};font-weight:600;">${t('itembonus.prefix', { prefix })}</div>
@@ -7126,7 +7148,7 @@ function showProfilePopup() {
 
 function _renderEquipSlots() {
   const inv = (state.inventory || []).filter(i => !i.on_market);
-  const weapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = inv.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const shield = inv.find(i => i.type === 'shield' && i.equipped);
 
   const weaponSlot = document.getElementById('equip-slot-sword');
@@ -7221,9 +7243,9 @@ async function buyInventorySlot() {
 
 // Opens inventory for a specific slot type (from tapping empty/equipped slot)
 function openEquipSlot(type) {
-  const isWeapon = type === 'sword';
+  const isWeapon = type === 'sword' || type === 'axe' || type === 'bow';
   const items = isWeapon
-    ? (state.inventory || []).filter(i => (i.type === 'sword' || i.type === 'axe') && !i.on_market)
+    ? (state.inventory || []).filter(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && !i.on_market)
     : (state.inventory || []).filter(i => i.type === type && !i.on_market);
   if (!items.length) {
     showToast(t('toast.no_items_type', {type: isWeapon ? t('misc.weapon') : t('misc.shield_type')}));
@@ -7312,6 +7334,7 @@ function openItemDetailPopup(item) {
   let computedCritMul = 1.5;
   let computedExec = 0;
   let computedBlock = item.block_chance || 0;
+  let computedPiercing = 0;
   if (item.type === 'sword') {
     if (item.rarity === 'mythic') computedCritMul = 1.5 + (upgLvl / 90) * 0.7;
     else if (item.rarity === 'legendary') computedCritMul = 1.5 + (upgLvl / 100) * 1.5;
@@ -7325,11 +7348,15 @@ function openItemDetailPopup(item) {
     if (item.rarity === 'mythic') computedBlock = baseBlock + (upgLvl / 90) * 5;
     else computedBlock = baseBlock + (upgLvl / 100) * 6;
   }
+  if (item.type === 'bow') {
+    if (item.rarity === 'mythic') computedPiercing = 8 + (upgLvl / 100) * 10;
+    else if (item.rarity === 'legendary') computedPiercing = 15 + (upgLvl / 100) * 13;
+  }
 
   // Build stats rows
   const stats = [];
   stats.push([t('core.level'), `${upgLvl} / ${maxLvl}`]);
-  if (item.type === 'sword' || item.type === 'axe') {
+  if (item.type === 'sword' || item.type === 'axe' || item.type === 'bow') {
     stats.push([t('shop.attack_stat'), `<span style="color:#ff6b6b">${item.attack}</span>`]);
   }
   if (item.type === 'sword') {
@@ -7343,6 +7370,9 @@ function openItemDetailPopup(item) {
   if (item.type === 'shield') {
     stats.push([t('shop.defense') + ' HP', `<span style="color:#4caf50">+${item.defense}</span>`]);
     if (computedBlock > 0) stats.push([t('shop.block'), `${computedBlock.toFixed(1)}%`]);
+  }
+  if (item.type === 'bow' && computedPiercing > 0) {
+    stats.push(['🎯 ' + t('shop.piercing'), `<span style="color:#FFD700">${computedPiercing.toFixed(1)}%</span>`]);
   }
 
   // Build actions
@@ -7451,9 +7481,9 @@ async function doEquipItem(itemId) {
     // Update state
     const item = state.inventory.find(i => i.id === itemId);
     if (item) {
-      const isWeapon = item.type === 'sword' || item.type === 'axe';
+      const isWeapon = item.type === 'sword' || item.type === 'axe' || item.type === 'bow';
       state.inventory.forEach(i => {
-        if (isWeapon ? (i.type === 'sword' || i.type === 'axe') : i.type === item.type) i.equipped = false;
+        if (isWeapon ? (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') : i.type === item.type) i.equipped = false;
       });
       item.equipped = true;
     }
@@ -7516,7 +7546,7 @@ function _refreshProfileStats() {
   const totalAtk = p.attack ?? 10;
 
   const inv = (state.inventory || []).filter(i => !i.on_market);
-  const equippedWeapon = inv.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const equippedWeapon = inv.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const equippedShield = inv.find(i => i.type === 'shield' && i.equipped);
 
   // Crit from sword
@@ -12710,7 +12740,7 @@ let _apmPlayer = null; // currently viewed player details
 let _apmSearchTimer = null;
 let _apmActiveTab = 'inventory';
 
-const ITEM_EMOJI = { sword: '🗡️', axe: '🪓', shield: '🛡️' };
+const ITEM_EMOJI = { sword: '🗡️', axe: '🪓', shield: '🛡️', bow: '🏹' };
 const RARITY_COLORS = { common:'#aaa', uncommon:'#4caf50', rare:'#2196f3', epic:'#9c27b0', mythic:'#ff9800', legendary:'#ffd700' };
 const CURRENCY_META = [
   { key:'coins', icon:'💰', label:'Монеты' },
@@ -13208,7 +13238,7 @@ function apmRenderItems(el) {
   if (!items.length) html += '<div style="color:#666;text-align:center;padding:10px;">Пусто</div>';
   else items.forEach(it => {
     const color = RARITY_COLORS[it.rarity] || '#aaa';
-    const stat = it.type === 'shield' ? `🛡${it.defense}` : `⚔️${it.attack}`;
+    const stat = it.type === 'shield' ? `🛡${it.defense}` : it.type === 'bow' ? `🏹${it.attack}` : `⚔️${it.attack}`;
     const crit = it.crit_chance ? ` ⚡${it.crit_chance}%` : '';
     html += `<div class="apm-item-row">
       <div class="apm-item-icon">${ITEM_EMOJI[it.type]||'?'}</div>
@@ -13358,7 +13388,7 @@ function apmRenderResources(body) {
     <div style="font-size:13px;color:#ccc;margin-bottom:8px;font-weight:600;">Выдать предмет</div>
     <div style="margin-bottom:6px;font-size:12px;color:#888;">Тип:</div>
     <div id="apm-give-type">
-      ${['sword','axe','shield'].map(t => `<span class="apm-chip${t==='sword'?' active':''}" data-val="${t}">${ITEM_EMOJI[t]} ${t}</span>`).join('')}
+      ${['sword','axe','shield','bow'].map(t => `<span class="apm-chip${t==='sword'?' active':''}" data-val="${t}">${ITEM_EMOJI[t]} ${t}</span>`).join('')}
     </div>
     <div style="margin:6px 0;font-size:12px;color:#888;">Редкость:</div>
     <div id="apm-give-rarity">
@@ -14674,6 +14704,15 @@ function showMythicInfo(type) {
         ['🔰 Блок удара', '10-20% → 15-25% при прокачке'],
       ]
     },
+    bow: {
+      title: '🏹 Мифический лук',
+      stats: [
+        ['⚔️ Атака', '240'],
+        ['📏 Падение урона', '50% на макс. дистанции (×5 у меча)'],
+        ['🎯 Пробитие', 'шанс 8% → 18% при прокачке'],
+        ['ℹ️ Без крита', 'идентичность лука — стабильность, не бёрст'],
+      ]
+    },
   };
   const i = info[type];
   if (!i) return;
@@ -14681,11 +14720,12 @@ function showMythicInfo(type) {
 }
 
 function showMythicSetInfo() {
-  openPopup('🗡️🪓🛡️ Мифический комплект', 'Все 3 предмета сразу', [
+  openPopup('🗡️🪓🏹🛡️ Мифический комплект', 'Все 4 предмета сразу', [
     ['🗡️ Меч', 'ATK 380 · CRIT 16%'],
     ['🪓 Топор', 'ATK 520 · Казнь'],
+    ['🏹 Лук', 'ATK 240 · Пробитие'],
     ['🛡️ Щит', 'DEF 3800 · Блок'],
-    ['💎 Цена', '1,500 (вместо 1,800)'],
+    ['💎 Цена', '2,000 (вместо 2,400)'],
   ], [{ label: t('misc.ok'), isClose: true }]);
 }
 
@@ -15010,7 +15050,7 @@ document.querySelectorAll('.shop-info-btn').forEach(btn => {
 // ─────────────────────────────────────────────
 //  Craft system (integrated single-screen)
 // ─────────────────────────────────────────────
-const ITEM_EMOJI_MAP = { sword:'🗡️', axe:'🪓', shield:'🛡️' };
+const ITEM_EMOJI_MAP = { sword:'🗡️', axe:'🪓', shield:'🛡️', bow:'🏹' };
 let _craftTarget = null;
 let _craftMaterials = [];
 let _craftRecipe = null;
@@ -17133,9 +17173,9 @@ async function openPlayerProfile(targetTgId) {
     const buildHtml = (p.equipped_items && p.equipped_items.length > 0)
       ? p.equipped_items.map(i => `
         <div class="build-item rarity-${i.rarity}">
-          <div class="build-item-icon">${i.emoji || (i.type === 'shield' ? '🛡️' : '⚔️')}</div>
+          <div class="build-item-icon">${i.emoji || (i.type === 'shield' ? '🛡️' : i.type === 'bow' ? '🏹' : '⚔️')}</div>
           <div>
-            <div class="build-item-name">${RARITY_NAMES_CLIENT[i.rarity] || i.rarity}${(i.plus||0) > 0 ? ` <span style="color:#FFD700">+${i.plus}</span>` : ''} ${i.type === 'sword' ? '⚔️' : i.type === 'axe' ? '🪓' : '🛡️'}</div>
+            <div class="build-item-name">${RARITY_NAMES_CLIENT[i.rarity] || i.rarity}${(i.plus||0) > 0 ? ` <span style="color:#FFD700">+${i.plus}</span>` : ''} ${i.type === 'sword' ? '⚔️' : i.type === 'axe' ? '🪓' : i.type === 'bow' ? '🏹' : '🛡️'}</div>
             ${i.upgrade_level > 0 ? `<div class="build-item-level">${t('lv')}${i.upgrade_level}</div>` : ''}
           </div>
         </div>`).join('')
@@ -17542,12 +17582,23 @@ function _startAttackAnimation(mineId, duration, endsAtISO) {
   }
 }
 
+// SVG arrow for bow projectile — wooden shaft, steel arrowhead, light fletching.
+// 32×8 viewBox so it's elongated along the X-axis; rotate around its centre via CSS transform.
+function bowArrowSvg() {
+  return '<svg viewBox="0 0 32 8" width="32" height="10" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible;">' +
+    '<line x1="3" y1="4" x2="24" y2="4" stroke="#8B5A2B" stroke-width="1.6" stroke-linecap="round"/>' +
+    '<polygon points="22,1.5 31,4 22,6.5 24,4" fill="#D4D4D4" stroke="#555" stroke-width="0.4"/>' +
+    '<polygon points="3,4 0,1 1,4 0,7" fill="#F0F0F0" stroke="#888" stroke-width="0.3"/>' +
+    '<polygon points="5,4 2,1.5 3,4 2,6.5" fill="#E8E8E8" stroke="#888" stroke-width="0.3"/>' +
+    '</svg>';
+}
+
 function fireProjectile(fromLatLng, toLatLng) {
   const fromPt = map.latLngToContainerPoint(fromLatLng);
   const toPt   = map.latLngToContainerPoint(toLatLng);
 
   // Determine equipped weapon
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'sword';
   const weaponRarity = weapon ? (weapon.rarity || 'common') : 'common';
 
@@ -17562,6 +17613,11 @@ function fireProjectile(fromLatLng, toLatLng) {
   if (weaponType === 'axe') {
     el.textContent = '🪓';
     el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
+  } else if (weaponType === 'bow') {
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    el.innerHTML = bowArrowSvg();
+    el.style.transform = `rotate(${angle}deg)`;
+    el.style.transformOrigin = 'center center';
   } else {
     // Sword emoji 🗡️ — base orientation varies by platform
     // Wrap in inner span so we can normalize then rotate to target
@@ -17607,6 +17663,11 @@ function animateCombatProjectile(data) {
   } else if (weaponType === 'axe') {
     el.innerHTML = '🪓';
     el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
+  } else if (weaponType === 'bow') {
+    const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
+    el.innerHTML = bowArrowSvg();
+    el.style.transform = `translate(-50%,-50%) rotate(${angle}deg)`;
+    if (data.piercing) el.style.filter = 'drop-shadow(0 0 6px #FFD700) drop-shadow(0 0 3px #FFD700)';
   } else {
     el.innerHTML = '👊';
     el.style.fontSize = '16px';
@@ -17778,8 +17839,8 @@ function startPvpCombat(target) {
   closePopup();
 
   // Determine weapon CD (with skill speed bonus)
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
+  const baseCd = weapon ? (weapon.type === 'axe' ? 700 : 500) : 500;
   const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
   _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
 
@@ -17917,8 +17978,8 @@ function bindAttackButton(targetType, target) {
   const btn = document.getElementById('popup-atk-btn');
   if (!btn) return;
 
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
+  const baseCd = weapon ? (weapon.type === 'axe' ? 700 : 500) : 500;
   const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
   _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
 
@@ -18062,8 +18123,8 @@ function openCombatPopup(title, targetId, targetType, target, opts = {}) {
 
   const wasHolding = combatState.isHolding;
 
-  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
-  const baseCd = weapon ? (weapon.type === 'sword' ? 500 : 700) : 500;
+  const weapon = (state.inventory || []).find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
+  const baseCd = weapon ? (weapon.type === 'axe' ? 700 : 500) : 500;
   const speedBonus = state.skill_effects?.attack_speed_bonus || 0;
   _pvpCdMs = Math.max(100, Math.floor(baseCd * (1 - speedBonus)));
 
