@@ -184,10 +184,10 @@ async function handleAttackShield(req, res) {
   const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
-  let isPiercing = false;
-  if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
+  const multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  const isPiercing = rollBowPiercing(weapon);
   let damage = Math.round(baseDmg * multiplier);
+  if (isPiercing) damage += baseDmg; // bonus piercing arrow
   if (_mSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.weapon_damage_bonus));
   if (_mSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.pve_damage_bonus));
   let isCrit = false;
@@ -298,10 +298,10 @@ async function handleAttackMonument(req, res) {
   const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx2 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
-  let isPiercing = false;
-  if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
+  const multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  const isPiercing = rollBowPiercing(weapon);
   let damage = Math.round(baseDmg * multiplier);
+  if (isPiercing) damage += baseDmg; // bonus piercing arrow
   if (_mSkFx2.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.weapon_damage_bonus));
   if (_mSkFx2.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.pve_damage_bonus));
   let isCrit = false, isExecution = false;

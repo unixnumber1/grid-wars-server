@@ -101,10 +101,10 @@ async function handleAttack(req, res) {
   const weaponType = weapon ? weapon.type : 'none';
   const _zSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  let mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
-  let isPiercing = false;
-  if (rollBowPiercing(weapon)) { mul = 1; isPiercing = true; }
+  const mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  const isPiercing = rollBowPiercing(weapon);
   let damage = Math.round(baseDmg * mul);
+  if (isPiercing) damage += baseDmg; // bonus piercing arrow: full damage in addition to the regular shot
   if (_zSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.weapon_damage_bonus));
   if (_zSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.pve_damage_bonus));
   let isCrit = false;

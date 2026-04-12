@@ -5066,8 +5066,8 @@ const I18N = {
     'itembonus.axe_legend': 'Казнь врага < 50% HP — шанс 13-20%',
     'itembonus.shield_mythic': 'Блок удара — шанс 10-25%',
     'itembonus.shield_legend': 'Блок удара — шанс 20-41%',
-    'itembonus.bow_mythic': 'Пробитие — шанс 8-18% (игнор падения урона на дистанции)',
-    'itembonus.bow_legend': 'Пробитие — шанс 15-28% (игнор падения урона на дистанции)',
+    'itembonus.bow_mythic': 'Пробитие — шанс 8-18% выпустить бонусную стрелу (+100% урона)',
+    'itembonus.bow_legend': 'Пробитие — шанс 15-28% выпустить бонусную стрелу (+100% урона)',
     'itembonus.prefix': '{prefix} бонус:',
 
     // === Inventory Actions ===
@@ -6313,8 +6313,8 @@ const I18N = {
     'itembonus.axe_legend': 'Execute enemy < 50% HP — 13-20% chance',
     'itembonus.shield_mythic': 'Block attack — 10-25% chance',
     'itembonus.shield_legend': 'Block attack — 20-41% chance',
-    'itembonus.bow_mythic': 'Piercing — 8-18% chance (ignores distance falloff)',
-    'itembonus.bow_legend': 'Piercing — 15-28% chance (ignores distance falloff)',
+    'itembonus.bow_mythic': 'Piercing — 8-18% chance to fire bonus arrow (+100% damage)',
+    'itembonus.bow_legend': 'Piercing — 15-28% chance to fire bonus arrow (+100% damage)',
     'itembonus.prefix': '{prefix} bonus:',
 
     // === Inventory Actions ===
@@ -14709,7 +14709,7 @@ function showMythicInfo(type) {
       stats: [
         ['⚔️ Атака', '240'],
         ['📏 Падение урона', '50% на макс. дистанции (×5 у меча)'],
-        ['🎯 Пробитие', 'шанс 8% → 18% при прокачке'],
+        ['🎯 Пробитие', 'шанс 8% → 18% — бонусная стрела +100% урона'],
         ['ℹ️ Без крита', 'идентичность лука — стабильность, не бёрст'],
       ]
     },
@@ -17651,45 +17651,67 @@ function animateCombatProjectile(data) {
   const to = map.latLngToContainerPoint(L.latLng(data.to_lat, data.to_lng));
   if (isNaN(from.x) || isNaN(from.y) || isNaN(to.x) || isNaN(to.y)) return;
 
-  const el = document.createElement('div');
-  el.className = 'combat-projectile';
-
-  // Determine projectile appearance by weapon type
   const weaponType = data.weapon_type || 'fist';
-  if (weaponType === 'sword') {
-    const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
-    el.innerHTML = '🗡️';
-    el.style.transform = `translate(-50%,-50%) rotate(${angle - 135}deg)`;
-  } else if (weaponType === 'axe') {
-    el.innerHTML = '🪓';
-    el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
-  } else if (weaponType === 'bow') {
-    const angle = Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
-    el.innerHTML = bowArrowSvg();
-    el.style.transform = `translate(-50%,-50%) rotate(${angle}deg)`;
-    if (data.piercing) el.style.filter = 'drop-shadow(0 0 6px #FFD700) drop-shadow(0 0 3px #FFD700)';
-  } else {
-    el.innerHTML = '👊';
-    el.style.fontSize = '16px';
-  }
-
-  el.style.left = from.x + 'px';
-  el.style.top = from.y + 'px';
-  document.body.appendChild(el);
-
   const dx = to.x - from.x, dy = to.y - from.y;
   const dist = Math.sqrt(dx*dx + dy*dy);
   const dur = Math.min(600, Math.max(200, dist * 1.5));
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-  const startTime = performance.now();
-  function anim(now) {
-    const p = Math.min((now - startTime) / dur, 1);
-    const ease = p * p; // easeIn
-    el.style.left = (from.x + dx * ease) + 'px';
-    el.style.top = (from.y + dy * ease) + 'px';
-    if (p < 1) requestAnimationFrame(anim);
-    else {
-      el.remove();
+  // Inner helper: creates and animates ONE projectile element.
+  // onImpact callback runs when arrow hits — only the primary arrow shows the damage popup.
+  function _spawnProj({ piercingGlow = false, perpOffset = 0, onImpact }) {
+    const el = document.createElement('div');
+    el.className = 'combat-projectile';
+
+    if (weaponType === 'sword') {
+      el.innerHTML = '🗡️';
+      el.style.transform = `translate(-50%,-50%) rotate(${angle - 135}deg)`;
+    } else if (weaponType === 'axe') {
+      el.innerHTML = '🪓';
+      el.style.animation = 'projectileSpinCCW 0.4s linear infinite';
+    } else if (weaponType === 'bow') {
+      el.innerHTML = bowArrowSvg();
+      el.style.transform = `translate(-50%,-50%) rotate(${angle}deg)`;
+      if (piercingGlow) el.style.filter = 'drop-shadow(0 0 6px #FFD700) drop-shadow(0 0 3px #FFD700)';
+    } else {
+      el.innerHTML = '👊';
+      el.style.fontSize = '16px';
+    }
+
+    // Perpendicular offset so a parallel piercing arrow doesn't overlap the main one
+    const perpX = perpOffset ? -dy / dist * perpOffset : 0;
+    const perpY = perpOffset ?  dx / dist * perpOffset : 0;
+    el.style.left = (from.x + perpX) + 'px';
+    el.style.top  = (from.y + perpY) + 'px';
+    document.body.appendChild(el);
+
+    const startTime = performance.now();
+    function anim(now) {
+      const p = Math.min((now - startTime) / dur, 1);
+      const ease = p * p;
+      el.style.left = (from.x + perpX + dx * ease) + 'px';
+      el.style.top  = (from.y + perpY + dy * ease) + 'px';
+      if (p < 1) requestAnimationFrame(anim);
+      else {
+        el.remove();
+        if (onImpact) onImpact();
+      }
+    }
+    requestAnimationFrame(anim);
+  }
+
+  // Schedule a bonus piercing arrow ~70ms after the main one, offset perpendicularly
+  // so both are visible side-by-side. Bonus arrow has no impact callback — main one
+  // shows the (already-summed) damage popup once.
+  if (weaponType === 'bow' && data.piercing) {
+    setTimeout(() => _spawnProj({ piercingGlow: true, perpOffset: 8 }), 70);
+  }
+
+  // Main arrow — keeps the existing impact / damage popup behaviour
+  _spawnProj({
+    piercingGlow: false,
+    perpOffset: 0,
+    onImpact() {
       // Hit flash
       const flash = document.createElement('div');
       flash.className = 'combat-hit-flash';
@@ -17722,9 +17744,8 @@ function animateCombatProjectile(data) {
       }
       document.body.appendChild(dmgEl);
       setTimeout(() => dmgEl.remove(), 1000);
-    }
-  }
-  requestAnimationFrame(anim);
+    },
+  });
   } catch(e) { console.warn('[projectile] animation error:', e); }
 }
 

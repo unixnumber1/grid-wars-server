@@ -351,9 +351,10 @@ async function handlePvpAttack(req, res) {
   if (!blocked) {
     // 2. Base damage
     const baseDmg = 10 + (weapon?.attack || 0);
-    let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_atkFx.attack_radius_bonus || 0));
-    if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
+    const multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_atkFx.attack_radius_bonus || 0));
+    isPiercing = rollBowPiercing(weapon);
     damage = Math.round(baseDmg * multiplier);
+    if (isPiercing) damage += baseDmg; // bonus piercing arrow at full damage
     // Skill weapon damage bonus
     if (_atkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _atkFx.weapon_damage_bonus));
 

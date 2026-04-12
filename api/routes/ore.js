@@ -162,10 +162,10 @@ oreRouter.post('/', async (req, res) => {
 
     // Calculate damage
     const baseDmg = 10 + (weapon?.attack || 0);
-    let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
-    let isPiercing = false;
-    if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
+    const multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+    const isPiercing = rollBowPiercing(weapon);
     let damage = Math.round(baseDmg * multiplier);
+    if (isPiercing) damage += baseDmg; // bonus piercing arrow
     if (_oSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.weapon_damage_bonus));
     if (_oSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.pve_damage_bonus));
     let isCrit = false;

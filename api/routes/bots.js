@@ -354,10 +354,10 @@ async function handleAttack(player, body) {
   // Bow has no crit by design (identity is range stability, not burst)
   const critChance = weapon?.type === 'bow' ? 0 : (0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0));
   const isCrit     = Math.random() < critChance;
-  let   distMul    = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0));
-  let   isPiercing = false;
-  if (rollBowPiercing(weapon)) { distMul = 1; isPiercing = true; }
+  const distMul    = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0));
+  const isPiercing = rollBowPiercing(weapon);
   let   damage     = Math.floor(playerAtk * distMul);
+  if (isPiercing) damage += playerAtk; // bonus piercing arrow at full damage
   // Skill bonuses: weapon damage + PvE
   if (_bRadFx.weapon_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.weapon_damage_bonus));
   if (_bRadFx.pve_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.pve_damage_bonus));

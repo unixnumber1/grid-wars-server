@@ -214,10 +214,10 @@ async function handleHit(req, res) {
   const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const baseDmg = 10 + (weapon?.attack || 0);
-  let mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
-  let isPiercing = false;
-  if (rollBowPiercing(weapon)) { mul = 1; isPiercing = true; }
+  const mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  const isPiercing = rollBowPiercing(weapon);
   let damage = Math.round(baseDmg * mul);
+  if (isPiercing) damage += baseDmg; // bonus piercing arrow
   if (_skFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _skFx.weapon_damage_bonus));
   let isCrit = false;
 
