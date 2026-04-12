@@ -10,6 +10,7 @@ import { gridDisk, cellToLatLng } from 'h3-js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { logPlayer } from '../../lib/logger.js';
+import { persistNow } from '../../game/state/persist.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS } from '../../config/constants.js';
@@ -196,10 +197,12 @@ async function handleMineBuild(req, res) {
 async function handleMineCollect(req, res) {
   const { telegram_id, lat, lng } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
-  const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, coins, clan_id');
-  if (playerError) return res.status(500).json({ error: playerError });
+  // gameState is the source of truth (Iron Rule #2). Reading from DB here and then
+  // writing back to gameState clobbers any in-flight in-memory updates (bot kills,
+  // vase drops, PvP wins) that persist hasn't flushed yet, silently eating coins.
+  const player = gameState.getPlayerByTgId(telegram_id);
   if (!player) return res.status(404).json({ error: 'Player not found' });
-  const allMines = gameState.loaded ? [...gameState.mines.values()].filter(m => m.owner_id === player.id) : [];
+  const allMines = [...gameState.mines.values()].filter(m => m.owner_id === player.id);
   if (allMines.length === 0) return res.status(200).json({ collected: 0, player_coins: player.coins ?? 0 });
   // Use server-side position for distance check
   const gsCollector = gameState.getPlayerByTgId(Number(telegram_id));
@@ -277,25 +280,31 @@ async function handleMineCollect(req, res) {
     mineCoinsMap.set(mine.id, acc);
     totalCoins += acc;
   }
-  const currentCoins = player.coins ?? 0;
-  const newCoins = currentCoins + Math.round(totalCoins);
-  const [{ data: coinsOk, error: playerUpdateError }, { error: minesUpdateError }] = await Promise.all([
-    supabase.from('players').update({ coins: newCoins }).eq('id', player.id).eq('coins', currentCoins).select('id').maybeSingle(),
+  // Mutate gameState directly — withPlayerLock (buildings.js router wrap) prevents
+  // concurrent collect by the same player, so read-modify-write is atomic in-memory.
+  const collectedAmount = Math.round(totalCoins);
+  const coinsBefore = player.coins || 0;
+  player.coins = coinsBefore + collectedAmount;
+  gameState.markDirty('players', player.id);
+  for (const m of mines) {
+    const gm = gameState.getMineById(m.id);
+    if (gm) { gm.last_collected = now; gm.coins = 0; gameState.markDirty('mines', m.id); }
+  }
+  // Flush critical fields immediately (Iron Rule #11) + reset mines row in parallel.
+  const [_playerFlush, { error: minesUpdateError }] = await Promise.all([
+    persistNow('players', { id: player.id, coins: player.coins }),
     supabase.from('mines').update({ last_collected: now, coins: 0 }).in('id', mines.map(m => m.id)),
   ]);
-  if (playerUpdateError || minesUpdateError) return res.status(500).json({ error: 'Failed to collect coins' });
-  if (!coinsOk && !playerUpdateError) return res.status(409).json({ error: 'Конфликт — попробуйте снова' });
-  // Update gameState
-  if (gameState.loaded) {
-    const p = gameState.getPlayerById(player.id);
-    if (p) { p.coins = newCoins; gameState.markDirty('players', p.id); }
-    for (const m of mines) {
-      const gm = gameState.getMineById(m.id);
-      if (gm) { gm.last_collected = now; gm.coins = 0; gameState.markDirty('mines', m.id); }
-    }
+  if (minesUpdateError) return res.status(500).json({ error: 'Failed to collect coins' });
+  if (collectedAmount > 0) {
+    logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, {
+      amount: collectedAmount,
+      coins_before: coinsBefore,
+      coins_after: player.coins,
+      mine_count: mines.length,
+    });
   }
-  const collectedAmount = Math.round(totalCoins);
-  if (collectedAmount > 0) logPlayer(telegram_id, 'action', `Собрал ${collectedAmount.toLocaleString('ru')} монет`, { amount: collectedAmount });
+  const newCoins = player.coins;
   // Per-mine XP: diminishing chance per mine, resets each hour at XX:00
   const xpEvents = [];
   let totalXpGained = 0;

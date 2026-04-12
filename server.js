@@ -1419,3 +1419,19 @@ function gracefulShutdown(signal) {
 }
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// SIGUSR2: dump in-memory per-player logs to /tmp for offline inspection.
+// Operator-only maintenance tool (requires shell access on the host).
+process.on('SIGUSR2', async () => {
+  try {
+    const { playerLogs } = await import('./lib/logger.js');
+    const fs = await import('node:fs/promises');
+    const dump = {};
+    for (const [tgId, entries] of playerLogs) dump[String(tgId)] = entries;
+    const path = `/tmp/player-logs-dump-${Date.now()}.json`;
+    await fs.writeFile(path, JSON.stringify(dump));
+    console.log(`[SIGUSR2] Dumped ${playerLogs.size} player log maps to ${path}`);
+  } catch (e) {
+    console.error('[SIGUSR2] dump error:', e.message);
+  }
+});
