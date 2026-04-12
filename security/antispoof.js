@@ -492,12 +492,12 @@ async function notifyAdminWarning(telegramId, violation) {
   } catch (_) {}
 }
 
-// ── Hourly digest ──
+// ── Antispoof digest ──
 //
-// Sends an antispoof activity summary to the admin chat every hour.
-// Quiet hours: a single line confirming the system is alive.
-// Active hours: type breakdown + top 5 players by score.
-const DIGEST_WINDOW_MS = 3600000;
+// Sends an antispoof activity summary to the admin chat every 8 hours.
+// Quiet window: a single line confirming the system is alive.
+// Active window: type breakdown + top 5 players by score.
+const DIGEST_WINDOW_MS = 8 * 3600000; // 8 hours
 
 async function _sendTelegramMessage(token, text) {
   try {
@@ -545,7 +545,7 @@ export async function sendHourlyDigest() {
   };
 
   if (players.length === 0) {
-    await _sendTelegramMessage(BOT_TOKEN, '🛡 Антиспуф: за последний час нарушений не было.');
+    await _sendTelegramMessage(BOT_TOKEN, '🛡 Антиспуф: за последние 8 часов нарушений не было.');
     return;
   }
 
@@ -562,7 +562,7 @@ export async function sendHourlyDigest() {
     .map(([t, c]) => `${typeLabels[t] || t}:${c}`)
     .join(' ');
 
-  let msg = `🛡 Антиспуф — последний час\n`;
+  let msg = `🛡 Антиспуф — последние 8 часов\n`;
   msg += `Всего: ${totalEvents} событий, ${players.length} игроков\n`;
   msg += `${typeBreakdown}\n\n`;
 

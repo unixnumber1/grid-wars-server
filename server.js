@@ -1396,12 +1396,12 @@ async function start() {
 
   const PORT = process.env.PORT || 3000;
 
-  // Antispoof hourly digest — only on production (PORT=3000); staging uses
+  // Antispoof 8h digest — only on production (PORT=3000); staging uses
   // a different bot so admin chat notifications would fail silently anyway.
   if (Number(PORT) === 3000) {
     setTimeout(() => sendHourlyDigest().catch(e => console.error('[ANTISPOOF] digest error:', e.message)), 5 * 60 * 1000);
-    setInterval(() => sendHourlyDigest().catch(e => console.error('[ANTISPOOF] digest error:', e.message)), 60 * 60 * 1000);
-    console.log('[ANTISPOOF] Hourly digest enabled');
+    setInterval(() => sendHourlyDigest().catch(e => console.error('[ANTISPOOF] digest error:', e.message)), 8 * 60 * 60 * 1000);
+    console.log('[ANTISPOOF] 8h digest enabled');
   }
 
   httpServer.listen(PORT, () => {
