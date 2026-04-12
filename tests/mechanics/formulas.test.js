@@ -7,6 +7,8 @@ import {
   getBuildRadius, getMaxHp, getPlayerAttack, getMineAppearance, getMineEmoji,
   MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP,
   calcMineHpRegen, calcHpRegen, getHqBoostRadius, HQ_BOOST_RADII,
+  distanceMultiplier, bowDistanceMultiplier, getDistanceMultiplier,
+  getBowPiercingChance, rollBowPiercing,
 } from '../../config/formulas.js';
 
 describe('getHqBoostRadius', () => {
@@ -35,6 +37,70 @@ describe('getHqBoostRadius', () => {
     for (let lv = 1; lv < 10; lv++) {
       assert.ok(getHqBoostRadius(lv + 1) >= getHqBoostRadius(lv));
     }
+  });
+});
+
+describe('Bow distance falloff and piercing', () => {
+  it('bowDistanceMultiplier 100% at 0m', () => {
+    assert.strictEqual(bowDistanceMultiplier(0, 500), 1);
+  });
+  it('bowDistanceMultiplier 50% at maxRadius', () => {
+    assert.strictEqual(bowDistanceMultiplier(500, 500), 0.5);
+  });
+  it('bowDistanceMultiplier 75% at half range', () => {
+    assert.strictEqual(bowDistanceMultiplier(250, 500), 0.75);
+  });
+  it('distanceMultiplier 10% at maxRadius (compare melee falloff)', () => {
+    // Bow keeps 50% where melee keeps 10% — bow's defining advantage
+    assert.ok(Math.abs(distanceMultiplier(500, 500) - 0.1) < 0.001);
+  });
+
+  it('getDistanceMultiplier picks bow curve for bow', () => {
+    const bow = { type: 'bow' };
+    assert.strictEqual(getDistanceMultiplier(bow, 500, 500), 0.5);
+  });
+  it('getDistanceMultiplier picks melee curve for sword', () => {
+    const sword = { type: 'sword' };
+    assert.ok(Math.abs(getDistanceMultiplier(sword, 500, 500) - 0.1) < 0.001);
+  });
+  it('getDistanceMultiplier picks melee curve for null weapon (fist)', () => {
+    assert.ok(Math.abs(getDistanceMultiplier(null, 500, 500) - 0.1) < 0.001);
+  });
+
+  it('getBowPiercingChance 0 for non-bow', () => {
+    assert.strictEqual(getBowPiercingChance({ type: 'sword', rarity: 'mythic', upgrade_level: 50 }), 0);
+    assert.strictEqual(getBowPiercingChance(null), 0);
+  });
+  it('getBowPiercingChance 0 for common bow', () => {
+    assert.strictEqual(getBowPiercingChance({ type: 'bow', rarity: 'common', upgrade_level: 0 }), 0);
+  });
+  it('getBowPiercingChance ~8 for fresh mythic bow', () => {
+    assert.strictEqual(getBowPiercingChance({ type: 'bow', rarity: 'mythic', upgrade_level: 0 }), 8);
+  });
+  it('getBowPiercingChance ~18 for fully upgraded mythic bow', () => {
+    assert.strictEqual(getBowPiercingChance({ type: 'bow', rarity: 'mythic', upgrade_level: 100 }), 18);
+  });
+  it('getBowPiercingChance ~28 for fully upgraded legendary bow', () => {
+    assert.strictEqual(getBowPiercingChance({ type: 'bow', rarity: 'legendary', upgrade_level: 100 }), 28);
+  });
+
+  it('rollBowPiercing returns false for non-bow', () => {
+    // Run many times to be sure
+    for (let i = 0; i < 100; i++) {
+      assert.strictEqual(rollBowPiercing({ type: 'sword', rarity: 'mythic', upgrade_level: 50 }), false);
+    }
+  });
+  it('rollBowPiercing returns false when piercing_chance=0', () => {
+    for (let i = 0; i < 100; i++) {
+      assert.strictEqual(rollBowPiercing({ type: 'bow', rarity: 'common', upgrade_level: 0 }), false);
+    }
+  });
+  it('rollBowPiercing eventually triggers for high-piercing bow', () => {
+    let triggered = false;
+    for (let i = 0; i < 1000 && !triggered; i++) {
+      if (rollBowPiercing({ type: 'bow', rarity: 'legendary', upgrade_level: 100 })) triggered = true;
+    }
+    assert.ok(triggered, '28% chance should trigger at least once in 1000 rolls');
   });
 });
 

@@ -56,6 +56,29 @@ describe('generateItem', () => {
     const mythic = generateItem('shield', 'mythic');
     assert(mythic.block_chance >= 12 && mythic.block_chance <= 20);
   });
+
+  it('generates bow with attack and zero crit (no crit by design)', () => {
+    const item = generateItem('bow', 'rare');
+    assert.strictEqual(item.type, 'bow');
+    assert(item.attack > 0);
+    assert.strictEqual(item.crit_chance, 0, 'bow has no crit by design');
+    assert.strictEqual(item.base_crit_chance, 0);
+  });
+
+  it('bow common attack ≈ sword × 0.6 (range [7,14])', () => {
+    const item = generateItem('bow', 'common');
+    assert(item.attack >= 7 && item.attack <= 14, `bow common attack ${item.attack} not in [7,14]`);
+  });
+
+  it('bow mythic attack [228,252]', () => {
+    const item = generateItem('bow', 'mythic');
+    assert(item.attack >= 228 && item.attack <= 252, `bow mythic attack ${item.attack} not in [228,252]`);
+  });
+
+  it('bow legendary+3 attack [699,771]', () => {
+    const item = generateItem('bow', 'legendary', 3);
+    assert(item.attack >= 699 && item.attack <= 771, `bow legendary+3 attack ${item.attack} not in [699,771]`);
+  });
 });
 
 describe('getMaxUpgradeLevel', () => {
@@ -117,6 +140,39 @@ describe('getUpgradedStats', () => {
     const upgraded = getUpgradedStats(item);
     // epic+0 maxLv=40, so upgrade_level 50 is capped to 40
     assert.strictEqual(upgraded.attack, Math.floor(200 * (1 + 40 * 0.09)));
+  });
+
+  it('bow lv0 mythic has piercing_chance ~8%', () => {
+    const item = { type: 'bow', rarity: 'mythic', attack: 240, base_attack: 240, crit_chance: 0, upgrade_level: 0, plus: 0 };
+    const u = getUpgradedStats(item);
+    assert.strictEqual(u.piercing_chance, 8);
+    assert.strictEqual(u.crit_chance, 0);
+  });
+
+  it('bow lv50 mythic has piercing_chance ~13', () => {
+    const item = { type: 'bow', rarity: 'mythic', attack: 240, base_attack: 240, crit_chance: 0, upgrade_level: 50, plus: 0 };
+    const u = getUpgradedStats(item);
+    // 8 + 50/100 * 10 = 13
+    assert.strictEqual(u.piercing_chance, 13);
+  });
+
+  it('bow lv100 legendary has piercing_chance ~28', () => {
+    const item = { type: 'bow', rarity: 'legendary', attack: 500, base_attack: 500, crit_chance: 0, upgrade_level: 100, plus: 0 };
+    const u = getUpgradedStats(item);
+    // 15 + 100/100 * 13 = 28
+    assert.strictEqual(u.piercing_chance, 28);
+  });
+
+  it('bow common has zero piercing_chance', () => {
+    const item = { type: 'bow', rarity: 'common', attack: 10, base_attack: 10, crit_chance: 0, upgrade_level: 5, plus: 0 };
+    const u = getUpgradedStats(item);
+    assert.strictEqual(u.piercing_chance, 0);
+  });
+
+  it('bow attack scales 1+lvl*0.09 like other weapons', () => {
+    const item = { type: 'bow', rarity: 'common', attack: 100, base_attack: 100, crit_chance: 0, upgrade_level: 10, plus: 0 };
+    const u = getUpgradedStats(item);
+    assert.strictEqual(u.attack, 190); // 100 × 1.9
   });
 });
 
