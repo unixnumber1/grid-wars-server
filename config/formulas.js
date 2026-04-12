@@ -187,6 +187,20 @@ export function distanceMultiplier(dist, maxRadius) {
   return 1 - t * 0.9;
 }
 
+// Bow falloff: 100% at 0m, 50% at maxRadius (bow's defining feature — range stability)
+export function bowDistanceMultiplier(dist, maxRadius) {
+  const t = Math.min(dist / maxRadius, 1);
+  return 1 - t * 0.5;
+}
+
+// Unified entry-point used by all attack handlers — picks the right falloff curve by weapon type.
+// Centralised so balance changes live in one place instead of branching in every handler.
+export function getDistanceMultiplier(weapon, dist, maxRadius) {
+  return weapon?.type === 'bow'
+    ? bowDistanceMultiplier(dist, maxRadius)
+    : distanceMultiplier(dist, maxRadius);
+}
+
 // ─── Allowed avatars ──────────────────────────────────────────────────────────
 
 export const ALLOWED_AVATARS = [

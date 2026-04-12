@@ -35,6 +35,24 @@ const AXE_STATS = {
   legendary_2: { attack: [1425, 1575] },
   legendary_3: { attack: [1630, 1800] },
 };
+// Bow: ranged class. Damage ≈ sword × 0.6, no crit, slow distance falloff (100% → 50%).
+// Identity is range stability, not burst — that's why crit is intentionally absent.
+const BOW_STATS = {
+  common:      { attack: [7, 14]    },
+  uncommon:    { attack: [21, 33]   },
+  rare:        { attack: [45, 69]   },
+  epic:        { attack: [87, 126]  },
+  epic_1:      { attack: [120, 168] },
+  epic_2:      { attack: [162, 219] },
+  mythic:      { attack: [228, 252] },
+  mythic_1:    { attack: [282, 312] },
+  mythic_2:    { attack: [342, 378] },
+  mythic_3:    { attack: [405, 447] },
+  legendary:   { attack: [465, 513] },
+  legendary_1: { attack: [534, 588] },
+  legendary_2: { attack: [609, 675] },
+  legendary_3: { attack: [699, 771] },
+};
 const SHIELD_STATS = {
   common:      { defense: [90, 150]     },
   uncommon:    { defense: [240, 370]    },
@@ -52,8 +70,8 @@ const SHIELD_STATS = {
   legendary_3: { defense: [7950, 8500],  block_chance: [28, 36] },
 };
 
-export const ITEM_STATS = { sword: SWORD_STATS, axe: AXE_STATS, shield: SHIELD_STATS };
-export const WEAPON_BASE_STATS = { sword: SWORD_STATS, axe: AXE_STATS, shield: SHIELD_STATS };
+export const ITEM_STATS = { sword: SWORD_STATS, axe: AXE_STATS, shield: SHIELD_STATS, bow: BOW_STATS };
+export const WEAPON_BASE_STATS = { sword: SWORD_STATS, axe: AXE_STATS, shield: SHIELD_STATS, bow: BOW_STATS };
 
 export function getWeaponStatAtLevel(baseStat, level) {
   return Math.floor(baseStat * (1 + level * 0.09));
@@ -63,8 +81,9 @@ const ITEM_NAMES = {
   sword: { common:'Ржавый меч', uncommon:'Стальной меч', rare:'Клинок теней', epic:'Меч демона', mythic:'Адский клинок', legendary:'Экскалибур' },
   axe:   { common:'Каменный топор', uncommon:'Железный топор', rare:'Боевой топор', epic:'Топор берсерка', mythic:'Топор хаоса', legendary:'Топор Тора' },
   shield:{ common:'Деревянный щит', uncommon:'Железный щит', rare:'Щит стражника', epic:'Щит дракона', mythic:'Щит титана', legendary:'Щит богов' },
+  bow:   { common:'Деревянный лук', uncommon:'Охотничий лук', rare:'Длинный лук', epic:'Лук эльфов', mythic:'Лук теней', legendary:'Лук Артемиды' },
 };
-const ITEM_EMOJIS = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F' };
+const ITEM_EMOJIS = { sword: '\u{1F5E1}\uFE0F', axe: '\u{1FA93}', shield: '\u{1F6E1}\uFE0F', bow: '\u{1F3F9}' };
 
 function randomInRange(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -89,6 +108,11 @@ export function generateItem(type, rarity, plus = 0) {
     stats.block_chance = s.block_chance ? randomInRange(s.block_chance[0], s.block_chance[1]) : 0;
     stats.crit_chance = 0;
     stats.stat_value = stats.defense;
+  } else if (type === 'bow') {
+    const s = BOW_STATS[key] || BOW_STATS[rarity];
+    stats.attack = randomInRange(s.attack[0], s.attack[1]);
+    stats.crit_chance = 0;
+    stats.stat_value = stats.attack;
   }
   return {
     type, rarity, plus, name: ITEM_NAMES[type][rarity], emoji: ITEM_EMOJIS[type],
@@ -162,6 +186,15 @@ export function getUpgradedStats(item) {
       else result.block_chance = Math.floor(baseBlock + (lvl / 100) * 6);
     }
   }
+  if (item.type === 'bow') {
+    result.attack = Math.floor((item.base_attack || item.attack) * mul);
+    result.crit_chance = 0;
+    // piercing_chance: % chance arrow ignores distance falloff entirely (100% damage at any range).
+    // Mirrors axe execution_chance pattern: pure rarity+upgrade derived, never persisted.
+    if (item.rarity === 'mythic') result.piercing_chance = Math.floor(8 + (lvl / 100) * 10);
+    else if (item.rarity === 'legendary') result.piercing_chance = Math.floor(15 + (lvl / 100) * 13);
+    else result.piercing_chance = 0;
+  }
   return result;
 }
 
@@ -187,6 +220,11 @@ export function getItemDescription(item) {
   if (item.type === 'shield') {
     desc.stats.push({ label: '\u{1F6E1}\uFE0F \u0417\u0430\u0449\u0438\u0442\u0430', value: '+' + stats.defense });
     if (stats.block_chance > 0) desc.stats.push({ label: '\u{1F530} \u0411\u043B\u043E\u043A', value: stats.block_chance?.toFixed(1) + '%' });
+  }
+  if (item.type === 'bow') {
+    // 🏹 Атака  ·  🎯 Пробитие
+    desc.stats.push({ label: '\u{1F3F9} \u0410\u0442\u0430\u043A\u0430', value: stats.attack });
+    if (stats.piercing_chance > 0) desc.stats.push({ label: '\u{1F3AF} \u041F\u0440\u043E\u0431\u0438\u0442\u0438\u0435', value: stats.piercing_chance?.toFixed(1) + '%' });
   }
   if (item.upgrade_level < maxLvl) desc.next_upgrade_cost = getUpgradeCost(item.upgrade_level + 1);
   return desc;
@@ -253,7 +291,7 @@ export const RARITY_COLORS = { common:'#888888', uncommon:'#2979ff', rare:'#00c8
 export const RARITY_NAMES = { common:'Обычный', uncommon:'Необычный', rare:'Редкий', epic:'Эпический', mythic:'Мифический', legendary:'Легендарный' };
 export const RARITY_ORDER = { common: 1, uncommon: 2, rare: 3, epic: 4, mythic: 5, legendary: 6 };
 
-const ITEM_TYPES_ARR = ['sword', 'axe', 'shield'];
+const ITEM_TYPES_ARR = ['sword', 'axe', 'shield', 'bow'];
 export function rollRandomType() { return ITEM_TYPES_ARR[Math.floor(Math.random() * ITEM_TYPES_ARR.length)]; }
 
 export const BOX_ODDS = {

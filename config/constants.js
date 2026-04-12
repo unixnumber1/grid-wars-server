@@ -49,7 +49,7 @@ export const HQ_BOOST_HOUR_MS   = 60 * 60 * 1000;
 export const HQ_BOOST_DAY_MS    = 24 * 60 * 60 * 1000;
 
 // ── Weapon cooldowns (ms) ──
-export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 500 };
+export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, bow: 500, none: 500 };
 
 // ── Player base stats ──
 export const BASE_PLAYER_ATTACK = 10;
@@ -79,7 +79,7 @@ export const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_]+$/;
 
 // ── Items ──
 export const BOX_PRICES = { rare: 10, epic: 40, mythic: 150 };
-export const ITEM_TYPES = ['sword', 'axe', 'shield'];
+export const ITEM_TYPES = ['sword', 'axe', 'shield', 'bow'];
 export const MAX_INVENTORY_SLOTS = 200;
 
 // ── Market ──
