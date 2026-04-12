@@ -107,8 +107,11 @@ export function autoCollect(collector) {
     const incBoost = (cores.length > 0 ? getCoresTotalBoost(cores, 'income') : 1) * mineBoost;
     const capBoost = cores.length > 0 ? getCoresTotalBoost(cores, 'capacity') : 1;
     const income = getMineIncome(mine.level) * incBoost;
-    // Cap per mine to its boosted capacity to prevent burst on first collect
-    const accumulated = Math.min(Math.floor(income * elapsedSec), Math.round(getMineCapacity(mine.level) * capBoost));
+    const cap = Math.round(getMineCapacity(mine.level) * capBoost);
+    // Cap fresh accumulation to capacity, then add banked coins (already cap-limited at snapshot time)
+    const fresh = Math.min(Math.floor(income * elapsedSec), cap);
+    const banked = mine.coins || 0;
+    const accumulated = fresh + banked;
     if (accumulated <= 0) continue;
 
     const room = capacity - collector.stored_coins - totalCollected;
@@ -116,7 +119,7 @@ export function autoCollect(collector) {
 
     const taken = Math.min(accumulated, room);
     totalCollected += taken;
-    collectedMines.push(mine);
+    collectedMines.push({ mine, taken, accumulated });
   }
 
   if (totalCollected > 0) {
@@ -127,11 +130,12 @@ export function autoCollect(collector) {
   gameState.markDirty('collectors', collector.id);
 
   // Reset mine timers so manual collect won't double-count the same period.
-  // Must persist to survive server restarts (~10 mines per collector, not all player mines).
+  // Preserve any uncollected remainder in mine.coins so nothing is lost when collector caps out.
   const nowISO = new Date(now).toISOString();
-  for (const mine of collectedMines) {
+  for (const { mine, taken, accumulated } of collectedMines) {
+    const leftover = Math.max(0, accumulated - taken);
     mine.last_collected = nowISO;
-    mine.coins = 0;
+    mine.coins = leftover;
     gameState.markDirty('mines', mine.id);
   }
 

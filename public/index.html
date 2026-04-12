@@ -1036,16 +1036,19 @@
       background: linear-gradient(90deg, #00E676, #00B0FF);
     }
     .walk-milestones {
-      display: flex;
-      justify-content: space-between;
       position: relative;
+      height: 92px;
     }
     .walk-milestone {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       align-items: center;
-      flex: 1;
       gap: 4px;
+      width: 80px;
     }
     .walk-ms-dot {
       width: 10px;
@@ -18429,25 +18432,17 @@ function _renderWalkTab(data) {
   const wt = data.weekly_thresholds;
   const wr = data.weekly_rewards;
 
-  // Progress bar % synced with milestone dot positions.
-  // With flex:1 + space-between, dots are centered in equal columns:
-  // 3 items → dot centers at 1/6, 3/6, 5/6 of bar width (≈16.7%, 50%, 83.3%).
-  // Bar must reach each dot center exactly when threshold is met.
+  // Markers are positioned at threshold/maxThreshold * 100% along the bar.
+  // Bar fill uses the same scale, so each dot is met exactly when its threshold is met.
   function _calcBarPct(meters, thresholds) {
-    const n = thresholds.length;
-    if (n === 0) return 0;
-    // Dot center positions (flex:1 centers)
-    const dotPct = thresholds.map((_, i) => (2 * i + 1) / (2 * n) * 100);
-    if (meters >= thresholds[n - 1]) return dotPct[n - 1];
-    for (let i = 0; i < n; i++) {
-      if (meters < thresholds[i]) {
-        const prevM = i === 0 ? 0 : thresholds[i - 1];
-        const prevPct = i === 0 ? 0 : dotPct[i - 1];
-        const frac = (meters - prevM) / (thresholds[i] - prevM);
-        return prevPct + frac * (dotPct[i] - prevPct);
-      }
-    }
-    return dotPct[n - 1];
+    const max = thresholds[thresholds.length - 1];
+    if (!max || max <= 0) return 0;
+    return Math.min(100, (meters / max) * 100);
+  }
+  function _markerPct(threshold, thresholds) {
+    const max = thresholds[thresholds.length - 1];
+    if (!max || max <= 0) return 0;
+    return (threshold / max) * 100;
   }
   const dailyPct = _calcBarPct(dailyM, dt);
   const weeklyPct = _calcBarPct(weeklyM, wt);
@@ -18465,7 +18460,8 @@ function _renderWalkTab(data) {
   for (let i = 0; i < dt.length; i++) {
     const reached = dailyM >= dt[i];
     const claimed = !!(dailyClaimed & (1 << i));
-    html += `<div class="walk-milestone">
+    const leftPct = _markerPct(dt[i], dt);
+    html += `<div class="walk-milestone" style="left:${leftPct}%">
       <div class="walk-ms-dot ${reached ? 'reached' : ''}"></div>
       <div class="walk-ms-label">${dt[i] >= 1000 ? (dt[i] / 1000) + ' км' : dt[i] + ' м'}</div>
       <div class="walk-ms-reward">${_walkRewardLabel(dailyPool, i)}</div>`;
@@ -18491,7 +18487,8 @@ function _renderWalkTab(data) {
   for (let i = 0; i < wt.length; i++) {
     const reached = weeklyM >= wt[i];
     const claimed = !!(weeklyClaimed & (1 << i));
-    html += `<div class="walk-milestone">
+    const leftPct = _markerPct(wt[i], wt);
+    html += `<div class="walk-milestone" style="left:${leftPct}%">
       <div class="walk-ms-dot ${reached ? 'reached' : ''}"></div>
       <div class="walk-ms-label">${wt[i] >= 1000 ? (wt[i] / 1000) + ' км' : wt[i] + ' м'}</div>
       <div class="walk-ms-reward">${_weeklyRewardLabel(wr[i])}</div>`;

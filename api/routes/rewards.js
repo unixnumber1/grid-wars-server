@@ -5,6 +5,7 @@ import { randomCoreType } from '../../game/mechanics/cores.js';
 import { gameState } from '../../lib/gameState.js';
 import { LEVEL_REWARDS_MAP } from '../../config/levelRewards.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
+import { persistNow } from '../../game/state/persist.js';
 
 export const rewardsRouter = Router();
 
@@ -135,34 +136,30 @@ async function handleClaimAll(res, player, tgId) {
 export async function grantReward(player, tgId, reward) {
   const result = { diamonds: 0, shards: 0, ether: 0, items: [], cores: [] };
 
-  // Grant currencies — fresh DB read, immediate write
+  // Grant currencies — gameState is the source of truth (Iron Rule #2).
+  // The 30s persist loop will write to DB; persistNow ensures crash safety (Iron Rule #11).
+  // Caller must hold withPlayerLock so this read-modify-write is race-safe.
   const hasCurrency = (reward.diamonds > 0) || (reward.shards > 0) || (reward.ether > 0);
   if (hasCurrency) {
-    const { data: freshP } = await supabase
-      .from('players')
-      .select('diamonds, crystals, ether')
-      .eq('telegram_id', tgId)
-      .single();
-
-    const updates = {};
     if (reward.diamonds > 0) {
-      updates.diamonds = (freshP?.diamonds ?? 0) + reward.diamonds;
+      player.diamonds = (player.diamonds || 0) + reward.diamonds;
       result.diamonds = reward.diamonds;
     }
     if (reward.shards > 0) {
-      updates.crystals = (freshP?.crystals ?? 0) + reward.shards;
+      player.crystals = (player.crystals || 0) + reward.shards;
       result.shards = reward.shards;
     }
     if (reward.ether > 0) {
-      updates.ether = (freshP?.ether ?? 0) + reward.ether;
+      player.ether = (player.ether || 0) + reward.ether;
       result.ether = reward.ether;
     }
-
-    await supabase.from('players').update(updates).eq('telegram_id', tgId);
-    if (updates.diamonds != null) player.diamonds = updates.diamonds;
-    if (updates.crystals != null) player.crystals = updates.crystals;
-    if (updates.ether != null) player.ether = updates.ether;
     gameState.markDirty('players', player.id);
+    await persistNow('players', {
+      id: player.id,
+      diamonds: player.diamonds,
+      crystals: player.crystals,
+      ether: player.ether,
+    });
   }
 
   // Grant boxes → items
