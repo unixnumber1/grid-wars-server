@@ -1,7 +1,7 @@
 import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
 import { haversine, findSafeDropPosition } from '../../lib/haversine.js';
-import { generateItem } from './items.js';
+import { generateItem, rollRandomType } from './items.js';
 import { getCoreDropConfig, randomCoreType, CORE_TYPES } from './cores.js';
 import {
   MONUMENT_HP, MONUMENT_SHIELD_HP, MONUMENT_SHIELD_DPS_THRESHOLD,
@@ -315,18 +315,14 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     if (playerRarities.length === 0) {
       playerRarities.push(lowestRarity);
     }
-    const items = playerRarities.map(rarity => {
-      const types = ['sword', 'axe', 'shield'];
-      return generateItem(types[Math.floor(Math.random() * 3)], rarity);
-    });
+    const items = playerRarities.map(rarity => generateItem(rollRandomType(), rarity));
 
     // Trophy bonus for top-1 damage dealer
     if (isTop && itemsConfig?.trophyBonus) {
       const tb = itemsConfig.trophyBonus;
       if (!tb.chance || Math.random() <= tb.chance) {
         for (let j = 0; j < tb.count; j++) {
-          const types = ['sword', 'axe', 'shield'];
-          items.push(generateItem(types[Math.floor(Math.random() * 3)], tb.rarity));
+          items.push(generateItem(rollRandomType(), tb.rarity));
         }
       }
     }
@@ -376,8 +372,7 @@ export async function defeatMonument(monument, io, connectedPlayers) {
     const topBox = lootBoxes[0];
     const topItems = JSON.parse(topBox.items);
     for (const rarity of itemPool) {
-      const types = ['sword', 'axe', 'shield'];
-      topItems.push(generateItem(types[Math.floor(Math.random() * 3)], rarity));
+      topItems.push(generateItem(rollRandomType(), rarity));
     }
     topBox.items = JSON.stringify(topItems);
   }
