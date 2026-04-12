@@ -225,6 +225,39 @@ class GameState {
     for (const u of (unitUpgradeRows || [])) this.unitUpgrades.set(`${Number(u.owner_id)}_${u.unit_type}`, u);
     for (const s of (activeScoutRows || [])) this.activeScouts.set(s.id, s);
 
+    // Sanity: hp<=0 must imply burning (matches attack-handler transition).
+    // Heals legacy rows where the burning transition never ran, otherwise
+    // autoCollectAll / HP regen / firefighters all silently skip them forever.
+    {
+      const nowISOFix = new Date().toISOString();
+      let zombieFix = 0;
+      for (const c of this.collectors.values()) {
+        if ((c.hp || 0) <= 0 && c.status === 'normal') {
+          c.status = 'burning';
+          c.burning_started_at = nowISOFix;
+          this._dirty.collectors.add(c.id);
+          zombieFix++;
+        }
+      }
+      for (const t of this.fireTrucks.values()) {
+        if ((t.hp || 0) <= 0 && t.status === 'normal') {
+          t.status = 'burning';
+          t.burning_started_at = nowISOFix;
+          this._dirty.fireTrucks.add(t.id);
+          zombieFix++;
+        }
+      }
+      for (const b of this.barracks.values()) {
+        if ((b.hp || 0) <= 0 && b.status === 'normal') {
+          b.status = 'burning';
+          b.burning_started_at = nowISOFix;
+          this._dirty.barracks.add(b.id);
+          zombieFix++;
+        }
+      }
+      if (zombieFix) console.log(`[gameState] Fixed ${zombieFix} zombie buildings (hp=0 status=normal → burning)`);
+    }
+
     // ── Build performance indexes ──
     this._rebuildAllIndexes();
 
