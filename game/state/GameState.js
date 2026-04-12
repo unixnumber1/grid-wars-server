@@ -168,7 +168,7 @@ class GameState {
     for (const b of (bots || []))          this.bots.set(b.id, b);
     for (const v of (vases || []))         this.vases.set(v.id, v);
     for (const i of (items || []))         this.items.set(i.id, i);
-    // Dedup equipped items: only 1 weapon (sword/axe) and 1 shield per player
+    // Dedup equipped items: only 1 weapon (sword/axe/bow) and 1 shield per player
     this._dedupEquippedItems();
     for (const m of (markets || []))       this.markets.set(m.id, m);
     for (const l of (listings || []))      this.marketListings.set(l.id, l);
@@ -395,7 +395,7 @@ class GameState {
       byOwner.get(item.owner_id).push(item);
     }
     for (const [ownerId, equipped] of byOwner) {
-      const weapons = equipped.filter(i => i.type === 'sword' || i.type === 'axe');
+      const weapons = equipped.filter(i => i.type === 'sword' || i.type === 'axe' || i.type === 'bow');
       const shields = equipped.filter(i => i.type === 'shield');
       if (weapons.length > 1) {
         // Keep the one with highest attack, unequip rest

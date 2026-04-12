@@ -24,7 +24,7 @@ async function recalcBonuses(playerId, level) {
     .eq('owner_id', playerId)
     .eq('equipped', true);
 
-  const weapon = (equipped || []).find(i => i.type === 'sword' || i.type === 'axe');
+  const weapon = (equipped || []).find(i => i.type === 'sword' || i.type === 'axe' || i.type === 'bow');
   const shield = (equipped || []).find(i => i.type === 'shield');
 
   let bonus_attack = 0, bonus_crit = 0;
@@ -48,12 +48,12 @@ async function handleEquip(player, body) {
   if (item.on_market) return { status: 400, error: 'Item is on market' };
   if (item.held_by_courier) return { status: 400, error: 'Item in transit' };
 
-  // Weapon types share a slot (sword OR axe)
-  const isWeapon = item.type === 'sword' || item.type === 'axe';
+  // Weapon types share a slot (sword OR axe OR bow)
+  const isWeapon = item.type === 'sword' || item.type === 'axe' || item.type === 'bow';
   if (isWeapon) {
-    // Unequip any weapon (sword or axe)
+    // Unequip any weapon (sword/axe/bow)
     const { error: unequipErr } = await supabase.from('items').update({ equipped: false })
-      .eq('owner_id', player.id).in('type', ['sword', 'axe']);
+      .eq('owner_id', player.id).in('type', ['sword', 'axe', 'bow']);
     if (unequipErr) return { status: 500, error: 'Failed to unequip weapons' };
   } else {
     // Unequip same type (shield)
@@ -79,7 +79,7 @@ async function handleEquip(player, body) {
     if (p) { Object.assign(p, update); gameState.markDirty('players', p.id); }
     // Update item equipped status in gameState
     for (const gi of gameState.items.values()) {
-      if (gi.owner_id === player.id && (isWeapon ? (gi.type === 'sword' || gi.type === 'axe') : gi.type === item.type)) {
+      if (gi.owner_id === player.id && (isWeapon ? (gi.type === 'sword' || gi.type === 'axe' || gi.type === 'bow') : gi.type === item.type)) {
         gi.equipped = gi.id === item_id;
         gameState.markDirty('items', gi.id);
       }
@@ -100,7 +100,7 @@ async function handleUnequip(player, body) {
   await supabase.from('items').update({ equipped: false }).eq('id', item_id);
 
   const bonuses    = await recalcBonuses(player.id, player.level ?? 1);
-  const isWeapon   = item.type === 'sword' || item.type === 'axe';
+  const isWeapon   = item.type === 'sword' || item.type === 'axe' || item.type === 'bow';
   const clearField = isWeapon ? 'equipped_sword' : 'equipped_shield';
   await supabase.from('players').update({ ...bonuses, [clearField]: null }).eq('id', player.id);
 
@@ -613,7 +613,7 @@ itemsRouter.post('/', async (req, res) => {
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
 
     const { weapon_type } = body;
-    if (!['sword', 'axe', 'shield'].includes(weapon_type)) return res.status(400).json({ error: 'Invalid weapon_type' });
+    if (!['sword', 'axe', 'shield', 'bow'].includes(weapon_type)) return res.status(400).json({ error: 'Invalid weapon_type' });
 
     const MYTHIC_PRICE = 600;
     const diamonds = p.diamonds ?? 0;
@@ -655,10 +655,10 @@ itemsRouter.post('/', async (req, res) => {
     const { player: p, error: pErr } = await getPlayerByTelegramId(telegram_id, 'id,diamonds');
     if (pErr || !p) return res.status(404).json({ error: 'Player not found' });
 
-    const SET_PRICE = 1500;
+    const SET_PRICE = 2000; // 4 mythic items now (sword, axe, shield, bow)
     const diamonds = p.diamonds ?? 0;
     if (diamonds < SET_PRICE) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.need_diamonds', { cost: SET_PRICE }) });
-    if (gameState.loaded && !hasInventorySpace(gameState, p.id, 3)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerItemCount(gameState, p.id) }) });
+    if (gameState.loaded && !hasInventorySpace(gameState, p.id, 4)) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.inventory_full', { n: getPlayerItemCount(gameState, p.id) }) });
 
     const setLang = getLang(gameState, telegram_id);
 
@@ -667,7 +667,7 @@ itemsRouter.post('/', async (req, res) => {
     if (!diamOk) return res.status(409).json({ error: ts(getLang(gameState, telegram_id), 'err.conflict') });
 
     const createdItems = [];
-    for (const wt of ['sword', 'axe', 'shield']) {
+    for (const wt of ['sword', 'axe', 'shield', 'bow']) {
       const item = generateItem(wt, 'mythic');
       const insertData = {
         type: wt, rarity: 'mythic', name: item.name, emoji: item.emoji,
