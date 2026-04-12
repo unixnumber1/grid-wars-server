@@ -5,7 +5,7 @@ import { logPlayer } from '../../lib/logger.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { ORE_CAPTURE_RADIUS, getOreHp } from '../../lib/oreNodes.js';
-import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
+import { calcHpRegen, LARGE_RADIUS, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
@@ -157,12 +157,14 @@ oreRouter.post('/', async (req, res) => {
     recordAttack(telegram_id, now);
 
     const items = gameState.getPlayerItems(player.id);
-    const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+    const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
     const weaponType = weapon ? weapon.type : 'none';
 
     // Calculate damage
     const baseDmg = 10 + (weapon?.attack || 0);
-    const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
+    let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+    let isPiercing = false;
+    if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
     let damage = Math.round(baseDmg * multiplier);
     if (_oSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.weapon_damage_bonus));
     if (_oSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _oSkFx.pve_damage_bonus));
@@ -247,7 +249,7 @@ oreRouter.post('/', async (req, res) => {
     emitToNearby(player.last_lat, player.last_lng, 1500, 'projectile', {
       from_lat: player.last_lat, from_lng: player.last_lng,
       to_lat: ore.lat, to_lng: ore.lng,
-      damage, crit: isCrit, execution: isExecution,
+      damage, crit: isCrit, execution: isExecution, piercing: isPiercing,
       target_type: 'ore',
       target_id: ore.id,
       attacker_id: isInShadow(player) ? 0 : player.telegram_id,

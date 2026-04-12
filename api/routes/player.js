@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, parseTgId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
-import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS, distanceMultiplier } from '../../lib/formulas.js';
+import { xpForLevel, SMALL_RADIUS, LARGE_RADIUS, calcHpRegen, getMineIncome, getMineCapacity, getMineHp, getMineHpRegen, calcMineHpRegen, ALLOWED_AVATARS, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
@@ -205,8 +205,8 @@ async function handlePvpInitiate(req, res) {
   if (defender.shield_until && new Date(defender.shield_until) > new Date()) return res.status(400).json({ error: ts(getLang(gameState, telegram_id), 'err.player_shielded'), shield_until: defender.shield_until });
   const atkItems = gameState.loaded ? gameState.getEquippedItems(attacker.id) : ((await supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', attacker.id).eq('equipped', true)).data || []);
   const defItems = gameState.loaded ? gameState.getEquippedItems(defender.id) : ((await supabase.from('items').select('type,attack,crit_chance,emoji,rarity,name,defense').eq('owner_id', defender.id).eq('equipped', true)).data || []);
-  const atkWeapon = atkItems.find(i => i.type === 'sword' || i.type === 'axe');
-  const defWeapon = defItems.find(i => i.type === 'sword' || i.type === 'axe');
+  const atkWeapon = atkItems.find(i => i.type === 'sword' || i.type === 'axe' || i.type === 'bow');
+  const defWeapon = defItems.find(i => i.type === 'sword' || i.type === 'axe' || i.type === 'bow');
   const atkShield = atkItems.find(i => i.type === 'shield');
   const defShield = defItems.find(i => i.type === 'shield');
   const battleResult = simulateBattle(attacker, defender, atkWeapon, defWeapon);
@@ -311,7 +311,7 @@ async function handlePvpAttack(req, res) {
 
   // Get equipped weapon from gameState items
   const attackerItems = gameState.getPlayerItems(attacker.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
 
   // Rate limit by weapon cooldown (centralized: weapon + skill speed bonus)
@@ -346,12 +346,13 @@ async function handlePvpAttack(req, res) {
     blocked = true;
   }
 
-  let damage = 0, isCrit = false, isExecution = false;
+  let damage = 0, isCrit = false, isExecution = false, isPiercing = false;
 
   if (!blocked) {
     // 2. Base damage
     const baseDmg = 10 + (weapon?.attack || 0);
-    const multiplier = distanceMultiplier(dist, LARGE_RADIUS + (_atkFx.attack_radius_bonus || 0));
+    let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_atkFx.attack_radius_bonus || 0));
+    if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
     damage = Math.round(baseDmg * multiplier);
     // Skill weapon damage bonus
     if (_atkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _atkFx.weapon_damage_bonus));
@@ -491,7 +492,7 @@ async function handlePvpAttack(req, res) {
     from_lat: pLat, from_lng: pLng,
     to_lat: defLat, to_lng: defLng,
     damage, crit: isCrit,
-    blocked, execution: isExecution,
+    blocked, execution: isExecution, piercing: isPiercing,
     target_type: 'player',
     target_id: defender.telegram_id,
     attacker_id: _hitShadow ? 0 : attacker.telegram_id,

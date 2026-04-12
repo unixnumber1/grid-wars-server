@@ -5,7 +5,7 @@ import { getCellId } from '../../lib/grid.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
-import { distanceMultiplier } from '../../lib/formulas.js';
+import { distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { ts, getLang } from '../../config/i18n.js';
@@ -480,9 +480,10 @@ async function handleAttackScout(req, res) {
 
   // Calculate damage
   const equipped = [...gameState.items.values()].find(i =>
-    i.owner_id === player.id && i.equipped && (i.type === 'sword' || i.type === 'axe'));
+    i.owner_id === player.id && i.equipped && (i.type === 'sword' || i.type === 'axe' || i.type === 'bow'));
   const baseAtk = 10 + (equipped?.attack || 0);
-  const dmgMul = distanceMultiplier(dist, LARGE_RADIUS);
+  let dmgMul = getDistanceMultiplier(equipped, dist, LARGE_RADIUS);
+  if (rollBowPiercing(equipped)) dmgMul = 1;
   const damage = Math.round(baseAtk * dmgMul);
 
   scout.hp -= damage;
@@ -633,10 +634,12 @@ async function handleHit(req, res) {
 
   // Damage calc (same as fire truck)
   const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = distanceMultiplier(dist, LARGE_RADIUS);
+  let mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { mul = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * mul);
   if (_skFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _skFx.weapon_damage_bonus));
   let isCrit = false;
@@ -660,7 +663,7 @@ async function handleHit(req, res) {
   emitToNearby(bk.lat, bk.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: bk.lat, to_lng: bk.lng,
-    damage, crit: isCrit,
+    damage, crit: isCrit, piercing: isPiercing,
     target_type: 'barracks', target_id: bk.id,
     weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     attacker_id: isInShadow(player) ? 0 : player.id,

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackButton } from '../../lib/supabase.js';
 import { getCellId, getCell, getCellCenter, getCellsInRange, radiusToDiskK } from '../../lib/grid.js';
-import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL, distanceMultiplier } from '../../lib/formulas.js';
+import { hqUpgradeCost, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, calcAccumulatedCoins, getMineIncome, getMineCapacity, getMineCountBoost, getMineHp, getMineHpRegen, calcMineHpRegen, getMineUpgradeCost, mineUpgradeCost, MINE_MAX_LEVEL, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { getCoresTotalBoost } from '../../lib/cores.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
@@ -396,7 +396,7 @@ async function handleAttackStart(req, res) {
   if (dist > _effLarge) return res.status(400).json({ error: 'Слишком далеко', distance: Math.round(dist) });
   const { data: existingAttack } = await supabase.from('mines').select('id').eq('attacker_id', player.id).eq('status', 'under_attack').maybeSingle();
   if (existingAttack) return res.status(400).json({ error: 'Вы уже атакуете другую шахту' });
-  const { data: weapon } = await supabase.from('items').select('type,attack,crit_chance,emoji,rarity').eq('owner_id', player.id).eq('equipped', true).in('type', ['sword', 'axe']).maybeSingle();
+  const { data: weapon } = await supabase.from('items').select('type,attack,crit_chance,emoji,rarity').eq('owner_id', player.id).eq('equipped', true).in('type', ['sword', 'axe', 'bow']).maybeSingle();
   const baseAttack = 10;
   const weaponAttack = weapon?.attack || 0;
   const critChance = weapon?.type === 'sword' ? (weapon.crit_chance || 0) : 0;
@@ -444,7 +444,7 @@ async function handleAttackFinish(req, res) {
   if (mine.attacker_id !== player.id) return res.status(403).json({ error: 'Вы не атакуете эту шахту' });
   const now = Date.now();
   if (new Date(mine.attack_ends_at).getTime() > now + 2000) return res.status(400).json({ error: 'Атака ещё не завершена' });
-  const { data: weapon } = await supabase.from('items').select('type,attack,crit_chance').eq('owner_id', player.id).eq('equipped', true).in('type', ['sword', 'axe']).maybeSingle();
+  const { data: weapon } = await supabase.from('items').select('type,attack,crit_chance').eq('owner_id', player.id).eq('equipped', true).in('type', ['sword', 'axe', 'bow']).maybeSingle();
   const baseAttack = 10;
   const weaponAttack = weapon?.attack || 0;
   const totalAttack = baseAttack + weaponAttack;
@@ -692,7 +692,7 @@ async function handleMineHit(req, res) {
 
   // Get equipped weapon from gameState
   const playerItems = gameState.getPlayerItems(player.id);
-  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
 
   // Look up mine in gameState
@@ -711,7 +711,9 @@ async function handleMineHit(req, res) {
 
   // Calculate damage
   const baseDmg = 10 + (weapon?.attack || 0);
-  const multiplier = distanceMultiplier(dist, LARGE_RADIUS + (_hitFx.attack_radius_bonus || 0));
+  let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_hitFx.attack_radius_bonus || 0));
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * multiplier);
   if (_hitFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _hitFx.weapon_damage_bonus));
   let isCrit = false;
@@ -857,7 +859,7 @@ async function handleMineHit(req, res) {
   emitToNearbyPlayers(mine.lat, mine.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: mine.lat, to_lng: mine.lng,
-    damage, crit: isCrit, execution: isExecution,
+    damage, crit: isCrit, execution: isExecution, piercing: isPiercing,
     target_type: 'mine',
     target_id: mine_id,
     attacker_id: isInShadow(player) ? 0 : player.telegram_id,

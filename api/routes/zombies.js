@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../../lib/supabase.js';
 import { haversine } from '../../lib/haversine.js';
-import { LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
+import { LARGE_RADIUS, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { ZOMBIE_ATTACK_RANGE } from '../../config/constants.js';
 import { addXp } from '../../lib/xp.js';
 import { gameState } from '../../lib/gameState.js';
@@ -97,11 +97,13 @@ async function handleAttack(req, res) {
 
   // Calculate damage
   const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const _zSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = distanceMultiplier(dist, LARGE_RADIUS);
+  let mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { mul = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * mul);
   if (_zSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.weapon_damage_bonus));
   if (_zSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _zSkFx.pve_damage_bonus));
@@ -128,7 +130,7 @@ async function handleAttack(req, res) {
   emitToNearbyPlayers(zombie.lat, zombie.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: zombie.lat, to_lng: zombie.lng,
-    damage, crit: isCrit,
+    damage, crit: isCrit, piercing: isPiercing,
     target_type: 'zombie', target_id: zombie.id,
     attacker_id: Number(telegram_id),
     weapon_type: weaponType === 'none' ? 'fist' : weaponType,

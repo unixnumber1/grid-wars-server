@@ -4,7 +4,7 @@ import { log } from '../../lib/log.js';
 import { BOT_TYPES, getRandomBotType, getRandomReward } from '../../lib/bots.js';
 import { haversine } from '../../lib/haversine.js';
 import { addXp } from '../../lib/xp.js';
-import { LARGE_RADIUS, calcHpRegen, distanceMultiplier } from '../../lib/formulas.js';
+import { LARGE_RADIUS, calcHpRegen, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
@@ -333,7 +333,7 @@ async function handleAttack(player, body) {
   recordAttack(body.telegram_id, now);
 
   const playerItems = gameState.getPlayerItems(player.id);
-  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = playerItems.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
 
   const { data: pFull, error: pErr } = await supabase
@@ -351,9 +351,13 @@ async function handleAttack(player, body) {
     const wpn = gameState.loaded ? gameState.getItemById(pFull.equipped_sword) : (await supabase.from('items').select('type, crit_chance').eq('id', pFull.equipped_sword).maybeSingle()).data;
     if (wpn?.type === 'sword') weaponCrit = wpn.crit_chance ?? 0;
   }
-  const critChance = 0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0);
+  // Bow has no crit by design (identity is range stability, not burst)
+  const critChance = weapon?.type === 'bow' ? 0 : (0.2 + weaponCrit / 100 + (_bRadFx.crit_chance_bonus || 0));
   const isCrit     = Math.random() < critChance;
-  let   damage     = Math.floor(playerAtk * distanceMultiplier(dist, LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0)));
+  let   distMul    = getDistanceMultiplier(weapon, dist, LARGE_RADIUS + (_bRadFx.attack_radius_bonus || 0));
+  let   isPiercing = false;
+  if (rollBowPiercing(weapon)) { distMul = 1; isPiercing = true; }
+  let   damage     = Math.floor(playerAtk * distMul);
   // Skill bonuses: weapon damage + PvE
   if (_bRadFx.weapon_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.weapon_damage_bonus));
   if (_bRadFx.pve_damage_bonus) damage = Math.floor(damage * (1 + _bRadFx.pve_damage_bonus));
@@ -498,7 +502,7 @@ async function handleAttack(player, body) {
     emitToNearbyPlayers(gsPlayer.last_lat, gsPlayer.last_lng, 1500, 'projectile', {
       from_lat: gsPlayer.last_lat, from_lng: gsPlayer.last_lng,
       to_lat: bot.lat, to_lng: bot.lng,
-      damage, crit: isCrit,
+      damage, crit: isCrit, piercing: isPiercing,
       target_type: 'bot', target_id: bot_id,
       attacker_id: gsPlayer.telegram_id,
       weapon_type: weaponType === 'none' ? 'fist' : weaponType,

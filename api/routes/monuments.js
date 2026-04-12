@@ -4,7 +4,7 @@ import { haversine } from '../../lib/haversine.js';
 import { logPlayer } from '../../lib/logger.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
-import { calcHpRegen, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
+import { calcHpRegen, LARGE_RADIUS, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { addXp, XP_REWARDS } from '../../lib/xp.js';
 import {
   MONUMENT_LEVELS, MONUMENT_ATTACK_RADIUS,
@@ -180,11 +180,13 @@ async function handleAttackShield(req, res) {
 
   // Calculate damage
   const attackerItems = gameState.getPlayerItems(player.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
+  let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * multiplier);
   if (_mSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.weapon_damage_bonus));
   if (_mSkFx.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx.pve_damage_bonus));
@@ -217,7 +219,7 @@ async function handleAttackShield(req, res) {
   emitToNearbyPlayers(monument.lat, monument.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: monument.lat, to_lng: monument.lng,
-    damage, crit: isCrit,
+    damage, crit: isCrit, piercing: isPiercing,
     target_type: 'monument_shield', target_id: monument.id,
     weapon_type: weaponType,
     attacker_id: player.id,
@@ -292,11 +294,13 @@ async function handleAttackMonument(req, res) {
 
   // Calculate damage (with crit + execution)
   const attackerItems = gameState.getPlayerItems(player.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx2 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);
-  const multiplier = distanceMultiplier(dist, LARGE_RADIUS);
+  let multiplier = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { multiplier = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * multiplier);
   if (_mSkFx2.weapon_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.weapon_damage_bonus));
   if (_mSkFx2.pve_damage_bonus) damage = Math.round(damage * (1 + _mSkFx2.pve_damage_bonus));
@@ -314,7 +318,7 @@ async function handleAttackMonument(req, res) {
     }
   }
 
-  // Axe crit from skill tree only (no execution on monuments)
+  // Axe crit from skill tree only (no execution on monuments). Bow has no crit at all.
   if (weapon?.type === 'axe' && !isCrit) {
     const axeCritChance = (_mSkFx2.crit_chance_bonus || 0) * 100;
     if (axeCritChance > 0 && Math.random() * 100 < axeCritChance) {
@@ -350,7 +354,7 @@ async function handleAttackMonument(req, res) {
   emitToNearbyPlayers(monument.lat, monument.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: monument.lat, to_lng: monument.lng,
-    damage, crit: isCrit, execution: isExecution,
+    damage, crit: isCrit, execution: isExecution, piercing: isPiercing,
     target_type: 'monument', target_id: monument.id,
     weapon_type: weaponType,
     attacker_id: player.id,
@@ -428,9 +432,9 @@ async function handleAttackDefender(req, res) {
     return res.status(429).json({ error: 'Cooldown', retry_after: cooldownMs - (now - lastTime) });
   recordAttack(telegram_id, now);
 
-  // Calculate damage
+  // Calculate damage (defender melee — random variance, no distance falloff)
   const attackerItems = gameState.getPlayerItems(player.id);
-  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = attackerItems.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const _mSkFx3 = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);

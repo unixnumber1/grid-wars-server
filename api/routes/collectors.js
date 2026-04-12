@@ -3,7 +3,7 @@ import { supabase, getPlayerByTelegramId, sendTelegramNotification, buildAttackB
 import { haversine } from '../../lib/haversine.js';
 import { logPlayer } from '../../lib/logger.js';
 import { getCellId, getCellCenter } from '../../lib/grid.js';
-import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS, distanceMultiplier } from '../../lib/formulas.js';
+import { getMineIncome, SMALL_RADIUS, LARGE_RADIUS, distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { gameState } from '../../lib/gameState.js';
 import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, logActivity } from '../../server.js';
 import { addXp } from '../../lib/xp.js';
@@ -320,10 +320,12 @@ async function handleHit(req, res) {
 
   // Calculate damage
   const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = distanceMultiplier(dist, LARGE_RADIUS);
+  let mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { mul = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * mul);
   if (_cSkFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _cSkFx.weapon_damage_bonus));
   let isCrit = false;
@@ -348,7 +350,7 @@ async function handleHit(req, res) {
   emitToNearbyPlayers(collector.lat, collector.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: collector.lat, to_lng: collector.lng,
-    damage, crit: isCrit,
+    damage, crit: isCrit, piercing: isPiercing,
     target_type: 'collector', target_id: collector.id,
     weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     attacker_id: isInShadow(player) ? 0 : player.id,

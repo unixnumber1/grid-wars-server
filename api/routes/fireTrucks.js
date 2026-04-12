@@ -8,7 +8,7 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, 
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { SMALL_RADIUS, LARGE_RADIUS, WEAPON_COOLDOWNS } from '../../config/constants.js';
-import { distanceMultiplier } from '../../lib/formulas.js';
+import { distanceMultiplier, getDistanceMultiplier, rollBowPiercing } from '../../lib/formulas.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 import {
@@ -211,10 +211,12 @@ async function handleHit(req, res) {
 
   // Calculate damage
   const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const baseDmg = 10 + (weapon?.attack || 0);
-  const mul = distanceMultiplier(dist, LARGE_RADIUS);
+  let mul = getDistanceMultiplier(weapon, dist, LARGE_RADIUS);
+  let isPiercing = false;
+  if (rollBowPiercing(weapon)) { mul = 1; isPiercing = true; }
   let damage = Math.round(baseDmg * mul);
   if (_skFx.weapon_damage_bonus) damage = Math.round(damage * (1 + _skFx.weapon_damage_bonus));
   let isCrit = false;
@@ -239,7 +241,7 @@ async function handleHit(req, res) {
   emitToNearbyPlayers(truck.lat, truck.lng, 1500, 'projectile', {
     from_lat: player.last_lat, from_lng: player.last_lng,
     to_lat: truck.lat, to_lng: truck.lng,
-    damage, crit: isCrit,
+    damage, crit: isCrit, piercing: isPiercing,
     target_type: 'fire_truck', target_id: truck.id,
     weapon_type: weaponType === 'none' ? 'fist' : weaponType,
     attacker_id: isInShadow(player) ? 0 : player.id,
@@ -464,9 +466,9 @@ async function handleHitFirefighter(req, res) {
   if (now - last < cooldownMs) return res.status(429).json({ error: 'Cooldown' });
   recordAttack(telegram_id, now);
 
-  // Calculate damage
+  // Calculate damage (firefighter melee — no distance falloff, random variance only)
   const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const _skFx = getPlayerSkillEffects(gameState.getPlayerSkills(telegram_id));
   const baseDmg = 10 + (weapon?.attack || 0);

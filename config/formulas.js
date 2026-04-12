@@ -201,6 +201,22 @@ export function getDistanceMultiplier(weapon, dist, maxRadius) {
     : distanceMultiplier(dist, maxRadius);
 }
 
+// Bow piercing chance — % shot ignores distance falloff and lands at 100% damage.
+// Mirrors axe execution_chance pattern (rarity+upgrade derived, not persisted).
+export function getBowPiercingChance(weapon) {
+  if (weapon?.type !== 'bow') return 0;
+  const wLvl = weapon.upgrade_level || 0;
+  if (weapon.rarity === 'mythic') return Math.floor(8 + (wLvl / 100) * 10);
+  if (weapon.rarity === 'legendary') return Math.floor(15 + (wLvl / 100) * 13);
+  return 0;
+}
+
+// Roll a bow piercing trigger. Returns true if the shot pierces.
+export function rollBowPiercing(weapon) {
+  const pc = getBowPiercingChance(weapon);
+  return pc > 0 && Math.random() * 100 < pc;
+}
+
 // ─── Allowed avatars ──────────────────────────────────────────────────────────
 
 export const ALLOWED_AVATARS = [

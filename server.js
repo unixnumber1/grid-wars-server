@@ -526,7 +526,7 @@ export function getAttackCooldown(telegramId) {
   const player = gameState.getPlayerByTgId(Number(telegramId));
   if (!player) return WEAPON_COOLDOWNS.none;
   const items = gameState.getPlayerItems(player.id);
-  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe') && i.equipped);
+  const weapon = items.find(i => (i.type === 'sword' || i.type === 'axe' || i.type === 'bow') && i.equipped);
   const weaponType = weapon ? weapon.type : 'none';
   const baseCd = WEAPON_COOLDOWNS[weaponType] ?? 500;
   const fx = getPlayerSkillEffects(gameState.getPlayerSkills(telegramId));
