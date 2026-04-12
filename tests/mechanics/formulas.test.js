@@ -6,8 +6,37 @@ import {
   getAffordableLevels, hqConfig, hqUpgradeCost, xpForLevel, calculateLevel,
   getBuildRadius, getMaxHp, getPlayerAttack, getMineAppearance, getMineEmoji,
   MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP,
-  calcMineHpRegen, calcHpRegen,
+  calcMineHpRegen, calcHpRegen, getHqBoostRadius, HQ_BOOST_RADII,
 } from '../../config/formulas.js';
+
+describe('getHqBoostRadius', () => {
+  it('returns 100m at level 1', () => {
+    assert.strictEqual(getHqBoostRadius(1), 100);
+  });
+  it('returns 300m at level 10', () => {
+    assert.strictEqual(getHqBoostRadius(10), 300);
+  });
+  it('clamps level below 1 to level 1', () => {
+    assert.strictEqual(getHqBoostRadius(0), 100);
+    assert.strictEqual(getHqBoostRadius(-5), 100);
+    assert.strictEqual(getHqBoostRadius(null), 100);
+    assert.strictEqual(getHqBoostRadius(undefined), 100);
+  });
+  it('clamps level above max to level 10', () => {
+    assert.strictEqual(getHqBoostRadius(11), 300);
+    assert.strictEqual(getHqBoostRadius(99), 300);
+  });
+  it('matches the HQ_BOOST_RADII table', () => {
+    for (let lv = 1; lv <= 10; lv++) {
+      assert.strictEqual(getHqBoostRadius(lv), HQ_BOOST_RADII[lv - 1]);
+    }
+  });
+  it('is monotonically non-decreasing', () => {
+    for (let lv = 1; lv < 10; lv++) {
+      assert.ok(getHqBoostRadius(lv + 1) >= getHqBoostRadius(lv));
+    }
+  });
+});
 
 describe('Constants', () => {
   it('exports correct constant values', () => {

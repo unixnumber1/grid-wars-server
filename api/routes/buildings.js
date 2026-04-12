@@ -13,7 +13,7 @@ import { logPlayer } from '../../lib/logger.js';
 import { persistNow } from '../../game/state/persist.js';
 import { ts, getLang } from '../../config/i18n.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
-import { WEAPON_COOLDOWNS } from '../../config/constants.js';
+import { WEAPON_COOLDOWNS, HQ_BOOST_COST_HOUR, HQ_BOOST_COST_DAY, HQ_BOOST_HOUR_MS, HQ_BOOST_DAY_MS } from '../../config/constants.js';
 import { withPlayerLock } from '../../lib/playerLock.js';
 import { setPinMode, setPlayerHq } from '../../security/antispoof.js';
 import { awardContestTickets, CONTEST_RULES } from '../../game/mechanics/contest.js';
@@ -91,10 +91,58 @@ async function handleHqUpgrade(player, res) {
     gameState.upsertHq(updatedHq);
     const p = gameState.getPlayerById(player.id);
     if (p) { p.coins = newBalance; gameState.markDirty('players', p.id); }
+    // HQ level changed → boost zone radius changed → invalidate cached boost
+    gameState.invalidateMineBoost(player.id);
   }
   let xpResult = null;
   try { xpResult = await addXp(player.id, XP_REWARDS.UPGRADE_HQ); } catch (e) { console.error('[xp] addXp error:', e.message); }
   return res.status(200).json({ headquarters: updatedHq, player_coins: newBalance, xp: xpResult });
+}
+
+// ─── HQ activate density boost (paid activation) ─────────────────────────────
+async function handleHqActivateBoost(req, res) {
+  const { telegram_id, duration } = req.body || {};
+  if (!['hour', 'day'].includes(duration)) return res.status(400).json({ error: 'Invalid duration' });
+
+  const player = gameState.getPlayerByTgId(telegram_id);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const hq = gameState.getHqByPlayerId(player.id);
+  if (!hq) return res.status(400).json({ error: 'No HQ' });
+
+  const cost  = duration === 'hour' ? HQ_BOOST_COST_HOUR : HQ_BOOST_COST_DAY;
+  const addMs = duration === 'hour' ? HQ_BOOST_HOUR_MS  : HQ_BOOST_DAY_MS;
+
+  if ((player.diamonds || 0) < cost) {
+    return res.status(400).json({ error: `Не хватает алмазов (нужно ${cost}💎)` });
+  }
+
+  // Stack: extend from max(now, current expires) so back-to-back activations add up.
+  const nowMs = Date.now();
+  const currentExpires = hq.boost_expires_at ? new Date(hq.boost_expires_at).getTime() : 0;
+  const base = Math.max(nowMs, currentExpires);
+  const newExpires = new Date(base + addMs).toISOString();
+
+  player.diamonds = (player.diamonds || 0) - cost;
+  hq.boost_expires_at = newExpires;
+  gameState.markDirty('players', player.id);
+  gameState.markDirty('headquarters', hq.id);
+  gameState.invalidateMineBoost(player.id);
+
+  await Promise.all([
+    persistNow('players', { id: player.id, diamonds: player.diamonds }),
+    supabase.from('headquarters').update({ boost_expires_at: newExpires }).eq('id', hq.id),
+  ]);
+
+  logPlayer(telegram_id, 'action', `Активировал буст HQ на ${duration === 'hour' ? '1ч' : '24ч'}`, {
+    duration, cost, expires_at: newExpires,
+  });
+
+  return res.status(200).json({
+    success: true,
+    diamonds: player.diamonds,
+    boost_expires_at: newExpires,
+  });
 }
 
 async function handleHqSell(player, telegramId, res) {
@@ -234,20 +282,15 @@ async function handleMineCollect(req, res) {
       }
     }
   }
-  // Calculate accumulated coins per mine (save for XP calc later)
-  // Per-mine boost: each mine sums levels of nearby mines within 20km of itself
-  const R_DEG = MINE_BOOST_RADIUS / 111320;
-  const perMineBoost = new Map();
-  for (const m of allMines) {
-    let pts = 0;
-    for (const other of allMines) {
-      if (Math.abs(m.lat - other.lat) > R_DEG || Math.abs(m.lng - other.lng) > R_DEG * 1.8) continue;
-      if (haversine(m.lat, m.lng, other.lat, other.lng) <= MINE_BOOST_RADIUS) {
-        pts += (other.level || 1);
-      }
-    }
-    perMineBoost.set(m.id, getMineCountBoost(pts));
-  }
+  // Density boost per mine — use gameState's cached & gated data.
+  // Gating (HQ zone + paid activation) is applied inside getMineBoostData.
+  const _clanInfoForBoost = (clanIncomeBonus > 0 && clanHqs.length > 0) ? {
+    clanHqs: clanHqs.map(h => ({ lat: h.lat, lng: h.lng })),
+    radius: clanHqs[0]?.radius || 0,
+    defenseMul: 1,
+  } : null;
+  const _boostData = gameState.getMineBoostData(player.id, _clanInfoForBoost);
+  const perMineBoost = _boostData.perMineBoost;
   let totalCoins = 0;
   const mineCoinsMap = new Map();
   for (const mine of mines) {
@@ -844,6 +887,9 @@ buildingsRouter.post('/headquarters', async (req, res) => {
   const { telegram_id, action } = req.body;
   if (!telegram_id) return res.status(400).json({ error: 'telegram_id is required' });
   return withPlayerLock(telegram_id, async () => {
+    // activate-boost: gameState is the source of truth, no DB-sourced player needed.
+    if (action === 'activate-boost') return handleHqActivateBoost(req, res);
+
     const { player, error: playerError } = await getPlayerByTelegramId(telegram_id, 'id, username, coins, diamonds');
     if (playerError) return res.status(500).json({ error: playerError?.message || 'DB error' });
     if (!player) return res.status(404).json({ error: 'Player not found' });

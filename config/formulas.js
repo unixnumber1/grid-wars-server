@@ -1,7 +1,13 @@
-import { MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP } from './constants.js';
+import { MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP, HQ_BOOST_RADII } from './constants.js';
 
 // Re-export constants for backward compatibility
-export { MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP };
+export { MINE_MAX_LEVEL, HQ_MAX_LEVEL, SMALL_RADIUS, LARGE_RADIUS, MINE_BOOST_RADIUS, BASE_PLAYER_ATTACK, BASE_PLAYER_HP, HQ_BOOST_RADII };
+
+// HQ boost zone radius (metres) — density boost gate.
+export function getHqBoostRadius(hqLevel) {
+  const idx = Math.min(Math.max(hqLevel || 1, 1), HQ_BOOST_RADII.length) - 1;
+  return HQ_BOOST_RADII[idx];
+}
 
 // ─── Mine formulas ────────────────────────────────────────────────────────────
 

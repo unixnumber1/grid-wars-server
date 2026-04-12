@@ -37,6 +37,17 @@ export const MINE_DISK_K = 12;
 export const MINE_MAX_LEVEL = 200;
 export const HQ_MAX_LEVEL = 10;
 
+// ── HQ density boost zone ──
+// Radius in metres per HQ level. getMineCountBoost applies only to mines within
+// this radius of the owner's HQ, AND only while boost_expires_at > now().
+export const HQ_BOOST_RADII = [100, 125, 145, 165, 190, 210, 235, 255, 280, 300];
+
+// Paid activation — diamonds for time
+export const HQ_BOOST_COST_HOUR = 1;   // 1💎 for 1 hour
+export const HQ_BOOST_COST_DAY  = 20;  // 20💎 for 24 hours
+export const HQ_BOOST_HOUR_MS   = 60 * 60 * 1000;
+export const HQ_BOOST_DAY_MS    = 24 * 60 * 60 * 1000;
+
 // ── Weapon cooldowns (ms) ──
 export const WEAPON_COOLDOWNS = { sword: 500, axe: 700, none: 500 };
 

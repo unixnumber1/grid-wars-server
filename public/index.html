@@ -8426,6 +8426,9 @@ function renderBuildings() {
     _addOrUpdateHqMarker(hq);
   }
 
+  // Render/update the player's own HQ boost zone circle
+  renderHqBoostZone();
+
   // Remove markers only if far from player (>5km) — prevents viewport flicker
   if (state.playerPos) {
     const pLat = state.playerPos.lat, pLng = state.playerPos.lng;
@@ -8692,6 +8695,118 @@ document.getElementById('popup-overlay').addEventListener('click', e => {
 // ─────────────────────────────────────────────
 //  HQ popup
 // ─────────────────────────────────────────────
+// ── HQ boost zone helpers ──────────────────────────────────────────────
+// Mirror of HQ_BOOST_RADII in config/constants.js
+const HQ_BOOST_RADII_M = [100, 125, 145, 165, 190, 210, 235, 255, 280, 300];
+function _getHqBoostRadius(lvl) {
+  const idx = Math.min(Math.max(lvl || 1, 1), HQ_BOOST_RADII_M.length) - 1;
+  return HQ_BOOST_RADII_M[idx];
+}
+function _isHqBoostActive(hq) {
+  return !!(hq && hq.boost_expires_at && Date.now() < new Date(hq.boost_expires_at).getTime());
+}
+function _formatBoostCountdown(ms) {
+  if (ms <= 0) return '00:00:00';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+let _hqBoostTimerInterval = null;
+function _startHqBoostTimer(hq) {
+  if (_hqBoostTimerInterval) { clearInterval(_hqBoostTimerInterval); _hqBoostTimerInterval = null; }
+  if (!_isHqBoostActive(hq)) return;
+  const endMs = new Date(hq.boost_expires_at).getTime();
+  _hqBoostTimerInterval = setInterval(() => {
+    const el = document.getElementById('hq-boost-timer');
+    if (!el) { clearInterval(_hqBoostTimerInterval); _hqBoostTimerInterval = null; return; }
+    const left = endMs - Date.now();
+    if (left <= 0) {
+      clearInterval(_hqBoostTimerInterval); _hqBoostTimerInterval = null;
+      if (hq) { hq.boost_expires_at = null; showHqPopup(hq, true); renderHqBoostZone(); }
+      return;
+    }
+    el.textContent = _formatBoostCountdown(left);
+  }, 1000);
+}
+
+function buildHqBoostSection(hq, hqLvl) {
+  const radius = _getHqBoostRadius(hqLvl);
+  const active = _isHqBoostActive(hq);
+  const myMines = (state.mines || []).filter(m => m.owner_id === state.player?.id);
+  let inZone = 0;
+  for (const m of myMines) {
+    if (m.lat == null || m.lng == null) continue;
+    if (haversine(hq.lat, hq.lng, m.lat, m.lng) <= radius) inZone++;
+  }
+  const leftMs = active ? (new Date(hq.boost_expires_at).getTime() - Date.now()) : 0;
+  const statusHtml = active
+    ? `<span style="color:#4caf50;font-weight:600">⚡ Активен</span> <span id="hq-boost-timer" style="font-family:monospace;color:#FFD700">${_formatBoostCountdown(leftMs)}</span>`
+    : `<span style="color:#888">⏸ Неактивен</span>`;
+  const playerDiamonds = state.player?.diamonds || 0;
+  const hourOk = playerDiamonds >= 1;
+  const dayOk  = playerDiamonds >= 20;
+  return `
+    <div style="border-top:1px solid #333;margin-top:12px;padding-top:10px">
+      <div style="font-size:13px;color:#888;margin-bottom:8px">🔗 Зона буста</div>
+      <div class="hq-stat-card"><span>Радиус</span><span>${radius} м</span></div>
+      <div class="hq-stat-card"><span>Шахт в зоне</span><span>${inZone} / ${myMines.length}</span></div>
+      <div class="hq-stat-card"><span>Буст</span><span>${statusHtml}</span></div>
+      <div style="font-size:11px;color:#666;margin-top:4px;line-height:1.4">
+        Буст от количества шахт работает только на шахтах в зоне штаба, пока активирован.
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="hq-btn" style="flex:1;background:${hourOk ? '#1a3a1a' : '#222'};color:${hourOk ? '#4caf50' : '#555'};border:1px solid #333;font-size:12px;padding:10px 6px" ${hourOk ? '' : 'disabled'} onclick="doHqActivateBoost('hour')">⚡ 1ч · 1💎</button>
+        <button class="hq-btn" style="flex:1;background:${dayOk ? '#1a1a3a' : '#222'};color:${dayOk ? '#FFD700' : '#555'};border:1px solid #333;font-size:12px;padding:10px 6px" ${dayOk ? '' : 'disabled'} onclick="doHqActivateBoost('day')">🌟 24ч · 20💎</button>
+      </div>
+    </div>
+  `;
+}
+
+async function doHqActivateBoost(duration) {
+  try {
+    const data = await apiFetch('/api/buildings/headquarters', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'activate-boost', duration }),
+    });
+    if (state.player) { state.player.diamonds = data.diamonds; updateDiamondDisplay(); }
+    if (state.mapBuildings?.headquarters) {
+      for (const h of state.mapBuildings.headquarters) {
+        if (h.player_id === state.player?.id) h.boost_expires_at = data.boost_expires_at;
+      }
+    }
+    showToast(duration === 'hour' ? '⚡ Буст активирован на 1 час' : '🌟 Буст активирован на 24 часа');
+    const myHq = (state.mapBuildings?.headquarters || []).find(h => h.player_id === state.player?.id);
+    if (myHq) showHqPopup(myHq, true);
+    renderHqBoostZone();
+  } catch (err) {
+    showToast(`❌ ${err.message}`);
+  }
+}
+
+// ── Boost zone circle on the map (only own HQ) ────────────────────────
+let _hqBoostZoneCircle = null;
+function renderHqBoostZone() {
+  const myHq = (state.mapBuildings?.headquarters || []).find(h => h.player_id === state.player?.id);
+  if (!myHq) {
+    if (_hqBoostZoneCircle) { map.removeLayer(_hqBoostZoneCircle); _hqBoostZoneCircle = null; }
+    return;
+  }
+  const radius = _getHqBoostRadius(myHq.level || 1);
+  const active = _isHqBoostActive(myHq);
+  const style = active
+    ? { color: '#FFD700', weight: 2, fillColor: '#FFD700', fillOpacity: 0.08, dashArray: null }
+    : { color: '#888',    weight: 1, fillColor: '#888',    fillOpacity: 0.03, dashArray: '5,5' };
+  if (!_hqBoostZoneCircle) {
+    _hqBoostZoneCircle = L.circle([myHq.lat, myHq.lng], { radius, ...style, interactive: false }).addTo(map);
+  } else {
+    _hqBoostZoneCircle.setLatLng([myHq.lat, myHq.lng]);
+    _hqBoostZoneCircle.setRadius(radius);
+    _hqBoostZoneCircle.setStyle(style);
+  }
+}
+
 function showHqPopup(hq, isOwn) {
   _currentPopupEntityId = `hq_${hq.id}`;
   _selectMarker(`hq_${hq.id}`, isOwn);
@@ -8758,12 +8873,15 @@ function showHqPopup(hq, isOwn) {
       </div>
       ${collectorsHtml}
       ${buildFireTruckHQSection(hqLvl)}
+      ${buildHqBoostSection(hq, hqLvl)}
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
         <button class="hq-btn" style="background:#1a1a2e;border:1px solid #333;color:#aaa" onclick="showHqRoadmap(${hqLvl})">${t('hq.roadmap_btn')}</button>
         ${nextCost !== null ? `<button class="hq-btn blue" ${canUpgrade ? '' : 'disabled'} onclick="closePopup();doUpgradeHq()">${t('hq.upgrade', {cost: formatCoins(nextCost)})}</button>` : ''}
         <button class="hq-btn red" onclick="closePopup();confirmSellHq()">${t('hq.demolish')}</button>
       </div>
     `;
+    // Start boost timer if active
+    _startHqBoostTimer(hq);
     document.getElementById('popup-overlay').classList.add('open');
   } else {
     const owner = displayName(hq.players);

@@ -1,6 +1,6 @@
 import { supabase } from '../../lib/supabase.js';
 import { computeMineBoostData } from '../../lib/mineBoost.js';
-import { calcMineHpRegen } from '../../config/formulas.js';
+import { calcMineHpRegen, getHqBoostRadius } from '../../config/formulas.js';
 
 class GameState {
   constructor() {
@@ -837,14 +837,26 @@ class GameState {
   }
 
   // -- Mine boost data (cached, invalidated on mine build/upgrade/destroy) --
+  // Density boost is dual-gated: HQ zone + paid activation. Hash encodes HQ level
+  // and the active flag so transitions (activate, expire, upgrade) hit the cache
+  // with a new key on the next call.
   getMineBoostData(playerId, clanInfo) {
     const mines = this.getPlayerMines(playerId);
-    const hash = mines.length + '_' + mines.reduce((s, m) => s + m.level, 0);
+    const hq = this.getHqByPlayerId(playerId);
+    const hqInfo = hq ? { lat: hq.lat, lng: hq.lng, radius: getHqBoostRadius(hq.level || 1) } : null;
+    const boostActive = !!(hq && hq.boost_expires_at && Date.now() < new Date(hq.boost_expires_at).getTime());
+    const hash = mines.length + '_' + mines.reduce((s, m) => s + m.level, 0)
+               + '_hq' + (hq ? (hq.id + 'L' + hq.level) : '0')
+               + '_b' + (boostActive ? '1' : '0');
     const cached = this._mineBoostCache.get(playerId);
     if (cached && cached.hash === hash) return cached.data;
-    const data = computeMineBoostData(mines, clanInfo);
+    const data = computeMineBoostData(mines, clanInfo, hqInfo, boostActive);
     this._mineBoostCache.set(playerId, { hash, data });
     return data;
+  }
+
+  invalidateMineBoost(playerId) {
+    this._mineBoostCache.delete(playerId);
   }
 
   // -- Player items (inventory) --
