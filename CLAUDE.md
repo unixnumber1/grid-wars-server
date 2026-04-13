@@ -153,8 +153,9 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 | `clan_headquarters` | id, clan_id, player_id, lat, lng, cell_id, level |
 | `collectors` | id, owner_id, lat, lng, cell_id, level(1-10), coins, hp, status(active/burning/destroyed), mode(auto/manual) |
 | `fire_trucks` | id, owner_id, lat, lng, cell_id, level(1-10), hp, status(active/burning/destroyed), burning_started_at |
-| `monuments` | id, lat, lng, cell_id, name, emoji, level(1-10), hp, max_hp, shield_hp, max_shield_hp, phase(shield/open/wave/defeated), respawn_at, waves_triggered, created_at |
+| `monuments` | id, lat, lng, cell_id, name, emoji, level(1-10), hp, max_hp, shield_hp, max_shield_hp, phase(shield/open/wave/defeated), respawn_at, waves_triggered, last_defeated_at, created_at |
 | `monument_defenders` | id, monument_id, emoji, hp, max_hp, lat, lng, wave, alive |
+| `monument_raids` | id, monument_id, defeated_at, killer_id(tg), killer_name, monument_level(at defeat, NULL for backfilled), participant_count, total_damage |
 | `monument_loot_boxes` | id, monument_id, player_id, box_type(trophy/gift), gems, items(JSONB), opened, lat, lng, expires_at(24h) |
 | `monument_requests` | id(auto), player_id, lat, lng, name, emoji, level, status(pending/approved/rejected) |
 | `zombies` | id, horde_id, player_id, type(scout/normal/boss), emoji, hp, max_hp, lat, lng, speed, alive |

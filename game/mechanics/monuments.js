@@ -261,6 +261,24 @@ export async function defeatMonument(monument, io, connectedPlayers) {
 
   if (participants.length === 0) return;
 
+  // Record one row in monument_raids for this defeat — feeds the world-map
+  // raid-history button on the frontend. monument.level is captured BEFORE
+  // _pending_level / respawn rolls it forward.
+  {
+    const top = participants[0];
+    const topPlayer = gameState.getPlayerByTgId(top.player_id) || gameState.getPlayerById(top.player_id);
+    const totalDmg = participants.reduce((s, p) => s + p.damage, 0);
+    supabase.from('monument_raids').insert({
+      monument_id:       monument.id,
+      defeated_at:       monument.last_defeated_at,
+      killer_id:         top.player_id,
+      killer_name:       topPlayer?.game_username || topPlayer?.username || null,
+      monument_level:    monument.level,
+      participant_count: participants.length,
+      total_damage:      totalDmg,
+    }).then(() => {}).catch(e => console.error('[monuments] raid history insert error:', e.message));
+  }
+
   // Contest: 10 tickets to top-1 damage dealer
   {
     const top = participants[0];

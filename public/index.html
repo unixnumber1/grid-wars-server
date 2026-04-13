@@ -3316,6 +3316,44 @@
       color: #2196F3; border-radius: 12px; font-size: 14px; font-weight: 600;
       cursor: pointer; text-align: center;
     }
+    .mwm-popup-history-btn {
+      width: 100%; margin-top: 8px; padding: 12px;
+      background: rgba(255,193,7,0.12); border: 1px solid rgba(255,193,7,0.3);
+      color: #FFC107; border-radius: 12px; font-size: 14px; font-weight: 600;
+      cursor: pointer; text-align: center;
+    }
+
+    /* Monument raid history overlay (above world map) */
+    #monument-raids-overlay {
+      display: none; position: fixed; inset: 0; z-index: 7600;
+      background: rgba(0,0,0,0.78); backdrop-filter: blur(6px);
+      flex-direction: column; align-items: center; justify-content: flex-end;
+    }
+    #monument-raids-overlay.open { display: flex; }
+    #monument-raids-card {
+      width: 100%; max-width: 480px; max-height: 75vh;
+      background: #1a1a2e; border-top: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px 18px 0 0; padding: 18px 16px 24px;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .mr-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .mr-header h3 { flex: 1; font-size: 17px; color: #fff; margin: 0; font-weight: 700; }
+    .mr-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; padding: 4px 8px; }
+    .mr-subtitle { font-size: 12px; color: #888; margin-bottom: 10px; }
+    #monument-raids-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .mr-empty { text-align: center; color: #666; padding: 30px 0; font-size: 13px; }
+    .mr-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; margin-bottom: 6px;
+      background: rgba(255,255,255,0.04); border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .mr-row-killer { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .mr-row-avatar { font-size: 22px; }
+    .mr-row-name { font-size: 14px; color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mr-row-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+    .mr-row-level { font-size: 13px; color: #FFC107; font-weight: 700; }
+    .mr-row-date { font-size: 11px; color: #888; }
   </style>
 </head>
 <body>
@@ -3544,6 +3582,18 @@
   <div id="mwm-globe"></div>
   <div id="mwm-popup">
     <div id="mwm-popup-content"></div>
+  </div>
+</div>
+
+<!-- Monument raid history overlay (above world map) -->
+<div id="monument-raids-overlay" onclick="if(event.target===this)closeMonumentRaidHistory()">
+  <div id="monument-raids-card">
+    <div class="mr-header">
+      <h3 id="monument-raids-title">📜 История рейдов</h3>
+      <button class="mr-close" onclick="closeMonumentRaidHistory()">&#x2715;</button>
+    </div>
+    <div class="mr-subtitle">Кто и когда снёс этот монумент. Уровень показан на момент сноса.</div>
+    <div id="monument-raids-list"></div>
   </div>
 </div>
 
@@ -15781,10 +15831,51 @@ function _showMwmPopup(monumentId) {
       </div>
     </div>
     <button class="mwm-popup-view-btn" onclick="mwmFlyToMonument('${m.id}')">${t('mwm.view_btn') || '📍 Посмотреть на карте'}</button>
+    <button class="mwm-popup-history-btn" onclick="showMonumentRaidHistory('${m.id}','${(m.emoji || '').replace(/'/g,"\\'")}','${(m.name || '').replace(/'/g,"\\'")}')">📜 ${t('mwm.history_btn') || 'История рейдов'}</button>
   `;
   document.getElementById('mwm-popup').classList.add('visible');
 
   mwmMap.flyTo({ center: [m.lng, m.lat], zoom: 8, duration: 1500 });
+}
+
+// ── Raid history modal (overlay above world map popup) ──
+async function showMonumentRaidHistory(monumentId, emoji, name) {
+  const overlay = document.getElementById('monument-raids-overlay');
+  const list = document.getElementById('monument-raids-list');
+  document.getElementById('monument-raids-title').textContent = `${emoji || '🏛️'} ${name || ''}`.trim();
+  list.innerHTML = '<div class="mr-empty">Загрузка…</div>';
+  overlay.classList.add('open');
+
+  try {
+    const data = await apiFetch('/api/monuments/raid-history?monument_id=' + encodeURIComponent(monumentId));
+    const raids = (data && data.raids) || [];
+    if (!raids.length) {
+      list.innerHTML = '<div class="mr-empty">Этот монумент ещё ни разу не сносили</div>';
+      return;
+    }
+    list.innerHTML = raids.map(r => {
+      const dateStr = r.defeated_at ? new Date(r.defeated_at).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      const lvl = (r.monument_level != null) ? `⭐ ${r.monument_level}` : '<span style="opacity:0.5">⭐ ?</span>';
+      const part = r.participant_count > 1 ? ` <span style="opacity:0.55;font-size:11px">+${r.participant_count - 1}</span>` : '';
+      return `
+        <div class="mr-row">
+          <div class="mr-row-killer">
+            <span class="mr-row-avatar">${r.killer_avatar || '🐺'}</span>
+            <span class="mr-row-name">${escapeHtml(r.killer_name || '?')}</span>${part}
+          </div>
+          <div class="mr-row-meta">
+            <span class="mr-row-level">${lvl}</span>
+            <span class="mr-row-date">${dateStr}</span>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="mr-empty">❌ ' + (e.message || 'Ошибка загрузки') + '</div>';
+  }
+}
+
+function closeMonumentRaidHistory() {
+  document.getElementById('monument-raids-overlay').classList.remove('open');
 }
 
 function _closeMwmPopup() {

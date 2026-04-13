@@ -39,6 +39,34 @@ monumentsRouter.get('/all', (req, res) => {
   res.json(list);
 });
 
+// Raid history for a single monument (last 20 defeats, newest first).
+// Backfilled rows have monument_level = NULL.
+monumentsRouter.get('/raid-history', async (req, res) => {
+  const { monument_id } = req.query;
+  if (!monument_id) return res.status(400).json({ error: 'monument_id required' });
+
+  const { data, error } = await supabase
+    .from('monument_raids')
+    .select('id, defeated_at, killer_id, killer_name, monument_level, participant_count')
+    .eq('monument_id', monument_id)
+    .order('defeated_at', { ascending: false })
+    .limit(20);
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Enrich killer with current avatar from gameState (snapshot name kept as-is).
+  const enriched = (data || []).map(r => {
+    const killer = r.killer_id ? gameState.getPlayerByTgId(Number(r.killer_id)) : null;
+    return {
+      defeated_at:   r.defeated_at,
+      killer_name:   r.killer_name || killer?.game_username || '?',
+      killer_avatar: killer?.avatar || '🐺',
+      monument_level: r.monument_level,
+      participant_count: r.participant_count || 0,
+    };
+  });
+  return res.json({ raids: enriched });
+});
+
 function emitToNearbyPlayers(lat, lng, radiusM, event, data) {
   for (const [sid, info] of connectedPlayers) {
     if (!info.lat || !info.lng) continue;
