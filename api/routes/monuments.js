@@ -754,7 +754,7 @@ async function sendAdminMonumentRequest(request, player) {
         { text: '❌ Отклонить', callback_data: `reject_monument_${request.id}` },
       ],
       [
-        { text: '📍 Посмотреть место', url: `https://t.me/${mainBotName}?startapp=${flyParam}` },
+        { text: '📍 Посмотреть место', url: `https://t.me/${mainBotName}?start=${flyParam}` },
       ],
     ],
   };

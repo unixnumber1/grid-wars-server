@@ -232,8 +232,33 @@ app.post('/api/telegram-webhook', async (req, res) => {
       const fromId = msg.from?.id;
       const name = msg.from?.first_name || 'Игрок';
 
-      // Parse referral deep link: /start ref_123456
+      // Parse deep link param
       const startParam = msg.text.split(' ')[1];
+
+      // Monument preview deep link: /start fly_<latEncoded>_<lngEncoded>
+      // Encoding: dots → "d", minus → "n" (Telegram start param allows [A-Za-z0-9_-]).
+      if (startParam && startParam.startsWith('fly_')) {
+        const decode = (s) => Number(s.replace(/n/g, '-').replace(/d/g, '.'));
+        const parts = startParam.slice(4).split('_');
+        if (parts.length === 2) {
+          const lat = decode(parts[0]);
+          const lng = decode(parts[1]);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            await fetch(`https://api.telegram.org/bot${BOT}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: `🏛️ Предпросмотр места заявки\n📍 ${lat}, ${lng}\n\nНажми кнопку чтобы открыть карту:`,
+                reply_markup: { inline_keyboard: [
+                  [{ text: '🎮 Открыть', web_app: { url: `https://overthrow.ru:8443?fly_to=${lat},${lng}` } }],
+                ] },
+              }),
+            }).catch(e => console.error('[webhook] fly_to error:', e.message));
+            return;
+          }
+        }
+      }
+
       if (startParam && startParam.startsWith('ref_') && fromId) {
         const referrerId = parseInt(startParam.replace('ref_', ''), 10);
         if (referrerId && referrerId !== fromId) {
