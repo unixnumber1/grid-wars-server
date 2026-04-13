@@ -274,6 +274,11 @@ const TRANSLATIONS = {
     'report.stalking': 'Сталкинг',
     'report.threats': 'Угрозы',
     'report.suspicious': 'Подозрительная игра',
+    'report.err.missing_fields':   'Укажите игрока и причину',
+    'report.err.invalid_reason':   'Неверная причина',
+    'report.err.self_report':      'Нельзя пожаловаться на себя',
+    'report.err.player_not_found': 'Игрок не найден',
+    'report.err.save_failed':      'Не удалось сохранить жалобу, попробуйте позже',
   },
 
   en: {
@@ -547,6 +552,11 @@ const TRANSLATIONS = {
     'report.stalking': 'Stalking',
     'report.threats': 'Threats',
     'report.suspicious': 'Suspicious gameplay',
+    'report.err.missing_fields':   'Specify a player and a reason',
+    'report.err.invalid_reason':   'Invalid reason',
+    'report.err.self_report':      'You cannot report yourself',
+    'report.err.player_not_found': 'Player not found',
+    'report.err.save_failed':      'Failed to save report, please try again later',
   },
 };
 

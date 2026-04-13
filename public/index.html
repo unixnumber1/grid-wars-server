@@ -2009,6 +2009,22 @@
     .apm-ban-dur { display:inline-block; padding:8px 14px; margin:3px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#999; font-size:13px; cursor:pointer; }
     .apm-ban-dur.active { background:rgba(213,0,0,0.3); color:#ff5252; border-color:rgba(213,0,0,0.5); }
 
+    /* Admin Reports Modal — reuses .apm-* styles */
+    #admin-reports-modal { display:none; position:fixed; inset:0; z-index:10001; background:#0d0d0d; flex-direction:column; overflow:hidden; }
+    #admin-reports-modal.open { display:flex; }
+    .arm-filter { display:flex; gap:8px; padding:8px 16px; border-bottom:1px solid #222; }
+    .arm-filter-btn { flex:1; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:#888; font-size:13px; cursor:pointer; }
+    .arm-filter-btn.active { background:rgba(33,150,243,0.18); color:#4fc3f7; border-color:rgba(33,150,243,0.4); }
+    .arm-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px; margin-bottom:10px; }
+    .arm-card.banned { border-color:rgba(213,0,0,0.4); }
+    .arm-card.resolved { opacity:0.55; }
+    .arm-card-head { display:flex; align-items:center; gap:8px; font-size:13px; }
+    .arm-card-meta { font-size:11px; color:#888; margin-top:4px; }
+    .arm-card-desc { font-size:13px; color:#ddd; margin-top:8px; padding:8px 10px; background:rgba(0,0,0,0.25); border-radius:8px; white-space:pre-wrap; word-break:break-word; }
+    .arm-card-actions { display:flex; gap:6px; margin-top:10px; }
+    .arm-card-actions button { flex:1; padding:8px; border-radius:8px; border:none; font-size:12px; cursor:pointer; font-weight:600; }
+    .arm-empty { text-align:center; color:#666; font-size:13px; padding:30px 0; }
+
     #shop-modal {
       display: none;
       position: fixed;
@@ -3504,6 +3520,7 @@
       <div class="settings-card">
         <div class="settings-section-title">ИГРОКИ</div>
         <button class="settings-action-btn s-blue" onclick="openAdminPlayerModal()">👥 Игроки</button>
+        <button class="settings-action-btn s-yellow" onclick="openAdminReportsModal()" style="margin-top:6px">🚨 Жалобы <span id="admin-reports-pending-count" style="opacity:0.7;font-size:12px;"></span></button>
       </div>
       <div class="settings-card">
         <div class="settings-section-title">&#x1F517; РЕФЕРАЛЫ</div>
@@ -3531,6 +3548,18 @@
 </div>
 
 <!-- Admin Player Modal -->
+<div id="admin-reports-modal">
+  <div class="apm-header">
+    <h2>🚨 Жалобы игроков</h2>
+    <button class="apm-close" onclick="closeAdminReportsModal()">&#x2715;</button>
+  </div>
+  <div class="arm-filter">
+    <button class="arm-filter-btn active" id="arm-filter-pending" onclick="loadAdminReports('pending')">Открытые</button>
+    <button class="arm-filter-btn" id="arm-filter-all" onclick="loadAdminReports('all')">Все</button>
+  </div>
+  <div class="apm-body" id="admin-reports-list"></div>
+</div>
+
 <div id="admin-player-modal">
   <div class="apm-header">
     <button class="apm-back" id="apm-back-btn" style="display:none" onclick="apmShowSearch()">&#x2190; Назад</button>
@@ -13033,6 +13062,98 @@ async function runContestDraw(clanId) {
     div.innerHTML = html;
     document.body.appendChild(div.firstElementChild);
   } catch (err) { showToast(`❌ ${err.message}`); }
+}
+
+// ── Admin Reports Modal ──
+let _armCurrentFilter = 'pending';
+
+function openAdminReportsModal() {
+  document.getElementById('admin-reports-modal').classList.add('open');
+  loadAdminReports('pending');
+}
+
+function closeAdminReportsModal() {
+  document.getElementById('admin-reports-modal').classList.remove('open');
+}
+
+async function loadAdminReports(filter) {
+  _armCurrentFilter = filter;
+  document.getElementById('arm-filter-pending').classList.toggle('active', filter === 'pending');
+  document.getElementById('arm-filter-all').classList.toggle('active', filter === 'all');
+  const list = document.getElementById('admin-reports-list');
+  list.innerHTML = '<div class="arm-empty">Загрузка…</div>';
+  try {
+    const data = await apiFetch('/api/admin/reports?status=' + filter);
+    const reports = (data && data.reports) || [];
+    if (!reports.length) {
+      list.innerHTML = '<div class="arm-empty">Нет жалоб</div>';
+      updateAdminReportsBadge(0);
+      return;
+    }
+    if (filter === 'pending') updateAdminReportsBadge(reports.length);
+    list.innerHTML = reports.map(r => renderReportCard(r)).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="arm-empty">❌ ' + (e.message || 'Ошибка загрузки') + '</div>';
+  }
+}
+
+function renderReportCard(r) {
+  const reasonLabel = (typeof t === 'function' ? t('report.' + r.reason) : r.reason) || r.reason;
+  const created = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+  const isResolved = r.status && r.status !== 'pending';
+  const desc = r.description ? `<div class="arm-card-desc">${escapeHtml(r.description)}</div>` : '';
+  const banBtn = r.reported_banned
+    ? '<button class="apm-btn apm-btn-warn" disabled>В бане</button>'
+    : `<button class="apm-btn apm-btn-danger" onclick="armOpenTarget('${r.reported_id}')">Открыть</button>`;
+  const resolveBtns = isResolved
+    ? `<button class="apm-btn apm-btn-primary" disabled>${r.status === 'resolved' ? '✓ Решено' : '✗ Отклонено'}</button>`
+    : `<button class="apm-btn apm-btn-green" onclick="armResolve('${r.id}','resolved')">✓ Решить</button>
+       <button class="apm-btn apm-btn-warn" onclick="armResolve('${r.id}','dismissed')">✗ Отклонить</button>`;
+  return `
+    <div class="arm-card${r.reported_banned ? ' banned' : ''}${isResolved ? ' resolved' : ''}">
+      <div class="arm-card-head">
+        <span>🚨 <b>${escapeHtml(r.reporter_name)}</b></span>
+        <span style="color:#666">→</span>
+        <span>🎯 ${r.reported_avatar || '🐺'} <b>${escapeHtml(r.reported_name)}</b> Lv.${r.reported_level}</span>
+      </div>
+      <div class="arm-card-meta">📋 ${reasonLabel} · ${created}</div>
+      ${desc}
+      <div class="arm-card-actions">
+        ${banBtn}
+        ${resolveBtns}
+      </div>
+    </div>`;
+}
+
+async function armOpenTarget(reportedTgId) {
+  closeAdminReportsModal();
+  openAdminPlayerModal();
+  // existing search UI accepts tg_id directly
+  setTimeout(() => {
+    const input = document.getElementById('apm-search-input');
+    if (input) {
+      input.value = String(reportedTgId);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, 100);
+}
+
+async function armResolve(reportId, status) {
+  try {
+    await apiFetch('/api/admin/reports/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report_id: reportId, status }),
+    });
+    loadAdminReports(_armCurrentFilter);
+  } catch (e) {
+    showToast('❌ ' + (e.message || 'Ошибка'));
+  }
+}
+
+function updateAdminReportsBadge(n) {
+  const el = document.getElementById('admin-reports-pending-count');
+  if (el) el.textContent = n > 0 ? `(${n})` : '';
 }
 
 let _apmListTimer = null;

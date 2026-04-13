@@ -756,27 +756,28 @@ const _reportCooldowns = new Map(); // `${reporter}_${reported}` → timestamp
 
 async function handleReport(req, res) {
   const { telegram_id, target_telegram_id, reason, description } = req.body || {};
+  const lang = getLang(gameState, telegram_id);
+
   if (!telegram_id || !target_telegram_id || !reason)
-    return res.status(400).json({ error: 'Missing fields' });
+    return res.status(400).json({ error: ts(lang, 'report.err.missing_fields') });
   if (!REPORT_REASONS.includes(reason))
-    return res.status(400).json({ error: 'Invalid reason' });
+    return res.status(400).json({ error: ts(lang, 'report.err.invalid_reason') });
 
   let reporterTgId, targetTgId;
-  try { reporterTgId = parseTgId(telegram_id); } catch (e) { return res.status(400).json({ error: e.message }); }
-  try { targetTgId = parseTgId(target_telegram_id); } catch (e) { return res.status(400).json({ error: e.message }); }
-  if (reporterTgId === targetTgId) return res.status(400).json({ error: 'Cannot report yourself' });
+  try { reporterTgId = parseTgId(telegram_id); } catch (e) { return res.status(400).json({ error: ts(lang, 'report.err.missing_fields') }); }
+  try { targetTgId = parseTgId(target_telegram_id); } catch (e) { return res.status(400).json({ error: ts(lang, 'report.err.missing_fields') }); }
+  if (reporterTgId === targetTgId) return res.status(400).json({ error: ts(lang, 'report.err.self_report') });
 
   // Rate limit: 1 per target per 24h
   const cdKey = `${reporterTgId}_${targetTgId}`;
   const lastReport = _reportCooldowns.get(cdKey) || 0;
   if (Date.now() - lastReport < REPORT_COOLDOWN_MS) {
-    const lang = getLang(gameState, telegram_id);
     return res.status(429).json({ error: ts(lang, 'report.duplicate') });
   }
 
   const reporter = gameState.getPlayerByTgId(reporterTgId);
   const target = gameState.getPlayerByTgId(targetTgId);
-  if (!reporter || !target) return res.status(404).json({ error: 'Player not found' });
+  if (!reporter || !target) return res.status(404).json({ error: ts(lang, 'report.err.player_not_found') });
 
   // Sanitize description (max 500 chars, strip HTML)
   const desc = (description || '').replace(/<[^>]*>/g, '').slice(0, 500).trim();
@@ -790,7 +791,7 @@ async function handleReport(req, res) {
   });
   if (dbErr) {
     console.error('[report] DB error:', dbErr.message);
-    return res.status(500).json({ error: 'Failed to save report' });
+    return res.status(500).json({ error: ts(lang, 'report.err.save_failed') });
   }
 
   _reportCooldowns.set(cdKey, Date.now());
@@ -800,21 +801,15 @@ async function handleReport(req, res) {
     .select('*', { count: 'exact', head: true })
     .eq('reported_id', targetTgId);
 
-  // Reason labels for notification
-  const reasonLabels = {
-    spoofing: '📡 Спуфинг GPS',
-    stalking: '👁️ Сталкинг',
-    threats: '⚠️ Угрозы',
-    suspicious: '🔍 Подозрительная игра',
-  };
-
-  // Send formatted notification to admin bot
+  // Admin notification — single Russian admin (ADMIN_NOTIFY_ID), reuse i18n labels
+  const reasonIcons = { spoofing: '📡', stalking: '👁️', threats: '⚠️', suspicious: '🔍' };
+  const reasonLabel = `${reasonIcons[reason] || ''} ${ts('ru', 'report.' + reason)}`.trim();
   const msg = [
     '🚨 <b>Жалоба на игрока</b>',
     '',
     `👤 <b>От:</b> ${reporter.game_username || reporter.username || '?'} (tg:${reporterTgId})`,
     `🎯 <b>На:</b> ${target.game_username || target.username || '?'} (tg:${targetTgId}, lv${target.level || 1})`,
-    `📋 <b>Причина:</b> ${reasonLabels[reason] || reason}`,
+    `📋 <b>Причина:</b> ${reasonLabel}`,
     desc ? `💬 <b>Описание:</b> ${desc}` : '',
     '',
     `📊 Всего жалоб на игрока: ${(count || 0)}`,
@@ -822,7 +817,6 @@ async function handleReport(req, res) {
 
   sendTelegramNotification(ADMIN_NOTIFY_ID, msg);
 
-  const lang = getLang(gameState, telegram_id);
   logPlayer(telegram_id, 'action', `Жалоба на ${target.game_username}: ${reason}`);
   return res.json({ ok: true, message: ts(lang, 'report.sent') });
 }

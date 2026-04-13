@@ -1240,3 +1240,40 @@ adminRouter.post('/', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   return res.status(200).json({ maintenance: enabled });
 });
+
+// ── GET /reports — list player reports for moderation ─────────
+adminRouter.get('/reports', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  const showAll = req.query.status === 'all';
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+
+  let q = supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (!showAll) q = q.eq('status', 'pending');
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+
+  const enriched = (data || []).map(r => {
+    const reporter = gameState.getPlayerByTgId(Number(r.reporter_id));
+    const reported = gameState.getPlayerByTgId(Number(r.reported_id));
+    return {
+      ...r,
+      reporter_name: reporter?.game_username || reporter?.username || '?',
+      reported_name: reported?.game_username || reported?.username || '?',
+      reported_avatar: reported?.avatar || '🐺',
+      reported_level: reported?.level || 1,
+      reported_banned: !!reported?.is_banned,
+    };
+  });
+  return res.json({ reports: enriched });
+});
+
+// ── POST /reports/resolve — change report status ───────────────
+adminRouter.post('/reports/resolve', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  const { report_id, status } = req.body || {};
+  if (!report_id || !['resolved', 'dismissed'].includes(status))
+    return res.status(400).json({ error: 'Invalid params' });
+  const { error } = await supabase.from('reports').update({ status }).eq('id', report_id);
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ ok: true });
+});

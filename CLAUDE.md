@@ -162,6 +162,7 @@ ecosystem.config.cjs       — PM2 конфиг (grid-wars + front-watcher)
 | `notifications` | id, player_id, type, message, data(JSONB), read |
 | `pvp_log` | id, attacker_id, defender_id, winner_id, rounds, coins_transferred |
 | `pvp_cooldowns` | attacker_id, defender_id, expires_at |
+| `reports` | id, reporter_id, reported_id, reason(spoofing/stalking/threats/suspicious), description, status(pending/resolved/dismissed), created_at |
 | `player_badges` | id, player_id(→telegram_id), badge_id |
 | `player_skills` | id, player_id, farmer(JSONB), raider(JSONB), skill_points_used, shadow_until, shadow_cooldown |
 | `referrals` | id, referred_id, referrer_id, referred_rewarded, referrer_rewarded |
