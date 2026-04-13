@@ -3323,9 +3323,9 @@
       cursor: pointer; text-align: center;
     }
 
-    /* Monument raid history overlay (above world map) */
+    /* Monument raid history overlay (above world map, which is z-index 8500) */
     #monument-raids-overlay {
-      display: none; position: fixed; inset: 0; z-index: 7600;
+      display: none; position: fixed; inset: 0; z-index: 8600;
       background: rgba(0,0,0,0.78); backdrop-filter: blur(6px);
       flex-direction: column; align-items: center; justify-content: flex-end;
     }
@@ -5277,6 +5277,18 @@ const I18N = {
     'effect.instant_collector': 'мгновенная доставка',
     'effect.safe_pvp_loss': '5% потеря вместо 10%',
     'effect.landlord_bonus': '+15% дохода шахт рядом',
+
+    // === Monument World Map ===
+    'mwm.title':              'Карта монументов',
+    'mwm.search_placeholder': 'Поиск по названию…',
+    'mwm.phase_shield':       '🛡 Под щитом',
+    'mwm.phase_open':         '⚔️ Открыт',
+    'mwm.phase_defeated':     '💀 Снесён',
+    'mwm.view_btn':           '📍 Посмотреть на карте',
+    'mwm.history_btn':        '📜 История рейдов',
+    'mwm.history_subtitle':   'Кто и когда снёс этот монумент. Уровень показан на момент сноса.',
+    'mwm.history_loading':    'Загрузка…',
+    'mwm.history_empty':      'Этот монумент ещё ни разу не сносили',
   },
 
   en: {
@@ -6524,6 +6536,18 @@ const I18N = {
     'effect.instant_collector': 'instant delivery',
     'effect.safe_pvp_loss': '5% loss instead of 10%',
     'effect.landlord_bonus': '+15% nearby mine income',
+
+    // === Monument World Map ===
+    'mwm.title':              'Monument World Map',
+    'mwm.search_placeholder': 'Search by name…',
+    'mwm.phase_shield':       '🛡 Shielded',
+    'mwm.phase_open':         '⚔️ Open',
+    'mwm.phase_defeated':     '💀 Defeated',
+    'mwm.view_btn':           '📍 View on map',
+    'mwm.history_btn':        '📜 Raid history',
+    'mwm.history_subtitle':   'Who broke this monument and when. Level shown is at the moment of defeat.',
+    'mwm.history_loading':    'Loading…',
+    'mwm.history_empty':      'This monument has never been defeated',
   }
 };
 
