@@ -22545,6 +22545,8 @@ async function showBarracksPopup(barracksId, tab) {
 
     if (scoutLevel >= 10) {
       html += `<span style="font-size:11px;color:#4caf50;font-weight:600">MAX</span>`;
+    } else if (scoutLevel >= (barracks.level || 1)) {
+      html += `<span style="font-size:10px;color:#888;font-weight:600;text-align:right;max-width:110px">${_lang === 'ru' ? `🔒 Казарма Lv.${scoutLevel + 1}` : `🔒 Barracks Lv.${scoutLevel + 1}`}</span>`;
     } else {
       const hasEther = (state.player?.ether || 0) >= scoutUpgradeCost;
       html += `<button class="hq-coll-btn ${hasEther ? 'active' : ''}" ${hasEther ? '' : 'disabled'} onclick="doUpgradeScout('${barracksId}')" style="width:auto;margin:0;padding:6px 12px;font-size:11px;white-space:nowrap">Lv.${scoutLevel + 1} · ${formatNumber(scoutUpgradeCost)} 🌀</button>`;

@@ -368,6 +368,7 @@ async function handleUpgradeUnit(req, res) {
 
   const nextLevel = upgrade.level + 1;
   if (nextLevel > 10) return res.status(400).json({ error: 'Максимальный уровень скаута' });
+  if (nextLevel > (barracks.level || 1)) return res.status(400).json({ error: `Сначала улучшите казарму до Lv.${nextLevel}` });
 
   const cost = getScoutUpgradeCost(nextLevel);
   if ((player.ether || 0) < cost) return res.status(400).json({ error: `Нужно ${cost} эфира` });
