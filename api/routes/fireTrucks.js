@@ -260,6 +260,8 @@ async function handleHit(req, res) {
 
     truck.status = 'burning';
     truck.burning_started_at = nowISO;
+    truck.attacker_id = player.id;
+    truck._burned_by = { telegram_id: player.telegram_id, name: _ftShadow ? '???' : (player.game_username || '???'), avatar: _ftShadow ? '🎮' : (player.avatar || '🎮') };
     gameState.markDirty('fireTrucks', truck.id);
 
     await supabase.from('fire_trucks').update({

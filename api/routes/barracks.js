@@ -681,6 +681,9 @@ async function handleHit(req, res) {
     const nowISO = new Date().toISOString();
     bk.status = 'burning';
     bk.burning_started_at = nowISO;
+    const _bkShadow = isInShadow(player);
+    bk.attacker_id = player.id;
+    bk._burned_by = { telegram_id: player.telegram_id, name: _bkShadow ? '???' : (player.game_username || '???'), avatar: _bkShadow ? '🎮' : (player.avatar || '🎮') };
     gameState.markDirty('barracks', bk.id);
 
     await supabase.from('barracks').update({

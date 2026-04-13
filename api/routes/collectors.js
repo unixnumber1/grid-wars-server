@@ -369,6 +369,8 @@ async function handleHit(req, res) {
     collector.status = 'burning';
     collector.burning_started_at = nowISO;
     collector.stored_coins = 0;
+    collector.attacker_id = player.id;
+    collector._burned_by = { telegram_id: player.telegram_id, name: player.game_username || '???', avatar: player.avatar || '🎮' };
     gameState.markDirty('collectors', collector.id);
 
     // Transfer coins to attacker (fresh read for accuracy)

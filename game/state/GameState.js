@@ -583,6 +583,17 @@ class GameState {
     // Use cached best mine level per player (updated on mine upsert/remove)
     const bestMineLevelByPlayer = this._bestMineLevelByPlayer;
 
+    // Resolve "burned_by" display info for a burning building
+    const resolveBurnedBy = (obj) => {
+      if (!obj || obj.status !== 'burning') return null;
+      if (obj._burned_by) return obj._burned_by;
+      if (obj.attacker_id) {
+        const a = this.players.get(obj.attacker_id);
+        if (a) return { telegram_id: a.telegram_id, name: a.game_username || '???', avatar: a.avatar || '🎮' };
+      }
+      return null;
+    };
+
     // HQs in bbox
     const headquarters = [];
     for (const hq of this.headquarters.values()) {
@@ -610,6 +621,7 @@ class GameState {
         mines.push({
           ...m,
           attacker_id: atkHidden ? null : m.attacker_id,
+          burned_by: atkHidden ? null : resolveBurnedBy(m),
           players: owner ? { username: owner.username, game_username: owner.game_username, avatar: owner.avatar, level: owner.level } : null,
           is_mine: m.owner_id === currentPlayerId,
         });
@@ -745,6 +757,7 @@ class GameState {
           is_mine: c.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
+          burned_by: resolveBurnedBy(c),
         });
       }
     }
@@ -792,6 +805,7 @@ class GameState {
           is_mine: ft.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
+          burned_by: resolveBurnedBy(ft),
         });
       }
     }
@@ -817,9 +831,11 @@ class GameState {
           id: b.id, lat: b.lat, lng: b.lng, level: b.level,
           hp: bkHp, max_hp: b.max_hp, status: b.status,
           cell_id: b.cell_id,
+          burning_started_at: b.burning_started_at,
           is_mine: b.owner_id === currentPlayerId,
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
+          burned_by: resolveBurnedBy(b),
         });
       }
     }

@@ -373,7 +373,7 @@ async function autoBan(telegramId, record) {
   if (isAdmin(telegramId)) return;
   try {
     const banUntil = new Date(Date.now() + BAN_DAYS * 24 * 60 * 60 * 1000);
-    const banReason = 'GPS спуфинг (автобан v4)';
+    const banReason = 'GPS спуфинг';
     const banUntilISO = banUntil.toISOString();
 
     // 1) Update gameState IMMEDIATELY (synchronous — no await, no import delay).
@@ -400,7 +400,7 @@ async function autoBan(telegramId, record) {
     suspiciousActivity.set(`spoof:${telegramId}`, record);
 
     console.log(`[ANTISPOOF] AUTO-BAN: ${telegramId} (weighted=${record.weightedScore.toFixed(1)}, total=${record.totalViolations})`);
-    logPlayer(telegramId, 'ban', `Автобан v4: GPS спуфинг (score ${record.weightedScore.toFixed(1)})`, {
+    logPlayer(telegramId, 'ban', `GPS спуфинг (score ${record.weightedScore.toFixed(1)})`, {
       violations: record.totalViolations, ban_until: banUntilISO,
     });
 
@@ -431,7 +431,7 @@ async function notifyAdmin(telegramId, record) {
   const typeLabels = { teleport: '🚀 Телепорт', speed: '⚡ Скорость', fake_gps: '📡 Фейк GPS', city_jump: '🏙️ Межгород', impossible_distance: '🌍 Невозможный прыжок' };
   const label = typeLabels[lastV?.type] || lastV?.type || '?';
 
-  let message = `🚨 АВТОБАН v4 — GPS\n\n👤 ${name} (${tgTag})\n🆔 ${telegramId}\n🏙 ${city}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
+  let message = `🚨 GPS спуфинг\n\n👤 ${name} (${tgTag})\n🆔 ${telegramId}\n🏙 ${city}\n📊 Score: ${record.weightedScore.toFixed(1)}/${VIOLATION_THRESHOLD}\n📌 Нарушений: ${record.totalViolations}\n${label}: ${lastV?.speed?.toFixed(0) || '?'} км/ч\n📏 ${lastV?.distance?.toFixed(2) || '?'} км`;
   if (lastV?.type === 'fake_gps') {
     message += `\n📡 Null ratio: ${lastV.nullRatio} (${lastV.nullCount}/${lastV.totalMoving})`;
   }

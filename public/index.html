@@ -6593,10 +6593,16 @@ function formatBurnTimer(burningStartedAt) {
   const burnEnd = new Date(burningStartedAt).getTime() + 86400000;
   const leftMs = Math.max(0, burnEnd - Date.now());
   const h = Math.floor(leftMs / 3600000);
-  const m = Math.floor((leftMs % 3600000) / 60000);
-  if (h > 0) return `${h}${t('time.h')} ${m}${t('time.min')}`;
-  if (m > 0) return `${m}${t('time.min')}`;
+  if (h >= 1) return `${h}${t('time.h')}`;
+  const m = Math.floor(leftMs / 60000);
+  if (m >= 1) return `${m}${t('time.min')}`;
   return `${Math.floor(leftMs / 1000)}${t('time.sec')}`;
+}
+function renderBurnHeader(owner, ownerAvatar, burnedBy) {
+  let html = '';
+  if (owner) html += `<div style="font-size:12px;color:#aaa">${(ownerAvatar || '')} ${owner}</div>`;
+  if (burnedBy) html += `<div style="font-size:12px;color:#ff6b6b">⚔️ ${burnedBy.avatar || '🎮'} ${burnedBy.name || '???'}</div>`;
+  return html;
 }
 function getNextRoundLevel(currentLevel) {
   return Math.ceil((currentLevel + 1) / 10) * 10;
@@ -20852,8 +20858,9 @@ function showCollectorPopup(collectorId) {
   const hpColor = hpPct > 60 ? '#4caf50' : hpPct > 30 ? '#ff9800' : '#f44336';
   const barColor = fillPct < 70 ? '#4caf50' : fillPct < 90 ? '#ff9800' : '#f44336';
 
-  const COLL_INTERVAL = {1:60,2:55,3:50,4:45,5:40,6:35,7:30,8:25,9:20,10:15};
-  const intervalMin = COLL_INTERVAL[c.level] || 60;
+  // Mirrors COLLECTOR_INTERVAL_MS in game/mechanics/collectors.js
+  const COLL_INTERVAL = {1:20,2:18,3:16,4:14,5:12,6:10,7:8,8:6,9:4,10:2};
+  const intervalMin = COLL_INTERVAL[c.level] || 20;
   const lastCollect = c.last_collected_at ? new Date(c.last_collected_at).getTime() : Date.now();
   const nextMin = Math.ceil(Math.max(0, (lastCollect + intervalMin * 60000) - Date.now()) / 60000);
 
@@ -20874,12 +20881,9 @@ function showCollectorPopup(collectorId) {
     // Burning timer
     let burnTimerHtml = '';
     if (isBurning && c.burning_started_at) {
-      const burnEnd = new Date(c.burning_started_at).getTime() + 86400000;
-      const leftMs = Math.max(0, burnEnd - Date.now());
-      const h = Math.floor(leftMs / 3600000);
-      const m2 = Math.floor((leftMs % 3600000) / 60000);
-      const burnLabel = h > 0 ? `${h}${t('time.h')}` : m2 > 0 ? `${m2}${t('time.min')}` : `${Math.floor(leftMs / 1000)}${t('time.sec')}`;
-      burnTimerHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 Сгорит через <span id="coll-burn-timer">${burnLabel}</span></div>`;
+      const burnLabel = formatBurnTimer(c.burning_started_at);
+      burnTimerHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:4px">🔥 ${_lang === 'ru' ? 'Сгорит через' : 'Burns in'} <span id="coll-burn-timer">${burnLabel}</span></div>`;
+      burnTimerHtml += `<div style="margin-bottom:8px">${renderBurnHeader(c.owner_name || (state.player?.game_username || ''), c.owner_avatar || (state.player?.avatar || ''), c.burned_by)}</div>`;
     }
 
     card.innerHTML = `
@@ -20936,9 +20940,12 @@ function showCollectorPopup(collectorId) {
     const eBurning = c.status === 'burning';
     let eBurnHtml = '';
     if (eBurning && c.burning_started_at) {
-      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">${t('mine.burn_timer', {time: ''})} <span id="coll-burn-timer">${formatBurnTimer(c.burning_started_at)}</span></div>`;
+      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:4px">${t('mine.burn_timer', {time: ''})} <span id="coll-burn-timer">${formatBurnTimer(c.burning_started_at)}</span></div>`;
     } else if (eBurning) {
-      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:8px">🔥 ${t('misc.burning')}</div>`;
+      eBurnHtml = `<div style="color:#ff6600;font-size:13px;font-weight:700;margin-bottom:4px">🔥 ${t('misc.burning')}</div>`;
+    }
+    if (eBurning && c.burned_by) {
+      eBurnHtml += `<div style="margin-bottom:8px"><div style="font-size:12px;color:#ff6b6b">⚔️ ${c.burned_by.avatar || '🎮'} ${c.burned_by.name || '???'}</div></div>`;
     }
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -21032,12 +21039,15 @@ async function doCollectorUpgrade(collectorId) {
   } catch (err) { showToast(`❌ ${err.message}`); }
 }
 
+// Refund constants must mirror config/constants.js + game/mechanics/collectors.js.
+// The server is the source of truth on the actual sell — this is just the preview number.
+const COLLECTOR_SELL_REFUND_PCT = 0.5;
 function confirmSellCollector(collectorId) {
   const c = collectorData[collectorId];
   const collUpgCosts = [0,25,30,35,40,50,55,65,75,100];
   let totalInvested = 25;
   if (c) for (let i = 1; i < c.level; i++) totalInvested += (collUpgCosts[i] || 0);
-  const refund = Math.floor(totalInvested * 0.5);
+  const refund = Math.floor(totalInvested * COLLECTOR_SELL_REFUND_PCT);
   closePopup();
   openPopup(
     '🗑️',
@@ -21212,6 +21222,9 @@ function showFireTruckPopup(ftId) {
 
     if (isBurning) {
       stats.push(['🔥 Сгорит через', `<span id="ft-burn-timer">${formatBurnTimer(ft.burning_started_at)}</span>`]);
+      if (ft.burned_by) {
+        stats.push(['⚔️', `<span style="color:#ff6b6b">${ft.burned_by.avatar || '🎮'} ${ft.burned_by.name || '???'}</span>`]);
+      }
 
       // Check if player is within 200m or another truck covers this one
       const playerDist = state.playerPos ? haversine(state.playerPos.lat, state.playerPos.lng, ft.lat, ft.lng) : 9999;
@@ -21291,6 +21304,9 @@ function showFireTruckPopup(ftId) {
     ];
     if (eFtBurning && ft.burning_started_at) {
       stats.push(['🔥 Сгорит через', `<span id="ft-burn-timer">${formatBurnTimer(ft.burning_started_at)}</span>`]);
+      if (ft.burned_by) {
+        stats.push(['⚔️', `<span style="color:#ff6b6b">${ft.burned_by.avatar || '🎮'} ${ft.burned_by.name || '???'}</span>`]);
+      }
     }
     const actions = [];
     if (!eFtBurning) {
@@ -22233,8 +22249,14 @@ async function showBarracksPopup(barracksId, tab) {
       [t('barracks.level'), bk.level],
       ['❤️ HP', hpHtml],
     ];
-    if (isBurning) stats.push(['🔥', _lang === 'ru' ? 'Горит!' : 'Burning!']);
+    if (isBurning) {
+      const _bkBurnT = bk.burning_started_at ? formatBurnTimer(bk.burning_started_at) : (_lang === 'ru' ? 'Горит!' : 'Burning!');
+      stats.push(['🔥', `<span id="bk-burn-timer">${_bkBurnT}</span>`]);
+    }
     if (bk.owner_name) stats.push([_lang === 'ru' ? 'Владелец' : 'Owner', (bk.owner_avatar || '') + ' ' + bk.owner_name]);
+    if (isBurning && bk.burned_by) {
+      stats.push(['⚔️', `<span style="color:#ff6b6b">${bk.burned_by.avatar || '🎮'} ${bk.burned_by.name || '???'}</span>`]);
+    }
 
     // Multitouch: if holding attack, switch target
     if (combatState.isHolding && inRange && !isBurning) {
@@ -22259,8 +22281,14 @@ async function showBarracksPopup(barracksId, tab) {
     const _bkInRange = _bkDist <= SMALL_RADIUS;
     const burnTimer = bk.burning_started_at ? formatBurnTimer(bk.burning_started_at) : '';
     const stats = [
-      ['🔥', burnTimer ? `${t('mine.burn_timer', {time: ''})} ${burnTimer}` : (_lang === 'ru' ? 'Горит!' : 'Burning!')],
+      ['🔥', burnTimer ? `${t('mine.burn_timer', {time: ''})} <span id="bk-burn-timer">${burnTimer}</span>` : (_lang === 'ru' ? 'Горит!' : 'Burning!')],
     ];
+    const _meName = state.player?.game_username || '';
+    const _meAv = state.player?.avatar || '';
+    if (_meName) stats.push([_lang === 'ru' ? 'Владелец' : 'Owner', `${_meAv} ${_meName}`]);
+    if (bk.burned_by) {
+      stats.push(['⚔️', `<span style="color:#ff6b6b">${bk.burned_by.avatar || '🎮'} ${bk.burned_by.name || '???'}</span>`]);
+    }
     const actions = [
       _bkInRange
         ? { label: _lang === 'ru' ? '🧯 Потушить' : '🧯 Extinguish', cls: 'primary', action: () => doBarracksExtinguish(barracksId) }
