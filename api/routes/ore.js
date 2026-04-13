@@ -63,6 +63,7 @@ oreRouter.post('/', async (req, res) => {
     const { data: oreClaimed } = await supabase.from('ore_nodes').update({
       owner_id: player.id, hp: ore.max_hp,
       last_collected: claimedISO, currency: selectedCurrency,
+      captured_at: claimedISO,
     }).eq('id', ore.id).is('owner_id', null).select('id').maybeSingle();
     if (!oreClaimed) {
       return res.status(409).json({ error: ts(lang, 'err.ore_occupied') });
@@ -72,7 +73,8 @@ oreRouter.post('/', async (req, res) => {
     ore.hp = ore.max_hp;
     ore.last_collected = claimedISO;
     ore.currency = selectedCurrency;
-    ore._claimed_at = claimedISO;
+    ore.captured_at = claimedISO;
+    delete ore._lastPhase;
     gameState.markDirty('oreNodes', ore.id);
 
     _oreClaimCooldown.set(String(telegram_id), Date.now());
@@ -120,9 +122,10 @@ oreRouter.post('/', async (req, res) => {
     if (ore.owner_id !== player.id) return res.status(403).json({ error: ts(getLang(gameState, telegram_id), 'err.not_your_ore') });
 
     ore.owner_id = null;
-    delete ore._claimed_at;
+    ore.captured_at = null;
+    delete ore._lastPhase;
     gameState.markDirty('oreNodes', ore.id);
-    await supabase.from('ore_nodes').update({ owner_id: null }).eq('id', ore.id);
+    await supabase.from('ore_nodes').update({ owner_id: null, captured_at: null }).eq('id', ore.id);
 
     return res.json({ success: true });
   }
@@ -206,9 +209,10 @@ oreRouter.post('/', async (req, res) => {
       const oldOwnerId = ore.owner_id;
       ore.owner_id = null;
       ore.hp = 0;
-      delete ore._claimed_at;
+      ore.captured_at = null;
+      delete ore._lastPhase;
       gameState.markDirty('oreNodes', ore.id);
-      await supabase.from('ore_nodes').update({ owner_id: null, hp: 0 }).eq('id', ore.id);
+      await supabase.from('ore_nodes').update({ owner_id: null, hp: 0, captured_at: null }).eq('id', ore.id);
 
       // Notify old owner
       if (oldOwnerId) {

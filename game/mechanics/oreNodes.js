@@ -2,13 +2,14 @@ import { readFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
-import { haversine } from '../../lib/haversine.js';
+import { haversine, fastDistance } from '../../lib/haversine.js';
 import { getCellId } from '../../lib/grid.js';
 import { fetchWaterAreas, isInWater } from '../../lib/waterAreas.js';
+import { persistNow } from '../state/persist.js';
 import {
   ORE_CAPTURE_RADIUS, ORE_TTL_DAYS, ORE_MIN_DISTANCE, ORE_ZONE_RADIUS,
   ORE_TYPES, MIN_ORE_PER_CITY, ORE_PER_PLAYER, MAX_ORE_PER_CITY,
-  VOLCANO_ERUPTION_MAX_CHANCE, VOLCANO_ERUPTION_RAMP_DAYS,
+  VOLCANO_PHASE_THRESHOLDS, VOLCANO_ERUPTION_BURN_RADIUS, VOLCANO_ERUPTION_OWNER_REWARD,
 } from '../../config/constants.js';
 
 export { ORE_CAPTURE_RADIUS, ORE_TTL_DAYS, ORE_MIN_DISTANCE, ORE_ZONE_RADIUS };
@@ -44,17 +45,163 @@ export function getOreIncome(level, oreType = 'hill') {
   return Math.floor(level * cfg.incomeMultiplier);
 }
 
-// ── Eruption chance (daily %) for volcano ──
-export function getEruptionDailyChance(daysOwned) {
-  if (daysOwned <= 1) return 0;
-  return Math.min(VOLCANO_ERUPTION_MAX_CHANCE, (daysOwned - 1) * (VOLCANO_ERUPTION_MAX_CHANCE / VOLCANO_ERUPTION_RAMP_DAYS));
+// ── Eruption phase + hourly chance — re-exported from pure helper module ──
+export { getVolcanoPhase, getEruptionHourlyChance } from '../../lib/volcanoPhase.js';
+import { getVolcanoPhase as _getVolcanoPhase } from '../../lib/volcanoPhase.js';
+
+// ── Trigger a volcano eruption: reset owner, burn mines in radius, notify, compensate ──
+export async function triggerVolcanoEruption(ore, io, connectedPlayers) {
+  const nowISO = new Date().toISOString();
+  const eruptedOwnerId = ore.owner_id;
+  const eruptedOwner = gameState.getPlayerById(eruptedOwnerId);
+
+  // 1. Reset volcano ownership
+  ore.owner_id = null;
+  ore.hp = ore.max_hp;
+  ore.captured_at = null;
+  delete ore._lastPhase;
+  gameState.markDirty('oreNodes', ore.id);
+  supabase.from('ore_nodes').update({
+    owner_id: null, hp: ore.max_hp, captured_at: null,
+  }).eq('id', ore.id).then(() => {}).catch(e => console.error('[eruption] ore DB error:', e.message));
+
+  // 2. Burn all mines within VOLCANO_ERUPTION_BURN_RADIUS of the volcano
+  const burnedMines = [];
+  const burnedByVolcano = { telegram_id: 0, name: 'Вулкан 🌋', avatar: '🌋' };
+  for (const mine of gameState.mines.values()) {
+    if (mine.status === 'burning' || mine.status === 'destroyed') continue;
+    if (fastDistance(ore.lat, ore.lng, mine.lat, mine.lng) > VOLCANO_ERUPTION_BURN_RADIUS) continue;
+
+    mine.status = 'burning';
+    mine.hp = 0;
+    mine.burning_started_at = nowISO;
+    mine.last_collected = nowISO;
+    mine.coins = 0;
+    mine._burned_by = burnedByVolcano;
+    mine.attacker_id = null;
+    mine.attack_started_at = null;
+    mine.attack_ends_at = null;
+    mine.last_hp_update = null;
+    mine.pending_level = null;
+    mine.upgrade_finish_at = null;
+    gameState.markDirty('mines', mine.id);
+
+    supabase.from('mines').update({
+      status: 'burning', hp: 0, burning_started_at: nowISO,
+      last_collected: nowISO, coins: 0, attacker_id: null,
+      attack_started_at: null, attack_ends_at: null, last_hp_update: null,
+      pending_level: null, upgrade_finish_at: null,
+    }).eq('id', mine.id).then(() => {}).catch(e => console.error('[eruption] mine DB error:', e.message));
+
+    burnedMines.push(mine);
+  }
+
+  // 3. Emit mine:hp_update for each burned mine so nearby clients see them turn red
+  for (const mine of burnedMines) {
+    for (const [sid, info] of connectedPlayers) {
+      if (info.lat && info.lng && fastDistance(mine.lat, mine.lng, info.lat, info.lng) <= 2000) {
+        io.to(sid).emit('mine:hp_update', { mine_id: mine.id, hp: 0, status: 'burning', burning_started_at: nowISO });
+      }
+    }
+  }
+
+  // 4. Eruption broadcast for visual effects
+  for (const [sid, info] of connectedPlayers) {
+    if (info.lat && info.lng && fastDistance(ore.lat, ore.lng, info.lat, info.lng) <= 2000) {
+      io.to(sid).emit('volcano:erupted', {
+        ore_node_id: ore.id, lat: ore.lat, lng: ore.lng, level: ore.level,
+        burned_mine_ids: burnedMines.map(m => m.id),
+      });
+    }
+  }
+
+  // 5. Compensate volcano owner: +20💎 + push notification
+  if (eruptedOwner) {
+    eruptedOwner.diamonds = (eruptedOwner.diamonds || 0) + VOLCANO_ERUPTION_OWNER_REWARD;
+    gameState.markDirty('players', eruptedOwner.id);
+    try {
+      await persistNow('players', { id: eruptedOwner.id, diamonds: eruptedOwner.diamonds });
+    } catch (e) { console.error('[eruption] owner persist error:', e.message); }
+
+    const eLang = eruptedOwner.language || 'en';
+    const ownerMsg = eLang === 'ru'
+      ? `💥 Ваш вулкан Ур.${ore.level} извергся! Вы получили ${VOLCANO_ERUPTION_OWNER_REWARD}💎 компенсации`
+      : `💥 Your Lv.${ore.level} volcano erupted! You received ${VOLCANO_ERUPTION_OWNER_REWARD}💎 compensation`;
+    const notif = {
+      id: globalThis.crypto.randomUUID(),
+      player_id: eruptedOwnerId,
+      type: 'volcano_erupted_owner',
+      message: ownerMsg,
+      data: { ore_node_id: ore.id, reward: VOLCANO_ERUPTION_OWNER_REWARD },
+      read: false, created_at: nowISO,
+    };
+    gameState.addNotification(notif);
+    supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[eruption] notif DB error:', e.message));
+  }
+
+  // 6. Notify victims (dedupe by owner_id, excluding volcano owner)
+  const burnedCountByOwner = new Map();
+  for (const mine of burnedMines) {
+    if (!mine.owner_id || mine.owner_id === eruptedOwnerId) continue;
+    burnedCountByOwner.set(mine.owner_id, (burnedCountByOwner.get(mine.owner_id) || 0) + 1);
+  }
+  for (const [victimId, count] of burnedCountByOwner) {
+    const victim = gameState.getPlayerById(victimId);
+    if (!victim) continue;
+    const vLang = victim.language || 'en';
+    const victimMsg = vLang === 'ru'
+      ? `🌋 Извержение вулкана Ур.${ore.level} уничтожило ${count} ваших шахт!`
+      : `🌋 A Lv.${ore.level} volcano eruption destroyed ${count} of your mines!`;
+    const notif = {
+      id: globalThis.crypto.randomUUID(),
+      player_id: victimId,
+      type: 'volcano_burned_mine',
+      message: victimMsg,
+      data: { ore_node_id: ore.id, burned_count: count },
+      read: false, created_at: nowISO,
+    };
+    gameState.addNotification(notif);
+    supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[eruption] victim DB error:', e.message));
+  }
+
+  console.log(`[ORE] 🌋 ERUPTION! Lv.${ore.level} volcano — owner ${eruptedOwner?.game_username || eruptedOwnerId}, burned ${burnedMines.length} mines`);
+
+  return { burnedCount: burnedMines.length };
 }
 
-// Convert daily chance to per-tick chance (5 min ticks, 288 per day)
-export function getEruptionTickChance(daysOwned) {
-  const daily = getEruptionDailyChance(daysOwned) / 100;
-  if (daily <= 0) return 0;
-  return 1 - Math.pow(1 - daily, 1 / 288);
+// Phase transition broadcast — called once per hourly check for each volcano that did NOT erupt.
+export function maybeBroadcastVolcanoPhase(ore, daysOwned, io, connectedPlayers) {
+  const { phase } = _getVolcanoPhase(daysOwned);
+  if (ore._lastPhase === phase) return;
+  const prevPhase = ore._lastPhase;
+  ore._lastPhase = phase;
+
+  for (const [sid, info] of connectedPlayers) {
+    if (info.lat && info.lng && fastDistance(ore.lat, ore.lng, info.lat, info.lng) <= 2000) {
+      io.to(sid).emit('volcano:phase_change', {
+        ore_node_id: ore.id, lat: ore.lat, lng: ore.lng, level: ore.level, phase,
+      });
+    }
+  }
+
+  if (!prevPhase) return; // first observation after server start — don't spam
+  if (phase !== 'unstable' && phase !== 'critical') return;
+  const owner = gameState.getPlayerById(ore.owner_id);
+  if (!owner) return;
+  const oLang = owner.language || 'en';
+  const msg = phase === 'unstable'
+    ? (oLang === 'ru' ? `🌋 Ваш вулкан Ур.${ore.level} становится нестабильным — скоро извержение!` : `🌋 Your Lv.${ore.level} volcano is becoming unstable — eruption imminent!`)
+    : (oLang === 'ru' ? `🔥 Ваш вулкан Ур.${ore.level} критичен — извержение может случиться в любой момент!` : `🔥 Your Lv.${ore.level} volcano is critical — eruption any moment now!`);
+  const notif = {
+    id: globalThis.crypto.randomUUID(),
+    player_id: ore.owner_id,
+    type: 'volcano_phase',
+    message: msg,
+    data: { ore_node_id: ore.id, phase },
+    read: false, created_at: new Date().toISOString(),
+  };
+  gameState.addNotification(notif);
+  supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[phase] notif DB error:', e.message));
 }
 
 // ── City-based ore count (legacy — kept for compatibility / stats) ──

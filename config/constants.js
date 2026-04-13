@@ -107,8 +107,17 @@ export const ORE_TYPES = {
   peak:     { emoji: '🗻', spawnWeight: 15, levels: [6, 8],  incomeMultiplier: 2.5, hpBase: 3000, hpPerLevel: 1200, dualCurrency: true,  canErupt: false },
   volcano:  { emoji: '🌋', spawnWeight: 5,  levels: [9, 10], incomeMultiplier: 4,   hpBase: 5000, hpPerLevel: 2000, dualCurrency: true,  canErupt: true  },
 };
-export const VOLCANO_ERUPTION_MAX_CHANCE = 90;       // % per day at cap
-export const VOLCANO_ERUPTION_RAMP_DAYS = 20;        // days from 0% to max chance
+// Volcano eruption phases — dailyChance is the per-day probability within that phase.
+// Eruption is checked once per VOLCANO_CHECK_INTERVAL_MS.
+export const VOLCANO_PHASE_THRESHOLDS = {
+  dormant:  { minDays: 0, dailyChance: 0    },  // 0-24h: safe
+  active:   { minDays: 1, dailyChance: 0.10 },  // day 1-3: 10%/day
+  unstable: { minDays: 3, dailyChance: 0.30 },  // day 3-7: 30%/day
+  critical: { minDays: 7, dailyChance: 0.60 },  // day 7+: 60%/day
+};
+export const VOLCANO_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+export const VOLCANO_ERUPTION_BURN_RADIUS = 200;          // meters — mines in this radius burn
+export const VOLCANO_ERUPTION_OWNER_REWARD = 20;          // 💎 compensation
 export const MIN_ORE_PER_CITY = 10;
 export const ORE_PER_PLAYER = 8;
 export const MAX_ORE_PER_CITY = 5000;                // sanity ceiling only (tile-based targets are the real limit)

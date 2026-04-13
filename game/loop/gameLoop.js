@@ -13,10 +13,10 @@ import {
   getShieldRegen, MONUMENT_SHIELD_DPS_THRESHOLD,
   TICK_INTERVAL, BOTS_PER_ZONE, BOT_TTL_MS, GLOBAL_BOT_CAP, BOT_SPEED_METERS, DRAIN_LIMITS,
   ZOMBIE_ATTACK_RANGE, ZOMBIE_NORMAL_DAMAGE,
-  ORE_TYPES, VOLCANO_ERUPTION_MAX_CHANCE, VOLCANO_ERUPTION_RAMP_DAYS,
+  ORE_TYPES, VOLCANO_CHECK_INTERVAL_MS,
   DEFENDER_ROLES, DEFENDER_DAMAGE_SCALE,
 } from '../../config/constants.js';
-import { getOreIncome, getEruptionTickChance } from '../mechanics/oreNodes.js';
+import { getOreIncome, getEruptionHourlyChance, triggerVolcanoEruption, maybeBroadcastVolcanoPhase } from '../mechanics/oreNodes.js';
 import { ts } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
@@ -26,6 +26,7 @@ const SPEED_METERS = BOT_SPEED_METERS;
 
 let _tickCount = 0;
 let _lastDailyMarketCheck = 0; // timestamp of last daily market check
+let _lastVolcanoCheck = 0;     // timestamp of last volcano eruption check (hourly)
 let _io = null;
 let _connectedPlayers = null;
 
@@ -446,13 +447,15 @@ function moveScouts(nowMs) {
             ore.hp = ore.max_hp;
             ore.last_collected = nowISO;
             ore.currency = selectedCurrency;
-            ore._claimed_at = nowISO;
+            ore.captured_at = nowISO;
+            delete ore._lastPhase;
             gameState.markDirty('oreNodes', ore.id);
 
             // Persist immediately (money operation)
             supabase.from('ore_nodes').update({
               owner_id: playerId, hp: ore.max_hp,
               last_collected: nowISO, currency: selectedCurrency,
+              captured_at: nowISO,
             }).eq('id', ore.id).then(() => {}).catch(e => console.error('[SCOUTS] DB error:', e.message));
 
             if (_io) {
@@ -1158,13 +1161,31 @@ async function periodicCleanup(nowMs, nowISO) {
       dailyMarketCheck().catch(e => console.error('[gameLoop] daily market check error:', e.message));
     }
 
-    // ── Ore node passive income + cleanup + eruptions ──
+    // ── Volcano eruption hourly check ──
+    if (nowMs - _lastVolcanoCheck >= VOLCANO_CHECK_INTERVAL_MS) {
+      _lastVolcanoCheck = nowMs;
+      try {
+        for (const [, ore] of gameState.oreNodes) {
+          if (!ore.owner_id) continue;
+          const cfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
+          if (!cfg.canErupt || !ore.captured_at) continue;
+          const daysOwned = (nowMs - new Date(ore.captured_at).getTime()) / 86400000;
+          const hourlyChance = getEruptionHourlyChance(daysOwned);
+          if (hourlyChance > 0 && Math.random() < hourlyChance) {
+            await triggerVolcanoEruption(ore, io, connectedPlayers);
+          } else {
+            maybeBroadcastVolcanoPhase(ore, daysOwned, io, connectedPlayers);
+          }
+        }
+      } catch (e) {
+        console.error('[gameLoop] volcano check error:', e.message);
+      }
+    }
+
+    // ── Ore node passive income + cleanup ──
     try {
       const oreNow = Date.now();
       for (const [id, ore] of gameState.oreNodes) {
-        // One-time cleanup: remove non-DB field that breaks persist
-        if (ore.captured_at) { delete ore.captured_at; gameState.markDirty('oreNodes', id); }
-
         // Expire old ore nodes
         if (new Date(ore.expires_at).getTime() <= oreNow) {
           gameState.oreNodes.delete(id);
@@ -1182,45 +1203,6 @@ async function periodicCleanup(nowMs, nowISO) {
         if (!ore.owner_id) continue;
 
         const oreTypeCfg = ORE_TYPES[ore.ore_type] || ORE_TYPES.hill;
-
-        // ── Volcano eruption check ──
-        if (oreTypeCfg.canErupt && ore._claimed_at) {
-          const daysOwned = (oreNow - new Date(ore._claimed_at).getTime()) / 86400000;
-          const tickChance = getEruptionTickChance(daysOwned);
-          if (tickChance > 0 && Math.random() < tickChance) {
-            // Eruption! Reset owner
-            const eruptedOwnerId = ore.owner_id;
-            const eruptedOwner = gameState.getPlayerById(eruptedOwnerId);
-            ore.owner_id = null;
-            ore.hp = ore.max_hp;
-            delete ore._claimed_at;
-            gameState.markDirty('oreNodes', id);
-            supabase.from('ore_nodes').update({ owner_id: null, hp: ore.max_hp }).eq('id', id).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
-
-            // Notify owner
-            if (eruptedOwner) {
-              const eLang = eruptedOwner.language || 'en';
-              const notif = {
-                id: globalThis.crypto.randomUUID(),
-                player_id: eruptedOwnerId,
-                type: 'ore_eruption',
-                message: ts(eLang, 'notif.ore_eruption', { level: ore.level }),
-                read: false, created_at: new Date().toISOString(),
-              };
-              gameState.addNotification(notif);
-              supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[loop] DB error:', e.message));
-            }
-
-            // Emit eruption event for animation
-            for (const [sid, info] of connectedPlayers) {
-              if (info.lat && info.lng && haversine(ore.lat, ore.lng, info.lat, info.lng) <= 2000) {
-                io.to(sid).emit('ore:eruption', { ore_node_id: id, lat: ore.lat, lng: ore.lng, level: ore.level });
-              }
-            }
-            console.log(`[ORE] 🌋 Eruption! Lv.${ore.level} volcano at ${ore.lat.toFixed(4)},${ore.lng.toFixed(4)} — owner ${eruptedOwner?.game_username || eruptedOwnerId} lost`);
-            continue; // Skip income for this tick
-          }
-        }
 
         // ── Passive income ──
         const hoursElapsed = (oreNow - new Date(ore.last_collected).getTime()) / 3600000;
