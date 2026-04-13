@@ -292,6 +292,7 @@ adminRouter.get('/player-search', (req, res) => {
         mines_count: minesCount,
         online: isOnline,
         city: ci?.city || null,
+        last_ip: p.last_ip || null,
       });
     }
   }

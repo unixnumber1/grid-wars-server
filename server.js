@@ -601,14 +601,29 @@ io.on('connection', (socket) => {
         }
       }
     }
+    // Capture client IP through nginx X-Forwarded-For; fall back to handshake.address
+    // (which would be 127.0.0.1 since we sit behind nginx).
+    const xff = socket.handshake.headers['x-forwarded-for'];
+    const clientIp = (xff ? String(xff).split(',')[0].trim() : '') || socket.handshake.address || '';
+
     connectedPlayers.set(socket.id, {
       telegram_id: verifiedTgId,
       player_db_id: playerDbId,
       lat: data.lat,
       lng: data.lng,
+      ip: clientIp,
       lastState: null
     });
-    console.log('[socket] Player init:', verifiedTgId, 'db_id:', playerDbId, 'total:', connectedPlayers.size);
+    console.log('[socket] Player init:', verifiedTgId, 'db_id:', playerDbId, 'ip:', clientIp, 'total:', connectedPlayers.size);
+
+    // Persist last seen IP on the player so admins can look it up later.
+    if (verifiedTgId && clientIp && gameState.loaded) {
+      const _gp = gameState.getPlayerByTgId(verifiedTgId);
+      if (_gp && _gp.last_ip !== clientIp) {
+        _gp.last_ip = clientIp;
+        gameState.markDirty('players', _gp.id);
+      }
+    }
 
     // Sync position to gameState immediately so distance checks work before first player:location
     if (verifiedTgId && data.lat && data.lng) {
