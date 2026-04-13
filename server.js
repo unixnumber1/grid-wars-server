@@ -385,11 +385,33 @@ app.post('/api/monument-webhook', async (req, res) => {
         body: JSON.stringify({ callback_query_id: cb.id, text }),
       }).catch(e => console.error('[monument-webhook] answer error:', e.message));
 
-    const editMessage = (text) =>
-      fetch(`https://api.telegram.org/bot${MONUMENT_BOT}/editMessageText`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, disable_web_page_preview: true }),
-      }).catch(e => console.error('[monument-webhook] edit error:', e.message));
+    // Edit all copies of a monument request card across monumentologist chats.
+    // Reads telegram_messages ({ chat_id: message_id }) saved at send time, plus
+    // the currently clicked message as a fallback. Removes the inline keyboard.
+    async function editAllCopies(mreq, text) {
+      const map = (mreq?.telegram_messages && typeof mreq.telegram_messages === 'object') ? mreq.telegram_messages : {};
+      const seen = new Set();
+      const entries = [];
+      for (const [cid, mid] of Object.entries(map)) {
+        const k = `${cid}:${mid}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        entries.push({ chat_id: Number(cid), message_id: Number(mid) });
+      }
+      const clickedKey = `${chatId}:${msgId}`;
+      if (!seen.has(clickedKey)) entries.push({ chat_id: chatId, message_id: msgId });
+
+      for (const e of entries) {
+        try {
+          await fetch(`https://api.telegram.org/bot${MONUMENT_BOT}/editMessageText`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: e.chat_id, message_id: e.message_id, text, disable_web_page_preview: true }),
+          });
+        } catch (err) {
+          console.error(`[monument-webhook] editAll ${e.chat_id}:${e.message_id}`, err.message);
+        }
+      }
+    }
 
     // Permission check — only monumentologists can approve/reject
     const { isMonumentologist: isMon } = await import('./config/constants.js');
@@ -405,8 +427,6 @@ app.post('/api/monument-webhook', async (req, res) => {
       const { supabase: sb, sendTelegramNotification: notify } = await import('./lib/supabase.js');
       const { MONUMENT_HP: MHP, MONUMENT_SHIELD_HP: MSHP } = await import('./config/constants.js');
       const { getCellId } = await import('./lib/grid.js');
-      const { buildMonumentRequestText } = await import('./api/routes/monuments.js');
-      const { getPlayerCity } = await import('./lib/geocity.js');
 
       const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
       if (!mreq) { await answerCallback('Заявка не найдена'); return; }
@@ -488,21 +508,14 @@ app.post('/api/monument-webhook', async (req, res) => {
       const _pLang = _gl2(gameState, mreq.player_id);
       notify(mreq.player_id, _ts2(_pLang, 'monreq.approved', { id: reqId, emoji: mreq.emoji, name: mreq.name, level: mreq.level })).catch(e => console.error('[monument-webhook] error:', e.message));
 
-      // Rebuild the original card text + append review result (keeps all info visible)
-      const reqPlayer = gameState.getPlayerByTgId(mreq.player_id) || { game_username: 'Неизвестно', username: null, telegram_id: mreq.player_id };
-      let cityInfo = null;
-      try { cityInfo = await getPlayerCity(`monreq_${reqId}`, mreq.lat, mreq.lng); } catch {}
-      const fullText = buildMonumentRequestText(mreq, reqPlayer, cityInfo);
-      const resultText = `${fullText}\n\n━━━━━━━━━━━━━━\n✅ ЗАЯВКА РАССМОТРЕНА — ОДОБРЕНА\n👤 Кем: ${reviewerName}\n🕐 Когда: ${new Date().toLocaleString('ru')}`;
-      await editMessage(resultText);
+      const resultText = `✅ ОДОБРЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name} lv${mreq.level}\nМонумент создан!\n👤 ${reviewerName}`;
+      await editAllCopies(mreq, resultText);
       await answerCallback('✅ Монумент создан!');
       console.log(`[MONUMENTS] Request #${reqId} APPROVED by ${reviewerName}`);
 
     } else if (data.startsWith('reject_monument_')) {
       const reqId = parseInt(data.replace('reject_monument_', ''), 10);
       const { supabase: sb } = await import('./lib/supabase.js');
-      const { buildMonumentRequestText } = await import('./api/routes/monuments.js');
-      const { getPlayerCity } = await import('./lib/geocity.js');
 
       const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
       if (!mreq) { await answerCallback('Заявка не найдена'); return; }
@@ -513,12 +526,8 @@ app.post('/api/monument-webhook', async (req, res) => {
 
       await sb.from('monument_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', reqId);
 
-      const reqPlayer = gameState.getPlayerByTgId(mreq.player_id) || { game_username: 'Неизвестно', username: null, telegram_id: mreq.player_id };
-      let cityInfo = null;
-      try { cityInfo = await getPlayerCity(`monreq_${reqId}`, mreq.lat, mreq.lng); } catch {}
-      const fullText = buildMonumentRequestText(mreq, reqPlayer, cityInfo);
-      const resultText = `${fullText}\n\n━━━━━━━━━━━━━━\n❌ ЗАЯВКА РАССМОТРЕНА — ОТКЛОНЕНА\n👤 Кем: ${reviewerName}\n🕐 Когда: ${new Date().toLocaleString('ru')}`;
-      await editMessage(resultText);
+      const resultText = `❌ ОТКЛОНЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name}\n👤 ${reviewerName}`;
+      await editAllCopies(mreq, resultText);
       await answerCallback('❌ Заявка отклонена');
       console.log(`[MONUMENTS] Request #${reqId} REJECTED by ${reviewerName}`);
     }

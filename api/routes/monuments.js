@@ -760,15 +760,24 @@ async function sendAdminMonumentRequest(request, player) {
   };
 
   // Send to every monumentologist. Each recipient must have /start'd the monument bot.
+  // Capture message_ids so the webhook can edit all copies atomically on review.
+  const messageIds = {}; // { tgId: message_id }
   for (const tgId of MONUMENTOLOGIST_TG_IDS) {
     try {
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: tgId, text: message, reply_markup: keyboard, disable_web_page_preview: true }),
       });
+      const j = await res.json();
+      if (j.ok && j.result?.message_id) messageIds[String(tgId)] = j.result.message_id;
     } catch (e) {
       console.error(`[MONUMENT_REQ] send to ${tgId} failed:`, e.message);
     }
+  }
+  if (Object.keys(messageIds).length > 0) {
+    await supabase.from('monument_requests')
+      .update({ telegram_messages: messageIds })
+      .eq('id', request.id);
   }
 }
