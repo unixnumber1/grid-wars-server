@@ -250,7 +250,7 @@ app.post('/api/telegram-webhook', async (req, res) => {
                 chat_id: chatId,
                 text: `🏛️ Предпросмотр места заявки\n📍 ${lat}, ${lng}\n\nНажми кнопку чтобы открыть карту:`,
                 reply_markup: { inline_keyboard: [
-                  [{ text: '🎮 Открыть', web_app: { url: `https://overthrow.ru:8443?fly_to=${lat},${lng}` } }],
+                  [{ text: '🎮 Открыть', web_app: { url: `https://overthrow.ru:8443/?fly_lat=${lat}&fly_lng=${lng}` } }],
                 ] },
               }),
             }).catch(e => console.error('[webhook] fly_to error:', e.message));

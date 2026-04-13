@@ -14127,14 +14127,20 @@ async function boot() {
       }).catch(() => {});
     }
 
-    // fly_to — support both URL query (?fly_to=lat,lng) and Telegram Mini App
-    // deep link (?startapp=fly_<latEncoded>_<lngEncoded>, used by monument bot).
-    // Encoding: dots → "d", minus → "n" (Telegram startapp only allows [A-Za-z0-9_-]).
+    // fly_to — open Mini App at specific coordinates. Supported inputs:
+    //   ?fly_lat=<lat>&fly_lng=<lng>     (current, from monument preview)
+    //   ?fly_to=<lat>,<lng>              (legacy)
+    //   Telegram start_param = fly_<latEncoded>_<lngEncoded> (future, if Main Mini App configured)
     let _flyLat = null, _flyLng = null;
-    const _flyParam = new URLSearchParams(window.location.search).get('fly_to');
-    if (_flyParam) {
-      const [a, b] = _flyParam.split(',').map(Number);
-      if (a && b) { _flyLat = a; _flyLng = b; }
+    const _q = new URLSearchParams(window.location.search);
+    const _qLat = Number(_q.get('fly_lat')), _qLng = Number(_q.get('fly_lng'));
+    if (_qLat && _qLng) { _flyLat = _qLat; _flyLng = _qLng; }
+    if (!_flyLat) {
+      const _legacy = _q.get('fly_to');
+      if (_legacy) {
+        const [a, b] = _legacy.split(',').map(Number);
+        if (a && b) { _flyLat = a; _flyLng = b; }
+      }
     }
     const _sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
     if (!_flyLat && _sp && _sp.startsWith('fly_')) {
