@@ -20849,9 +20849,19 @@ function showCollectorPopup(collectorId) {
   if (combatState.isHolding && !c.is_mine && inAttackRange) {
     return doStartCollectorCombat(collectorId);
   }
-  // Capacity = sum of mine capacities in collector radius
+  // Capacity = sum of mine capacities × core capacity boost × skill bonus
+  // Must mirror getCollectorCapacity in game/mechanics/collectors.js, otherwise
+  // the UI shows a fake overflow when the player owns capacity cores or skills.
   const collMines = (state.mines || []).filter(m => m.owner_id === state.player?.id && haversine(c.lat, c.lng, m.lat, m.lng) <= 200);
-  const capacity = collMines.reduce((s, m) => s + getMineCapacity(m.level), 0) || 1;
+  const _skCapMulColl = 1 + (state.skill_effects?.mine_capacity_bonus || 0);
+  const capacity = collMines.reduce((s, m) => {
+    const mCores = m.cell_id ? getCoresForMine(m.cell_id) : [];
+    const capCores = mCores.filter(x => x.core_type === 'capacity');
+    const capBoost = capCores.length > 0
+      ? 1 + capCores.reduce((acc, x) => acc + (getCoreMultiplier(x.level) - 1), 0)
+      : 1;
+    return s + Math.round(getMineCapacity(m.level) * capBoost * _skCapMulColl);
+  }, 0) || 1;
   const coins = c.stored_coins || 0;
   const fillPct = capacity > 0 ? Math.min(100, Math.round(coins / capacity * 100)) : 0;
   const hpPct = c.max_hp > 0 ? Math.round(c.hp / c.max_hp * 100) : 100;
