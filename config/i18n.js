@@ -279,6 +279,19 @@ const TRANSLATIONS = {
     'report.err.self_report':      'Нельзя пожаловаться на себя',
     'report.err.player_not_found': 'Игрок не найден',
     'report.err.save_failed':      'Не удалось сохранить жалобу, попробуйте позже',
+
+    // ── Monument World Map ──
+    'mwm.title':              'Карта монументов',
+    'mwm.search_placeholder': 'Поиск по названию…',
+    'mwm.phase_shield':       '🛡 Под щитом',
+    'mwm.phase_open':         '⚔️ Открыт',
+    'mwm.phase_defeated':     '💀 Снесён',
+    'mwm.view_btn':           '📍 Посмотреть на карте',
+    'mwm.history_btn':        '📜 История рейдов',
+    'mwm.history_title':      'История рейдов',
+    'mwm.history_subtitle':   'Кто и когда снёс этот монумент. Уровень показан на момент сноса.',
+    'mwm.history_loading':    'Загрузка…',
+    'mwm.history_empty':      'Этот монумент ещё ни разу не сносили',
   },
 
   en: {
@@ -557,6 +570,19 @@ const TRANSLATIONS = {
     'report.err.self_report':      'You cannot report yourself',
     'report.err.player_not_found': 'Player not found',
     'report.err.save_failed':      'Failed to save report, please try again later',
+
+    // ── Monument World Map ──
+    'mwm.title':              'Monument World Map',
+    'mwm.search_placeholder': 'Search by name…',
+    'mwm.phase_shield':       '🛡 Shielded',
+    'mwm.phase_open':         '⚔️ Open',
+    'mwm.phase_defeated':     '💀 Defeated',
+    'mwm.view_btn':           '📍 View on map',
+    'mwm.history_btn':        '📜 Raid history',
+    'mwm.history_title':      'Raid history',
+    'mwm.history_subtitle':   'Who broke this monument and when. Level shown is at the moment of defeat.',
+    'mwm.history_loading':    'Loading…',
+    'mwm.history_empty':      'This monument has never been defeated',
   },
 };
 

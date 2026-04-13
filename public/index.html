@@ -3589,10 +3589,10 @@
 <div id="monument-raids-overlay" onclick="if(event.target===this)closeMonumentRaidHistory()">
   <div id="monument-raids-card">
     <div class="mr-header">
-      <h3 id="monument-raids-title">📜 История рейдов</h3>
+      <h3 id="monument-raids-title">📜</h3>
       <button class="mr-close" onclick="closeMonumentRaidHistory()">&#x2715;</button>
     </div>
-    <div class="mr-subtitle">Кто и когда снёс этот монумент. Уровень показан на момент сноса.</div>
+    <div class="mr-subtitle" id="monument-raids-subtitle"></div>
     <div id="monument-raids-list"></div>
   </div>
 </div>
@@ -15821,19 +15821,37 @@ function _showMwmPopup(monumentId) {
 
   document.getElementById('mwm-popup-content').innerHTML = `
     <div class="mwm-popup-header">
-      <span class="mwm-popup-emoji">${m.emoji}</span>
+      <span class="mwm-popup-emoji">${escapeHtml(m.emoji || '')}</span>
       <div class="mwm-popup-info">
-        <div class="mwm-popup-title">${m.name}</div>
+        <div class="mwm-popup-title">${escapeHtml(m.name || '')}</div>
         <div class="mwm-popup-meta">
           <span class="mwm-popup-level">⭐ ${m.level}</span>
-          <span class="mwm-popup-phase ${phaseClass}">${phaseLabel}</span>
+          <span class="mwm-popup-phase ${phaseClass}">${escapeHtml(phaseLabel)}</span>
         </div>
       </div>
     </div>
-    <button class="mwm-popup-view-btn" onclick="mwmFlyToMonument('${m.id}')">${t('mwm.view_btn') || '📍 Посмотреть на карте'}</button>
-    <button class="mwm-popup-history-btn" onclick="showMonumentRaidHistory('${m.id}','${(m.emoji || '').replace(/'/g,"\\'")}','${(m.name || '').replace(/'/g,"\\'")}')">📜 ${t('mwm.history_btn') || 'История рейдов'}</button>
+    <button class="mwm-popup-view-btn" type="button">${escapeHtml(t('mwm.view_btn'))}</button>
+    <button class="mwm-popup-history-btn" type="button">${escapeHtml(t('mwm.history_btn'))}</button>
   `;
   document.getElementById('mwm-popup').classList.add('visible');
+
+  // Bind handlers programmatically so they don't depend on HTML-attribute
+  // escaping or inline-onclick edge cases inside Telegram WebView.
+  const popupContent = document.getElementById('mwm-popup-content');
+  const _viewBtn = popupContent.querySelector('.mwm-popup-view-btn');
+  if (_viewBtn) {
+    _viewBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      mwmFlyToMonument(m.id);
+    });
+  }
+  const _historyBtn = popupContent.querySelector('.mwm-popup-history-btn');
+  if (_historyBtn) {
+    _historyBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      showMonumentRaidHistory(m.id, m.emoji, m.name);
+    });
+  }
 
   mwmMap.flyTo({ center: [m.lng, m.lat], zoom: 8, duration: 1500 });
 }
@@ -15843,14 +15861,15 @@ async function showMonumentRaidHistory(monumentId, emoji, name) {
   const overlay = document.getElementById('monument-raids-overlay');
   const list = document.getElementById('monument-raids-list');
   document.getElementById('monument-raids-title').textContent = `${emoji || '🏛️'} ${name || ''}`.trim();
-  list.innerHTML = '<div class="mr-empty">Загрузка…</div>';
+  document.getElementById('monument-raids-subtitle').textContent = t('mwm.history_subtitle');
+  list.innerHTML = `<div class="mr-empty">${escapeHtml(t('mwm.history_loading'))}</div>`;
   overlay.classList.add('open');
 
   try {
     const data = await apiFetch('/api/monuments/raid-history?monument_id=' + encodeURIComponent(monumentId));
     const raids = (data && data.raids) || [];
     if (!raids.length) {
-      list.innerHTML = '<div class="mr-empty">Этот монумент ещё ни разу не сносили</div>';
+      list.innerHTML = `<div class="mr-empty">${escapeHtml(t('mwm.history_empty'))}</div>`;
       return;
     }
     list.innerHTML = raids.map(r => {
