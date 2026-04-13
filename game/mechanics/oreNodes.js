@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import { supabase } from '../../lib/supabase.js';
 import { gameState } from '../state/GameState.js';
 import { haversine } from '../../lib/haversine.js';
@@ -55,18 +57,51 @@ export function getEruptionTickChance(daysOwned) {
   return 1 - Math.pow(1 - daily, 1 / 288);
 }
 
-// ── City-based ore count ──
+// ── City-based ore count (legacy — kept for compatibility / stats) ──
 export function getOreCountForCity(playerCount) {
   if (playerCount === 0) return 0;
   const raw = playerCount * ORE_PER_PLAYER;
   return Math.min(MAX_ORE_PER_CITY, Math.max(MIN_ORE_PER_CITY, raw));
 }
 
-// ── Overpass spawn points cache ──
-const _spawnPointsCache = new Map(); // cityKey -> { points, updatedAt }
-const _spawnErrorCache = new Map(); // cityKey -> timestamp of last error
-const SPAWN_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
-const ERROR_CACHE_TTL = 30 * 60 * 1000; // 30min — don't retry failed cities too often
+// ── Tile-based spawning helpers (pure, re-exported from lib/oreTiles.js) ──
+export { getOreTileKey, tileBounds, computeTileDeficits } from '../../lib/oreTiles.js';
+import { computeTileDeficits as _computeTileDeficits } from '../../lib/oreTiles.js';
+
+// ── Overpass spawn points cache (persisted to disk) ──
+const _spawnPointsCache = new Map(); // cacheKey -> { points, updatedAt }
+const _spawnErrorCache = new Map(); // cacheKey -> timestamp of last error
+const SPAWN_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7d — road graph is stable
+const ERROR_CACHE_TTL = 30 * 60 * 1000; // 30min — don't retry failed regions too often
+const ROAD_CACHE_FILE = '/var/www/grid-wars-server/.ore-road-cache.json';
+
+// Load persisted road cache on startup (runs once at module import)
+try {
+  const raw = readFileSync(ROAD_CACHE_FILE, 'utf8');
+  const saved = JSON.parse(raw);
+  if (saved && typeof saved === 'object') {
+    let loaded = 0;
+    for (const [k, v] of Object.entries(saved)) {
+      if (v?.points && v?.updatedAt && Date.now() - v.updatedAt < SPAWN_CACHE_TTL) {
+        _spawnPointsCache.set(k, v);
+        loaded++;
+      }
+    }
+    console.log(`[ORE] Loaded road cache: ${loaded} entries`);
+  }
+} catch (_) { /* no cache file yet */ }
+
+let _roadPersistPending = false;
+function persistRoadCache() {
+  if (_roadPersistPending) return;
+  _roadPersistPending = true;
+  setTimeout(() => {
+    _roadPersistPending = false;
+    const data = Object.fromEntries(_spawnPointsCache);
+    writeFile(ROAD_CACHE_FILE, JSON.stringify(data))
+      .catch(e => console.error('[ORE] road cache persist error:', e.message));
+  }, 10000); // 10s debounce
+}
 
 export function clearSpawnErrorCache() {
   const size = _spawnErrorCache.size;
@@ -78,6 +113,7 @@ export function clearSpawnErrorCache() {
 export function clearSpawnPointsCache() {
   const size = _spawnPointsCache.size;
   _spawnPointsCache.clear();
+  persistRoadCache();
   console.log(`[ORE] Cleared spawn points cache (${size} entries)`);
   return size;
 }
@@ -148,6 +184,7 @@ async function fetchSpawnPoints(cityKey, bounds) {
     }
     console.log(`[ORE] Overpass ${cityKey}: ${points.length} road points`);
     _spawnPointsCache.set(cityKey, { points, updatedAt: Date.now() });
+    persistRoadCache();
     return points;
   }
 
@@ -187,6 +224,7 @@ async function fetchSpawnPoints(cityKey, bounds) {
 
   console.log(`[ORE] Overpass ${cityKey}: ${allPoints.length} road points from ${tiles - failed}/${tiles} tiles`);
   _spawnPointsCache.set(cityKey, { points: allPoints, updatedAt: Date.now() });
+  persistRoadCache();
   return allPoints;
 }
 
@@ -208,9 +246,18 @@ async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
   const nowISO = new Date().toISOString();
   const expiresAt = new Date(Date.now() + ORE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
   let spawned = 0;
-  const allOrePositions = [...gameState.oreNodes.values()].map(o => ({ lat: o.lat, lng: o.lng }));
 
   const [minLat, maxLat, minLng, maxLng] = bounds;
+
+  // Only check proximity against nearby ores (tile + ORE_MIN_DISTANCE margin in degrees).
+  // O(N_ores_in_region) instead of O(N_all_ores). ~0.005° ≈ 550m.
+  const MARGIN = ORE_MIN_DISTANCE / 111000 + 0.001;
+  const allOrePositions = [];
+  for (const o of gameState.oreNodes.values()) {
+    if (o.lat < minLat - MARGIN || o.lat > maxLat + MARGIN) continue;
+    if (o.lng < minLng - MARGIN || o.lng > maxLng + MARGIN) continue;
+    allOrePositions.push({ lat: o.lat, lng: o.lng });
+  }
 
   for (let attempt = 0; attempt < toSpawn * 5 && spawned < toSpawn; attempt++) {
     let lat, lng;
@@ -255,51 +302,40 @@ async function _spawnInBounds(cityKey, cacheKey, bounds, toSpawn) {
   return spawned;
 }
 
-// ── Spawn ore for a city (handles sub-zones for large cities) ──
-export async function spawnOreNodesForCity(cityKey, bounds, playerCount, subZones) {
-  const [minLat, maxLat, minLng, maxLng] = bounds;
+// ── Spawn ore for a city (tile-based: independent per 5×5 km tile) ──
+// Called from citySpawnCycle. Iterates tiles with biggest deficit first,
+// spawning up to `budget` ores total. Tile cacheKey is stable by geography
+// (cityKey + tileKey), so Overpass road points are cached persistently.
+export async function spawnOreNodesForCity(cityKey, bounds, playerPositions, budget = Infinity) {
+  if (!Array.isArray(playerPositions) || playerPositions.length === 0) return 0;
 
-  const existingInCity = [...gameState.oreNodes.values()].filter(o =>
-    o.lat >= minLat && o.lat <= maxLat && o.lng >= minLng && o.lng <= maxLng
-  );
+  const tiles = _computeTileDeficits(bounds, playerPositions, gameState.oreNodes.values());
+  if (tiles.length === 0) return 0;
 
-  const targetCount = getOreCountForCity(playerCount);
-  let toSpawn = targetCount - existingInCity.length;
-
-  // If city is full but sub-zones are provided (uncovered players), spawn 10 per zone
-  if (toSpawn <= 0 && subZones && subZones.length > 0) {
-    toSpawn = subZones.length * 10;
-    console.log(`[ORE] ${cityKey}: full but ${subZones.length} uncovered zones, spawning ${toSpawn} extra`);
-  }
-
-  if (toSpawn <= 0) return 0;
-
-  console.log(`[ORE] ${cityKey}: need ${toSpawn} ores (players: ${playerCount}, existing: ${existingInCity.length})`);
+  const totalDeficit = tiles.reduce((s, t) => s + t.deficit, 0);
+  console.log(`[ORE] ${cityKey}: ${tiles.length} tiles with deficit, total=${totalDeficit}, budget=${budget === Infinity ? '∞' : budget}`);
 
   let totalSpawned = 0;
+  let remaining = budget;
 
-  // Sub-zones: spawn per player zone
-  if (subZones && subZones.length > 0) {
-    const perZone = Math.max(1, Math.ceil(toSpawn / subZones.length));
-    for (let i = 0; i < subZones.length; i++) {
-      const zone = subZones[i];
-      const zoneKey = `${cityKey}_zone${i}`;
-      const zoneNeed = Math.min(perZone, toSpawn - totalSpawned);
-      if (zoneNeed <= 0) break;
+  for (let i = 0; i < tiles.length; i++) {
+    if (remaining <= 0) break;
+    const tile = tiles[i];
+    const need = Math.min(tile.deficit, remaining);
+    const tileCacheKey = `${cityKey}_t${tile.tileKey}`;
 
-      const spawned = await _spawnInBounds(cityKey, zoneKey, zone, zoneNeed);
-      totalSpawned += spawned;
-      console.log(`[ORE] ${zoneKey}: spawned ${spawned}/${zoneNeed}`);
+    const spawned = await _spawnInBounds(cityKey, tileCacheKey, tile.bounds, need);
+    totalSpawned += spawned;
+    remaining -= spawned;
+    console.log(`[ORE] ${tileCacheKey}: spawned ${spawned}/${need} (players=${tile.playerCount}, existing=${tile.existing}, target=${tile.target})`);
 
-      // Pause between zones
-      if (i < subZones.length - 1) await new Promise(r => setTimeout(r, 3000));
+    // Short pause between tiles — road points usually come from persistent cache
+    if (i < tiles.length - 1 && remaining > 0) {
+      await new Promise(r => setTimeout(r, 800));
     }
-  } else {
-    // Small city — single bounds
-    totalSpawned = await _spawnInBounds(cityKey, cityKey, bounds, toSpawn);
   }
 
-  console.log(`[ORE] ${cityKey}: spawned ${totalSpawned}/${toSpawn} total${totalSpawned > 0 ? '' : ' (check Overpass/roads)'}`);
+  console.log(`[ORE] ${cityKey}: spawned ${totalSpawned} ores across ${tiles.length} tiles`);
   return totalSpawned;
 }
 

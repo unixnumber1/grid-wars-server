@@ -111,14 +111,21 @@ export const VOLCANO_ERUPTION_MAX_CHANCE = 90;       // % per day at cap
 export const VOLCANO_ERUPTION_RAMP_DAYS = 20;        // days from 0% to max chance
 export const MIN_ORE_PER_CITY = 10;
 export const ORE_PER_PLAYER = 8;
-export const MAX_ORE_PER_CITY = 150;
+export const MAX_ORE_PER_CITY = 5000;                // sanity ceiling only (tile-based targets are the real limit)
+
+// Tile-based ore spawning (5×5 km tiles; matches lib/mineBoost.js CELL_DEG)
+export const ORE_TILE_DEG = 0.045;
+export const ORE_PER_TILE_MIN = 12;                  // floor target for a tile with ≥1 player
+export const ORE_PER_TILE_MAX = 40;                  // ceiling per tile (≥500m min distance fits ~80)
+export const ORE_UNCOVERED_RADIUS = 1000;            // player is "covered" only if ore within 1km (was 3km)
+export const ORE_SPAWN_BUDGET_PER_CYCLE = 400;       // global max ores spawned per 1h cycle
 
 // ── Collectors ──
 export const COLLECTOR_COST_DIAMONDS = 25;
-export const COLLECTOR_SELL_DIAMONDS = 37;
 export const COLLECTOR_RADIUS = 200;               // meters
 export const COLLECTOR_DELIVERY_COMMISSION = 0;      // 0% (commission disabled)
 export const COLLECTOR_EXTINGUISH_COST = 5;          // diamonds to extinguish
+export const COLLECTOR_SELL_REFUND_PCT = 0.5;        // 50% of total invested diamonds (build + upgrades)
 
 // ── Barracks ──
 export const BARRACKS_BUILD_COST = 50;               // diamonds

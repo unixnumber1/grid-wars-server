@@ -1105,17 +1105,17 @@ async function start() {
   startMonumentLoop();
   // startDefenderLoop(); — replaced by updateDefenders() in gameLoop.js 1s interval
 
-  // ── City-based spawn cycle (ore only — vases spawn at midnight MSK) ──
+  // ── City spawn cycle (tile-based, see game/mechanics/oreNodes.js) ──
   async function citySpawnCycle() {
     try {
       const { getAllCityKeys, getCityBounds, getCityPlayerCount, playerCityCache, cityPlayersCache } = await import('./lib/geocity.js');
-      const { spawnOreNodesForCity, getOreCountForCity } = await import('./lib/oreNodes.js');
-      const { haversine } = await import('./lib/haversine.js');
+      const { spawnOreNodesForCity, computeTileDeficits } = await import('./lib/oreNodes.js');
+      const { ORE_SPAWN_BUDGET_PER_CYCLE } = await import('./config/constants.js');
 
       const cityKeys = getAllCityKeys();
       if (!cityKeys.length) { console.log('[SPAWN] No cities in cache yet'); return; }
 
-      // Calculate priority: cities with lowest ore % first
+      // Collect per-city player positions and total deficit, prioritise by deficit
       const cityInfos = [];
       for (const cityKey of cityKeys) {
         const playerCount = getCityPlayerCount(cityKey);
@@ -1124,68 +1124,56 @@ async function start() {
         const cb = await getCityBounds(cityKey);
         if (!cb?.boundingbox) continue;
 
-        const [minLat, maxLat, minLng, maxLng] = cb.boundingbox;
-        let existingCount = 0;
-        for (const o of gameState.oreNodes.values()) {
-          if (o.lat >= minLat && o.lat <= maxLat && o.lng >= minLng && o.lng <= maxLng) existingCount++;
-        }
-        const target = getOreCountForCity(playerCount);
-        const pct = target > 0 ? existingCount / target : 1;
-
-        // Check for uncovered players (no ore within 3km)
         const playersInCity = cityPlayersCache.get(cityKey);
-        let uncoveredPlayers = [];
+        const playerPositions = [];
         if (playersInCity) {
           for (const tgId of playersInCity) {
-            // Use actual gameState position (more accurate than geocity cache)
             const gsP = gameState.getPlayerByTgId(Number(tgId));
             const pLat = gsP?.last_lat || playerCityCache.get(tgId)?.lat;
             const pLng = gsP?.last_lng || playerCityCache.get(tgId)?.lng;
-            if (!pLat || !pLng) continue;
-            let hasNearbyOre = false;
-            for (const o of gameState.oreNodes.values()) {
-              if (haversine(pLat, pLng, o.lat, o.lng) < 3000) { hasNearbyOre = true; break; }
-            }
-            if (!hasNearbyOre) uncoveredPlayers.push({ lat: pLat, lng: pLng });
+            if (pLat && pLng) playerPositions.push({ lat: pLat, lng: pLng });
           }
         }
+        if (playerPositions.length === 0) continue;
 
-        cityInfos.push({ cityKey, playerCount, bounds: cb.boundingbox, subZones: cb.subZones, pct, existingCount, target, uncoveredPlayers });
+        const tiles = computeTileDeficits(cb.boundingbox, playerPositions, gameState.oreNodes.values());
+        const totalDeficit = tiles.reduce((s, t) => s + t.deficit, 0);
+        if (totalDeficit <= 0) continue;
+
+        cityInfos.push({ cityKey, bounds: cb.boundingbox, playerPositions, totalDeficit });
       }
 
-      // Sort: empty first, then by % ascending
-      cityInfos.sort((a, b) => a.pct - b.pct);
+      if (cityInfos.length === 0) { console.log('[SPAWN] All cities at target'); return; }
 
-      // Process max 10 cities per cycle (prioritized)
-      const MAX_CITIES_PER_CYCLE = 10;
-      let processed = 0;
+      // Biggest deficit first
+      cityInfos.sort((a, b) => b.totalDeficit - a.totalDeficit);
 
-      for (const ci of cityInfos) {
-        if (processed >= MAX_CITIES_PER_CYCLE) break;
+      // Distribute global budget proportionally to deficit, with floor so small cities still get served
+      const grandTotal = cityInfos.reduce((s, c) => s + c.totalDeficit, 0);
+      let remaining = ORE_SPAWN_BUDGET_PER_CYCLE;
+      let processed = 0, totalSpawned = 0;
+
+      for (let i = 0; i < cityInfos.length && remaining > 0; i++) {
+        const ci = cityInfos[i];
+        const share = Math.max(1, Math.min(ci.totalDeficit, Math.ceil((ci.totalDeficit / grandTotal) * ORE_SPAWN_BUDGET_PER_CYCLE)));
+        const budget = Math.min(share, remaining);
 
         try {
-          // Skip cities at 100%+ unless they have uncovered players
-          if (ci.pct >= 1.0 && ci.uncoveredPlayers.length === 0) continue;
-
-          // If city is full but has uncovered players, create sub-zones for them
-          let subZones = ci.subZones;
-          if (ci.pct >= 1.0 && ci.uncoveredPlayers.length > 0) {
-            const PAD = 0.018;
-            subZones = ci.uncoveredPlayers.map(p => [p.lat - PAD, p.lat + PAD, p.lng - PAD, p.lng + PAD]);
-            console.log(`[ORE] ${ci.cityKey}: full but ${ci.uncoveredPlayers.length} uncovered players, spawning nearby`);
-          }
-
-          await spawnOreNodesForCity(ci.cityKey, ci.bounds, ci.playerCount, subZones);
+          const spawned = await spawnOreNodesForCity(ci.cityKey, ci.bounds, ci.playerPositions, budget);
+          totalSpawned += spawned;
+          remaining -= spawned;
           processed++;
         } catch (e) {
           console.error(`[SPAWN] Error spawning ores for ${ci.cityKey}: ${e.message}`);
         }
 
-        // 15s pause between cities to avoid Overpass rate limits
-        await new Promise(r => setTimeout(r, 15000));
+        // Pause between cities to spread Overpass load (persistent road cache means fewer hits)
+        if (i < cityInfos.length - 1 && remaining > 0) {
+          await new Promise(r => setTimeout(r, 5000));
+        }
       }
 
-      console.log(`[SPAWN] Cycle done: processed ${processed} cities`);
+      console.log(`[SPAWN] Cycle done: processed ${processed}/${cityInfos.length} cities, spawned ${totalSpawned}/${ORE_SPAWN_BUDGET_PER_CYCLE}`);
     } catch (e) { console.error('[SPAWN] city cycle error:', e.message); }
   }
   global._citySpawnCycle = citySpawnCycle;
@@ -1193,10 +1181,10 @@ async function start() {
   setTimeout(async () => {
     try {
       const { updatePlayerCity, clearCityBoundsCache } = await import('./lib/geocity.js');
-      const { clearSpawnPointsCache, clearSpawnErrorCache } = await import('./lib/oreNodes.js');
+      const { clearSpawnErrorCache } = await import('./lib/oreNodes.js');
       clearCityBoundsCache(); // Rebuild with updated min-span logic
-      clearSpawnPointsCache(); // Clear road cache to pick up new road types
-      clearSpawnErrorCache(); // Clear error cache to retry failed cities
+      // Road cache is now persisted to disk with 7d TTL — keep it across restarts
+      clearSpawnErrorCache(); // Clear error cache to retry failed regions
       const players = [...gameState.players.values()].filter(p => p.last_lat && p.last_lng);
       console.log(`[GEOCITY] Populating city cache for ${players.length} players...`);
       for (const p of players) {
@@ -1235,12 +1223,13 @@ async function start() {
     }
   }, 3600000);
 
-  // Collector auto-collect: every 5 min (each collector has own interval by level)
+  // Collector auto-collect: every 60s (each collector has own per-level interval gate).
+  // Frequent ticks let online players see progress; the gate prevents over-collection.
   setInterval(() => {
     try {
       import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(err => console.error('[COLLECTORS] autoCollectAll error:', err));
     } catch (err) { console.error('[COLLECTORS] import error:', err); }
-  }, 300000); // 5 min
+  }, 60000); // 60s
   // Also run once at startup after 30s
   setTimeout(() => {
     import('./lib/collectors.js').then(({ autoCollectAll }) => autoCollectAll()).catch(err => console.error('[COLLECTORS] autoCollectAll startup error:', err));
