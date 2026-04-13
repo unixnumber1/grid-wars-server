@@ -595,6 +595,10 @@ setInterval(() => {
 // Rate-limit map for projectile attacks (telegram_id -> timestamp)
 export const lastAttackTime = new Map();
 
+// Rate-limit for position_log writes — telegram_id -> { lat, lng, t }.
+// Ensures at most one row per player per 60s OR per ≥500m jump.
+const _lastPositionLog = new Map();
+
 // Record attack: update cooldown + break shield if active
 export function recordAttack(telegramId, now) {
   const tgStr = String(telegramId);
@@ -782,6 +786,23 @@ io.on('connection', (socket) => {
 
     player.lat = data.lat;
     player.lng = data.lng;
+
+    // ── Long-term position log for admin forensics ──
+    // Throttled: ≥500m jump OR ≥60s since last log for this player.
+    // Non-blocking; failures are logged and swallowed.
+    if (verifiedTgId) {
+      const _posNow = Date.now();
+      const _prev = _lastPositionLog.get(verifiedTgId);
+      const _jumpM = _prev ? haversine(_prev.lat, _prev.lng, data.lat, data.lng) : Infinity;
+      if (!_prev || (_posNow - _prev.t) >= 60000 || _jumpM >= 500) {
+        _lastPositionLog.set(verifiedTgId, { lat: data.lat, lng: data.lng, t: _posNow });
+        supabase.from('position_log').insert({
+          telegram_id: verifiedTgId,
+          lat: data.lat,
+          lng: data.lng,
+        }).then(() => {}).catch(e => console.error('[position_log] insert error:', e.message));
+      }
+    }
 
     // Update city cache (rate-limited internally to 1h)
     if (verifiedTgId) {

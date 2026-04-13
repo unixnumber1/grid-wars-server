@@ -1242,6 +1242,29 @@ adminRouter.post('/', async (req, res) => {
   return res.status(200).json({ maintenance: enabled });
 });
 
+// ── GET /position-log — per-player movement history ───────────
+// Returns up to `limit` rows (default 200, cap 2000) within the past
+// `hours` hours (default 24). Throttled at write time to ≤1 row per
+// 60s OR per ≥500m jump, so typical load is ~120 rows/hour per player.
+adminRouter.get('/position-log', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+  const tgId = parseInt(req.query.telegram_id, 10);
+  if (!tgId) return res.status(400).json({ error: 'telegram_id required' });
+  const hours = Math.min(Math.max(parseInt(req.query.hours, 10) || 24, 1), 168);
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 2000);
+
+  const { data, error } = await supabase
+    .from('position_log')
+    .select('lat, lng, logged_at')
+    .eq('telegram_id', tgId)
+    .gte('logged_at', new Date(Date.now() - hours * 3600 * 1000).toISOString())
+    .order('logged_at', { ascending: false })
+    .limit(limit);
+  if (error) return res.status(500).json({ error: error.message });
+
+  return res.json({ telegram_id: tgId, hours, count: (data || []).length, points: data || [] });
+});
+
 // ── GET /reports — list player reports for moderation ─────────
 adminRouter.get('/reports', async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Admin only' });
