@@ -733,6 +733,17 @@ io.on('connection', (socket) => {
       }
     }
 
+    // Always log one position_log row at session start — catches PIN-mode /
+    // idle / "just opened the app" players who never send player:location.
+    if (verifiedTgId && data.lat && data.lng) {
+      _lastPositionLog.set(verifiedTgId, { lat: data.lat, lng: data.lng, t: Date.now() });
+      supabase.from('position_log').insert({
+        telegram_id: verifiedTgId,
+        lat: data.lat,
+        lng: data.lng,
+      }).then(() => {}).catch(e => console.error('[position_log] init insert error:', e.message));
+    }
+
     // Update player city cache for city-based spawning
     if (verifiedTgId && data.lat && data.lng) {
       import('./lib/geocity.js').then(({ updatePlayerCity }) => {
