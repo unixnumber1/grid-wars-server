@@ -11,6 +11,7 @@ const AUTH_MAX_AGE_SEC = 86400; // 24 hours
 // Paths that don't require initData verification
 const SKIP_PATHS = [
   '/api/telegram-webhook',
+  '/api/monument-webhook',
   '/api/health',
 ];
 
