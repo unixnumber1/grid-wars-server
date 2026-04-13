@@ -310,11 +310,18 @@ async function handleMineCollect(req, res) {
         if (clanBoostMul > 1) incBoost *= clanBoostMul;
       }
     }
-    // Landlord ability (+15% for mines within 200m while online)
+    // Landlord ability (+15% for mines within 200m while online).
+    // "Online" means there's an active socket for this telegram_id right now.
     if (_colFx.landlord_bonus) {
-      const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
-      const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
-      if (haversine(pLat, pLng, mLat, mLng) <= SMALL_RADIUS) incBoost *= 1.15;
+      let _isOnline = false;
+      for (const [, info] of connectedPlayers) {
+        if (Number(info.telegram_id) === Number(telegram_id)) { _isOnline = true; break; }
+      }
+      if (_isOnline) {
+        const mLat = mine.lat ?? getCellCenter(mine.cell_id)[0];
+        const mLng = mine.lng ?? getCellCenter(mine.cell_id)[1];
+        if (haversine(pLat, pLng, mLat, mLng) <= SMALL_RADIUS) incBoost *= 1.15;
+      }
     }
     // Skill capacity bonus
     const _skCapMul = 1 + (_colFx.mine_capacity_bonus || 0);

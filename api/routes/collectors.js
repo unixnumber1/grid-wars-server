@@ -9,9 +9,10 @@ import { io, connectedPlayers, lastAttackTime, recordAttack, getAttackCooldown, 
 import { addXp } from '../../lib/xp.js';
 import { ts, getLang } from '../../config/i18n.js';
 import {
-  COLLECTOR_COST_DIAMONDS, COLLECTOR_SELL_DIAMONDS, COLLECTOR_RADIUS,
+  COLLECTOR_COST_DIAMONDS, COLLECTOR_RADIUS,
   COLLECTOR_DELIVERY_COMMISSION, COLLECTOR_LEVELS, COLLECTOR_EXTINGUISH_COST,
-  COLLECTOR_MAX_MINE_LEVEL, getCollectorCapacity, getCollectorMines,
+  COLLECTOR_MAX_MINE_LEVEL, COLLECTOR_SELL_REFUND_PCT,
+  getCollectorCapacity, getCollectorMines,
 } from '../../lib/collectors.js';
 import { getPlayerSkillEffects, isInShadow } from '../../config/skills.js';
 import { WEAPON_COOLDOWNS, COURIER_SPEED_PLAYER, COLLECTOR_UPGRADE_PRICES } from '../../config/constants.js';
@@ -252,6 +253,8 @@ async function handleDeliver(req, res) {
 }
 
 // ── SELL ──
+// Refund = 50% of total invested diamonds (build + every upgrade actually paid).
+// Single source of truth: COLLECTOR_SELL_REFUND_PCT in config/constants.js.
 async function handleSell(req, res) {
   const { telegram_id, collector_id } = req.body || {};
   if (!telegram_id || !collector_id) return res.status(400).json({ error: 'Missing fields' });
@@ -263,32 +266,26 @@ async function handleSell(req, res) {
   if (!collector || collector.owner_id !== player.id) return res.status(404).json({ error: 'Collector not found' });
   if (collector.status === 'burning') return res.status(400).json({ error: 'Нельзя продать горящую постройку' });
 
-  // Refund diamonds — 25% of total invested
   let totalInvested = COLLECTOR_COST_DIAMONDS;
   for (let i = 1; i < collector.level; i++) totalInvested += (COLLECTOR_UPGRADE_PRICES[i] || 0);
-  const refund = Math.floor(totalInvested * 0.5);
-  const { data: freshP } = await supabase.from('players').select('diamonds').eq('id', player.id).single();
-  const newDiamonds = (freshP?.diamonds ?? player.diamonds ?? 0) + refund;
-  player.diamonds = newDiamonds;
+  const refund = Math.floor(totalInvested * COLLECTOR_SELL_REFUND_PCT);
+  const coinsReturned = collector.stored_coins || 0;
+
+  // Mutate gameState directly (Iron Rule #2). Persist immediately so a crash can't drop currency (#11).
+  player.diamonds = (player.diamonds || 0) + refund;
+  if (coinsReturned > 0) player.coins = (player.coins || 0) + coinsReturned;
   gameState.markDirty('players', player.id);
+  await supabase.from('players').update({
+    diamonds: player.diamonds,
+    coins: player.coins,
+  }).eq('id', player.id);
 
-  // If has stored coins, add to player with optimistic lock
-  if (collector.stored_coins > 0) {
-    const { data: freshC } = await supabase.from('players').select('coins').eq('id', player.id).single();
-    const oldCoins = freshC?.coins ?? player.coins ?? 0;
-    const newCoins = oldCoins + collector.stored_coins;
-    player.coins = newCoins;
-    gameState.markDirty('players', player.id);
-    await supabase.from('players').update({ coins: newCoins, diamonds: newDiamonds }).eq('id', player.id);
-  } else {
-    await supabase.from('players').update({ diamonds: newDiamonds }).eq('id', player.id);
-  }
-
-  // Delete collector
+  // Delete collector + free its cell
   gameState.collectors.delete(collector.id);
+  gameState._invalidateOccupiedCells();
   await supabase.from('collectors').delete().eq('id', collector.id);
 
-  return res.json({ success: true, diamonds: newDiamonds, coins_returned: collector.stored_coins || 0 });
+  return res.json({ success: true, diamonds: player.diamonds, coins_returned: coinsReturned, refund });
 }
 
 // ── HIT (attack enemy collector) ──
