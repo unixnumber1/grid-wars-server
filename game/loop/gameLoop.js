@@ -16,7 +16,7 @@ import {
   ORE_TYPES, VOLCANO_CHECK_INTERVAL_MS,
   DEFENDER_ROLES, DEFENDER_DAMAGE_SCALE,
 } from '../../config/constants.js';
-import { getOreIncome, getEruptionHourlyChance, triggerVolcanoEruption, maybeBroadcastVolcanoPhase } from '../mechanics/oreNodes.js';
+import { getOreIncome, getEruptionHourlyChance, triggerVolcanoEruption } from '../mechanics/oreNodes.js';
 import { ts } from '../../config/i18n.js';
 import { getPlayerSkillEffects } from '../../config/skills.js';
 import { calcRaidDps } from '../mechanics/monuments.js';
@@ -448,7 +448,6 @@ function moveScouts(nowMs) {
             ore.last_collected = nowISO;
             ore.currency = selectedCurrency;
             ore.captured_at = nowISO;
-            delete ore._lastPhase;
             gameState.markDirty('oreNodes', ore.id);
 
             // Persist immediately (money operation)
@@ -1173,8 +1172,6 @@ async function periodicCleanup(nowMs, nowISO) {
           const hourlyChance = getEruptionHourlyChance(daysOwned);
           if (hourlyChance > 0 && Math.random() < hourlyChance) {
             await triggerVolcanoEruption(ore, io, connectedPlayers);
-          } else {
-            maybeBroadcastVolcanoPhase(ore, daysOwned, io, connectedPlayers);
           }
         }
       } catch (e) {

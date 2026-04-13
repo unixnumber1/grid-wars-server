@@ -47,7 +47,6 @@ export function getOreIncome(level, oreType = 'hill') {
 
 // ── Eruption phase + hourly chance — re-exported from pure helper module ──
 export { getVolcanoPhase, getEruptionHourlyChance } from '../../lib/volcanoPhase.js';
-import { getVolcanoPhase as _getVolcanoPhase } from '../../lib/volcanoPhase.js';
 
 // ── Trigger a volcano eruption: reset owner, burn mines in radius, notify, compensate ──
 export async function triggerVolcanoEruption(ore, io, connectedPlayers) {
@@ -59,7 +58,6 @@ export async function triggerVolcanoEruption(ore, io, connectedPlayers) {
   ore.owner_id = null;
   ore.hp = ore.max_hp;
   ore.captured_at = null;
-  delete ore._lastPhase;
   gameState.markDirty('oreNodes', ore.id);
   supabase.from('ore_nodes').update({
     owner_id: null, hp: ore.max_hp, captured_at: null,
@@ -167,41 +165,6 @@ export async function triggerVolcanoEruption(ore, io, connectedPlayers) {
   console.log(`[ORE] 🌋 ERUPTION! Lv.${ore.level} volcano — owner ${eruptedOwner?.game_username || eruptedOwnerId}, burned ${burnedMines.length} mines`);
 
   return { burnedCount: burnedMines.length };
-}
-
-// Phase transition broadcast — called once per hourly check for each volcano that did NOT erupt.
-export function maybeBroadcastVolcanoPhase(ore, daysOwned, io, connectedPlayers) {
-  const { phase } = _getVolcanoPhase(daysOwned);
-  if (ore._lastPhase === phase) return;
-  const prevPhase = ore._lastPhase;
-  ore._lastPhase = phase;
-
-  for (const [sid, info] of connectedPlayers) {
-    if (info.lat && info.lng && fastDistance(ore.lat, ore.lng, info.lat, info.lng) <= 2000) {
-      io.to(sid).emit('volcano:phase_change', {
-        ore_node_id: ore.id, lat: ore.lat, lng: ore.lng, level: ore.level, phase,
-      });
-    }
-  }
-
-  if (!prevPhase) return; // first observation after server start — don't spam
-  if (phase !== 'unstable' && phase !== 'critical') return;
-  const owner = gameState.getPlayerById(ore.owner_id);
-  if (!owner) return;
-  const oLang = owner.language || 'en';
-  const msg = phase === 'unstable'
-    ? (oLang === 'ru' ? `🌋 Ваш вулкан Ур.${ore.level} становится нестабильным — скоро извержение!` : `🌋 Your Lv.${ore.level} volcano is becoming unstable — eruption imminent!`)
-    : (oLang === 'ru' ? `🔥 Ваш вулкан Ур.${ore.level} критичен — извержение может случиться в любой момент!` : `🔥 Your Lv.${ore.level} volcano is critical — eruption any moment now!`);
-  const notif = {
-    id: globalThis.crypto.randomUUID(),
-    player_id: ore.owner_id,
-    type: 'volcano_phase',
-    message: msg,
-    data: { ore_node_id: ore.id, phase },
-    read: false, created_at: new Date().toISOString(),
-  };
-  gameState.addNotification(notif);
-  supabase.from('notifications').insert(notif).then(() => {}).catch(e => console.error('[phase] notif DB error:', e.message));
 }
 
 // ── City-based ore count (legacy — kept for compatibility / stats) ──

@@ -74,7 +74,6 @@ oreRouter.post('/', async (req, res) => {
     ore.last_collected = claimedISO;
     ore.currency = selectedCurrency;
     ore.captured_at = claimedISO;
-    delete ore._lastPhase;
     gameState.markDirty('oreNodes', ore.id);
 
     _oreClaimCooldown.set(String(telegram_id), Date.now());
@@ -123,7 +122,6 @@ oreRouter.post('/', async (req, res) => {
 
     ore.owner_id = null;
     ore.captured_at = null;
-    delete ore._lastPhase;
     gameState.markDirty('oreNodes', ore.id);
     await supabase.from('ore_nodes').update({ owner_id: null, captured_at: null }).eq('id', ore.id);
 
@@ -210,8 +208,7 @@ oreRouter.post('/', async (req, res) => {
       ore.owner_id = null;
       ore.hp = 0;
       ore.captured_at = null;
-      delete ore._lastPhase;
-      gameState.markDirty('oreNodes', ore.id);
+        gameState.markDirty('oreNodes', ore.id);
       await supabase.from('ore_nodes').update({ owner_id: null, hp: 0, captured_at: null }).eq('id', ore.id);
 
       // Notify old owner

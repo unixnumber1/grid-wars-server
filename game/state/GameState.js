@@ -735,7 +735,6 @@ class GameState {
         ore_nodes.push({
           ...o,
           ore_type: o.ore_type || 'hill',
-          eruption_phase: o._lastPhase || 'dormant',
           owner_name: owner?.game_username || owner?.username || null,
           owner_avatar: owner?.avatar || null,
           owner_online: owner?.last_seen ? (nowMs - new Date(owner.last_seen).getTime()) < ONLINE_MS : false,
