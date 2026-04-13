@@ -690,10 +690,14 @@ io.on('connection', (socket) => {
         }
       }
     }
-    // Capture client IP through nginx X-Forwarded-For; fall back to handshake.address
-    // (which would be 127.0.0.1 since we sit behind nginx).
-    const xff = socket.handshake.headers['x-forwarded-for'];
-    const clientIp = (xff ? String(xff).split(',')[0].trim() : '') || socket.handshake.address || '';
+    // Capture client IP. The nginx upgrade location forwards X-Real-IP but
+    // NOT X-Forwarded-For (see /etc/nginx/sites-enabled/overthrow), so try
+    // both. handshake.address is always ::ffff:127.0.0.1 behind the proxy.
+    const _hs = socket.handshake.headers;
+    const clientIp =
+      String(_hs['x-real-ip'] || '').trim() ||
+      String(_hs['x-forwarded-for'] || '').split(',')[0].trim() ||
+      socket.handshake.address || '';
 
     connectedPlayers.set(socket.id, {
       telegram_id: verifiedTgId,
