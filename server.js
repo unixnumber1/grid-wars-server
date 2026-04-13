@@ -335,14 +335,85 @@ app.post('/api/telegram-webhook', async (req, res) => {
       const { ts: _ts, getLang: _gl } = await import('./config/i18n.js');
       notify(tgId, _ts(_gl(gameState, tgId), 'admin.unbanned'));
 
-    } else if (data.startsWith('approve_monument_')) {
+    }
+  } catch (e) {
+    console.error('[webhook] callback error:', e.message);
+  }
+});
+
+// ── Monument Bot Webhook — dedicated bot for monument request approvals ──
+app.post('/api/monument-webhook', async (req, res) => {
+  if (WEBHOOK_SECRET) {
+    const token = req.headers['x-telegram-bot-api-secret-token'] || '';
+    try {
+      if (!token || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(WEBHOOK_SECRET)))
+        return res.status(403).json({ error: 'Forbidden' });
+    } catch { return res.status(403).json({ error: 'Forbidden' }); }
+  }
+  res.json({ ok: true });
+
+  const MONUMENT_BOT = process.env.MONUMENT_BOT_TOKEN || process.env.BOT_TOKEN;
+  if (!MONUMENT_BOT) return;
+
+  try {
+    // Handle /start — welcome message so monumentologists can open a chat with the bot
+    const msg = req.body?.message;
+    if (msg?.text?.startsWith('/start') && msg.chat?.id) {
+      const { isMonumentologist: _isMon } = await import('./config/constants.js');
+      const isMon = _isMon(msg.from?.id);
+      const welcome = isMon
+        ? '🏛️ Бот заявок на монументы\n\nВы назначены монументологом. Заявки игроков на создание монументов будут приходить сюда — вы сможете одобрять или отклонять их.'
+        : '🏛️ Это бот для рассмотрения заявок на монументы.\n\nУ вас нет доступа.';
+      await fetch(`https://api.telegram.org/bot${MONUMENT_BOT}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: msg.chat.id, text: welcome }),
+      }).catch(e => console.error('[monument-webhook] /start error:', e.message));
+      return;
+    }
+
+    const cb = req.body?.callback_query;
+    if (!cb) return;
+    const data = cb.data || '';
+    const chatId = cb.message?.chat?.id;
+    const msgId = cb.message?.message_id;
+    const fromId = cb.from?.id;
+    if (!chatId || !fromId) return;
+
+    const answerCallback = (text) =>
+      fetch(`https://api.telegram.org/bot${MONUMENT_BOT}/answerCallbackQuery`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: cb.id, text }),
+      }).catch(e => console.error('[monument-webhook] answer error:', e.message));
+
+    const editMessage = (text) =>
+      fetch(`https://api.telegram.org/bot${MONUMENT_BOT}/editMessageText`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, disable_web_page_preview: true }),
+      }).catch(e => console.error('[monument-webhook] edit error:', e.message));
+
+    // Permission check — only monumentologists can approve/reject
+    const { isMonumentologist: isMon } = await import('./config/constants.js');
+    if (!isMon(fromId)) {
+      await answerCallback('❌ Нет доступа');
+      return;
+    }
+
+    const reviewerName = cb.from?.username ? `@${cb.from.username}` : (cb.from?.first_name || String(fromId));
+
+    if (data.startsWith('approve_monument_')) {
       const reqId = parseInt(data.replace('approve_monument_', ''), 10);
       const { supabase: sb, sendTelegramNotification: notify } = await import('./lib/supabase.js');
       const { MONUMENT_HP: MHP, MONUMENT_SHIELD_HP: MSHP } = await import('./config/constants.js');
       const { getCellId } = await import('./lib/grid.js');
+      const { buildMonumentRequestText } = await import('./api/routes/monuments.js');
+      const { getPlayerCity } = await import('./lib/geocity.js');
+
       const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
       if (!mreq) { await answerCallback('Заявка не найдена'); return; }
-      if (mreq.status !== 'pending') { await answerCallback('Заявка уже обработана'); return; }
+      if (mreq.status !== 'pending') {
+        await answerCallback(`Уже рассмотрена (${mreq.status === 'approved' ? 'одобрена' : 'отклонена'})`);
+        return;
+      }
 
       const cell_id = getCellId(mreq.lat, mreq.lng);
 
@@ -371,7 +442,6 @@ app.post('/api/telegram-webhook', async (req, res) => {
         if (displaced) {
           const ownerId = displaced.obj.owner_id || displaced.obj.player_id;
 
-          // Uninstall cores from mine
           if (displaced.type === 'mine') {
             const cores = gameState.getCoresForMine(cell_id);
             for (const c of cores) {
@@ -383,10 +453,8 @@ app.post('/api/telegram-webhook', async (req, res) => {
             }
           }
 
-          // Delete building from DB
           await sb.from(displaced.table).delete().eq('id', displaced.obj.id);
 
-          // Remove from gameState
           if (displaced.type === 'mine') gameState.removeMine(displaced.obj.id);
           else if (displaced.type === 'collector') gameState.collectors.delete(displaced.obj.id);
           else if (displaced.type === 'fire_truck') gameState.fireTrucks.delete(displaced.obj.id);
@@ -394,10 +462,9 @@ app.post('/api/telegram-webhook', async (req, res) => {
           else if (displaced.type === 'clan_hq') gameState.clanHqs.delete(displaced.obj.id);
           else if (displaced.type === 'barracks') gameState.barracks.delete(displaced.obj.id);
 
-          // Notify building owner
           const ownerPlayer = gameState.getPlayerById(ownerId);
           if (ownerPlayer) {
-            notify(ownerPlayer.telegram_id, `⚠️ Ваша постройка снесена для размещения монумента ${mreq.emoji} ${mreq.name}. Ядра возвращены в инвентарь.`).catch(e => console.error('[server] error:', e.message));
+            notify(ownerPlayer.telegram_id, `⚠️ Ваша постройка снесена для размещения монумента ${mreq.emoji} ${mreq.name}. Ядра возвращены в инвентарь.`).catch(e => console.error('[monument-webhook] error:', e.message));
           }
           console.log(`[MONUMENTS] Displaced ${displaced.type} (${displaced.obj.id}) on cell ${cell_id} for monument #${reqId}`);
         }
@@ -416,25 +483,47 @@ app.post('/api/telegram-webhook', async (req, res) => {
       if (gameState.loaded) gameState.monuments.set(monument.id, monument);
 
       await sb.from('monument_requests').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', reqId);
+
       const { ts: _ts2, getLang: _gl2 } = await import('./config/i18n.js');
       const _pLang = _gl2(gameState, mreq.player_id);
-      notify(mreq.player_id, _ts2(_pLang, 'monreq.approved', { id: reqId, emoji: mreq.emoji, name: mreq.name, level: mreq.level })).catch(e => console.error('[server] error:', e.message));
-      await editMessage(`✅ ОДОБРЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name} lv${mreq.level}\nМонумент создан!`);
+      notify(mreq.player_id, _ts2(_pLang, 'monreq.approved', { id: reqId, emoji: mreq.emoji, name: mreq.name, level: mreq.level })).catch(e => console.error('[monument-webhook] error:', e.message));
+
+      // Rebuild the original card text + append review result (keeps all info visible)
+      const reqPlayer = gameState.getPlayerByTgId(mreq.player_id) || { game_username: 'Неизвестно', username: null, telegram_id: mreq.player_id };
+      let cityInfo = null;
+      try { cityInfo = await getPlayerCity(`monreq_${reqId}`, mreq.lat, mreq.lng); } catch {}
+      const fullText = buildMonumentRequestText(mreq, reqPlayer, cityInfo);
+      const resultText = `${fullText}\n\n━━━━━━━━━━━━━━\n✅ ЗАЯВКА РАССМОТРЕНА — ОДОБРЕНА\n👤 Кем: ${reviewerName}\n🕐 Когда: ${new Date().toLocaleString('ru')}`;
+      await editMessage(resultText);
       await answerCallback('✅ Монумент создан!');
-      console.log(`[MONUMENTS] Request #${reqId} approved, monument created`);
+      console.log(`[MONUMENTS] Request #${reqId} APPROVED by ${reviewerName}`);
 
     } else if (data.startsWith('reject_monument_')) {
       const reqId = parseInt(data.replace('reject_monument_', ''), 10);
-      const { supabase: sb, sendTelegramNotification: notify } = await import('./lib/supabase.js');
+      const { supabase: sb } = await import('./lib/supabase.js');
+      const { buildMonumentRequestText } = await import('./api/routes/monuments.js');
+      const { getPlayerCity } = await import('./lib/geocity.js');
+
       const { data: mreq } = await sb.from('monument_requests').select('*').eq('id', reqId).single();
-      if (!mreq || mreq.status !== 'pending') { await answerCallback('Заявка не найдена или уже обработана'); return; }
+      if (!mreq) { await answerCallback('Заявка не найдена'); return; }
+      if (mreq.status !== 'pending') {
+        await answerCallback(`Уже рассмотрена (${mreq.status === 'approved' ? 'одобрена' : 'отклонена'})`);
+        return;
+      }
 
       await sb.from('monument_requests').update({ status: 'rejected', reviewed_at: new Date().toISOString() }).eq('id', reqId);
-      await editMessage(`❌ ОТКЛОНЕНО — Заявка #${reqId}\n${mreq.emoji} ${mreq.name}`);
+
+      const reqPlayer = gameState.getPlayerByTgId(mreq.player_id) || { game_username: 'Неизвестно', username: null, telegram_id: mreq.player_id };
+      let cityInfo = null;
+      try { cityInfo = await getPlayerCity(`monreq_${reqId}`, mreq.lat, mreq.lng); } catch {}
+      const fullText = buildMonumentRequestText(mreq, reqPlayer, cityInfo);
+      const resultText = `${fullText}\n\n━━━━━━━━━━━━━━\n❌ ЗАЯВКА РАССМОТРЕНА — ОТКЛОНЕНА\n👤 Кем: ${reviewerName}\n🕐 Когда: ${new Date().toLocaleString('ru')}`;
+      await editMessage(resultText);
       await answerCallback('❌ Заявка отклонена');
+      console.log(`[MONUMENTS] Request #${reqId} REJECTED by ${reviewerName}`);
     }
   } catch (e) {
-    console.error('[webhook] callback error:', e.message);
+    console.error('[monument-webhook] error:', e.message);
   }
 });
 

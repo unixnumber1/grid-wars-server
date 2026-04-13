@@ -672,8 +672,8 @@ async function handleOpenLootBox(req, res) {
 }
 
 // ── Monument Request ──
-import { ADMIN_NOTIFY_ID } from '../../config/constants.js';
-const ADMIN_TG_ID = ADMIN_NOTIFY_ID;
+import { MONUMENTOLOGIST_TG_IDS } from '../../config/constants.js';
+import { getPlayerCity } from '../../lib/geocity.js';
 
 async function handleMonumentRequest(req, res) {
   const { telegram_id, lat, lng, name, emoji } = req.body;
@@ -709,19 +709,38 @@ async function handleMonumentRequest(req, res) {
   return res.json({ ok: true, request_id: request.id });
 }
 
-async function sendAdminMonumentRequest(request, player) {
-  const BOT_TOKEN = process.env.BOT_TOKEN;
-  if (!BOT_TOKEN) return;
+// Build the text card for a monument request (reused on send + on edit after review)
+export function buildMonumentRequestText(request, player, cityInfo) {
   const gmapsUrl = `https://www.google.com/maps?q=${request.lat},${request.lng}`;
-  const message =
+  const yandexUrl = `https://yandex.ru/maps/?ll=${request.lng},${request.lat}&z=17&pt=${request.lng},${request.lat},pm2rdm&l=map`;
+  const cityLabel = cityInfo?.city && cityInfo.city !== 'unknown'
+    ? `${cityInfo.city}${cityInfo.country && cityInfo.country !== 'unknown' ? `, ${cityInfo.country.toUpperCase()}` : ''}`
+    : 'неизвестно';
+  return (
     `🏛️ ЗАЯВКА НА МОНУМЕНТ #${request.id}\n\n` +
     `👤 Игрок: ${player.game_username || 'Неизвестно'}\n` +
     `🔖 Тег: @${player.username || 'нет'}\n` +
     `🆔 ID: ${player.telegram_id}\n\n` +
     `${request.emoji} Название: ${request.name}\n` +
+    `🏙 Город: ${cityLabel}\n` +
     `📍 Координаты: ${request.lat}, ${request.lng}\n` +
-    `🗺 Карта: ${gmapsUrl}\n\n` +
-    `🕐 Время: ${new Date().toLocaleString('ru')}`;
+    `🗺 Google: ${gmapsUrl}\n` +
+    `🧭 Яндекс: ${yandexUrl}\n\n` +
+    `🕐 Время: ${new Date(request.created_at || Date.now()).toLocaleString('ru')}`
+  );
+}
+
+async function sendAdminMonumentRequest(request, player) {
+  const BOT_TOKEN = process.env.MONUMENT_BOT_TOKEN || process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) return;
+
+  // Reverse-geocode the request location to city
+  let cityInfo = null;
+  try {
+    cityInfo = await getPlayerCity(`monreq_${request.id}`, request.lat, request.lng);
+  } catch (e) { console.error('[MONUMENT_REQ] geocity error:', e.message); }
+
+  const message = buildMonumentRequestText(request, player, cityInfo);
 
   const keyboard = {
     inline_keyboard: [
@@ -735,9 +754,16 @@ async function sendAdminMonumentRequest(request, player) {
     ],
   };
 
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: ADMIN_TG_ID, text: message, reply_markup: keyboard, disable_web_page_preview: false }),
-  });
+  // Send to every monumentologist. Each recipient must have /start'd the monument bot.
+  for (const tgId of MONUMENTOLOGIST_TG_IDS) {
+    try {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgId, text: message, reply_markup: keyboard, disable_web_page_preview: true }),
+      });
+    } catch (e) {
+      console.error(`[MONUMENT_REQ] send to ${tgId} failed:`, e.message);
+    }
+  }
 }
