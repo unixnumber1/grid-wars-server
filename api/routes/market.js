@@ -425,6 +425,45 @@ async function handleListItem(req, res) {
   });
 }
 
+/* ── Helper: credit seller diamonds under their per-player lock ──
+ *
+ * Why: the market router holds a lock on the BUYER's telegram_id, but the
+ * seller is a different player who can be running their own routes
+ * concurrently (daily claim, vase break, monument loot, clan donate, etc.).
+ * Many of those routes follow a `read snapshot → await → write back full
+ * value` pattern, so a parallel buy crediting the seller via
+ * `sp.diamonds += payout` could be silently overwritten by the seller's
+ * own snapshot write a moment later. That's how 12 sellers lost ~673 💎
+ * total before this fix.
+ *
+ * Holding the seller's lock makes the credit interleave correctly with
+ * any of their own resource handlers. We re-read sp.diamonds INSIDE the
+ * lock to avoid stale snapshots, then both gameState and DB are updated
+ * inside the same critical section.
+ */
+async function creditSeller(sellerPlayerId, payout) {
+  if (!sellerPlayerId || !payout || payout <= 0) return;
+  // gameState is the source of truth — derive seller's tg id from there if possible.
+  const spPre = gameState.loaded ? gameState.getPlayerById(sellerPlayerId) : null;
+  const sellerTgId = spPre?.telegram_id;
+  if (!sellerTgId) {
+    // Fallback: no gameState entry — write straight to DB and skip the lock.
+    const { data: fresh } = await supabase.from('players').select('diamonds').eq('id', sellerPlayerId).single();
+    await supabase.from('players')
+      .update({ diamonds: (fresh?.diamonds ?? 0) + payout })
+      .eq('id', sellerPlayerId);
+    return;
+  }
+  await withPlayerLock(sellerTgId, async () => {
+    const sp = gameState.getPlayerById(sellerPlayerId);
+    if (!sp) return;
+    sp.diamonds = (sp.diamonds ?? 0) + payout;
+    gameState.markDirty('players', sp.id);
+    // Persist immediately — currency mutation is a critical op (Iron Rule #11).
+    await supabase.from('players').update({ diamonds: sp.diamonds }).eq('id', sellerPlayerId);
+  });
+}
+
 /* ── Action: buy (POST) ────────────────────────────────────── */
 
 async function handleBuy(req, res) {
@@ -490,20 +529,16 @@ async function handleBuy(req, res) {
 
   // ── Core purchase: courier delivery (same as items) ──
   if (listing.item_type === 'core' && listing.core_id) {
-    const { data: freshSeller } = await supabase.from('players').select('diamonds').eq('id', listing.seller_id).single();
-    await supabase.from('players')
-      .update({ diamonds: (freshSeller?.diamonds ?? 0) + sellerPayout })
-      .eq('id', listing.seller_id);
-
-    // Update gameState for diamonds
+    // Buyer is already inside withPlayerLock(buyer_telegram_id) at the router level.
+    // Update buyer + listing now (lock already held), then take the seller's lock to
+    // credit them safely against any concurrent snapshot+overwrite from their own routes.
     if (gameState.loaded) {
       const bl = gameState.getListingById(listing_id);
       if (bl) { bl.status = 'sold'; bl.buyer_id = buyer.id; gameState.markDirty('marketListings', bl.id); }
       const bp = gameState.getPlayerById(buyer.id);
       if (bp) { bp.diamonds = (buyer.diamonds ?? 0) - price; gameState.markDirty('players', bp.id); }
-      const sp = gameState.getPlayerById(listing.seller_id);
-      if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
     }
+    await creditSeller(listing.seller_id, sellerPayout);
 
     notify(listing.seller_id, 'core_sold',
       `💰 Ваше ядро продано за ${price} 💎 (получено ${sellerPayout} 💎)`,
@@ -608,22 +643,16 @@ async function handleBuy(req, res) {
 
   // ── Item purchase ──
 
-  // 1. Pay seller (fresh read to avoid stale balance)
-  const { data: freshSellerItem } = await supabase.from('players').select('diamonds').eq('id', listing.seller_id).single();
-  const { error: sellerErr } = await supabase.from('players')
-    .update({ diamonds: (freshSellerItem?.diamonds ?? 0) + sellerPayout })
-    .eq('id', listing.seller_id);
-  if (sellerErr) console.error('[market/buy] seller pay error:', sellerErr);
-
-  // 2. Update gameState for diamonds & listing status
+  // 1. Update buyer + listing now (we already hold buyer_telegram_id lock).
   if (gameState.loaded) {
     const bl = gameState.getListingById(listing_id);
     if (bl) { bl.status = 'sold'; bl.buyer_id = buyer.id; gameState.markDirty('marketListings', bl.id); }
     const bp = gameState.getPlayerById(buyer.id);
     if (bp) { bp.diamonds = (buyer.diamonds ?? 0) - price; gameState.markDirty('players', bp.id); }
-    const sp = gameState.getPlayerById(listing.seller_id);
-    if (sp) { sp.diamonds = (sp.diamonds ?? 0) + sellerPayout; gameState.markDirty('players', sp.id); }
   }
+
+  // 2. Credit seller under their own lock — see creditSeller for the why.
+  await creditSeller(listing.seller_id, sellerPayout);
 
   notify(listing.seller_id, 'item_sold',
     `💰 Ваш предмет продан за ${price} 💎 (получено ${sellerPayout} 💎)`,
