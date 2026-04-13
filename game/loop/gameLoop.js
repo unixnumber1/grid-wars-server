@@ -1171,7 +1171,7 @@ async function periodicCleanup(nowMs, nowISO) {
           const daysOwned = (nowMs - new Date(ore.captured_at).getTime()) / 86400000;
           const hourlyChance = getEruptionHourlyChance(daysOwned);
           if (hourlyChance > 0 && Math.random() < hourlyChance) {
-            await triggerVolcanoEruption(ore, io, connectedPlayers);
+            await triggerVolcanoEruption(ore, _io, _connectedPlayers);
           }
         }
       } catch (e) {
