@@ -14127,12 +14127,25 @@ async function boot() {
       }).catch(() => {});
     }
 
-    // fly_to URL param — move camera to coordinates (e.g. monument request preview)
+    // fly_to — support both URL query (?fly_to=lat,lng) and Telegram Mini App
+    // deep link (?startapp=fly_<latEncoded>_<lngEncoded>, used by monument bot).
+    // Encoding: dots → "d", minus → "n" (Telegram startapp only allows [A-Za-z0-9_-]).
+    let _flyLat = null, _flyLng = null;
     const _flyParam = new URLSearchParams(window.location.search).get('fly_to');
     if (_flyParam) {
-      const [_fLat, _fLng] = _flyParam.split(',').map(Number);
-      if (_fLat && _fLng) setTimeout(() => map.flyTo([_fLat, _fLng], 17), 500);
+      const [a, b] = _flyParam.split(',').map(Number);
+      if (a && b) { _flyLat = a; _flyLng = b; }
     }
+    const _sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+    if (!_flyLat && _sp && _sp.startsWith('fly_')) {
+      const parts = _sp.slice(4).split('_');
+      if (parts.length === 2) {
+        const decode = (s) => Number(s.replace(/n/g, '-').replace(/d/g, '.'));
+        const a = decode(parts[0]), b = decode(parts[1]);
+        if (!isNaN(a) && !isNaN(b)) { _flyLat = a; _flyLng = b; }
+      }
+    }
+    if (_flyLat && _flyLng) setTimeout(() => map.flyTo([_flyLat, _flyLng], 17), 500);
 
   }, (err) => {
     // GPS failed — if we have last known position, proceed anyway

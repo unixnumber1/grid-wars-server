@@ -742,6 +742,11 @@ async function sendAdminMonumentRequest(request, player) {
 
   const message = buildMonumentRequestText(request, player, cityInfo);
 
+  // Encode lat/lng into Telegram startapp-safe chars ([A-Za-z0-9_-])
+  // "." → "d", "-" → "n". Frontend decodes from Telegram.WebApp.initDataUnsafe.start_param.
+  const _enc = (n) => String(n).replace(/-/g, 'n').replace(/\./g, 'd');
+  const flyParam = `fly_${_enc(request.lat)}_${_enc(request.lng)}`;
+  const mainBotName = process.env.MAIN_BOT_USERNAME || 'OverthrowGamebot';
   const keyboard = {
     inline_keyboard: [
       [
@@ -749,7 +754,7 @@ async function sendAdminMonumentRequest(request, player) {
         { text: '❌ Отклонить', callback_data: `reject_monument_${request.id}` },
       ],
       [
-        { text: '📍 Посмотреть место', web_app: { url: `https://overthrow.ru:8443?fly_to=${request.lat},${request.lng}` } },
+        { text: '📍 Посмотреть место', url: `https://t.me/${mainBotName}?startapp=${flyParam}` },
       ],
     ],
   };
